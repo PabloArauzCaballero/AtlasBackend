@@ -10,6 +10,9 @@ import { CreditDecisionEngineService } from '../../decision-engine/credit-decisi
 import { DecisionOutcome, DecisionResponse } from '../../decision-engine/decision-engine.types.js';
 import { CreditRepository } from '../credit.repository.js';
 
+/** El motivo con el que se marca una solicitud diferida por falta de base en el motor. */
+export const DEFERRED_BASIS_REASON = 'ENABLING_BASIS_NOT_REPLICATED';
+
 export type UnderwritingResult = {
   status: string;
   decisionMode: string | null;
@@ -58,6 +61,10 @@ export class CreditUnderwritingService {
       if (!application) return { status: 'unknown', decisionMode: null, executionId: null, reasonCodes: [] };
 
       const previousStatus = application.status;
+      // Mientras se preguntaba al motor pudo decidirla una persona: una respuesta tardía no pisa eso.
+      if (previousStatus !== 'submitted') {
+        return { status: previousStatus, decisionMode: application.decisionMode ?? null, executionId: null, reasonCodes: [] };
+      }
       const applied = this.resolve(result.outcome);
 
       Object.assign(application, decisionColumns(applied, result.subjectReference, now), {
@@ -69,7 +76,7 @@ export class CreditUnderwritingService {
         {
           tenantId: input.tenantId,
           creditApplicationId: input.applicationId,
-          eventType: 'decision_recorded',
+          eventType: result.outcome.kind === 'deferred' ? 'decision_deferred' : 'decision_recorded',
           previousStatus,
           newStatus: application.status,
           actorType: 'decision_engine',
@@ -92,6 +99,47 @@ export class CreditUnderwritingService {
   }
 
   /**
+   * El reintento de las solicitudes diferidas porque la base habilitante no llegó al motor (P-09).
+   *
+   * Sólo las presentadas en las últimas `maxAgeHours`: pasado ese plazo, una solicitud de compra ya
+   * no representa la voluntad del cliente en ese comercio, y se queda `submitted` a la vista de
+   * operaciones en vez de decidirse sola días después. Una fila que vuelve a diferirse espera a la
+   * pasada siguiente; una que falla no detiene a las demás.
+   */
+  async retryDeferred(input: { tenantId: string; limit: number; maxAgeHours: number; now?: Date }) {
+    const now = input.now ?? new Date();
+    const deferred = await this.credit.findDeferredApplications({
+      tenantId: input.tenantId,
+      reasonCode: DEFERRED_BASIS_REASON,
+      since: new Date(now.getTime() - input.maxAgeHours * 3_600_000),
+      limit: input.limit,
+    });
+    const summary = { candidates: deferred.length, decided: 0, stillDeferred: 0, failed: 0 };
+    for (const application of deferred) {
+      try {
+        const product = await this.credit.findProductById(input.tenantId, String(application.creditProductId));
+        const result = await this.underwrite({
+          tenantId: input.tenantId,
+          applicationId: String(application.id),
+          customerId: String(application.customerId),
+          applicationCode: application.applicationCode,
+          requestedAmount: String(application.requestedAmount),
+          requestedTermMonths: application.requestedTermMonths,
+          currencyCode: application.currencyCode,
+          productCode: product?.productCode ?? null,
+          purposeCode: application.purposeCode ?? null,
+        });
+        if (result.status === 'submitted') summary.stillDeferred += 1;
+        else summary.decided += 1;
+      } catch (error) {
+        summary.failed += 1;
+        this.logger.error(`No se pudo reintentar la solicitud diferida ${application.applicationCode}: ${(error as Error).message}`);
+      }
+    }
+    return summary;
+  }
+
+  /**
    * Cómo se traduce cada desenlace del motor al estado del expediente.
    *
    * El caso que importa es `engineUnavailable`: la solicitud va a REVISIÓN, nunca a rechazo. Un
@@ -106,6 +154,18 @@ export class CreditUnderwritingService {
     reasonCodes: string[];
     note: string | null;
   } {
+    if (outcome.kind === 'deferred') {
+      // Ni rechazo ni aprobación: no se preguntó al motor porque la base habilitante no llegó (P-09).
+      // Queda `submitted` —sin decidir— para que el reintento vuelva a pedir la decisión.
+      this.logger.warn(`Decisión diferida; la solicitud queda para reintentar: ${outcome.reason}`);
+      return {
+        status: 'submitted',
+        decisionMode: 'decision_engine',
+        response: null,
+        reasonCodes: [outcome.reason],
+        note: `No se pidió la decisión al motor (${outcome.reason}). Se reintentará automáticamente.`,
+      };
+    }
     if (outcome.kind === 'engineUnavailable') {
       this.logger.warn(`Motor no disponible; la solicitud se deriva a revisión humana: ${outcome.reason}`);
       return {
@@ -124,12 +184,22 @@ export class CreditUnderwritingService {
     if (outcome.kind === 'declined') {
       return { status: 'rejected', decisionMode: 'decision_engine', response: outcome.response, reasonCodes, note: null };
     }
+    /*
+     * Revisión. Si el motor ABRIÓ un caso, la bandeja buena es la suya (`decision_engine`). Si no —un
+     * `NO_DECISION` técnico (dato inválido, base ausente, salida económica fuera de rango), frescura
+     * desconocida o un desenlace que el core no reconoce—, no hay caso que resolver allí: la revisión es
+     * de Atlas (`engine_unavailable_manual`) o la solicitud quedaría sin bandeja para siempre. Nunca es
+     * un rechazo crediticio del cliente ni una aprobación.
+     */
+    const delegated = Boolean(outcome.response.manualReview?.caseCode);
     return {
       status: 'under_review',
-      decisionMode: 'decision_engine',
+      decisionMode: delegated ? 'decision_engine' : 'engine_unavailable_manual',
       response: outcome.response,
       reasonCodes,
-      note: `El motor derivó la solicitud a revisión (${outcome.response.outcome ?? outcome.response.status}).`,
+      note: outcome.technical
+        ? `Revisión técnica: el motor no pudo decidir bien (${outcome.reason ?? outcome.response.status}). No es un rechazo.`
+        : `El motor derivó la solicitud a revisión (${outcome.response.outcome ?? outcome.response.status}).`,
     };
   }
 }
@@ -184,6 +254,7 @@ function decisionColumns(
     decisionRiskBand: response?.riskBand ?? null,
     decisionReasonsJson: response?.reasonCodes ?? null,
     decidedAt: applied.status === 'submitted' ? null : now,
+    decisionValidUntil: engineValidUntil(applied),
     businessAcceptance: pendingBusinessAcceptance(applied),
     updatedAtValue: now,
   };
@@ -209,4 +280,10 @@ function decisionColumns(
 function pendingBusinessAcceptance(applied: { status: string; decisionMode: string }): string | null {
   if (applied.status !== 'approved') return null;
   return applied.decisionMode === 'decision_engine' ? 'pending' : null;
+}
+
+/** La vigencia que el motor puso a SU aprobación; la concesión usa lo primero que venza (P-11). */
+function engineValidUntil(applied: { status: string; response: DecisionResponse | null }): Date | null {
+  const raw = applied.status === 'approved' ? applied.response?.decisionValidUntil : null;
+  return raw ? new Date(raw) : null;
 }

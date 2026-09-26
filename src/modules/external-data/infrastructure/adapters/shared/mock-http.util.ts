@@ -3,7 +3,8 @@
  * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
-import { envNumber, isProductionRuntime } from '../../../application/external-data-policy.util.js';
+import { envNumber } from '../../../application/external-data-policy.util.js';
+import { deploymentEnvironment } from '../../../../../platform/security/qa-execution-context.js';
 import {
   ExternalProviderExecutionInput,
   ExternalProviderRawResult,
@@ -34,9 +35,10 @@ export async function callMockServer(
         // Idempotencia hacia el proveedor: misma intención, misma clave. Va en cabecera y NO en el
         // cuerpo, para no cambiar el hash del payload y con él la caché del propio backend.
         ...(input.idempotencyKey ? { 'x-idempotency-key': input.idempotencyKey } : {}),
-        // Contexto de corrida QA. Se descarta solo si el modo no es `mock_server` o si el runtime
-        // es productivo: ver `qa-run-context.ts`. Nunca incluye la `Authorization` del cliente.
-        ...runContextHeaders(input.qaContext, { mode: input.mode, productionRuntime: isProductionRuntime() }),
+        // Contexto de corrida QA. Se descarta si el modo no es `mock_server` o si el ENTORNO es PROD
+        // (identidad del despliegue, no `NODE_ENV`: TEST corre con imagen productiva, H17). Ver
+        // `qa-run-context.ts`. Nunca incluye la `Authorization` del cliente.
+        ...runContextHeaders(input.qaContext, { mode: input.mode, productionRuntime: deploymentEnvironment() === 'PROD' }),
       },
       body: JSON.stringify({ scenario: input.scenario, input: input.input }),
       signal: controller.signal,

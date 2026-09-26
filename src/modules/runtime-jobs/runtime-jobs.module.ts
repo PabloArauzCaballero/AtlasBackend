@@ -40,14 +40,19 @@ import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.servic
 import { JobRunRecorderService } from './job-run-recorder.service.js';
 import { BankStatementReviewWorker } from '../credit/application/bank-statement-review.worker.js';
 import { CreditLineRefreshService } from '../credit/application/credit-line-refresh.service.js';
+import { CreditUnderwritingService } from '../credit/application/credit-underwriting.service.js';
 import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
 import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
 import { buildScheduledJobs, SCHEDULED_JOBS, SCHEDULER_ACTOR } from './scheduled-jobs.catalog.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import { SystemsOpsModule } from '../systems-ops/systems-ops.module.js';
+import { QaOrchestrationModule } from '../qa-orchestration/qa-orchestration.module.js';
+import { QaJourneyConsumerService } from '../qa-orchestration/application/qa-journey-consumer.service.js';
 import { SystemsStressConsumerService } from '../systems-ops/systems-stress-consumer.service.js';
 import { env } from '../../config/env.js';
+import { ErpIntegrationModule } from '../erp-integration/erp-integration.module.js';
+import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.service.js';
 
 @Module({
   imports: [
@@ -56,6 +61,9 @@ import { env } from '../../config/env.js';
     // Aporta el consumidor de la cola de estres. Va aqui, en un archivo de modulo, porque el
     // manifiesto de fronteras reserva las dependencias entre contextos a las raices de composicion.
     SystemsOpsModule,
+    ErpIntegrationModule,
+    // Aporta el consumidor de las corridas QA de N personas (motor de journeys).
+    QaOrchestrationModule,
     // El barrido de notificaciones atascadas (hallazgo A-03) reutiliza el MISMO orquestador que la
     // entrega normal, para que un reintento no pueda divergir del camino feliz.
     NotificationsModule,
@@ -112,6 +120,9 @@ import { env } from '../../config/env.js';
         notifications: NotificationsService,
         jobRuns: JobRunRecorderService,
         stressConsumer: SystemsStressConsumerService,
+        creditUnderwriting: CreditUnderwritingService,
+        erpDelivery: ErpEventDeliveryService,
+        qaConsumer: QaJourneyConsumerService,
       ) =>
         buildScheduledJobs({
           runtimeJobs,
@@ -124,6 +135,7 @@ import { env } from '../../config/env.js';
           debtRating,
           outcomeDispatch,
           partnerKybSync,
+          creditUnderwriting,
           // El ejecutor de campañas vive en Mensajería; aquí sólo se le da cadencia y registro en `system_job_runs`.
           notificationCampaigns: {
             tick: (tenantId: string) =>
@@ -142,6 +154,14 @@ import { env } from '../../config/env.js';
               return stressConsumer.drain(controller.signal).finally(() => clearTimeout(deadline));
             },
           },
+          // P-14: se registra en `system_job_runs` como el resto; el servicio decide si hay receptor.
+          erpEvents: {
+            deliver: (tenantId: string) =>
+              jobRuns.run({ tenantId, jobCode: 'deliver_erp_events', body: {}, currentUser: SCHEDULER_ACTOR }, () =>
+                erpDelivery.deliverPending({ tenantId, limit: env.RUNTIME_JOBS_BATCH_LIMIT }),
+              ),
+          },
+          qaRuns: { drain: () => qaConsumer.drain() },
         }),
       inject: [
         RuntimeJobsService,
@@ -157,6 +177,9 @@ import { env } from '../../config/env.js';
         NotificationsService,
         JobRunRecorderService,
         SystemsStressConsumerService,
+        CreditUnderwritingService,
+        ErpEventDeliveryService,
+        QaJourneyConsumerService,
       ],
     },
   ],

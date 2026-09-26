@@ -10,6 +10,7 @@ import {
   BankStatementReviewModel,
   CreditApplicationEventModel,
   CreditApplicationModel,
+  CreditExposureReservationModel,
   CreditLineModel,
   CreditProductModel,
   CustomerActivitySummaryModel,
@@ -23,6 +24,8 @@ import { CustomersModule } from '../customers/customers.module.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { CreditApplicationService } from './application/credit-application.service.js';
 import { CreditBusinessAcceptanceService } from './application/credit-business-acceptance.service.js';
+import { ExposureReservationService } from './application/exposure-reservation.service.js';
+import { OriginationConsentCheck } from './application/origination-consent-check.service.js';
 import { CreditDecisionService } from './application/credit-decision.service.js';
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
 import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
@@ -66,6 +69,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
       CreditApplicationEventModel,
       CreditLineModel,
       BankStatementReviewModel,
+      // P-11: la reserva del cupo que la aceptación aparta y el desembolso consume.
+      CreditExposureReservationModel,
       // El modelo de capacidad lee el historial de pago DENTRO de Atlas —es lo único que se sabe
       // con certeza de cómo paga esta persona, y sustituye a un buró que en Bolivia no existe— y
       // las señales de actividad que delatan una alerta de fraude abierta.
@@ -108,6 +113,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     MalwareScannerService,
     CreditBusinessAcceptanceService,
     CreditUnderwritingService,
+    ExposureReservationService,
+    OriginationConsentCheck,
   ],
   exports: [
     CreditRepository,
@@ -118,6 +125,9 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     PaymentCapacityService,
     BankStatementService,
     BankStatementReviewWorker,
+    // P-09/P-11: el desembolso (libro de préstamos) revalida consentimiento y reserva el cupo.
+    ExposureReservationService,
+    OriginationConsentCheck,
   ],
 })
 export class CreditModule {}

@@ -7,8 +7,9 @@ import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ExternalProviderExecutionInput } from '../domain/external-provider.types.js';
 import { BankingGenericAdapter } from '../infrastructure/adapters/banking-generic/banking-generic.adapter.js';
 import { BankQrResult } from '../infrastructure/adapters/banking-generic/banking-qr.util.js';
-import { mockBaseUrlFor, productionIntegrationBlockers, providerModeFromEnv } from './external-data-policy.util.js';
+import { executionModeFor, mockBaseUrlFor, productionIntegrationBlockers } from './external-data-policy.util.js';
 import { ExternalProviderRegistryService } from './external-provider-registry.service.js';
+import { currentQaContext } from '../../../platform/security/qa-execution-context.js';
 
 const PROVIDER_CODE = 'BANKING_GENERIC';
 
@@ -42,7 +43,7 @@ export class BankingQrService {
     requestedByUserId?: string;
   }): Promise<BankQrGenerationResult> {
     const provider = await this.registry.requireProviderAllowDisabled(PROVIDER_CODE);
-    const mode = providerModeFromEnv(PROVIDER_CODE, provider.defaultMode);
+    const mode = executionModeFor(PROVIDER_CODE, provider.defaultMode);
 
     // A diferencia de las verificaciones, este flujo no pasa por el pipeline de políticas de
     // `ExternalDataExecutionService`, así que aplica el mismo portón aquí. Es el caso más grave de
@@ -67,6 +68,8 @@ export class BankingQrService {
       scenario: input.scenario as ExternalProviderExecutionInput['scenario'],
       requestedByUserId: input.requestedByUserId,
       mockBaseUrl: mockBaseUrlFor(PROVIDER_CODE),
+      // Mismo contexto QA que la ejecución de evidencia: ver `external-data-execution.service.ts`.
+      qaContext: currentQaContext(),
     };
 
     const qr = await this.bankingAdapter.generateQr(executionInput);

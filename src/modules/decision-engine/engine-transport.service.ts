@@ -93,3 +93,19 @@ export class EngineTransportService {
     return { text };
   }
 }
+
+/**
+ * El código de error del motor (`ProblemDetails.error.code`, p. ej. `CONSENT_GRANT_REPLAYED`) de un
+ * fallo del transporte, o `null` si no lo trae. El transporte guarda el cuerpo como `cause`.
+ */
+export function engineErrorCode(error: unknown): string | null {
+  const cause = (error as { cause?: unknown } | null)?.cause as { error?: { code?: unknown }; title?: unknown } | undefined;
+  const code = cause?.error?.code ?? cause?.title;
+  return typeof code === 'string' && code.length > 0 ? code : null;
+}
+
+/** El status HTTP de un fallo del transporte, si lo trae. */
+export function engineErrorStatus(error: unknown): number | null {
+  const status = (error as { httpStatus?: unknown } | null)?.httpStatus;
+  return typeof status === 'number' ? status : null;
+}

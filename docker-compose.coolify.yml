@@ -337,6 +337,15 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   DECISION_ENGINE_TIMEOUT_MS: '${DECISION_ENGINE_TIMEOUT_MS:-10000}'
   DECISION_ENGINE_RETRIES: '${DECISION_ENGINE_RETRIES:-1}'
   DECISION_ENGINE_RETRY_BASE_DELAY_MS: '${DECISION_ENGINE_RETRY_BASE_DELAY_MS:-250}'
+
+  # --- Atlas Assist (AtlasAIService, el asistente de la app del cliente) ---------------------
+  # Apagado por defecto: 404 en /mobile/assist/* y la app esconde el botón. Encenderlo exige URL
+  # y clave (env.assist.checks.ts corta el arranque a medias). La clave es la MISMA que el
+  # servicio de IA tiene en SU variable ATLAS_AI_SERVICE_KEY.
+  ASSIST_ENABLED: '${ASSIST_ENABLED:-false}'
+  ATLAS_AI_SERVICE_URL: '${ATLAS_AI_SERVICE_URL:-}'
+  ATLAS_AI_SERVICE_KEY: '${ATLAS_AI_SERVICE_KEY:-}'
+  ATLAS_AI_SERVICE_TIMEOUT_MS: '${ATLAS_AI_SERVICE_TIMEOUT_MS:-28000}'
   # **No es `credit_underwriting`.** Ese es el defecto del esquema y NO existe en el motor: toda
   # solicitud caía en 404 y se resolvía como `engine_unavailable_manual`, con el crédito
   # esperando a una persona sin que nada dijera que el motor ni se había consultado.
@@ -357,6 +366,13 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   ERP_BACKEND_CATALOG_PATH: '${ERP_BACKEND_CATALOG_PATH:-/api/v1/platform/catalog-manifest}'
   ERP_BACKEND_CATALOG_API_KEY: '${ERP_BACKEND_CATALOG_API_KEY:-}'
   ERP_BACKEND_CATALOG_TIMEOUT_MS: '${ERP_BACKEND_CATALOG_TIMEOUT_MS:-30000}'
+  # Eventos Core <-> ERP (P-14). Un secreto por sentido, >= 32. Vacíos = el receptor responde 503 y
+  # los payment.* quedan pendientes en outbound_event_deliveries (el trabajo deliver_erp_events no corre).
+  ERP_EVENTS_SIGNING_SECRET: '${ERP_EVENTS_SIGNING_SECRET:-}'
+  ERP_EVENTS_SIGNATURE_TOLERANCE_SECONDS: '${ERP_EVENTS_SIGNATURE_TOLERANCE_SECONDS:-300}'
+  ERP_EVENTS_DELIVERY_URL: '${ERP_EVENTS_DELIVERY_URL:-}'
+  ERP_EVENTS_DELIVERY_SECRET: '${ERP_EVENTS_DELIVERY_SECRET:-}'
+  ERP_EVENTS_DELIVERY_TIMEOUT_MS: '${ERP_EVENTS_DELIVERY_TIMEOUT_MS:-10000}'
 
   # --- Proveedores externos (SEGIP, INFOCENTER, telco, QR, banca…) ---------------------------
   #
@@ -663,6 +679,10 @@ services:
     # «pull access denied ... may require docker login» aunque la imagen sea pública. quay.io es el
     # registro que MinIO mantiene, con EL MISMO tag fijado: mismo artefacto, distinto origen.
     image: quay.io/minio/minio:RELEASE.2024-09-13T20-26-02Z
+    # Coolify ejecuta `docker compose pull` aun con la imagen fijada ya en el host. Quay respondió
+    # 401 y abortó el despliegue del API; se usa el artefacto local que ya sirve en este servidor.
+    # En un host nuevo hay que precargar este tag antes de desplegar.
+    pull_policy: never
     command: server /data --console-address ":9001"
     environment:
       # `:?` para que un valor ausente pare el despliegue. No basta con declararlo: la variable
@@ -754,6 +774,7 @@ services:
   minio-bucket:
     # Mismo motivo que `minio`: el Hub ya no sirve este repositorio (ver el comentario de arriba).
     image: quay.io/minio/mc:RELEASE.2024-09-16T17-43-14Z
+    pull_policy: never
     environment:
       MINIO_ROOT_USER: '${MINIO_ROOT_USER:?}'
       MINIO_ROOT_PASSWORD: '${MINIO_ROOT_PASSWORD:?}'

@@ -82,6 +82,7 @@ describe('RuntimeJobsSchedulerService', () => {
       outcomeDispatch: { dispatchPending: jest.fn(async (..._args: unknown[]) => ({ sent: 0, failed: 0, skipped: 0 })) } as never,
       notificationCampaigns: { tick: async () => ({}) } as never,
       stressRuns: { drain: async () => ({}) } as never,
+      qaRuns: { drain: async () => ({}) } as never,
       partnerKybSync: {
         syncPendingReviews: jest.fn(async (..._args: unknown[]) => ({
           checked: 0,
@@ -122,7 +123,7 @@ describe('RuntimeJobsSchedulerService', () => {
 
     // El arranque de cada job pasa por un `setTimeout` de desfase antes de armar su `setInterval`:
     // sin ese desfase, N réplicas que arrancan juntas disparan la misma tanda en el mismo instante.
-    it('programa los dieciocho jobs cuando está habilitado', () => {
+    it('programa los veinte jobs (P-09: sync_engine_consents) cuando está habilitado', () => {
       setEnv('RUNTIME_JOBS_SCHEDULER_ENABLED', true);
       const { service } = build();
 
@@ -130,7 +131,7 @@ describe('RuntimeJobsSchedulerService', () => {
 
       // 18 jobs + 1 temporizador del propio barrido. El número está escrito a propósito: un job
       // nuevo tiene que tocar esta prueba, que es donde se ve que el catálogo creció.
-      expect(setTimeout).toHaveBeenCalledTimes(19);
+      expect(setTimeout).toHaveBeenCalledTimes(20);
       service.onModuleDestroy();
     });
 
@@ -142,7 +143,7 @@ describe('RuntimeJobsSchedulerService', () => {
       service.onApplicationBootstrap();
 
       const delays = (setTimeout as unknown as jest.Mock).mock.calls.map((call) => call[1] as number);
-      expect(delays).toHaveLength(19);
+      expect(delays).toHaveLength(20);
       for (const delay of delays) {
         expect(delay).toBeGreaterThanOrEqual(0);
         expect(delay).toBeLessThan(15_000);
@@ -181,7 +182,7 @@ describe('RuntimeJobsSchedulerService', () => {
 
       service.onApplicationBootstrap();
 
-      expect(setTimeout).toHaveBeenCalledTimes(19);
+      expect(setTimeout).toHaveBeenCalledTimes(20);
       service.onModuleDestroy();
     });
   });

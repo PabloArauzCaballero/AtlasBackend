@@ -81,6 +81,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
       outcomeDispatch: { dispatchPending: jest.fn(async (..._args: unknown[]) => ({ sent: 0, failed: 0, skipped: 0 })) } as never,
       notificationCampaigns: { tick: async () => ({}) } as never,
       stressRuns: { drain: async () => ({}) } as never,
+      qaRuns: { drain: async () => ({}) } as never,
       partnerKybSync: {
         syncPendingReviews: jest.fn(async (..._args: unknown[]) => ({
           checked: 0,
@@ -120,7 +121,7 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
 
     service.onApplicationBootstrap();
 
-    expect(setTimeout).toHaveBeenCalledTimes(19);
+    expect(setTimeout).toHaveBeenCalledTimes(20);
     service.onModuleDestroy();
   });
 

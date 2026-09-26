@@ -72,14 +72,16 @@ describe('FacilityRegistrationService', () => {
    * `EXECUTION_WITHOUT_SUBJECT` no se arregla reintentando—.
    */
   it('no marca el crédito que el motor rechaza: sigue visible en la cola', async () => {
-    const { service, client } = build();
+    const { service, client, loans } = build();
     client.registerFacilities.mockImplementationOnce(async () => [
       { externalReference: 'LOAN-0001', accepted: false, reason: 'EXECUTION_WITHOUT_SUBJECT' },
     ]);
 
     const resultado = await service.registrarCreditosNuevos({ tenantId: '1', limit: 50 });
 
-    expect(resultado).toEqual({ registrados: 0, rechazados: 1 });
+    // Terminal: sale de la cola CON su código, pero nunca como registrado (la conciliación lo cuenta).
+    expect(resultado).toEqual({ registrados: 0, rechazados: 1, terminales: 1 });
+    expect(loans[0]).toMatchObject({ decisionFacilityRegisteredAt: null, decisionFacilityRejectionCode: 'EXECUTION_WITHOUT_SUBJECT' });
   });
 
   /*

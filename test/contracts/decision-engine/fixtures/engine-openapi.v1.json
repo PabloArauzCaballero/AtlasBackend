@@ -1,0 +1,733 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ATLAS Decision Platform API",
+    "description": "Governed credit, risk and fraud decision platform.\n\nContract version **v1** — served by build 2.0.0 (commit local).",
+    "version": "v1",
+    "contact": {}
+  },
+  "x-atlas-source": {
+    "repository": "AtlasDecisionEngineBackend",
+    "commit": "70cddc2fd17966a551809f48658df0e5f9745cee",
+    "file": "openapi/openapi.json",
+    "blob": "f50ff68a231b89826fa556cab6168063f63bf337",
+    "note": "Subconjunto que Core consume (P-14). Regenerar desde el motor al cambiar su contrato; no editar a mano."
+  },
+  "paths": {
+    "/v1/decisions/{artifactCode}": {
+      "post": {
+        "operationId": "runtimeExecute",
+        "parameters": [
+          {
+            "name": "artifactCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Código único del artefacto en el tenant (p. ej. `BNPL_CREDIT_DECISION`)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteDecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "summary": "Execute an idempotent decision against the active deployment",
+        "tags": [
+          "Decision Runtime"
+        ]
+      }
+    },
+    "/v1/risk-governance/consents": {
+      "post": {
+        "operationId": "riskGovernanceRecordConsent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordConsentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Permiso registrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GovernanceWriteResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "summary": "Record a data subject consent with its validity window",
+        "tags": [
+          "Risk Governance"
+        ]
+      }
+    },
+    "/v1/risk-governance/consents/revoke": {
+      "post": {
+        "operationId": "riskGovernanceRevokeConsent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeConsentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Permiso revocado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GovernanceWriteResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "summary": "Revoke a consent",
+        "tags": [
+          "Risk Governance"
+        ]
+      }
+    },
+    "/v1/outcomes/facilities": {
+      "post": {
+        "operationId": "outcomeIngestionRegisterFacilities",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterFacilityBatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Créditos registrados, fila a fila.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FacilityRegistrationResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "summary": "Register disbursed credit facilities and schedule their outcome windows",
+        "tags": [
+          "Outcome Ingestion"
+        ]
+      }
+    },
+    "/v1/outcomes/batch": {
+      "post": {
+        "operationId": "outcomeIngestionRecordBatch",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FacilityOutcomeBatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultado por fila.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutcomeBatchResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          }
+        },
+        "summary": "Record observed outcomes for known facilities, row by row",
+        "tags": [
+          "Outcome Ingestion"
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ExecuteDecisionDto": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "correlationId": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "subjectReference": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "environmentCode": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_\\-]{2,40}$"
+          },
+          "variables": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "variableMetadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "De cuando es cada valor, por codigo de variable:\n`{ ingresos: { observedAt: '2026-08-12T09:00:00Z', sourceVersion: 'buro-v3' } }`.\n\nOpcional, y lo seguira siendo: exigirlo de golpe romperia a todo integrador vivo. Lo que si\nocurre es que sin el, `age_seconds` queda nulo y el SLA de frescura no se puede comprobar —\ny eso es MEDIBLE, que es el paso previo a poder exigirlo de verdad."
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "requestId",
+          "idempotencyKey",
+          "variables"
+        ]
+      },
+      "FacilityOutcomeBatchDto": {
+        "type": "object",
+        "properties": {
+          "outcomes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacilityOutcomeDto"
+            }
+          },
+          "dryRun": {
+            "type": "boolean",
+            "example": true,
+            "description": "Valida y NO escribe nada. Existe porque una carga de cobranza trae miles de filas y descubrir en la fila 4000 que la referencia no existía, con 3999 ya escritas, obliga a un borrado manual sobre evidencia regulatoria."
+          }
+        },
+        "required": [
+          "outcomes"
+        ]
+      },
+      "FacilityOutcomeDto": {
+        "type": "object",
+        "properties": {
+          "externalReference": {
+            "type": "string",
+            "maxLength": 160,
+            "example": "LOAN-2026-000841"
+          },
+          "windowDays": {
+            "type": "number",
+            "minimum": 1,
+            "example": 90
+          },
+          "label": {
+            "enum": [
+              "GOOD",
+              "BAD",
+              "REJECTED_WOULD_HAVE_BEEN_GOOD",
+              "REJECTED_CONFIRMED_BAD",
+              "INDETERMINATE"
+            ],
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "example": 320.5
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "COLLECTIONS_SYSTEM"
+          },
+          "inferenceMethod": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "BUREAU_LOOKUP",
+            "description": "Cómo se supo, si NO se observó directamente. Vacío = observado. Un inferido mezclado con los observados calibra el modelo contra la población que ya aprobó."
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "externalReference",
+          "windowDays",
+          "label",
+          "source"
+        ]
+      },
+      "FacilityRegistrationResultDto": {
+        "type": "object",
+        "properties": {
+          "registered": {
+            "type": "number",
+            "example": 812
+          },
+          "rejected": {
+            "type": "number",
+            "example": 3
+          },
+          "duplicates": {
+            "type": "number",
+            "example": 40,
+            "description": "De las registradas, cuántas ya existían (reenvío idempotente)."
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RowResultDto"
+            }
+          }
+        },
+        "required": [
+          "registered",
+          "rejected",
+          "rows"
+        ]
+      },
+      "GovernanceWriteResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "31"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "OutcomeBatchResultDto": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "number",
+            "example": 1998
+          },
+          "rejected": {
+            "type": "number",
+            "example": 2
+          },
+          "duplicates": {
+            "type": "number",
+            "example": 12,
+            "description": "De las aceptadas, cuántas ya estaban observadas igual: no se reescriben ni cuentan."
+          },
+          "dryRun": {
+            "type": "boolean",
+            "example": true,
+            "description": "Si es cierto no se escribió nada: era una validación previa."
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RowResultDto"
+            }
+          }
+        },
+        "required": [
+          "accepted",
+          "rejected",
+          "dryRun",
+          "rows"
+        ]
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "description": "Respuesta de error uniforme de la plataforma, emitida por el filtro global de excepciones.",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "requestId",
+          "error"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri",
+            "description": "Identificador estable del tipo de error.",
+            "example": "https://atlas.local/errors/variable_missing_or_invalid"
+          },
+          "title": {
+            "type": "string",
+            "description": "Código del error, en mayúsculas.",
+            "example": "VARIABLE_MISSING_OR_INVALID"
+          },
+          "status": {
+            "type": "integer",
+            "example": 422
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Correlación con los registros del servidor. Es el mismo valor de la cabecera `x-request-id`.",
+            "example": "01J8ZQ2M5K9V3S7T1XW4YB6CDE"
+          },
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "VARIABLE_MISSING_OR_INVALID"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "description": "Contexto adicional del error; su forma depende del código."
+              }
+            }
+          }
+        }
+      },
+      "RecordConsentDto": {
+        "type": "object",
+        "properties": {
+          "subjectReference": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "ABC-99182",
+            "description": "La misma referencia con la que se ejecutaron sus decisiones. Se guarda en HMAC."
+          },
+          "purpose": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "BANK_STATEMENT_ANALYSIS"
+          },
+          "basis": {
+            "enum": [
+              "CONSENT",
+              "CONTRACT",
+              "LEGAL_OBLIGATION",
+              "CREDIT_PROTECTION",
+              "LEGITIMATE_INTEREST",
+              "VITAL_INTEREST",
+              "HEALTH_PROTECTION"
+            ],
+            "type": "string"
+          },
+          "grantedAt": {
+            "type": "string",
+            "example": "2026-01-15T00:00:00.000Z"
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2027-01-15T00:00:00.000Z",
+            "description": "Vacío = sin caducidad declarada. No es lo mismo que «para siempre»."
+          },
+          "evidenceRef": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "EXP-2026-0091",
+            "description": "Dónde está la prueba. Nunca el dato."
+          },
+          "consentVersion": {
+            "type": "string",
+            "maxLength": 40,
+            "example": "v3",
+            "description": "Versión del texto o de la política bajo la que se otorgó. Una versión de artefacto puede exigir una lista cerrada de versiones aceptadas."
+          }
+        },
+        "required": [
+          "subjectReference",
+          "purpose",
+          "basis",
+          "grantedAt"
+        ]
+      },
+      "RegisterFacilityBatchDto": {
+        "type": "object",
+        "properties": {
+          "facilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RegisterFacilityDto"
+            }
+          }
+        },
+        "required": [
+          "facilities"
+        ]
+      },
+      "RegisterFacilityDto": {
+        "type": "object",
+        "properties": {
+          "externalReference": {
+            "type": "string",
+            "maxLength": 160,
+            "example": "LOAN-2026-000841",
+            "description": "Identificador en el core. Es la costura por la que entra el desenlace."
+          },
+          "originationExecutionId": {
+            "type": "string",
+            "example": "88001",
+            "description": "La decisión que lo originó. De ella se toma el solicitante, así que una ejecución sin sujeto no puede originar un crédito: no habría a quién atribuírselo."
+          },
+          "principalAmount": {
+            "type": "number",
+            "minimum": 1,
+            "example": 1500
+          },
+          "currencyCode": {
+            "type": "string",
+            "maxLength": 3,
+            "example": "BOB"
+          },
+          "termMonths": {
+            "type": "number",
+            "minimum": 1,
+            "example": 12
+          },
+          "annualRate": {
+            "type": "number",
+            "example": 0.28,
+            "description": "Tasa anual en tanto por uno, no en porcentaje."
+          },
+          "disbursedAt": {
+            "type": "string",
+            "example": "2026-08-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "externalReference",
+          "originationExecutionId",
+          "principalAmount",
+          "currencyCode",
+          "termMonths",
+          "annualRate"
+        ]
+      },
+      "RevokeConsentDto": {
+        "type": "object",
+        "properties": {
+          "subjectReference": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "ABC-99182"
+          },
+          "purpose": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "BANK_STATEMENT_ANALYSIS"
+          },
+          "revokedAt": {
+            "type": "string",
+            "example": "2026-09-20T10:00:00.000Z",
+            "description": "Cuándo revocó el titular, si la réplica llega tarde (p. ej. el motor estaba caído). Vacío = ahora. Una revocación anterior a un alta posterior se rechaza como obsoleta."
+          }
+        },
+        "required": [
+          "subjectReference",
+          "purpose"
+        ]
+      },
+      "RowResultDto": {
+        "type": "object",
+        "properties": {
+          "externalReference": {
+            "type": "string",
+            "example": "LOAN-2026-000841"
+          },
+          "windowDays": {
+            "type": "number",
+            "example": 90
+          },
+          "accepted": {
+            "type": "boolean",
+            "example": false
+          },
+          "code": {
+            "type": "string",
+            "example": "FACILITY_NOT_FOUND"
+          },
+          "message": {
+            "type": "string"
+          },
+          "duplicate": {
+            "type": "boolean",
+            "example": true,
+            "description": "La fila ya estaba registrada con los mismos datos de identidad: se acepta sin volver a escribir ni a contar. Es lo que hace seguro reenviar un lote entero."
+          }
+        },
+        "required": [
+          "externalReference",
+          "accepted"
+        ]
+      }
+    },
+    "responses": {
+      "Error400": {
+        "description": "La petición no supera la validación del contrato de entrada.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "Error401": {
+        "description": "Credencial ausente, inválida o revocada.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "Error403": {
+        "description": "El principal está autenticado pero carece del rol exigido, o el tenant no coincide.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "Error429": {
+        "description": "Se superó el límite de peticiones de la ventana vigente. Ver cabecera `retry-after`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "Error500": {
+        "description": "Error no controlado. El cuerpo no revela detalle interno en producción.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      }
+    }
+  }
+}

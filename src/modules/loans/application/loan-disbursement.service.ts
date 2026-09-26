@@ -3,14 +3,19 @@
  * @business Esta pieza sostiene el ciclo del préstamo desembolsado con saldos reconstruibles.
  * @system convierte una solicitud aprobada en un préstamo con cronograma, dentro de una sola transacción.
  */
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
+import type { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
+import type { LoanModel } from '../../../database/models/index.js';
 import { createStableCode, sha256Hex } from '../../../common/utils/crypto/hash.util.js';
+import { env } from '../../../config/env.js';
 import { CreditRepository } from '../../credit/credit.repository.js';
-import { addMonthsClamped, buildSchedule, toDateOnly } from '../domain/loan-schedule.js';
-import { fromCents, toCents } from '../domain/money.util.js';
+import { decisionExpiresAt, ExposureReservationService } from '../../credit/application/exposure-reservation.service.js';
+import { OriginationConsentCheck } from '../../credit/application/origination-consent-check.service.js';
+import { fromCents } from '../domain/money.util.js';
+import { installmentRows, loanAmountColumns, resolveDisbursementTerms, toDateOnly } from './loan-disbursement-terms.js';
 import { DisburseLoanDto } from '../loans.schemas.js';
 import { LoansRepository } from '../loans.repository.js';
 
@@ -37,6 +42,8 @@ export class LoanDisbursementService {
     private readonly loans: LoansRepository,
     private readonly credit: CreditRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly exposure: ExposureReservationService,
+    private readonly consents: OriginationConsentCheck,
   ) {}
 
   /**
@@ -66,22 +73,14 @@ export class LoanDisbursementService {
 
       const existing = await this.loans.findLoanByApplication(input.tenantId, input.applicationId, { transaction });
       // Reintento del mismo desembolso: se devuelve el préstamo que ya existe en vez de crear otro.
-      if (existing) {
-        /*
-         * El reintento del mismo desembolso devuelve el préstamo que ya existe, y de paso vuelve a
-         * intentar su alta en el motor: si la primera vez el motor no estaba, este camino es la
-         * segunda oportunidad, y el alta es idempotente allí.
-         */
-        if (existing.idempotencyKeyHash === idempotencyKeyHash) {
-          return { descripcion: this.describe(existing), loan: existing, disbursedAt: existing.disbursedAt };
-        }
-        throw new ConflictException('LOAN_ALREADY_DISBURSED');
-      }
+      if (existing) return this.retryOf(existing, idempotencyKeyHash);
 
       const product = await this.credit.findProductById(input.tenantId, application.creditProductId, { transaction });
       if (!product) throw new NotFoundException('CREDIT_PRODUCT_NOT_FOUND');
 
       const terms = resolveDisbursementTerms(application, product, input.body);
+      const now = new Date();
+      await this.revalidateAndReserve(input.tenantId, application, now, transaction);
 
       const loan = await this.loans.createLoan(
         {
@@ -134,6 +133,11 @@ export class LoanDisbursementService {
       );
 
       await this.loans.bulkCreateInstallments(installmentRows(input.tenantId, loan.id, terms.schedule), { transaction });
+      // El cupo reservado pasa a ser préstamo en la misma transacción: si algo falla, ni préstamo ni consumo.
+      await this.exposure.consume(
+        { tenantId: input.tenantId, applicationId: String(application.id), loanId: String(loan.id), now },
+        transaction,
+      );
 
       await this.loans.createEvent(
         {
@@ -177,6 +181,61 @@ export class LoanDisbursementService {
     return resultado.descripcion;
   }
 
+  /**
+   * La concesión REVALIDA la decisión en el momento de entregar el dinero (P-09, P-10, P-11).
+   *
+   * Tres cosas que pudieron cambiar desde que el motor aprobó, en el orden en que fallan:
+   *
+   * 1. Que la decisión siga vigente (`CREDIT_DECISION_VALIDITY_HOURS`): una aprobación de hace semanas
+   *    se tomó con otra deuda y otra línea.
+   * 2. Que el cliente no haya retirado un consentimiento del que dependía (lo mide el core, donde vive
+   *    el consentimiento, aunque el motor no se haya enterado todavía).
+   * 3. Que el importe quepa en el cupo de su línea, bajo el cerrojo del cliente: de dos desembolsos
+   *    concurrentes que juntos lo exceden, sólo uno reserva.
+   */
+  private async revalidateAndReserve(
+    tenantId: string,
+    application: {
+      id: string;
+      customerId: string;
+      requestedAmount: string;
+      currencyCode: string;
+      decidedAt: Date | null;
+      decisionValidUntil?: Date | null;
+    },
+    now: Date,
+    transaction: Transaction,
+  ): Promise<void> {
+    const expiresAt = decisionExpiresAt(application.decidedAt, env.CREDIT_DECISION_VALIDITY_HOURS, application.decisionValidUntil);
+    if (expiresAt.getTime() <= now.getTime()) throw new ConflictException('CREDIT_DECISION_EXPIRED');
+    await this.consents.assertMayOriginate(
+      { tenantId, customerId: String(application.customerId), decidedAt: application.decidedAt },
+      transaction,
+    );
+    await this.exposure.reserve(
+      {
+        tenantId,
+        customerId: String(application.customerId),
+        applicationId: String(application.id),
+        amount: application.requestedAmount,
+        currencyCode: application.currencyCode,
+        expiresAt,
+        now,
+      },
+      transaction,
+    );
+  }
+
+  /**
+   * El reintento del mismo desembolso devuelve el préstamo que ya existe, y de paso vuelve a
+   * intentar su alta en el motor: si la primera vez el motor no estaba, este camino es la segunda
+   * oportunidad, y el alta es idempotente allí. Con OTRA clave, es un segundo desembolso: conflicto.
+   */
+  private retryOf(existing: LoanModel, idempotencyKeyHash: string) {
+    if (existing.idempotencyKeyHash !== idempotencyKeyHash) throw new ConflictException('LOAN_ALREADY_DISBURSED');
+    return { descripcion: this.describe(existing), loan: existing, disbursedAt: existing.disbursedAt };
+  }
+
   private describe(loan: { id: string; loanCode: string; status: string; maturityDate: string | null }) {
     return {
       loanId: loan.id,
@@ -192,85 +251,4 @@ function assertDisbursable(application: { status: string; businessAcceptance: st
   if (application.status !== DISBURSABLE_APPLICATION_STATUS) throw new ConflictException('CREDIT_APPLICATION_NOT_APPROVED');
   const acceptanceBlocker = BUSINESS_ACCEPTANCE_BLOCKERS[application.businessAcceptance ?? ''];
   if (acceptanceBlocker) throw new ConflictException(acceptanceBlocker);
-}
-
-type DisbursementTerms = {
-  principalCents: number;
-  termMonths: number;
-  annualRate: number;
-  disbursedAt: Date;
-  firstDueDate: Date;
-  maturityDate: string;
-  scheduledInterestCents: number;
-  schedule: ReturnType<typeof buildSchedule>;
-};
-
-/**
- * Todo lo que define el préstamo antes de escribirlo: importe, plazo, tasa, fechas y cronograma.
- *
- * Se extrae del método de desembolso porque es la parte que decide QUÉ se va a deber, y separarla de
- * la que lo persiste permite leerla —y discutirla— sin atravesar la transacción. También la vuelve
- * verificable: es una función de datos a datos, sin base ni usuario de por medio.
- */
-function resolveDisbursementTerms(
-  application: { requestedAmount: string; requestedTermMonths: number },
-  product: { annualInterestRate: string | null },
-  body: DisburseLoanDto,
-): DisbursementTerms {
-  const principalCents = toCents(application.requestedAmount);
-  const termMonths = application.requestedTermMonths;
-  const annualRate = Number(body.annualInterestRate ?? product.annualInterestRate ?? 0);
-  if (!Number.isFinite(annualRate) || annualRate < 0) throw new BadRequestException('INVALID_INTEREST_RATE');
-
-  const disbursedAt = body.disbursedAt ? new Date(body.disbursedAt) : new Date();
-  // Sin primera fecha explícita, el primer vencimiento cae un mes después del desembolso.
-  const firstDueDate = body.firstDueDate ? new Date(`${body.firstDueDate}T00:00:00.000Z`) : addMonthsClamped(disbursedAt, 1);
-
-  const schedule = buildSchedule({ principalCents, annualInterestRatePercent: annualRate, termMonths, firstDueDate });
-  const lastEntry = schedule[schedule.length - 1];
-  if (!lastEntry) throw new BadRequestException('EMPTY_LOAN_SCHEDULE');
-
-  return {
-    principalCents,
-    termMonths,
-    annualRate,
-    disbursedAt,
-    firstDueDate,
-    maturityDate: lastEntry.dueDate,
-    scheduledInterestCents: schedule.reduce((total, entry) => total + entry.interestCents, 0),
-    schedule,
-  };
-}
-
-/** Las columnas de dinero del préstamo. Se escriben juntas o el saldo inicial no cuadra. */
-function loanAmountColumns(terms: DisbursementTerms) {
-  return {
-    principalAmount: fromCents(terms.principalCents),
-    annualInterestRate: terms.annualRate.toFixed(4),
-    termMonths: terms.termMonths,
-    scheduledPrincipal: fromCents(terms.principalCents),
-    scheduledInterest: fromCents(terms.scheduledInterestCents),
-    outstandingPrincipal: fromCents(terms.principalCents),
-  };
-}
-
-function installmentRows(tenantId: string, loanId: string, schedule: DisbursementTerms['schedule']) {
-  return schedule.map((entry) => ({
-    tenantId,
-    loanId,
-    installmentNumber: entry.installmentNumber,
-    dueDate: entry.dueDate,
-    principalAmount: fromCents(entry.principalCents),
-    interestAmount: fromCents(entry.interestCents),
-    status: 'pending',
-    // Mismo motivo que en el préstamo: el modelo exige estas columnas y la base sólo las
-    // rellenaría si Sequelize llegara a preguntarle.
-    lateFeeAmount: '0.00',
-    paidPrincipal: '0.00',
-    paidInterest: '0.00',
-    paidLateFee: '0.00',
-    daysPastDue: 0,
-    createdAtValue: new Date(),
-    deleted: false,
-  }));
 }

@@ -41,6 +41,8 @@ function solicitud(overrides: Record<string, unknown> = {}) {
     decisionExecutionId: 'exe-1',
     decisionArtifactVersionId: 'art-2',
     decisionSubjectReference: 'cust:c1',
+    // Vigente: decidida hace un minuto (P-10/P-11 exigen decisión no vencida al conceder).
+    decidedAt: new Date(Date.now() - 60_000),
     ...overrides,
   };
 }
@@ -49,6 +51,8 @@ describe('LoanDisbursementService', () => {
   let loans: { findLoanByApplication: jest.Mock; createLoan: jest.Mock; bulkCreateInstallments: jest.Mock; createEvent: jest.Mock };
   let credit: { findApplicationById: jest.Mock; findProductById: jest.Mock };
   let service: LoanDisbursementService;
+  let exposure: { reserve: jest.Mock; consume: jest.Mock };
+  let consents: { assertMayOriginate: jest.Mock };
 
   beforeEach(() => {
     loans = {
@@ -62,7 +66,15 @@ describe('LoanDisbursementService', () => {
       findProductById: jest.fn(async () => ({ id: 'pr-1', annualInterestRate: '24.0000' })),
     };
     const sequelize = { transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})) } as unknown as Sequelize;
-    service = new LoanDisbursementService(loans as unknown as LoansRepository, credit as unknown as CreditRepository, sequelize);
+    exposure = { reserve: jest.fn(async () => ({ id: 'r1' })), consume: jest.fn(async () => undefined) };
+    consents = { assertMayOriginate: jest.fn(async () => undefined) };
+    service = new LoanDisbursementService(
+      loans as unknown as LoansRepository,
+      credit as unknown as CreditRepository,
+      sequelize,
+      exposure as never,
+      consents as never,
+    );
   });
 
   function desembolsar(body: Record<string, unknown> = {}, clave = 'idem-1') {
@@ -287,6 +299,47 @@ describe('LoanDisbursementService', () => {
         annualInterestRate: 18,
         decisionExecutionId: 'exe-1',
       });
+    });
+  });
+  describe('revalidación al conceder (P-09, P-10, P-11)', () => {
+    it('una decisión vencida no se desembolsa: CREDIT_DECISION_EXPIRED sin reservar ni crear', async () => {
+      credit.findApplicationById.mockResolvedValueOnce(solicitud({ decidedAt: new Date(Date.now() - 400 * 3_600_000) }) as never);
+
+      await expect(desembolsar()).rejects.toThrow('CREDIT_DECISION_EXPIRED');
+      expect(exposure.reserve).not.toHaveBeenCalled();
+      expect(loans.createLoan).not.toHaveBeenCalled();
+    });
+
+    it('sin fecha de decisión no hay vigencia que demostrar: se trata como vencida', async () => {
+      credit.findApplicationById.mockResolvedValueOnce(solicitud({ decidedAt: null }) as never);
+
+      await expect(desembolsar()).rejects.toThrow('CREDIT_DECISION_EXPIRED');
+      expect(loans.createLoan).not.toHaveBeenCalled();
+    });
+
+    it('un consentimiento revocado bloquea antes de reservar cupo', async () => {
+      consents.assertMayOriginate.mockRejectedValueOnce(new ConflictException('CONSENT_REVOCATION_PENDING_SYNC') as never);
+
+      await expect(desembolsar()).rejects.toThrow('CONSENT_REVOCATION_PENDING_SYNC');
+      expect(exposure.reserve).not.toHaveBeenCalled();
+      expect(loans.createLoan).not.toHaveBeenCalled();
+    });
+
+    it('sin cupo no hay préstamo: el conflicto de la reserva corta el desembolso', async () => {
+      exposure.reserve.mockRejectedValueOnce(new ConflictException('CREDIT_EXPOSURE_LIMIT_EXCEEDED') as never);
+
+      await expect(desembolsar()).rejects.toThrow('CREDIT_EXPOSURE_LIMIT_EXCEEDED');
+      expect(loans.createLoan).not.toHaveBeenCalled();
+    });
+
+    it('reserva el importe de la solicitud y consume la reserva con el préstamo creado', async () => {
+      await desembolsar();
+
+      expect(exposure.reserve).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: 't1', customerId: 'c1', applicationId: 'ap-1', amount: '1200.00', currencyCode: 'BOB' }),
+        expect.anything(),
+      );
+      expect(exposure.consume).toHaveBeenCalledWith(expect.objectContaining({ applicationId: 'ap-1', loanId: 'L1' }), expect.anything());
     });
   });
 });

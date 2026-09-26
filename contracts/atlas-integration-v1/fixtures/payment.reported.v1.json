@@ -1,0 +1,345 @@
+{
+  "topic": "payment.reported",
+  "valid": [
+    {
+      "name": "aviso con comercio",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000001",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "333.33",
+          "currencyCode": "BOB",
+          "aggregateVersion": 1
+        }
+      }
+    }
+  ],
+  "boundary": [
+    {
+      "name": "importe mínimo 0.01",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000002",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "0.01",
+          "currencyCode": "BOB",
+          "aggregateVersion": 1
+        }
+      }
+    },
+    {
+      "name": "importe sin decimales",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000003",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "333",
+          "currencyCode": "BOB",
+          "aggregateVersion": 1
+        }
+      }
+    },
+    {
+      "name": "importe máximo de 16 enteros",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000004",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "9999999999999999.99",
+          "currencyCode": "BOB",
+          "aggregateVersion": 1
+        }
+      }
+    },
+    {
+      "name": "sin comercio (partnerProfileId null)",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000005",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": null,
+          "amount": "333.33",
+          "currencyCode": "BOB",
+          "aggregateVersion": 1
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "importe como número JSON",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000006",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": 333.33,
+          "currencyCode": "BOB",
+          "aggregateVersion": 1
+        }
+      }
+    },
+    {
+      "name": "importe con tres decimales",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000007",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "333.333",
+          "currencyCode": "BOB",
+          "aggregateVersion": 1
+        }
+      }
+    },
+    {
+      "name": "importe cero",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000008",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "0.00",
+          "currencyCode": "BOB",
+          "aggregateVersion": 1
+        }
+      }
+    },
+    {
+      "name": "importe negativo",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000009",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "-1.00",
+          "currencyCode": "BOB",
+          "aggregateVersion": 1
+        }
+      }
+    },
+    {
+      "name": "sin installmentId",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000010",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "333.33",
+          "currencyCode": "BOB",
+          "aggregateVersion": 1
+        }
+      }
+    },
+    {
+      "name": "campo desconocido",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000011",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "333.33",
+          "currencyCode": "BOB",
+          "aggregateVersion": 1,
+          "payerReference": "X"
+        }
+      }
+    },
+    {
+      "name": "moneda en minúsculas",
+      "envelope": {
+        "spec": "atlas.core.outbox/1",
+        "eventKey": "00000000-0000-4000-8000-000000000012",
+        "topic": "payment.reported",
+        "schemaVersion": 1,
+        "aggregate": {
+          "type": "installment",
+          "id": "920001",
+          "version": 1
+        },
+        "occurredAt": "2026-09-24T12:00:00.000Z",
+        "producer": "atlas-core",
+        "tenantId": "900001",
+        "payload": {
+          "claimId": "940001",
+          "claimCode": "PAY-FIXTURE-0001",
+          "loanId": "910001",
+          "installmentId": "920001",
+          "customerId": "950001",
+          "partnerProfileId": "930001",
+          "amount": "333.33",
+          "currencyCode": "bob",
+          "aggregateVersion": 1
+        }
+      }
+    }
+  ]
+}

@@ -121,6 +121,10 @@ export class CreditApplicationModel extends Model {
   @Column({ field: 'decided_at', type: DataType.DATE })
   declare decidedAt: Date | null;
 
+  /** Vigencia que el motor puso a SU decisión; nula en decisiones humanas (rige la del core). */
+  @Column({ field: 'decision_valid_until', type: DataType.DATE })
+  declare decisionValidUntil: Date | null;
+
   @Column({ field: 'decided_by_internal_user_id', type: DataType.BIGINT })
   declare decidedByInternalUserId: string | null;
 

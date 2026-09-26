@@ -5,6 +5,7 @@
  */
 import { ForbiddenException } from '@nestjs/common';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
+import { currentQaContext } from '../../../platform/security/qa-execution-context.js';
 import { stableStringify } from '../../../common/utils/privacy/redaction.util.js';
 import {
   ExternalProviderCode,
@@ -85,6 +86,17 @@ export function envValue(key: string): string | undefined {
 
 export function providerModeFromEnv(providerCode: string, fallback: string | null | undefined): ExternalProviderMode {
   return toMode(envValue(`${providerCode}_MODE`) ?? fallback);
+}
+
+/**
+ * El modo con el que se EJECUTA una consulta. Dentro de una corrida QA, `mock_local` pasa a
+ * `mock_server`: el payload fabricado en proceso no deja rastro en el journal del mock, así que la
+ * corrida no podría demostrar que el proveedor fue llamado —y afirmaría una evidencia que nadie ve—.
+ * Fuera de QA no cambia nada; los modos reales tampoco se tocan.
+ */
+export function executionModeFor(providerCode: string, fallback: string | null | undefined): ExternalProviderMode {
+  const mode = providerModeFromEnv(providerCode, fallback);
+  return mode === 'mock_local' && currentQaContext() ? 'mock_server' : mode;
 }
 
 /**

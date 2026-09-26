@@ -5,6 +5,7 @@
  */
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
+import type { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnPartnerResource } from '../../../common/utils/auth/ownership.util.js';
@@ -12,6 +13,8 @@ import { PartnerDirectoryService } from '../../partner-onboarding/application/pa
 import { PartnerProfileService } from '../../partner-onboarding/application/partner-profile.service.js';
 import { CreditRepository } from '../credit.repository.js';
 import { CreditBusinessAcceptanceDto } from '../credit.schemas.js';
+import { env } from '../../../config/env.js';
+import { decisionExpiresAt, ExposureReservationService } from './exposure-reservation.service.js';
 
 /**
  * La segunda pregunta, que no es la del motor.
@@ -38,6 +41,7 @@ export class CreditBusinessAcceptanceService {
     private readonly partnerProfiles: PartnerProfileService,
     private readonly partnerDirectory: PartnerDirectoryService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly exposure: ExposureReservationService,
   ) {}
 
   async decide(input: { tenantId: string; applicationId: string; body: CreditBusinessAcceptanceDto; currentUser: AuthenticatedUser }) {
@@ -84,6 +88,7 @@ export class CreditBusinessAcceptanceService {
         updatedAtValue: now,
       });
       await application.save({ transaction });
+      await this.applyExposure(input.tenantId, application, accepted, now, transaction);
 
       await this.credit.createApplicationEvent(
         {
@@ -120,6 +125,46 @@ export class CreditBusinessAcceptanceService {
         businessAcceptanceAt: now.toISOString(),
       };
     });
+  }
+
+  /**
+   * Aceptar APARTA el cupo; declinar lo devuelve (P-11).
+   *
+   * La aceptación es la última palabra antes del desembolso, así que es donde el cupo de la línea
+   * deja de estar disponible para otra compra: reservarlo aquí —bajo el cerrojo del cliente— hace
+   * que dos aceptaciones simultáneas que juntas exceden el límite no pasen las dos. La reserva vence
+   * con la decisión y el desembolso la revalida. Declinar libera la reserva, una sola vez.
+   */
+  private async applyExposure(
+    tenantId: string,
+    application: {
+      id: string;
+      customerId: string;
+      requestedAmount: string;
+      currencyCode: string;
+      decidedAt: Date | null;
+      decisionValidUntil?: Date | null;
+    },
+    accepted: boolean,
+    now: Date,
+    transaction: Transaction,
+  ): Promise<void> {
+    if (!accepted) {
+      await this.exposure.release({ tenantId, applicationId: String(application.id), reason: 'business_declined', now }, transaction);
+      return;
+    }
+    await this.exposure.reserve(
+      {
+        tenantId,
+        customerId: String(application.customerId),
+        applicationId: String(application.id),
+        amount: application.requestedAmount,
+        currencyCode: application.currencyCode,
+        expiresAt: decisionExpiresAt(application.decidedAt, env.CREDIT_DECISION_VALIDITY_HOURS, application.decisionValidUntil),
+        now,
+      },
+      transaction,
+    );
   }
 
   /**

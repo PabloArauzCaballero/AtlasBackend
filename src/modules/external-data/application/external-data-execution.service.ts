@@ -19,12 +19,13 @@ import {
   isConsentRequiredError,
   mockBaseUrlFor,
   productionIntegrationBlockers,
-  providerModeFromEnv,
+  executionModeFor,
   statusFromRaw,
   toProviderCode,
 } from './external-data-policy.util.js';
 import { ExternalDataRequestResult, ExternalProviderExecutionInput } from '../domain/external-provider.types.js';
 import { contractViolationReason, validateProviderResponse } from '../domain/provider-response.contract.js';
+import { currentQaContext } from '../../../platform/security/qa-execution-context.js';
 
 @Injectable()
 export class ExternalDataExecutionService {
@@ -47,7 +48,7 @@ export class ExternalDataExecutionService {
     const provider = await this.registry.requireProvider(providerCode);
     const adapter = this.registry.requireAdapter(providerCode);
     const policy = await this.repository.findCostPolicy(String(provider.id), input.body.queryType);
-    const mode = providerModeFromEnv(String(provider.providerCode), provider.defaultMode);
+    const mode = executionModeFor(String(provider.providerCode), provider.defaultMode);
     const now = new Date();
     const requestPayloadHash = sha256Hex(stableStringify(input.body.input));
     if (input.idempotencyKey) {
@@ -249,6 +250,10 @@ export class ExternalDataExecutionService {
       requestedByUserId: input.requestedByUserId,
       approvedByAdminId: input.body.approvedByAdminId,
       mockBaseUrl: mockBaseUrlFor(providerCode),
+      // Contexto de corrida QA (H09): sólo existe si la petición trae una credencial firmada por el
+      // worker y la corrida sigue viva; lo resuelve el middleware de `qa-orchestration`, nunca una
+      // cabecera del cliente. Va aparte de `input`: no cambia el hash ni la idempotencia del negocio.
+      qaContext: currentQaContext(),
     };
 
     try {
@@ -261,9 +266,14 @@ export class ExternalDataExecutionService {
       // vez que exista una integración real) se reintenta con backoff antes de marcar el
       // request como `FAILED`. Sin política configurada, el default es 1 intento (sin retry) —
       // mismo comportamiento observable para llamadas sin política de costo configurada.
+      //
+      // El suelo es 1: las políticas sembradas escriben `retry_max_attempts = 0` para decir «sin
+      // reintentos» (proveedores con costo), y pasado tal cual eran CERO intentos: el adaptador no
+      // se llamaba nunca y la consulta salía `FAILED` con `RETRY_LOOP_EXHAUSTED_WITHOUT_ERROR`
+      // (INFOCENTER, WhatsApp, confianza social y digital). Medido el 2026-09-24 en una corrida QA.
       const raw = await this.resilience.run(() => adapter.execute(executionInput), {
         provider: providerCode,
-        maxAttempts: policy?.retryMaxAttempts ?? 1,
+        maxAttempts: Math.max(1, policy?.retryMaxAttempts ?? 1),
         baseDelayMs: policy?.retryBackoffSeconds ? policy.retryBackoffSeconds * 1000 : 200,
       });
       // Un 200 con el contrato roto NO puede seguir hacia `normalize()`.

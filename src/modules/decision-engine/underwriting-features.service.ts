@@ -8,6 +8,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import {} from '../../database/models/index.js';
 import { UnderwritingSignalsService } from './underwriting-signals.service.js';
 import { UnderwritingCreditHistoryService } from './underwriting-credit-history.service.js';
+import type { VariableMetadata } from './decision-engine.types.js';
+import { buildVariableMetadata } from './variable-metadata.js';
 
 /** Lo que se manda al motor, y de dónde salió cada cosa. */
 export type UnderwritingFeatures = {
@@ -20,6 +22,10 @@ export type UnderwritingFeatures = {
    * país todavía», y el cliente tiene derecho a que no se le presenten igual.
    */
   provenance: Record<string, 'expediente' | 'derivado' | 'ausente'>;
+  /** De cuándo es cada dato que Core conoce (P-10). Lo que no tiene fecha no aparece. */
+  variableMetadata: VariableMetadata;
+  /** Las fechas de grupo, para quien añade variables propias (el recálculo de línea). */
+  observedAt: { economy: Date | null; identity: Date | null };
 };
 
 const MISSING = 'ausente' as const;
@@ -235,6 +241,44 @@ export class UnderwritingFeaturesService {
       usury_cap_rate: put('usury_cap_rate', 0.24, FILE),
     };
 
-    return { variables, provenance };
+    const observedAt = {
+      economy: (economy.__observedAt as unknown as Date | null | undefined) ?? null,
+      identity: identity.observedAt ?? null,
+    };
+    const variableMetadata = buildVariableMetadata({
+      now,
+      provenance,
+      economyObservedAt: observedAt.economy,
+      identityObservedAt: observedAt.identity,
+    });
+    return { variables, provenance, variableMetadata, observedAt };
   }
+}
+
+/** Las variables de la propuesta de capacidad que salen del ingreso o del extracto. */
+const CAPACITY_FROM_EVIDENCE = [
+  'capacity_recommended_limit',
+  'capacity_monthly_installment',
+  'capacity_binding_constraint',
+  'capacity_evidence_source',
+] as const;
+
+/**
+ * La capacidad medida con EXTRACTO no lleva fecha: aquí no se conoce la del extracto y no se inventa
+ * (el motor la marcará desconocida). La estimada con lo DECLARADO vale lo que la captura económica.
+ * Antigüedad, fidelización y relación se leen en vivo del libro (ya fechadas en el expediente).
+ */
+export function lineVariableMetadata(features: UnderwritingFeatures, evidence: string): VariableMetadata {
+  const metadata: VariableMetadata = { ...features.variableMetadata };
+  const economy = features.observedAt.economy;
+  if (evidence !== 'EXTRACTO' && economy) {
+    for (const code of CAPACITY_FROM_EVIDENCE) metadata[code] = { observedAt: economy.toISOString() };
+  }
+  const now = features.variableMetadata.requested_amount?.observedAt;
+  if (now) {
+    for (const code of ['relationship_score', 'relationship_tier', 'tenure_score', 'loyalty_score']) {
+      metadata[code] = { observedAt: now, fetchedAt: now };
+    }
+  }
+  return metadata;
 }

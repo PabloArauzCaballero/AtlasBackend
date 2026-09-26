@@ -81,6 +81,42 @@ export const decisionResponseSchema = z
       })
       .passthrough()
       .nullish(),
+    /*
+     * Campos aditivos del contrato del motor (P-09/P-10/P-11, motor `70cddc2`). Todos `nullish`: un
+     * motor anterior no los manda y eso no puede convertir una respuesta buena en «motor no
+     * disponible». Lo que NO se tolera es que lleguen con otra forma: eso sí es un contrato roto.
+     *
+     * - `decisionValidUntil`: hasta cuándo vale la decisión (sólo en SUCCEEDED). Core no concede
+     *   después de `min(decisionValidUntil, decidedAt + CREDIT_DECISION_VALIDITY_HOURS)`.
+     * - `exposure`: el límite más estrecho del motor y cuánto queda antes y después de lo pedido.
+     * - `degradedInputs` / `freshnessUnknown`: alguna entrada llegó dudosa / qué variables CRÍTICAS
+     *   no tienen frescura comprobable. Con cualquiera de las dos, Core no concede solo.
+     * - `enablingBasis`: de dónde salió la política de base habilitante y, si falta, por qué.
+     */
+    decisionValidUntil: z.string().datetime({ offset: true }).nullish(),
+    exposure: z
+      .object({
+        limitCode: z.string().nullish(),
+        currencyCode: z.string().nullish(),
+        maxValue: z.number().nullish(),
+        enforced: z.boolean().nullish(),
+        currentExposure: z.number().nullish(),
+        requestedAmount: z.number().nullish(),
+        remainingBeforeDecision: z.number().nullish(),
+        remainingAfterDecision: z.number().nullish(),
+      })
+      .passthrough()
+      .nullish(),
+    degradedInputs: z.boolean().nullish(),
+    freshnessUnknown: z.array(z.string()).nullish(),
+    enablingBasis: z
+      .object({
+        policySource: z.string().nullish(),
+        purposes: z.array(z.string()).nullish(),
+        failures: z.array(z.object({ purpose: z.string(), reason: z.string() }).passthrough()).nullish(),
+      })
+      .passthrough()
+      .nullish(),
   })
   .passthrough();
 
@@ -93,8 +129,17 @@ export type DecisionRequest = {
   subjectReference?: string;
   environmentCode?: string;
   variables: Record<string, unknown>;
+  /** De cuándo es cada valor (P-10). Sin fecha conocida la variable NO aparece: nunca se inventa. */
+  variableMetadata?: VariableMetadata;
   context?: Record<string, unknown>;
 };
+
+/**
+ * `observedAt`: cuándo era cierto el valor. `fetchedAt`: cuándo lo obtuvo Core, y el motor sólo lo
+ * usa si falta el primero. Por eso `fetchedAt` sólo se manda para lo que Core LEE en vivo de su propio
+ * libro al decidir; un dato declarado hace meses lleva su `observedAt` o nada.
+ */
+export type VariableMetadata = Record<string, { observedAt?: string; fetchedAt?: string; sourceVersion?: string }>;
 
 /**
  * Desenlace de la llamada, ya interpretado por el core.
@@ -107,8 +152,13 @@ export type DecisionRequest = {
 export type DecisionOutcome =
   | { kind: 'approved'; response: DecisionResponse }
   | { kind: 'declined'; response: DecisionResponse }
-  | { kind: 'review'; response: DecisionResponse }
-  | { kind: 'engineUnavailable'; reason: string };
+  | { kind: 'review'; response: DecisionResponse; technical?: boolean; reason?: string }
+  | { kind: 'engineUnavailable'; reason: string }
+  /**
+   * No se preguntó al motor A PROPÓSITO y se puede volver a intentar: la base habilitante todavía no
+   * llegó (P-09). Ni rechazo ni aprobación; la solicitud queda sin decidir para el reintento.
+   */
+  | { kind: 'deferred'; reason: string };
 
 export type OutcomeObservationInput = {
   executionId: string;
@@ -142,8 +192,13 @@ export type FacilityRegistrationInput = {
 export type FacilityRegistrationOutcome = {
   externalReference: string;
   accepted: boolean;
-  /** Código del rechazo (`EXECUTION_NOT_FOUND`, `EXECUTION_WITHOUT_SUBJECT`…) o `null`. */
+  /**
+   * Código estable del rechazo (`FACILITY_REFERENCE_CONFLICT`, `EXECUTION_NOT_DECIDED`,
+   * `FACILITY_REGISTRATION_FAILED`, `EXECUTION_NOT_FOUND`…) o `null` si se aceptó.
+   */
   reason: string | null;
+  /** Ya estaba registrado igual: reenvío idempotente, cuenta como éxito. */
+  duplicate: boolean;
 };
 
 /**
@@ -169,5 +224,8 @@ export type FacilityOutcomeResult = {
   externalReference: string;
   windowDays: number;
   accepted: boolean;
+  /** `OUTCOME_CONFLICT`, `FACILITY_NOT_FOUND`… o `null` si se aceptó. */
   reason: string | null;
+  /** Ya estaba observado igual: no se reescribió ni contó, y es un éxito. */
+  duplicate: boolean;
 };

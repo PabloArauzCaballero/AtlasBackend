@@ -20,7 +20,8 @@ export function parseFacilityRegistrations(json: unknown): FacilityRegistrationO
   return rows(json).map((entry) => ({
     externalReference: String(entry.externalReference ?? ''),
     accepted: entry.status === 'REGISTERED' || entry.accepted === true,
-    reason: motivo(entry.reason),
+    reason: motivo(entry.code ?? entry.reason),
+    duplicate: entry.duplicate === true,
   }));
 }
 
@@ -29,13 +30,20 @@ export function parseFacilityOutcomes(json: unknown): FacilityOutcomeResult[] {
     externalReference: String(entry.externalReference ?? ''),
     windowDays: Number(entry.windowDays ?? 0),
     accepted: entry.status === 'RECORDED' || entry.accepted === true,
-    reason: motivo(entry.reason),
+    reason: motivo(entry.code ?? entry.reason),
+    duplicate: entry.duplicate === true,
   }));
 }
 
+/**
+ * El motor contesta en `rows` (su `RowResultDto`: `accepted`, `code`, `duplicate`). El core leía
+ * `results` y `reason`, que el motor nunca emitió: cada alta aceptada se quedaba sin marcar y cada
+ * rechazo de desenlace se daba por enviado. `results` se sigue aceptando por compatibilidad.
+ */
 function rows(json: unknown): Array<Record<string, unknown>> {
-  const results = (json as { results?: unknown } | null)?.results;
-  return Array.isArray(results) ? (results as Array<Record<string, unknown>>) : [];
+  const body = json as { rows?: unknown; results?: unknown } | null;
+  const list = body?.rows ?? body?.results;
+  return Array.isArray(list) ? (list as Array<Record<string, unknown>>) : [];
 }
 
 /** `null` y no `'null'`: el motivo ausente significa «aceptada», no «rechazada sin motivo». */

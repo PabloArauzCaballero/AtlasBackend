@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.atlas.internal/atlas-integration-v1/payment.rejected.v1.schema.json",
+  "title": "payment.rejected v1 — el comercio autorizado rechazó en Core el aviso de pago",
+  "description": "Productor: Core. Consumidor: ERP (el aviso pasa a REJECTED; la cuota vencida vuelve a ser cubrible).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["claimId", "claimCode", "loanId", "installmentId", "customerId", "partnerProfileId", "amount", "currencyCode", "decidedAt", "aggregateVersion", "reason"],
+  "properties": {
+    "claimId": { "$ref": "common.schema.json#/$defs/coreId" },
+    "claimCode": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "loanId": { "$ref": "common.schema.json#/$defs/coreId" },
+    "installmentId": { "$ref": "common.schema.json#/$defs/coreId" },
+    "customerId": { "$ref": "common.schema.json#/$defs/coreId" },
+    "partnerProfileId": { "oneOf": [{ "$ref": "common.schema.json#/$defs/coreId" }, { "type": "null" }] },
+    "amount": { "$ref": "common.schema.json#/$defs/positiveDecimalAmount" },
+    "currencyCode": { "$ref": "common.schema.json#/$defs/currency" },
+    "decidedAt": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "aggregateVersion": { "type": "integer", "minimum": 1 },
+    "reason": { "oneOf": [{ "type": "string", "maxLength": 500 }, { "type": "null" }] }
+  }
+}
