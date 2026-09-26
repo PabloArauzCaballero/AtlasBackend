@@ -113,7 +113,15 @@ describe('SystemsCatalogRepository', () => {
         businessPurpose: 'p',
       } as never);
       const values = (models[0].upsert as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
-      expect(values).toMatchObject({ code: 'EP', method: 'GET', isReadonly: true, riskLevel: 'LOW', status: 'ACTIVE' });
+      expect(values).toMatchObject({
+        code: 'EP',
+        systemCode: 'ATLAS_BACKEND',
+        method: 'GET',
+        isReadonly: true,
+        riskLevel: 'LOW',
+        status: 'ACTIVE',
+      });
+      expect((models[0].upsert as jest.Mock).mock.calls[0][1]).toEqual({ conflictFields: ['system_code', 'method', 'full_path'] });
     });
 
     it('upsertTool aplica defaults y la rama de failureRisks por isCritical', async () => {
