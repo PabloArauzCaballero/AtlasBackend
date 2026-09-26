@@ -68,6 +68,21 @@ describe('identityPackageSchema · evidence[].captureSource', () => {
    * se descarta en silencio, no da 400. Por eso un backend anterior a este cambio habría TIRADO el
    * origen sin avisar en vez de rechazar el paquete. Se deja fijado para que nadie lo suponga.
    */
+  /*
+   * El escáner del sistema sólo fotografía documentos: la selfie siempre sale de la cámara. Un
+   * `system_scanner` en la selfie es un error del cliente y guardaría una etiqueta falsa.
+   */
+  it('rechaza system_scanner en la selfie con 400, y acepta camera o nada', () => {
+    const selfie = (origen?: string) => paquete({ evidenceType: 'selfie', ...(origen === undefined ? {} : { captureSource: origen }) });
+    expect(() => validar(identityPackageSchema, selfie('system_scanner'))).toThrow(BadRequestException);
+    expect(evidenciaDe(selfie('camera')).captureSource).toBe('camera');
+    expect(evidenciaDe(selfie())).not.toHaveProperty('captureSource');
+  });
+
+  it.each(['identity_front', 'identity_back'])('acepta system_scanner en %s', (evidenceType) => {
+    expect(evidenciaDe(paquete({ evidenceType, captureSource: 'system_scanner' })).captureSource).toBe('system_scanner');
+  });
+
   it('una clave desconocida en la evidencia se descarta, no da 400 (el esquema no es estricto)', () => {
     expect(evidenciaDe(paquete({ capturedWith: 'system_scanner' }))).not.toHaveProperty('capturedWith');
   });

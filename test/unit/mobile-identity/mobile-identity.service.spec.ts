@@ -228,6 +228,35 @@ describe('MobileIdentityService', () => {
     const peticion = engine.execute.mock.calls[0]?.[1] as { context: Record<string, unknown> };
     expect(peticion.context).toEqual({ channel: 'MOBILE_APP', verificationId: '5501', behaviorSummaryId: null });
   });
+
+  /*
+   * El origen es una declaración del cliente y la decisión del Motor depende de él: se guarda en el
+   * intento para poder reconstruir desde AtlasBackend con qué etiqueta se decidió. El valor llega tal
+   * cual lo mandó la app (el del ANVERSO: ver el esquema); aquí no se deriva nada.
+   */
+  it('guarda el origen declarado en reason_codes_json del intento, también si el motor falla', async () => {
+    const ok = montar({ output: { identidad_resultado: 'VERIFICADO' } });
+    await ok.service.start('1', cuerpo({ documentCaptureSource: 'system_scanner' }), 'idem-escaner');
+    const caido = montar(new Error('connect ECONNREFUSED'));
+    await caido.service.start('1', cuerpo({ documentCaptureSource: 'camera' }), 'idem-caido');
+    await dejarResolver();
+
+    const motivos = (r: typeof ok.repository) => (r.complete.mock.calls[0]?.[2] as { reasonCodes: Record<string, unknown> }).reasonCodes;
+    expect(motivos(ok.repository)).toMatchObject({ documentCaptureSource: 'system_scanner' });
+    expect(motivos(caido.repository)).toMatchObject({ reason: 'DECISION_ENGINE_UNAVAILABLE', documentCaptureSource: 'camera' });
+  });
+
+  it('sin documentCaptureSource el intento se guarda exactamente como antes', async () => {
+    const ok = montar({ output: { identidad_resultado: 'VERIFICADO' } });
+    await ok.service.start('1', cuerpo(), 'idem-camara');
+    const caido = montar(new Error('connect ECONNREFUSED'));
+    await caido.service.start('1', cuerpo(), 'idem-caido');
+    await dejarResolver();
+
+    const motivos = (r: typeof ok.repository) => (r.complete.mock.calls[0]?.[2] as { reasonCodes: Record<string, unknown> }).reasonCodes;
+    expect(motivos(ok.repository)).not.toHaveProperty('documentCaptureSource');
+    expect(Object.keys(motivos(caido.repository)).sort()).toEqual(['detail', 'reason']);
+  });
 });
 
 describe('el contrato de entrada del móvil', () => {

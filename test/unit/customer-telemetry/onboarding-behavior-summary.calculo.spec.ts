@@ -3,6 +3,7 @@ import {
   calcularResumen,
   VERSION_DEL_CALCULO,
   type CampoObservado,
+  type DetalleDelResumen,
   type EntradasDelResumen,
   type PasoObservado,
   type ToqueObservado,
@@ -171,58 +172,132 @@ describe('calcularResumen', () => {
 
   /*
    * El escáner de documentos del sistema (plan 2026-09-26). La app gana dos acciones de captura:
-   * `escanea` (la imagen vino del escáner) y `respaldo_camara` (no había escáner y cayó a la cámara).
-   * Cuentan en cifras NUEVAS del detalle; ninguna señal ni cifra existente puede moverse por ellas.
+   * `escanea` (se abrió el escáner del sistema; la imagen es el `toma`/`repite` que llega después) y
+   * `respaldo_camara` (no había escáner y cayó a su cámara). La secuencia es la que emite
+   * `identidad.tsx` en la app: abre → escanea → [el sistema] → toma | repite | cancela | respaldo_camara.
    */
-  it('escanea cuenta como captura tomada y respaldo_camara se cuenta aparte, sin tocar las señales', () => {
-    const pasos = [
-      paso('flujo', 'inicio', 0),
-      paso('identidad', 'enter', 1_000),
-      paso('captura_carnet_frente', 'escanea', 20_000),
-      paso('captura_carnet_reverso', 'respaldo_camara', 30_000),
-      paso('captura_carnet_reverso', 'abre', 30_500),
-      paso('captura_carnet_reverso', 'toma', 40_000),
-      paso('captura_selfie', 'abre', 50_000),
-      paso('captura_selfie', 'toma', 60_000),
-      paso('identidad', 'submit_ok', 90_000),
+  describe('escáner del sistema', () => {
+    /** El alta humana con el anverso escaneado en vez de fotografiado. `plano` = lo que añade Android. */
+    function conEscaner(plano: PasoObservado[]): EntradasDelResumen {
+      const base = humano();
+      const i = base.pasos.findIndex((p) => p.stepCode === 'captura_carnet_frente' && p.eventType === 'toma');
+      base.pasos = [...base.pasos.slice(0, i), paso('captura_carnet_frente', 'escanea', 71_000), ...plano, ...base.pasos.slice(i)];
+      return base;
+    }
+    /** Lo que emite la app en Android: ML Kit es otra actividad y la app pasa a segundo plano 8 s. */
+    const PLANO_ANDROID = [
+      paso('flujo', 'segundo_plano', 72_000, { eventType: 'segundo_plano', detail: 'escaner_sistema' }),
+      paso('flujo', 'primer_plano', 79_500, { eventType: 'primer_plano', detail: 'escaner_sistema' }),
     ];
-    const r = calcularResumen({ pasos, campos: [], toques: [], permisos: [], abandonosPrevios: 0 });
-    const d = r.interScreenTimingJson.detalle;
-    expect(d.capturasTomadas).toBe(3);
-    expect(d.capturasEscaneadas).toBe(1);
-    expect(d.respaldosDeCamara).toBe(1);
-    expect(d.capturasRepetidas).toBe(0);
-    expect(d.segundoPlanoDuranteCaptura).toBe(false);
-    expect(d.senales).not.toContain('CAPTURA_INTERRUMPIDA');
-  });
+    const sinCifrasNuevas = (d: DetalleDelResumen) => {
+      const { capturasTomadas: _t, capturasEscaneadas: _e, respaldosDeCamara: _r, ...resto } = d;
+      return resto;
+    };
 
-  it('cambiar la cámara por el escáner no mueve ninguna cifra existente: sólo las tres nuevas', () => {
-    const conCamara = humano();
-    const conEscaner = humano();
-    conEscaner.pasos = conEscaner.pasos.map((p) =>
-      p.stepCode === 'captura_carnet_frente' && p.eventType === 'toma' ? { ...p, eventType: 'escanea' } : p,
-    );
-    const a = calcularResumen(conCamara);
-    const b = calcularResumen(conEscaner);
-    const { capturasEscaneadas: escA, ...restoA } = a.interScreenTimingJson.detalle;
-    const { capturasEscaneadas: escB, ...restoB } = b.interScreenTimingJson.detalle;
-    expect(escA).toBe(0);
-    expect(escB).toBe(1);
-    expect(restoB).toEqual(restoA);
-    expect(restoA.capturasTomadas).toBe(1);
-    expect({ ...b, interScreenTimingJson: { ...b.interScreenTimingJson, detalle: restoB } }).toEqual({
-      ...a,
-      interScreenTimingJson: { ...a.interScreenTimingJson, detalle: restoA },
+    it('la imagen escaneada cuenta como tomada y como escaneada; abrir el escáner no es una imagen', () => {
+      const d = calcularResumen(conEscaner([])).interScreenTimingJson.detalle;
+      expect(d.capturasTomadas).toBe(1);
+      expect(d.capturasEscaneadas).toBe(1);
+      expect(d.respaldosDeCamara).toBe(0);
     });
-  });
 
-  it('las acciones de siempre dan las mismas cifras de siempre, y las nuevas en cero', () => {
-    const d = calcularResumen(humano()).interScreenTimingJson.detalle;
-    expect(d.capturasRepetidas).toBe(0);
-    expect(d.segundoPlanoDuranteCaptura).toBe(false);
-    expect(d.capturasTomadas).toBe(1);
-    expect(d.capturasEscaneadas).toBe(0);
-    expect(d.respaldosDeCamara).toBe(0);
+    it('en Android, el segundo plano que provoca ML Kit no interrumpe la captura ni se descuenta del tiempo', () => {
+      const camara = calcularResumen(humano());
+      const android = calcularResumen(conEscaner(PLANO_ANDROID));
+      const d = android.interScreenTimingJson.detalle;
+      expect(d.segundoPlanoDuranteCaptura).toBe(false);
+      expect(d.senales).not.toContain('CAPTURA_INTERRUMPIDA');
+      expect(d.segundosEnSegundoPlano).toBe(0);
+      // Todo lo que ya existía sale igual que con la cámara: tiempo, señales, bot score, envíos.
+      expect(android.completionTimeSeconds).toBe(camara.completionTimeSeconds);
+      expect(android.botLikelihoodScore).toBe(camara.botLikelihoodScore);
+      expect(sinCifrasNuevas(d)).toEqual(sinCifrasNuevas(camara.interScreenTimingJson.detalle));
+    });
+
+    it('sin el detail de la app, el escáner abierto basta para no contarlo como salida', () => {
+      const plano = [
+        // Una app que anotara también la captura como interrumpida y sin `detail`.
+        paso('captura_carnet_frente', 'segundo_plano', 72_000),
+        paso('flujo', 'segundo_plano', 72_000),
+        paso('flujo', 'primer_plano', 79_500),
+      ];
+      const camara = calcularResumen(humano());
+      const r = calcularResumen(conEscaner(plano));
+      expect(r.interScreenTimingJson.detalle.segundoPlanoDuranteCaptura).toBe(false);
+      expect(r.interScreenTimingJson.detalle.segundosEnSegundoPlano).toBe(0);
+      expect(r.completionTimeSeconds).toBe(camara.completionTimeSeconds);
+      expect(r.botLikelihoodScore).toBe(camara.botLikelihoodScore);
+    });
+
+    it('con la cámara de respaldo, irse al fondo SÍ es captura interrumpida y SÍ se descuenta, como siempre', () => {
+      const r = calcularResumen({
+        pasos: [
+          paso('flujo', 'inicio', 0),
+          paso('identidad', 'enter', 1_000),
+          paso('captura_carnet_frente', 'abre', 10_000),
+          paso('captura_carnet_frente', 'escanea', 10_100),
+          paso('captura_carnet_frente', 'respaldo_camara', 10_200),
+          paso('captura_carnet_frente', 'segundo_plano', 12_000),
+          paso('flujo', 'segundo_plano', 12_000),
+          paso('flujo', 'primer_plano', 42_000),
+          paso('captura_carnet_frente', 'toma', 50_000),
+          paso('captura_carnet_reverso', 'abre', 60_000),
+          paso('captura_carnet_reverso', 'escanea', 60_100),
+          paso('captura_carnet_reverso', 'cancela', 70_000),
+          paso('identidad', 'submit_ok', 200_000),
+        ],
+        campos: [],
+        toques: [],
+        permisos: [],
+        abandonosPrevios: 0,
+      });
+      const d = r.interScreenTimingJson.detalle;
+      expect(d.segundoPlanoDuranteCaptura).toBe(true);
+      expect(d.senales).toContain('CAPTURA_INTERRUMPIDA');
+      expect(d.segundosEnSegundoPlano).toBe(30);
+      expect(r.completionTimeSeconds).toBe(170);
+      expect(d.respaldosDeCamara).toBe(1);
+      // La foto de respaldo es de la cámara, y el reverso cancelado no es ninguna imagen.
+      expect(d.capturasTomadas).toBe(1);
+      expect(d.capturasEscaneadas).toBe(0);
+    });
+
+    it('caso mixto: anverso escaneado y reverso repetido con la cámara', () => {
+      const d = calcularResumen({
+        pasos: [
+          paso('flujo', 'inicio', 0),
+          paso('captura_carnet_frente', 'abre', 10_000),
+          paso('captura_carnet_frente', 'escanea', 10_100),
+          paso('captura_carnet_frente', 'toma', 20_000),
+          paso('captura_carnet_reverso', 'abre', 30_000),
+          paso('captura_carnet_reverso', 'escanea', 30_100),
+          paso('captura_carnet_reverso', 'respaldo_camara', 30_200),
+          paso('captura_carnet_reverso', 'toma', 40_000),
+          paso('captura_carnet_reverso', 'abre', 41_000),
+          paso('captura_carnet_reverso', 'repite', 50_000),
+          paso('captura_selfie', 'abre', 60_000),
+          paso('captura_selfie', 'toma', 70_000),
+        ],
+        campos: [],
+        toques: [],
+        permisos: [],
+        abandonosPrevios: 0,
+      }).interScreenTimingJson.detalle;
+      expect(d.capturasTomadas).toBe(4);
+      expect(d.capturasEscaneadas).toBe(1);
+      expect(d.respaldosDeCamara).toBe(1);
+      expect(d.capturasRepetidas).toBe(1);
+      expect(d.segundoPlanoDuranteCaptura).toBe(false);
+    });
+
+    it('las acciones de siempre dan las mismas cifras de siempre, y las nuevas en cero', () => {
+      const d = calcularResumen(humano()).interScreenTimingJson.detalle;
+      expect(d.capturasRepetidas).toBe(0);
+      expect(d.segundoPlanoDuranteCaptura).toBe(false);
+      expect(d.capturasTomadas).toBe(1);
+      expect(d.capturasEscaneadas).toBe(0);
+      expect(d.respaldosDeCamara).toBe(0);
+    });
   });
 
   it('la pantalla abierta (sin leave) cuenta hasta el último reloj: la fase de identidad no llega en 0 al Motor', () => {

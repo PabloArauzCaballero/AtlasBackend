@@ -1,7 +1,7 @@
 /**
- * @file Utilidad pura o acotada reutilizable dentro de su capa.
- * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
- * @system define en un solo sitio con qué se capturó una imagen de evidencia (cámara o escáner del sistema).
+ * @file Vocabulario único del origen de una captura de evidencia: cámara de la app o escáner de documentos del sistema.
+ * @business El Motor calibró su forense con fotos de la cámara; esta etiqueta le deja reconocer la imagen recortada y recodificada del escáner como otra población, que todavía no se ha medido.
+ * @system define `CAPTURE_SOURCES`, el esquema zod del borde y la regla de que la selfie nunca viene del escáner; lo comparten upload-url, el paquete de identidad, mobile-identity y el modelo de `evidence_documents`.
  */
 import { z } from 'zod';
 
@@ -27,3 +27,24 @@ export type CaptureSource = (typeof CAPTURE_SOURCES)[number];
 
 /** Campo opcional de origen de captura, para los esquemas del borde. */
 export const captureSourceSchema = z.enum(CAPTURE_SOURCES);
+
+/** Las evidencias que el escáner del sistema NO puede producir: la selfie siempre es de la cámara. */
+const SIEMPRE_CON_CAMARA: ReadonlySet<string> = new Set(['selfie']);
+
+/**
+ * Regla de un item de evidencia: `system_scanner` en una selfie es un error del cliente, no un dato.
+ * El escáner del sistema sólo fotografía documentos; aceptarlo en la selfie guardaría una etiqueta
+ * falsa en `evidence_documents.capture_source`.
+ */
+export function sinEscanerEnLaSelfie(
+  item: { evidenceType: string; captureSource?: CaptureSource | undefined },
+  ctx: z.RefinementCtx,
+): void {
+  if (item.captureSource === 'system_scanner' && SIEMPRE_CON_CAMARA.has(item.evidenceType)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['captureSource'],
+      message: 'La selfie siempre se toma con la cámara: captureSource no puede ser system_scanner.',
+    });
+  }
+}

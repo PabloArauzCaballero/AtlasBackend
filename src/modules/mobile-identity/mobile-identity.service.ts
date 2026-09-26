@@ -53,7 +53,7 @@ const ESTADO_POR_DECISION: Readonly<Record<string, IdentityVerificationState>> =
  */
 import { MobileIdentitySignalsService } from './mobile-identity-signals.service.js';
 import { lecturaUtilizable } from './mobile-identity.lectura.js';
-import { contextoDeLaEjecucion } from './mobile-identity.contexto.js';
+import { contextoDeLaEjecucion, origenDelDocumento } from './mobile-identity.contexto.js';
 import { describir } from './mobile-identity.errors.js';
 @Injectable()
 export class MobileIdentityService {
@@ -253,6 +253,7 @@ export class MobileIdentityService {
           artifactVersionId: respuesta.artifact?.versionId ?? null,
           behaviorSummaryId: comportamiento.summaryId,
           behaviorSignals: comportamiento.senales,
+          ...origenDelDocumento(body),
           /*
            * Lo que el worker LEYÓ del carnet, para que la app lo prellene y la persona lo confirme
            * en vez de teclearlo. Sólo procedencias que sostienen «se leyó el documento»: un campo
@@ -275,7 +276,7 @@ export class MobileIdentityService {
     } catch (error: unknown) {
       await this.repository.complete(tenantId, verificationId, {
         finalResult: 'UNAVAILABLE',
-        reasonCodes: { reason: 'DECISION_ENGINE_UNAVAILABLE', detail: describir(error) },
+        reasonCodes: { reason: 'DECISION_ENGINE_UNAVAILABLE', detail: describir(error), ...origenDelDocumento(body) },
         selfieMatchScore: null,
         documentForensicsScore: null,
         completedAt: new Date(),

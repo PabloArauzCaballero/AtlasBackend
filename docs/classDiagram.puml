@@ -609,6 +609,7 @@ package "04 Evidencias" as evidence {
     + uploaded_from_ip : INET
     + uploaded_from_session_id : BIGINT <<FK?>>
     + uploaded_from_device_fingerprint : VARCHAR(180)
+    + capture_source : VARCHAR(20)
     + retention_policy_id : BIGINT <<FK?>>
     + expires_at : DATE
     + retention_until : DATE
