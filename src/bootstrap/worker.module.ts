@@ -50,6 +50,9 @@ import { PlatformModule } from '../platform/platform.module.js';
  */
 export const WORKER_EXCLUDED_MODULES = Object.freeze([
   'AppContentModule',
+  // El asistente de la app (proxy a AtlasAIService) es una superficie HTTP de cliente: el worker
+  // no atiende móviles y no debe cargar con la credencial del servicio de IA.
+  'AssistModule',
   'AuditModule',
   'CatalogManagementModule',
   'CustomerDeviceSignalsModule',

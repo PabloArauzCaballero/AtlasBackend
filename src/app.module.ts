@@ -30,6 +30,7 @@ import { PlatformModule } from './platform/platform.module.js';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
 import { DatabaseModule } from './database/sequelize.module.js';
 import { ReadDatabaseModule } from './database/read-database.module.js';
+import { AssistModule } from './modules/assist/assist.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { SystemsOpsModule } from './modules/systems-ops/systems-ops.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -110,6 +111,7 @@ import { env } from './config/env.js';
     ExpedientesModule,
     MobileIdentityModule,
     MobileWelcomeAudioModule,
+    AssistModule,
     PartnerOnboardingModule,
     CreditModule,
     DecisionEngineModule,

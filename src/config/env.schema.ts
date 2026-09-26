@@ -13,6 +13,7 @@ import {
 } from './env.primitives.js';
 import { databaseEnvShape } from './env.database.schema.js';
 import { dashboardsEnvShape } from './env.dashboards.schema.js';
+import { assistEnvShape } from './env.assist.schema.js';
 import { decisionEngineEnvShape } from './env.decision-engine.schema.js';
 import { erpEnvShape } from './env.erp.schema.js';
 import { observabilityEnvShape } from './env.observability.schema.js';
@@ -199,14 +200,13 @@ export const envBaseSchema = z.object({
 
   // Servicio de archivos por adaptadores. Bloque propio en `env.files.schema.ts`.
   ...filesEnvShape,
-
-  // Integración con el motor de decisión. Bloque propio en `env.decision-engine.schema.ts`.
+  // Motor de decisión y Atlas Assist: bloques propios (`env.decision-engine.schema.ts`, `env.assist.schema.ts`).
   ...decisionEngineEnvShape,
+  ...assistEnvShape,
   // Dirección del ERP, sólo para reportar su salud. Bloque propio en `env.erp.schema.ts`.
   ...erpEnvShape,
   ...dashboardsEnvShape,
   ...otpDeliveryEnvShape,
-
   /**
    * Si Flujos devuelve el FICHERO y la LÍNEA de cada endpoint y pantalla —el atajo del hallazgo al
    * código— y el árbol de fuentes para quien tenga `systems.flows.read`. Fuera de producción
