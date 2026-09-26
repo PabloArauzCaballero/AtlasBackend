@@ -119,6 +119,30 @@ export function backendEventCodes(): Set<string> {
   return new Set([...source.matchAll(/'([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+)'/g)].map((m) => m[1]!));
 }
 
+/**
+ * Eventos que el código EMITE (o nombra al consumirlos), estén o no en el registro: literales de
+ * `src/` y prefijos de plantillas (`customer.lifecycle.${estado}`). Fuera quedan las fixtures y la
+ * siembra, que son justo lo que se está comprobando.
+ */
+export function backendEmittedEvents(): { literals: Set<string>; prefixes: string[] } {
+  const literals = new Set<string>();
+  const prefixes: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) {
+        if (!/workflow-catalog[\\/]definitions|seeders/.test(path)) walk(path);
+      } else if (entry.endsWith('.ts')) {
+        const source = readFileSync(path, 'utf8');
+        for (const m of source.matchAll(/'([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+)'/g)) literals.add(m[1]!);
+        for (const m of source.matchAll(/`([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*\.)\$\{/g)) prefixes.push(m[1]!);
+      }
+    }
+  };
+  walk(join(ROOT, 'src'));
+  return { literals, prefixes };
+}
+
 export type StepRef = { fixture: WorkflowDefinitionFixture; stage: string; step: ProcessStepFixture };
 
 export function stepsOf(fixture: WorkflowDefinitionFixture): StepRef[] {

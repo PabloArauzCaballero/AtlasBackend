@@ -70,7 +70,7 @@ export const POST_LOGIN_FIRST_SCREEN: WorkflowDefinitionFixture = {
             startedAt: 'ISO-8601',
           },
           errors: ['401 TOKEN_EXPIRED', '409 SESSION_ALREADY_OPEN'],
-          events: ['session.started'],
+          events: [],
           successStatus: [200, 201],
         },
         {

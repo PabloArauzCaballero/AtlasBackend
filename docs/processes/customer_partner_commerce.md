@@ -88,7 +88,7 @@ El comercio se registra y abre su expediente.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Iniciar el alta del comercio | http | ATLAS_BACKEND | `POST /partner-onboarding/start` | — | partner.registered |
+| Iniciar el alta del comercio | http | ATLAS_BACKEND | `POST /partner-onboarding/start` | — | — |
 | Mi comercio | http | ATLAS_BACKEND | `GET /partner-onboarding/mine` | — | — |
 | Estado del alta | http | ATLAS_BACKEND | `GET /partner-onboarding/:partnerId/status` | — | — |
 
@@ -132,7 +132,7 @@ El instrumento con el que el cliente llega. Cada QR se revisa antes de servir.
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
 | URL firmada para la imagen del QR | http | ATLAS_BACKEND | `POST /partner-onboarding/:partnerId/qr-codes/upload-url` | — | — |
-| Declarar un QR | http | ATLAS_BACKEND | `POST /partner-onboarding/:partnerId/qr-codes` | — | partner.qr.submitted |
+| Declarar un QR | http | ATLAS_BACKEND | `POST /partner-onboarding/:partnerId/qr-codes` | — | — |
 | QR del comercio | http | ATLAS_BACKEND | `GET /partner-onboarding/:partnerId/qr-codes` | — | — |
 | Contenido del QR | http | ATLAS_BACKEND | `GET /partner-onboarding/:partnerId/qr-codes/:qrId/content` | — | — |
 
@@ -142,7 +142,7 @@ El comercio da por completo su expediente.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Enviar el expediente del comercio | http | ATLAS_BACKEND | `POST /partner-onboarding/:partnerId/submit` | — | partner.onboarding.submitted |
+| Enviar el expediente del comercio | http | ATLAS_BACKEND | `POST /partner-onboarding/:partnerId/submit` | — | — |
 
 ### KYB y decisión del operador (`partner_review`)
 
@@ -153,8 +153,8 @@ Atlas revisa al comercio. Actor distinto, token distinto, autorización distinta
 | Cola de comercios por revisar | http | ATLAS_BACKEND | `GET /operations/partners/queue` | internal_operator, compliance_analyst, risk_analyst, admin | — |
 | Revisión KYB | http | ATLAS_BACKEND | `POST /operations/partners/:partnerId/kyb-review` | internal_operator, compliance_analyst, risk_analyst, admin | — |
 | QR pendientes de aprobación | http | ATLAS_BACKEND | `GET /operations/partners/qr-codes/pending` | internal_operator, compliance_analyst, risk_analyst, admin | — |
-| Aprobar o rechazar un QR | http | ATLAS_BACKEND | `POST /operations/partners/:partnerId/qr-codes/:qrId/review` | internal_operator, compliance_analyst, risk_analyst, admin | partner.qr.reviewed |
-| Decidir el alta del comercio | http | ATLAS_BACKEND | `POST /operations/partners/:partnerId/decision` | internal_operator, compliance_analyst, risk_analyst, admin | partner.decided |
+| Aprobar o rechazar un QR | http | ATLAS_BACKEND | `POST /operations/partners/:partnerId/qr-codes/:qrId/review` | internal_operator, compliance_analyst, risk_analyst, admin | — |
+| Decidir el alta del comercio | http | ATLAS_BACKEND | `POST /operations/partners/:partnerId/decision` | internal_operator, compliance_analyst, risk_analyst, admin | — |
 | Vincular cuenta ERP | http | ATLAS_BACKEND | `PATCH /operations/partners/:partnerId/erp-account` | internal_operator, compliance_analyst, risk_analyst, admin | — |
 
 ### Usuarios del comercio (`merchant_users`)
@@ -186,9 +186,9 @@ El cliente pide en la caja y el comercio acepta. Dos actores, dos autorizaciones
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
 | Productos disponibles en la caja | http | ATLAS_BACKEND | `GET /customers/:customerId/credit-products` | customer | — |
-| Solicitar el crédito de la compra | http | ATLAS_BACKEND | `POST /customers/:customerId/credit-applications` | customer | credit.application.created |
+| Solicitar el crédito de la compra | http | ATLAS_BACKEND | `POST /customers/:customerId/credit-applications` | customer | — |
 | Solicitudes que llegan al comercio | http | ATLAS_BACKEND | `GET /merchant/partners/:partnerId/credit-applications` | merchant_user | — |
-| El comercio acepta la compra | http | ATLAS_BACKEND | `POST /merchant/partners/:partnerId/credit-applications/:applicationId/acceptance` | merchant_user | credit.application.accepted_by_partner |
+| El comercio acepta la compra | http | ATLAS_BACKEND | `POST /merchant/partners/:partnerId/credit-applications/:applicationId/acceptance` | merchant_user | — |
 | Aceptación comercial en operaciones | http | ATLAS_BACKEND | `POST /operations/credit/applications/:applicationId/business-acceptance` | internal_operator, admin | — |
 
 ### Aviso de pago y verificación (`payment_settlement`)
@@ -197,11 +197,11 @@ El cliente avisa, el comercio verifica. Avisar no es pagar: el estado sólo camb
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| El cliente avisa el pago | http | ATLAS_BACKEND | `POST /mobile/customers/:customerId/payment-claims` | customer | payment.claim.created |
+| El cliente avisa el pago | http | ATLAS_BACKEND | `POST /mobile/customers/:customerId/payment-claims` | customer | — |
 | Comprobante del pago | http | ATLAS_BACKEND | `POST /mobile/customers/:customerId/payment-claims/proof-tickets` | customer | — |
 | Avisos que llegan al comercio | http | ATLAS_BACKEND | `GET /merchant/partners/:partnerId/payment-claims` | merchant_user | — |
 | Ver el comprobante | http | ATLAS_BACKEND | `GET /merchant/partners/:partnerId/payment-claims/:claimId/proof` | merchant_user | — |
-| El comercio verifica el pago | http | ATLAS_BACKEND | `POST /merchant/partners/:partnerId/payment-claims/:claimId/verification` | merchant_user | payment.claim.verified |
+| El comercio verifica el pago | http | ATLAS_BACKEND | `POST /merchant/partners/:partnerId/payment-claims/:claimId/verification` | merchant_user | — |
 
 ### Cartera del comercio (`partner_portfolio`)
 

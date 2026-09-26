@@ -78,6 +78,11 @@ describe('gates del catálogo de procesos', () => {
     expect(run('check-process-steps.ts', { ...BASE, stages })).toBe(1);
   }, 60_000);
 
+  it('check:process-steps falla con un evento que nadie emite', () => {
+    const stages = [{ ...BASE.stages[0], steps: [{ ...BASE.stages[0]!.steps[0], events: ['evento.inventado_por_la_ficha'] }] }];
+    expect(run('check-process-steps.ts', { ...BASE, stages })).toBe(1);
+  }, 60_000);
+
   it('check:process-sync falla si una fixture del registro cambia sin su migración', () => {
     // Con PROCESS_FIXTURES el gate ve un proceso que no está en el candado: exactamente el caso a cazar.
     expect(run('check-process-sync.ts', BASE)).toBe(1);

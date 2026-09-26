@@ -88,7 +88,7 @@ Crea el cliente y su expediente de onboarding. A partir de aquí existe un custo
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Iniciar el alta | http | ATLAS_BACKEND | `POST /customer-onboarding/start` | — | customer.registered |
+| Iniciar el alta | http | ATLAS_BACKEND | `POST /customer-onboarding/start` | — | — |
 
 ### Provisión de credenciales (`signup_credentials`)
 
@@ -105,8 +105,8 @@ Registra correo y teléfono y comprueba que son del usuario con un código de un
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
 | Registrar los medios de contacto | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/contact-methods` | customer, internal_operator, risk_analyst, admin, platform_admin | — |
-| Solicitar el código de verificación | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/contact-verification/request` | customer, internal_operator, risk_analyst, admin, platform_admin | customer.contact_verification_requested |
-| Enviar el código recibido | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/contact-verification/submit` | customer, internal_operator, risk_analyst, admin, platform_admin | customer.contact_verified |
+| Solicitar el código de verificación | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/contact-verification/request` | customer, internal_operator, risk_analyst, admin, platform_admin | — |
+| Enviar el código recibido | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/contact-verification/submit` | customer, internal_operator, risk_analyst, admin, platform_admin | — |
 
 ### Consentimientos de privacidad (`signup_privacy_consents`)
 
@@ -114,7 +114,7 @@ Registra la aceptación de los documentos que se mostraron al principio. Sin est
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Registrar las decisiones de consentimiento | http | ATLAS_BACKEND | `POST /customers/:customerId/privacy/consent-decisions` | customer, internal_operator, compliance_analyst, admin, platform_admin | customer.consents_recorded |
+| Registrar las decisiones de consentimiento | http | ATLAS_BACKEND | `POST /customers/:customerId/privacy/consent-decisions` | customer, internal_operator, compliance_analyst, admin, platform_admin | — |
 
 ### Primera sesión iniciada (`signup_first_login`)
 
@@ -122,7 +122,7 @@ El objetivo del recorrido: el usuario obtiene su token y la app confirma quién 
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Autenticarse con usuario y contraseña | http | ATLAS_BACKEND | `POST /auth/login` | — | auth.login_succeeded, auth.login_failed |
+| Autenticarse con usuario y contraseña | http | ATLAS_BACKEND | `POST /auth/login` | — | — |
 | Completar el segundo factor | http | ATLAS_BACKEND | `POST /auth/mfa` | — | — |
 | Autenticarse con PIN | http | ATLAS_BACKEND | `POST /auth/login/pin` | — | — |
 | Confirmar el actor autenticado | http | ATLAS_BACKEND | `GET /auth/me` | — | — |

@@ -2,11 +2,11 @@
   "processes": {
     "migration": "20260926170500-sync-workflow-catalog-1",
     "hashes": {
-      "customer_credit_journey": "762bae2443f031e9",
-      "post_login_first_screen": "77f2aba3c9b9e0c9",
-      "customer_full_lifecycle": "040f45f9a89b3336",
-      "customer_partner_commerce": "57999d0bb0af253c",
-      "account_signup_to_login": "47dd8c8454c109a2",
+      "customer_credit_journey": "49a9531b0dbd3ed9",
+      "post_login_first_screen": "6b88e3d8745e29e5",
+      "customer_full_lifecycle": "fc6b7d77f1c1a9a7",
+      "customer_partner_commerce": "2f5d141507ae9051",
+      "account_signup_to_login": "fd42001e5bdce026",
       "customer_onboarding_kyc": "9aaabe142f727d49",
       "identity_verification": "ccb5446ba91f42ac",
       "onboarding_risk_assessment": "249833550c27b456",

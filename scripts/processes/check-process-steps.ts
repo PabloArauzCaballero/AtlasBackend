@@ -12,6 +12,7 @@
  * Ejecutar con `yarn check:process-steps`.
  */
 import {
+  backendEmittedEvents,
   backendEventCodes,
   backendJobCodes,
   backendRoutes,
@@ -27,6 +28,8 @@ import { WORKFLOW_CONDITION_TYPES } from '../../src/modules/workflow-catalog/wor
 const backend = backendRoutes();
 const external = externalRoutes();
 const events = backendEventCodes();
+const emitted = backendEmittedEvents();
+const isEmitted = (e: string) => emitted.literals.has(e) || emitted.prefixes.some((p) => e.startsWith(p));
 const jobs = backendJobCodes();
 const roles = routeRoles();
 const CONDITIONS = new Set<string>(WORKFLOW_CONDITION_TYPES);
@@ -77,8 +80,13 @@ for (const f of FIXTURES) {
         warnings.push(`${at}: roles ${extra.join(', ')} no los admite el controlador (admite ${[...declared!].join(', ')})`);
     }
     if (system === 'ATLAS_BACKEND') {
-      for (const e of [...(step.events ?? []), ...(step.consumes ?? [])])
-        if (!events.has(e)) warnings.push(`${at}: evento ${e} no está en event-registry.ts`);
+      for (const e of [...(step.events ?? []), ...(step.consumes ?? [])]) {
+        if (events.has(e)) continue;
+        // Un evento que nadie emite es una promesa falsa de la ficha; uno emitido y sin registrar,
+        // un hueco del registro (`process_outbox` lo marca procesado sin avisar a nadie).
+        if (isEmitted(e)) warnings.push(`${at}: evento ${e} se emite pero no está en event-registry.ts`);
+        else errors.push(`${at}: evento ${e} no lo emite ni lo consume nadie en el código`);
+      }
     }
   }
   for (const d of f.dependencies ?? []) {

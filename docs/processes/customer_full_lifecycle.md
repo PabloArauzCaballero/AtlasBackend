@@ -122,7 +122,7 @@ Crea el cliente, sus credenciales y su primera sesión en una sola transacción.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Iniciar el alta | http | ATLAS_BACKEND | `POST /customer-onboarding/start` | — | customer.registered |
+| Iniciar el alta | http | ATLAS_BACKEND | `POST /customer-onboarding/start` | — | — |
 | Iniciar sesión | http | ATLAS_BACKEND | `POST /auth/login` | — | — |
 | Identidad de la sesión | http | ATLAS_BACKEND | `GET /auth/me` | — | — |
 | Abrir sesión de app | http | ATLAS_BACKEND | `POST /customers/:customerId/sessions/start` | — | — |
@@ -205,7 +205,7 @@ Consulta a proveedores: primero el costo, después la consulta, después las fea
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
 | Vista previa de costo | http | ATLAS_BACKEND | `POST /external-data/requests/preview` | — | — |
-| Consultar al proveedor | http | ATLAS_BACKEND | `POST /external-data/requests` | — | external.request.completed |
+| Consultar al proveedor | http | ATLAS_BACKEND | `POST /external-data/requests` | — | — |
 | Features derivadas | http | ATLAS_BACKEND | `GET /external-data/users/:customerId/features` | — | — |
 | Observaciones registradas | http | ATLAS_BACKEND | `GET /external-data/users/:customerId/observations` | — | — |
 
@@ -215,7 +215,7 @@ El cliente da por completo su expediente y lo entrega.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Enviar el expediente | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/submit` | — | onboarding.submitted |
+| Enviar el expediente | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/submit` | — | — |
 | Estado del onboarding | http | ATLAS_BACKEND | `GET /customer-onboarding/:customerId/status` | — | — |
 | Observaciones al cliente | http | ATLAS_BACKEND | `GET /customer-onboarding/:customerId/observations` | — | — |
 | Avance sobre el catálogo de flujos | http | ATLAS_BACKEND | `GET /customers/:customerId/workflow-progress` | — | — |
@@ -231,7 +231,7 @@ Un actor DISTINTO del cliente resuelve identidad, cumplimiento y habilitación. 
 | Tamizaje de cumplimiento | http | ATLAS_BACKEND | `POST /operations/customers/:customerId/compliance/screening` | internal_operator, compliance_analyst, risk_analyst, admin | — |
 | Resolver coincidencias | http | ATLAS_BACKEND | `POST /operations/customers/:customerId/compliance/clear-matches` | internal_operator, compliance_analyst, risk_analyst, admin | — |
 | Resumen de investigación | http | ATLAS_BACKEND | `GET /operations/customers/:customerId/investigation-summary` | internal_operator, compliance_analyst, risk_analyst, admin | — |
-| Decidir la habilitación | http | ATLAS_BACKEND | `POST /operations/customers/:customerId/eligibility/decision` | internal_operator, compliance_analyst, risk_analyst, admin | customer.eligibility.decided |
+| Decidir la habilitación | http | ATLAS_BACKEND | `POST /operations/customers/:customerId/eligibility/decision` | internal_operator, compliance_analyst, risk_analyst, admin | — |
 
 ### Riesgo y calificación (`risk_assessment`)
 
@@ -239,7 +239,7 @@ Evaluación de riesgo y calificación crediticia con las reglas y la política v
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Evaluar riesgo | http | ATLAS_BACKEND | `POST /customers/:customerId/risk-assessments` | — | risk.assessed |
+| Evaluar riesgo | http | ATLAS_BACKEND | `POST /customers/:customerId/risk-assessments` | — | — |
 | Calificar al cliente | http | ATLAS_BACKEND | `POST /operations/credit-rating/customers/:customerId/rate` | risk_analyst, admin, system | — |
 | Calificación del cliente | http | ATLAS_BACKEND | `GET /customers/:customerId/credit-rating` | — | — |
 
@@ -258,7 +258,7 @@ El cliente pide, dentro de las condiciones que el producto permite.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Solicitar crédito | http | ATLAS_BACKEND | `POST /customers/:customerId/credit-applications` | — | credit.application.created |
+| Solicitar crédito | http | ATLAS_BACKEND | `POST /customers/:customerId/credit-applications` | — | — |
 | Solicitudes del cliente | http | ATLAS_BACKEND | `GET /customers/:customerId/credit-applications` | — | — |
 
 ### Decisión de crédito (`credit_decision`)
@@ -268,7 +268,7 @@ Un operador autorizado decide. El cliente no decide su propio crédito.
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
 | Detalle de la solicitud | http | ATLAS_BACKEND | `GET /operations/credit/applications/:applicationId` | internal_operator, risk_analyst, admin | — |
-| Decidir la solicitud | http | ATLAS_BACKEND | `POST /operations/credit/applications/:applicationId/decision` | internal_operator, risk_analyst, admin | credit.application.decided |
+| Decidir la solicitud | http | ATLAS_BACKEND | `POST /operations/credit/applications/:applicationId/decision` | internal_operator, risk_analyst, admin | — |
 
 ### Línea de crédito (`credit_line`)
 
@@ -296,7 +296,7 @@ El cliente avisa que pagó y adjunta el comprobante. Avisar no es haber pagado: 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
 | Instrucciones de pago de la cuota | http | ATLAS_BACKEND | `GET /mobile/customers/:customerId/payment-claims/instructions/:installmentId` | — | — |
-| Avisar el pago | http | ATLAS_BACKEND | `POST /mobile/customers/:customerId/payment-claims` | — | payment.claim.created |
+| Avisar el pago | http | ATLAS_BACKEND | `POST /mobile/customers/:customerId/payment-claims` | — | — |
 | Adjuntar comprobante | http | ATLAS_BACKEND | `POST /mobile/customers/:customerId/payment-claims/proof-tickets` | — | — |
 
 ### Notificaciones y telemetría (`engagement`)
@@ -319,7 +319,7 @@ Lo que el cliente puede exigir sobre sus datos, y cómo cierra.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Ejercer derechos sobre los datos | http | ATLAS_BACKEND | `POST /customers/:customerId/privacy/data-subject-requests` | — | privacy.data_subject_request.created |
+| Ejercer derechos sobre los datos | http | ATLAS_BACKEND | `POST /customers/:customerId/privacy/data-subject-requests` | — | — |
 | Cerrar la sesión de app | http | ATLAS_BACKEND | `POST /customers/:customerId/sessions/:sessionId/end` | — | — |
 | Cerrar sesión | http | ATLAS_BACKEND | `POST /auth/logout` | — | — |
 
