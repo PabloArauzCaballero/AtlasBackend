@@ -15,10 +15,12 @@ import {
   DecisionSubjectLinkModel,
   FeatureDefinitionModel,
   FeatureValueModel,
+  FraudCaseModel,
   IdentityVerificationAttemptModel,
   LoanInstallmentModel,
   LoanModel,
   LoanOutcomeReportModel,
+  WatchlistMatchModel,
 } from '../../database/models/index.js';
 import { CreditDecisionEngineService } from './credit-decision-engine.service.js';
 import { DecisionArtifactBindingController } from './decision-artifact-binding.controller.js';
@@ -71,6 +73,10 @@ import { UnderwritingCreditHistoryService } from './underwriting-credit-history.
       IdentityVerificationAttemptModel,
       LoanModel,
       LoanInstallmentModel,
+      // Cumplimiento y fraude REALES (C-6), leídos por `UnderwritingSignalsService.complianceSignals` en vez de
+      // mandar `CLEAR`/`false` fijos: las coincidencias con listas restrictivas y los casos de fraude.
+      WatchlistMatchModel,
+      FraudCaseModel,
     ]),
   ],
   controllers: [DecisionArtifactBindingController],

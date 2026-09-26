@@ -3,7 +3,7 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
-import { Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
@@ -15,10 +15,10 @@ import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerEligibilityRepository } from '../../customers/repositories/customer-eligibility.repository.js';
 import { CustomerEligibilityRiskRepository } from '../../customers/repositories/customer-eligibility-risk.repository.js';
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
-import { RiskService } from '../../risk/risk.service.js';
 import { OnboardingBehaviorSummaryService } from '../../customer-telemetry/application/onboarding-behavior-summary.service.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
+import { OnboardingRiskTriggerService } from './onboarding-risk-trigger.service.js';
 
 /** Estados desde los que el envío a revisión tiene sentido. El resto es un error de negocio. */
 const SUBMITTABLE_STATUSES = ['registered', 'onboarding_in_progress', 'observed'] as const;
@@ -36,8 +36,6 @@ const SUBMITTABLE_STATUSES = ['registered', 'onboarding_in_progress', 'observed'
  */
 @Injectable()
 export class CustomerOnboardingStatusService {
-  private readonly logger = new Logger(CustomerOnboardingStatusService.name);
-
   constructor(
     private readonly customersRepository: CustomersRepository,
     private readonly onboardingRepository: CustomerOnboardingRepository,
@@ -47,7 +45,7 @@ export class CustomerOnboardingStatusService {
     // Observaciones y casos abiertos: lo que el banco encontró sobre el cliente.
     private readonly eligibilityRiskRepository: CustomerEligibilityRiskRepository,
     private readonly lifecycleService: CustomerLifecycleService,
-    private readonly riskService: RiskService,
+    private readonly riskTrigger: OnboardingRiskTriggerService,
     private readonly expedienteHooks: ExpedienteHooksService,
     private readonly comportamiento: OnboardingBehaviorSummaryService,
     @InjectConnection() private readonly sequelize: Sequelize,
@@ -130,7 +128,7 @@ export class CustomerOnboardingStatusService {
     // Corre fuera de la transacción a propósito: consulta al motor de políticas versionadas, y una
     // llamada de red dentro de la transacción mantendría locks abiertos toda su latencia. Si falla,
     // el envío igual procede y queda como bloqueador explícito, no como error opaco.
-    await this.runOnboardingRiskAssessment(input);
+    await this.riskTrigger.run(input);
 
     const now = new Date();
 
@@ -227,39 +225,6 @@ export class CustomerOnboardingStatusService {
    */
   private async congelarExpediente(tenantId: string, customerId: string): Promise<void> {
     await this.expedienteHooks.alEnviarOnboarding({ tenantId, customerId });
-  }
-
-  /**
-   * Dispara la evaluación de riesgo del onboarding.
-   *
-   * Se degrada con un bloqueador en vez de tumbar el envío: si el motor de políticas no responde, el
-   * paquete igual queda enviado y la elegibilidad lo reporta como `RISK_NOT_APPROVED` —que es la
-   * verdad— hasta que la evaluación se rehaga. Perder el envío completo por una caída del motor
-   * obligaría al cliente a repetir todo el recorrido por un problema que no es suyo.
-   */
-  private async runOnboardingRiskAssessment(input: {
-    tenantId: string;
-    customerId: string;
-    currentUser: AuthenticatedUser;
-    idempotencyKey: string;
-  }): Promise<void> {
-    try {
-      await this.riskService.createRiskAssessment({
-        tenantId: input.tenantId,
-        customerId: input.customerId,
-        body: { assessmentType: 'onboarding_initial', channel: 'system' },
-        currentUser: input.currentUser,
-        // Clave derivada: el envío y su evaluación de riesgo son operaciones distintas y no pueden
-        // compartir la misma entrada en `idempotency_keys`.
-        idempotencyKey: `${input.idempotencyKey}:onboarding-risk`,
-      });
-    } catch (error) {
-      this.logger.warn(
-        `Envío a revisión del cliente ${input.customerId} registrado, pero la evaluación de riesgo falló: ${
-          error instanceof Error ? error.message : 'error desconocido'
-        }. La habilitación queda bloqueada por RISK_NOT_APPROVED hasta que se recalcule.`,
-      );
-    }
   }
 
   /**

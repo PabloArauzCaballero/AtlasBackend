@@ -35,9 +35,11 @@ describe('CreditUnderwritingService', () => {
       findApplicationById: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown> | null> => application),
       createApplicationEvent: jest.fn(async (..._args: unknown[]) => ({})),
     };
+    // El caso PROPIO de Atlas (C-1): sólo se abre cuando el Motor no abrió el suyo.
+    const reviewCases = { open: jest.fn(async (..._args: unknown[]) => ({ caseCode: 'CR-CRA-1' })) };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-    const service = new CreditUnderwritingService(engine as never, credit as never, sequelize as never);
-    return { service, application, credit, engine };
+    const service = new CreditUnderwritingService(engine as never, credit as never, sequelize as never, reviewCases as never);
+    return { service, application, credit, engine, reviewCases };
   }
 
   const input = {
@@ -84,6 +86,10 @@ describe('CreditUnderwritingService', () => {
     expect(result.executionId).toBeNull();
     // Sin ejecución no hay nada que atribuir: la solicitud no puede quedar contada como decidida.
     expect(application.decisionExecutionId).toBeNull();
+    // Y el motivo queda escrito (C-2): una solicitud en revisión sin motivo no dice si espera a una
+    // persona por política o por una avería.
+    expect(application.decisionReasonCode).toBe('engine_unavailable');
+    expect(result.reasonCodes).toEqual(['engine_unavailable']);
   });
 
   it('deriva a revisión un desenlace que el core no sabe leer, en vez de aprobarlo', async () => {
@@ -138,5 +144,83 @@ describe('CreditUnderwritingService', () => {
       executionId: null,
       reasonCodes: [],
     });
+  });
+
+  /*
+   * C-1 (2026-09-25): una solicitud en `under_review` tiene que tener una bandeja. Si el Motor abrió
+   * su caso, esa es; si NO lo abrió —un `review` sin `manualReview.caseCode`, o un motor que no
+   * respondió—, Atlas abre el suyo. Antes la solicitud quedaba sin bandeja en ningún sitio.
+   */
+  describe('la revisión siempre queda en una bandeja (C-1)', () => {
+    it('un review del Motor SIN caso abre el caso PROPIO de Atlas y lo registra en la solicitud', async () => {
+      const { service, application, reviewCases, credit } = build({
+        kind: 'review',
+        response: response({ outcome: 'MANUAL_REVIEW', manualReview: null }),
+      });
+
+      const result = await service.underwrite(input);
+
+      expect(result.status).toBe('under_review');
+      expect(reviewCases.open).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: '1', customerId: 'c1', applicationCode: 'CRA-1' }),
+        expect.anything(),
+      );
+      expect(application.manualReviewCaseCode).toBe('CR-CRA-1');
+      expect(application.manualReviewCaseSource).toBe('atlas');
+      const [[event]] = credit.createApplicationEvent.mock.calls as unknown as [[Record<string, Record<string, unknown>>]];
+      expect(event.payloadJson).toMatchObject({ manualReviewCaseCode: 'CR-CRA-1', manualReviewCaseSource: 'atlas' });
+    });
+
+    it('un review del Motor CON caso registra el del Motor y NO abre uno propio', async () => {
+      const { service, application, reviewCases } = build({
+        kind: 'review',
+        response: response({ outcome: 'MANUAL_REVIEW', manualReview: { caseCode: 'MRC-000088001', queueCode: 'CREDIT_REVIEW' } }),
+      });
+
+      await service.underwrite(input);
+
+      expect(reviewCases.open).not.toHaveBeenCalled();
+      expect(application.manualReviewCaseCode).toBe('MRC-000088001');
+      expect(application.manualReviewCaseSource).toBe('engine');
+    });
+
+    it('un motor que no respondió también deja la solicitud en una bandeja de Atlas', async () => {
+      const { service, application, reviewCases } = build({ kind: 'engineUnavailable', reason: 'ECONNREFUSED' });
+
+      await service.underwrite(input);
+
+      expect(reviewCases.open).toHaveBeenCalledTimes(1);
+      expect(application.manualReviewCaseSource).toBe('atlas');
+      expect(application.manualReviewCaseCode).toBe('CR-CRA-1');
+    });
+
+    it('lo que se aprueba o se rechaza no espera a nadie: no abre caso ni lo registra', async () => {
+      for (const outcome of [
+        { kind: 'approved', response: response() },
+        { kind: 'declined', response: response({ outcome: 'DECLINE' }) },
+      ] as DecisionOutcome[]) {
+        const { service, application, reviewCases } = build(outcome);
+        await service.underwrite(input);
+        expect(reviewCases.open).not.toHaveBeenCalled();
+        expect(application.manualReviewCaseCode).toBeNull();
+        expect(application.manualReviewCaseSource).toBeNull();
+      }
+    });
+  });
+
+  /*
+   * El barrido de solicitudes atascadas vuelve a llamar a `underwrite`, y la petición original puede
+   * seguir viva: la solicitud que ya salió de `submitted` no se pisa (C-2).
+   */
+  it('no pisa una solicitud que ya no está submitted: dos caminos pueden llegar aquí', async () => {
+    const { service, application, credit, reviewCases } = build({ kind: 'declined', response: response({ outcome: 'DECLINE' }) });
+    Object.assign(application, { status: 'approved', decisionMode: 'decision_engine', decisionExecutionId: '77' });
+
+    const result = await service.underwrite(input);
+
+    expect(result).toEqual({ status: 'approved', decisionMode: 'decision_engine', executionId: '77', reasonCodes: [] });
+    expect(application.save).not.toHaveBeenCalled();
+    expect(credit.createApplicationEvent).not.toHaveBeenCalled();
+    expect(reviewCases.open).not.toHaveBeenCalled();
   });
 });

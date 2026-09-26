@@ -7,7 +7,6 @@ import {
   DEVICE_PERMISSION_PURPOSE_CODES,
   ELIGIBILITY_RULE_VERSION,
   EligibilityBlockerCode,
-  IDENTITY_VERIFIED_RESULT,
   MAXIMUM_CUSTOMER_AGE_YEARS,
   MINIMUM_CUSTOMER_AGE_YEARS,
   OnboardingSectionCode,
@@ -18,6 +17,7 @@ import {
   RISK_APPROVED_ACTION,
   RISK_ASSESSMENT_TTL_DAYS,
 } from '../customer-eligibility.constants.js';
+import { isIdentityVerified } from '../../../common/utils/identity/identity-result.util.js';
 import { CREDIT_ELIGIBLE_STATUS, CustomerLifecycleStatus } from '../customer-lifecycle.constants.js';
 import type { EligibilityFacts } from '../repositories/customer-eligibility.facts.js';
 import { CODIGOS_DE_PREGUNTA } from '../consumer-survey.catalog.js';
@@ -193,16 +193,14 @@ export function buildSections(facts: EligibilityFacts, now: Date): OnboardingSec
   ];
 }
 
-/** Bloqueadores de la habilitación. Lista completa: nunca corta en el primero encontrado. */
 /**
- * En minúsculas a propósito. El camino del Motor (`mobile-identity`) escribe `VERIFIED` y el del
- * operador y el proveedor escriben `verified`; comparar en estricto dejaba a todo cliente verificado
+ * Bloqueadores de la habilitación. Lista completa: nunca corta en el primero encontrado.
+ *
+ * El veredicto de identidad se lee con `isIdentityVerified` (`common/utils/identity`), que entiende
+ * el vocabulario de los dos canales: el del Motor (`mobile-identity`) escribe `VERIFIED` y el del
+ * operador y el proveedor escriben `verified`. Comparar en estricto dejaba a todo cliente verificado
  * por el Motor con `IDENTITY_NOT_VERIFIED` hasta que una persona lo firmara otra vez.
  */
-export function isIdentityVerified(result: string | null | undefined): boolean {
-  return (result ?? '').toLowerCase() === IDENTITY_VERIFIED_RESULT;
-}
-
 export function buildBlockers(facts: EligibilityFacts, lifecycleStatus: CustomerLifecycleStatus, now: Date): EligibilityBlocker[] {
   const blockers: EligibilityBlocker[] = [];
 

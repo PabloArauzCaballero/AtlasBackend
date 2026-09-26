@@ -4,6 +4,7 @@
  * @system Fija filtros, orden, transacciones y mutaciones de CreditRepository.
  */
 import { describe, expect, it, jest } from '@jest/globals';
+import { Op } from 'sequelize';
 import { CreditRepository } from '../../../src/modules/credit/credit.repository.js';
 
 describe('CreditRepository', () => {
@@ -93,5 +94,63 @@ describe('CreditRepository', () => {
     await expect(repository.findApplicationEvents('7', '31')).resolves.toEqual([event]);
     expect(eventModel.create).toHaveBeenCalledWith({ ...eventValues, createdAtValue: now }, { transaction });
     expect(eventModel.findAll).toHaveBeenCalledWith(expect.objectContaining({ limit: 100 }));
+  });
+
+  describe('C-2 y C-3', () => {
+    function build() {
+      const application = {
+        status: 'under_review',
+        decisionMode: null as string | null,
+        decisionReasonCode: null,
+        decidedByInternalUserId: null,
+        decidedAt: null,
+        updatedAtValue: null,
+        save: jest.fn(async function (this: unknown) {
+          return this;
+        }),
+      };
+      const applicationModel = { findAll: jest.fn(async (..._args: unknown[]) => [application]) };
+      const repository = new CreditRepository({} as never, applicationModel as never, {} as never);
+      return { repository, application, applicationModel };
+    }
+
+    it('findStaleSubmittedApplications pide sólo las submitted del tenant más viejas que el corte, las más antiguas primero', async () => {
+      const { repository, application, applicationModel } = build();
+      const olderThan = new Date('2026-09-25T11:45:00.000Z');
+
+      await expect(repository.findStaleSubmittedApplications('7', olderThan, 20)).resolves.toEqual([application]);
+
+      // El corte va en la consulta, no después en memoria: una recién creada no puede ni traerse.
+      expect(applicationModel.findAll).toHaveBeenCalledWith({
+        where: { tenantId: '7', deleted: false, status: 'submitted', submittedAt: { [Op.lt]: olderThan } },
+        order: [['submittedAt', 'ASC']],
+        limit: 20,
+      });
+    });
+
+    it('updateApplicationStatus escribe el modo de decisión cuando quien llama lo sabe (C-3)', async () => {
+      const { repository, application } = build();
+
+      await repository.updateApplicationStatus(
+        application as never,
+        { status: 'approved', reasonCode: 'ok', decidedByInternalUserId: '3', now: new Date(), decisionMode: 'manual' },
+        {},
+      );
+
+      expect(application.decisionMode).toBe('manual');
+    });
+
+    it('sin decisionMode conserva el que la fila tuviera: no lo pisa con NULL', async () => {
+      const { repository, application } = build();
+      application.decisionMode = 'decision_engine';
+
+      await repository.updateApplicationStatus(
+        application as never,
+        { status: 'approved', reasonCode: 'ok', decidedByInternalUserId: '3', now: new Date() },
+        {},
+      );
+
+      expect(application.decisionMode).toBe('decision_engine');
+    });
   });
 });

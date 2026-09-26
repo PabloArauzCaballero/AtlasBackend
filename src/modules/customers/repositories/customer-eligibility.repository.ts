@@ -26,6 +26,7 @@ import { CustomerEligibilityRiskRepository } from './customer-eligibility-risk.r
 import type { EligibilityFacts } from './customer-eligibility.facts.js';
 import { CustomerEligibilityPhasesRepository } from './customer-eligibility-phases.repository.js';
 import type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
+import { IDENTITY_ATTEMPT_LOOKBACK_LIMIT, pickCurrentIdentityAttempt } from '../../../common/utils/identity/identity-result.util.js';
 
 export type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
 
@@ -87,7 +88,7 @@ export class CustomerEligibilityRepository {
       this.hasCurrentAddress(tenantId, customerId, options),
       this.countReferenceContacts(tenantId, customerId, options),
       this.findLatestIdentityDocument(tenantId, customerId, options),
-      this.findLatestIdentityVerificationResult(tenantId, customerId, options),
+      this.findCurrentIdentityResult(tenantId, customerId, options),
       this.countPendingEvidenceReviews(tenantId, customerId, options),
       this.findGrantedConsentDocumentIds(tenantId, customerId, options),
       this.findRequiredConsentDocumentIds(tenantId, options),
@@ -227,17 +228,15 @@ export class CustomerEligibilityRepository {
     } as FindOptions);
   }
 
-  private async findLatestIdentityVerificationResult(
-    tenantId: string,
-    customerId: string,
-    options: EligibilityReadOptions,
-  ): Promise<string | null> {
-    const attempt = await this.identityAttemptModel.findOne({
+  /** El intento VIGENTE, no el último a secas: uno posterior sin resolver no tapa un `verified` (I-2, ver `pickCurrentIdentityAttempt`). */
+  private async findCurrentIdentityResult(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<string | null> {
+    const attempts = await this.identityAttemptModel.findAll({
       where: { tenantId, customerId },
       order: [['id', 'DESC']],
+      limit: IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
       transaction: options.transaction,
     } as FindOptions);
-    return attempt?.finalResult ?? null;
+    return pickCurrentIdentityAttempt(attempts)?.finalResult ?? null;
   }
 
   /**
