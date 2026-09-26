@@ -11,7 +11,7 @@ import { FeatureDefinitionModel, FeatureValueModel } from '../../database/models
 export type ProjectedFeatures = {
   variables: Record<string, unknown>;
   /** Qué se envió y de dónde salió: la evidencia de con qué información se decidió. */
-  lineage: Array<{ featureCode: string; featureValueId: string; derivationVersion: string | null }>;
+  lineage: Array<{ featureCode: string; featureValueId: string; derivationVersion: string | null; observedAt?: Date | null }>;
   /** Declaradas pero fuera del catálogo permitido. Se informan, no se envían en silencio. */
   excluded: Array<{ featureCode: string; reason: string }>;
 };
@@ -85,6 +85,8 @@ export class FeatureProjectionService {
         featureCode: definition.featureCode,
         featureValueId: value.id,
         derivationVersion: value.derivationVersion ?? null,
+        // Desde cuándo vale el valor del catálogo: es su fecha de observación para el motor (P-10).
+        observedAt: value.validFrom ?? value.createdAtValue ?? null,
       });
     }
 

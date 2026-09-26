@@ -1,0 +1,113 @@
+[
+  {
+    "requirementId": "B12",
+    "packageId": "P-09",
+    "repository": "AtlasBackend",
+    "title": "Réplica de consentimiento al motor duradera y reparable",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Una réplica (permiso o revocación) que falla queda pendiente en decision_consent_replications y el trabajo sync_engine_consents la reintenta hasta el acuse; un permiso más viejo no pisa una revocación.",
+    "tests": [
+      { "file": "test/integration/credit/consent-enforcement.spec.ts", "name": "una réplica de permiso con el motor caído no se pierde" },
+      { "file": "test/integration/credit/consent-enforcement.spec.ts", "name": "un permiso más viejo que una revocación pendiente no la pisa" },
+      { "file": "test/unit/decision-engine/consent-replication.spec.ts", "name": "con el motor caído devuelve false, NO pierde la petición y la reprograma" },
+      { "file": "test/unit/decision-engine/consent-replication.spec.ts", "name": "un fallo por fila no tumba la pasada" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B12",
+    "packageId": "P-09",
+    "repository": "AtlasBackend",
+    "title": "Una revocación impide originar en Core aunque el motor esté caído",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Con una revocación pendiente de replicar el desembolso responde CONSENT_REVOCATION_PENDING_SYNC; replicada, una decisión anterior a la revocación responde CONSENT_REVOKED_AFTER_DECISION; una decisión posterior sí desembolsa.",
+    "tests": [
+      { "file": "test/integration/credit/consent-enforcement.spec.ts", "name": "revocación con el motor caído" },
+      { "file": "test/unit/credit/exposure-reservation.service.spec.ts", "name": "bloquea la originación: revocación pendiente de réplica" },
+      { "file": "test/unit/credit/exposure-reservation.service.spec.ts", "name": "bloquea la originación: revocación posterior a la decisión" },
+      { "file": "test/unit/loans/loan-disbursement.service.spec.ts", "name": "un consentimiento revocado bloquea antes de reservar cupo" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B12",
+    "packageId": "P-09",
+    "repository": "AtlasBackend",
+    "title": "Credenciales de ejecución y de gobierno separadas; la réplica no usa la llave de runtime",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "La réplica de consentimiento viaja con DECISION_ENGINE_GOVERNANCE_API_KEY (o la de desenlaces), nunca con DECISION_ENGINE_API_KEY.",
+    "tests": [
+      { "file": "test/unit/decision-engine/decision-engine.client.spec.ts", "name": "replica con la llave de gestión y devuelve true al lograrlo" }
+    ],
+    "requiresDatabase": false,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B12",
+    "packageId": "P-09",
+    "repository": "AtlasBackend",
+    "title": "Qué finalidades condicionan qué originación (base habilitante por finalidad)",
+    "releaseIncluded": true,
+    "ownerRole": "J",
+    "acceptance": "Legal/Privacidad ratifica la regla conservadora implementada (cualquier revocación posterior a la decisión bloquea el desembolso).",
+    "tests": [],
+    "requiresDatabase": false,
+    "blockedBy": "Decisión jurídica pendiente de ratificar (docs/compliance/decisions.md, P-09). El control técnico existe y está probado arriba."
+  },
+  {
+    "requirementId": "B11",
+    "packageId": "P-09",
+    "repository": "AtlasBackend",
+    "title": "Core registra la base habilitante en el motor ANTES de la primera decisión (Core ↔ Motor)",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Antes de pedir una decisión de crédito o de línea, Core escribe en la cola duradera y entrega POST /v1/risk-governance/consents (credit_underwriting, CREDIT_PROTECTION) y sólo decide si el motor la acusó (o respondió 409 terminal); la decisión usa una idempotencyKey ligada a esa base. Si no llega, no se pregunta: la solicitud queda submitted con ENABLING_BASIS_NOT_REPLICATED y el trabajo retry_deferred_underwriting la vuelve a pedir; nunca rechazada. La fecha de alta es estable entre reintentos.",
+    "tests": [
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "registra la base CREDIT_PROTECTION ANTES de decidir y decide con una clave ligada a esa base" },
+      { "file": "test/contracts/decision-engine/decision-execution.contract.spec.ts", "name": "si la base no llega, NO se pregunta al motor: la solicitud queda diferida (reintentable)" },
+      { "file": "test/integration/credit/enabling-basis-and-validity.spec.ts", "name": "con el motor caído queda pendiente y NO se puede decidir; al volver se entrega con la MISMA fecha de alta" },
+      { "file": "test/integration/credit/enabling-basis-and-validity.spec.ts", "name": "queda submitted con el motivo, y el reintento la aprueba y guarda la vigencia del motor" },
+      { "file": "test/unit/credit/credit-underwriting-engine-contract.spec.ts", "name": "queda submitted, sin fecha de decisión, con el motivo del diferimiento y evento propio" },
+      { "file": "test/unit/credit/credit-line-recalculation-basis.spec.ts", "name": "registra la base y SÓLO después pregunta al motor, con las fechas de cada dato" },
+      { "file": "test/unit/decision-engine/engine-contract-alignment.spec.ts", "name": "el catálogo programa retry_deferred_underwriting cuando se le da el servicio" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B12",
+    "packageId": "P-09",
+    "repository": "AtlasBackend",
+    "title": "Revocación con su fecha real; 409 CONSENT_GRANT_REPLAYED / CONSENT_REVOCATION_STALE terminales",
+    "releaseIncluded": true,
+    "ownerRole": "C",
+    "acceptance": "Toda revocación viaja con revokedAt = fecha en que el titular revocó; un 409 CONSENT_GRANT_REPLAYED o CONSENT_REVOCATION_STALE deja la réplica 'superseded' con su motivo y no se reintenta; cualquier otro fallo (401/403/429/5xx/timeout/otro 409) queda pendiente.",
+    "tests": [
+      { "file": "test/contracts/decision-engine/consent-replication.contract.spec.ts", "name": "se envía SIEMPRE con la fecha real de la revocación y cumple RevokeConsentDto" },
+      { "file": "test/contracts/decision-engine/consent-replication.contract.spec.ts", "name": "409 CONSENT_REVOCATION_STALE en el reintentador: resuelta, no fallida ni reintentada" },
+      { "file": "test/contracts/decision-engine/consent-replication.contract.spec.ts", "name": "409 CONSENT_GRANT_REPLAYED es terminal: una llamada, réplica resuelta con ese motivo" },
+      { "file": "test/contracts/decision-engine/consent-replication.contract.spec.ts", "name": "un 409 que NO es de réplica superada sigue pendiente (no se da por resuelto)" },
+      { "file": "test/integration/credit/enabling-basis-and-validity.spec.ts", "name": "409 CONSENT_GRANT_REPLAYED queda `superseded` con su motivo (el CHECK lo admite) y no se reintenta" },
+      { "file": "test/integration/credit/consent-enforcement.spec.ts", "name": "revocación con el motor caído" }
+    ],
+    "requiresDatabase": true,
+    "blockedBy": null
+  },
+  {
+    "requirementId": "B11",
+    "packageId": "P-09",
+    "repository": "AtlasBackend",
+    "title": "Base jurídica con la que Core ampara credit_underwriting",
+    "releaseIncluded": true,
+    "ownerRole": "J",
+    "acceptance": "Legal/Privacidad ratifica CREDIT_PROTECTION (sin consentVersion) como base de credit_underwriting: el alta del cliente sólo captura terms_of_service, privacy_policy y credit_bureau_query, ninguno es un consentimiento específico para evaluar.",
+    "tests": [],
+    "requiresDatabase": false,
+    "blockedBy": "Decisión jurídica pendiente de ratificar (docs/compliance/decisions.md, P-09 · Core ↔ Motor, D-CM-1). El control técnico existe y está probado arriba."
+  }
+]

@@ -13,7 +13,8 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { PartnerCommerceService } from './application/partner-commerce.service.js';
-import { ResolveMerchantQrDto, resolveMerchantQrSchema } from './partner-onboarding.schemas.js';
+import { PartnerQrService } from './application/partner-qr.service.js';
+import { PaymentQrForPosDto, paymentQrForPosSchema, ResolveMerchantQrDto, resolveMerchantQrSchema } from './partner-onboarding.schemas.js';
 
 /**
  * La única puerta del expediente del partner que mira al CLIENTE.
@@ -33,7 +34,10 @@ import { ResolveMerchantQrDto, resolveMerchantQrSchema } from './partner-onboard
 @Controller('merchant-qr')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class MerchantQrController {
-  constructor(private readonly commerce: PartnerCommerceService) {}
+  constructor(
+    private readonly commerce: PartnerCommerceService,
+    private readonly qr: PartnerQrService,
+  ) {}
 
   @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
   @ApiOperation({ summary: 'Resolver el QR de caja al comercio que lo emitió' })
@@ -46,5 +50,15 @@ export class MerchantQrController {
   @HttpCode(HttpStatus.OK)
   resolve(@CurrentTenant() tenantId: string, @Body(new ZodValidationPipe(resolveMerchantQrSchema)) body: ResolveMerchantQrDto) {
     return this.commerce.resolveMerchantQr(tenantId, body.token);
+  }
+
+  @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @ApiOperation({ summary: 'Obtener el QR bancario aprobado del comercio de una caja activa' })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiBody({ schema: zodToApiSchema(paymentQrForPosSchema) })
+  @Post('payment')
+  @HttpCode(HttpStatus.OK)
+  payment(@CurrentTenant() tenantId: string, @Body(new ZodValidationPipe(paymentQrForPosSchema)) body: PaymentQrForPosDto) {
+    return this.qr.paymentQrForPos(tenantId, body.partnerProfileId, body.posTerminalId);
   }
 }

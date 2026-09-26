@@ -14,6 +14,7 @@ import {
   WatchlistEntryModel,
   WatchlistMatchModel,
 } from '../../../database/models/index.js';
+import { IDENTITY_ATTEMPT_LOOKBACK_LIMIT, pickAttemptAwaitingReview } from '../../../common/utils/identity/identity-result.util.js';
 
 type RepositoryOptions = { transaction?: Transaction };
 
@@ -69,6 +70,41 @@ export class CustomerVerificationRepository {
       order: [['id', 'DESC']],
       transaction: options.transaction,
     } as FindOptions);
+  }
+
+  /**
+   * Un intento concreto, por su id.
+   *
+   * Es lo que necesita quien YA sabe cuál intento resolver —el callback del Motor lo localizó por su
+   * `executionId`—: resolver "el último del cliente" podía caer en otro intento y escribir el
+   * veredicto de la revisión sobre él. El tenant va en el `where`, no se comprueba después.
+   */
+  findAttemptById(tenantId: string, attemptId: string, options: RepositoryOptions = {}): Promise<IdentityVerificationAttemptModel | null> {
+    return this.attemptModel.findOne({
+      where: { tenantId, id: attemptId },
+      transaction: options.transaction,
+    } as FindOptions);
+  }
+
+  /**
+   * El intento del cliente que espera una decisión, para quien aprueba o rechaza sin decir cuál.
+   *
+   * El más reciente que todavía no llegó a un veredicto; si todos ya lo tienen, el más reciente. No
+   * es `findLatestAttempt`: ese devuelve el último a secas, que puede ser un `verified` de otro
+   * canal —el que no se está revisando—.
+   */
+  async findAttemptAwaitingReview(
+    tenantId: string,
+    customerId: string,
+    options: RepositoryOptions = {},
+  ): Promise<IdentityVerificationAttemptModel | null> {
+    const attempts = await this.attemptModel.findAll({
+      where: { tenantId, customerId },
+      order: [['id', 'DESC']],
+      limit: IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
+      transaction: options.transaction,
+    } as FindOptions);
+    return pickAttemptAwaitingReview(attempts);
   }
 
   async resolveAttempt(

@@ -140,6 +140,9 @@ export class ExternalDataDecisionService {
       providerId: input.providerId,
       from: new Date(Date.now() - windowMs),
       statuses: ['FAILED', 'PROVIDER_UNAVAILABLE', 'PROVIDER_AUTH_FAILED', 'RATE_LIMITED'],
+      // Sólo lo que de verdad respondió (o no) el proveedor: sin esto, cada rechazo del propio
+      // disyuntor contaba como otro fallo y no volvía a cerrarse mientras hubiera tráfico.
+      onlyProviderOutcomes: true,
     });
     if (failures >= threshold) {
       return { blocked: true, status: 'PROVIDER_UNAVAILABLE', reasonCode: `${input.providerCode}_CIRCUIT_BREAKER_OPEN` };

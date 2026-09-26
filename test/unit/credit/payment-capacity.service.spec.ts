@@ -267,13 +267,29 @@ describe('PaymentCapacityService', () => {
     });
 
     it('el KYC sólo está completo si el último intento salió verificado', async () => {
-      identity.findOne.mockResolvedValueOnce({ finalResult: 'verified' } as never);
+      identity.findAll.mockResolvedValueOnce([{ finalResult: 'verified' }] as never);
       await expect(relacion()).resolves.toHaveProperty('kycComplete', true);
 
-      identity.findOne.mockResolvedValueOnce({ finalResult: 'pending_review' } as never);
+      identity.findAll.mockResolvedValueOnce([{ finalResult: 'pending_review' }] as never);
       await expect(relacion()).resolves.toHaveProperty('kycComplete', false);
 
       await expect(relacion()).resolves.toHaveProperty('kycComplete', false);
+    });
+
+    it('FALLA sin el fix: un VERIFIED en mayúsculas del canal móvil también completa el KYC (I-1)', async () => {
+      // Antes, `identity?.finalResult === 'verified'` en estricto dejaba a un cliente verificado por
+      // el canal móvil (que escribe `VERIFIED`) como si nunca se hubiera verificado.
+      identity.findAll.mockResolvedValueOnce([{ finalResult: 'VERIFIED' }] as never);
+      await expect(relacion()).resolves.toHaveProperty('kycComplete', true);
+    });
+
+    it('FALLA sin el fix: un intento posterior PENDING no tapa un verified anterior (I-2)', async () => {
+      identity.findAll.mockResolvedValueOnce([
+        // Más reciente primero, como llega ordenado por `_id DESC`.
+        { finalResult: 'PENDING' },
+        { finalResult: 'verified' },
+      ] as never);
+      await expect(relacion()).resolves.toHaveProperty('kycComplete', true);
     });
 
     it('las señales de fraude suman los casos de por vida y las revisiones manuales abiertas', async () => {

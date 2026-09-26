@@ -88,7 +88,7 @@ describe('CustomerEligibilityRepository', () => {
     models.address.count.mockResolvedValueOnce(1);
     models.reference.count.mockResolvedValueOnce(3);
     models.identityDocument.findOne.mockResolvedValueOnce(identityDocument as never);
-    models.identityAttempt.findOne.mockResolvedValueOnce({ finalResult: 'verified' } as never);
+    models.identityAttempt.findAll.mockResolvedValueOnce([{ finalResult: 'verified' }] as never);
     models.evidence.findAll.mockResolvedValueOnce([{ id: 'evidence-1' }] as never);
     models.evidenceReview.count.mockResolvedValueOnce(4);
     models.consent.findAll.mockResolvedValueOnce([{ consentDocumentId: '501' }, { consentDocumentId: null }] as never);
@@ -126,6 +126,30 @@ describe('CustomerEligibilityRepository', () => {
     expect(models.evidenceReview.count).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ tenantId: '7' }) }),
     );
+  });
+
+  it('FALLA sin el fix: un intento posterior sin resolver no tapa un verified anterior (I-2)', async () => {
+    const { repository, models } = build();
+    models.attributeValue.findAll.mockResolvedValueOnce([]);
+    models.evidence.findAll.mockResolvedValueOnce([]);
+    // Ordenado por `id DESC`, como lo devuelve la base: el intento más reciente (otro canal, en
+    // mayúsculas) está en `PENDING`, y uno anterior ya quedó `verified`.
+    models.identityAttempt.findAll.mockResolvedValueOnce([{ finalResult: 'PENDING' }, { finalResult: 'verified' }] as never);
+
+    const result = await repository.loadFacts('7', '10');
+
+    expect(result.identityVerificationResult).toBe('verified');
+  });
+
+  it('lee un `VERIFIED` en mayúsculas del canal móvil tal cual, para que isIdentityVerified lo normalice (I-1)', async () => {
+    const { repository, models } = build();
+    models.attributeValue.findAll.mockResolvedValueOnce([]);
+    models.evidence.findAll.mockResolvedValueOnce([]);
+    models.identityAttempt.findAll.mockResolvedValueOnce([{ finalResult: 'VERIFIED' }] as never);
+
+    const result = await repository.loadFacts('7', '10');
+
+    expect(result.identityVerificationResult).toBe('VERIFIED');
   });
 
   it('devuelve hechos vacíos sin consultas encadenadas innecesarias', async () => {

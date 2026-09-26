@@ -80,9 +80,6 @@ export class PartnerVerificationService {
 
     const qrCodes = await this.network.listQrCodes(tenantId, profile.id);
     const live = qrCodes.filter((qr) => qr.status === 'pending_review' || qr.status === 'active');
-    if (!live.some((qr) => qr.qrKind === 'business')) {
-      gaps.push({ requirement: 'business_qr', detail: 'Falta subir el QR del negocio.' });
-    }
     if (!live.some((qr) => qr.qrKind === 'bank')) {
       gaps.push({ requirement: 'bank_qr', detail: 'Falta subir el QR bancario de cobro.' });
     }

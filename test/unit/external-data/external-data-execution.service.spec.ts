@@ -264,6 +264,43 @@ describe('ExternalDataExecutionService', () => {
 
       expect(resilience.run).toHaveBeenCalledWith(expect.any(Function), { provider: 'SEGIP', maxAttempts: 1, baseDelayMs: 200 });
     });
+
+    it('una política con retryMaxAttempts = 0 («sin reintentos») llama UNA vez, no cero', async () => {
+      const { service, repository, registry, resilience } = buildService();
+      (registry.requireProvider as jest.Mock).mockResolvedValueOnce({
+        id: 'p7',
+        providerCode: 'WHATSAPP_GENERIC',
+        defaultMode: 'mock_local',
+        requiresConsent: false,
+      } as never);
+      const adapter = {
+        execute: jest.fn(async (..._args: unknown[]) => ({
+          providerCode: 'WHATSAPP_GENERIC',
+          status: 'OTP_VERIFIED',
+          payload: {},
+          latencyMs: 5,
+        })),
+        normalize: jest.fn(async (..._args: unknown[]) => []),
+      };
+      (registry.requireAdapter as jest.Mock).mockReturnValueOnce(adapter as never);
+      (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce({ retryMaxAttempts: 0, retryBackoffSeconds: 0 } as never);
+      (repository.createProviderRequest as jest.Mock).mockResolvedValueOnce({ id: 'req-1' } as never);
+      (repository.updateProviderRequest as jest.Mock).mockResolvedValueOnce({} as never);
+      (repository.createProviderResponse as jest.Mock).mockResolvedValueOnce({} as never);
+
+      await service.executeExternalDataRequest({
+        tenantId: 't1',
+        body: {
+          providerCode: 'WHATSAPP_GENERIC',
+          queryType: 'WHATSAPP_OTP_VERIFICATION',
+          purpose: 'CONTACTABILITY',
+          customerId: 'c1',
+          input: {},
+        } as never,
+      });
+
+      expect(resilience.run).toHaveBeenCalledWith(expect.any(Function), { provider: 'WHATSAPP_GENERIC', maxAttempts: 1, baseDelayMs: 200 });
+    });
   });
 
   describe('ramas profundas (bloqueo por política, cache, fallo de ejecución, sin customerId, preview)', () => {

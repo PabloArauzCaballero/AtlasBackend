@@ -97,6 +97,21 @@ describe('SubmitCreditApplicationUseCase (AT-026)', () => {
     expect(outcome.application.submittedAt).toBe('2026-09-11T10:00:00.000Z');
   });
 
+  it('C-3: un producto requiresManualReview NACE con decision_mode = manual, no con NULL', async () => {
+    const { useCase, created } = build({ product: { ...product, requiresManualReview: true } });
+    const outcome = await useCase.execute(input);
+    expect(outcome.admitted).toBe(true);
+    // Antes nacía con `decision_mode` NULO —indistinguible de una solicitud anterior a la integración
+    // con el Motor— y así se quedaba hasta que alguien la decidía.
+    expect(created[0]).toMatchObject({ status: 'under_review', decisionMode: 'manual' });
+  });
+
+  it('C-3: un producto que sí pasa por el Motor nace sin modo: lo escribe quien decide', async () => {
+    const { useCase, created } = build();
+    await useCase.execute(input);
+    expect(created[0]).toMatchObject({ status: 'submitted', decisionMode: null });
+  });
+
   it('inelegible: resultado admitted=false (sin lanzar), sin solicitud; la traducción pública es la de siempre', async () => {
     const { useCase, created } = build({ eligible: false });
     const outcome = await useCase.execute(input);

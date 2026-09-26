@@ -44,6 +44,19 @@ export const decisionEngineEnvShape = {
    */
   DECISION_ENGINE_TENANT_ID: z.string().trim().min(1).max(64).default('1'),
   /**
+   * Cuántas horas vale una decisión de crédito para CONCEDER (P-10/P-11, 2026-09-24).
+   *
+   * Pasado ese plazo el desembolso se niega (`CREDIT_DECISION_EXPIRED`) y la reserva de cupo deja
+   * de contar: una aprobación vieja se tomó con otra deuda, otra línea y otros consentimientos. 72 h
+   * es el valor conservador por defecto; el plazo real lo ratifica Riesgo (docs/compliance/decisions.md).
+   */
+  CREDIT_DECISION_VALIDITY_HOURS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 30)
+    .default(72),
+  /**
    * Credencial con la que se encarga la LOCUCIÓN de bienvenida al worker de audio del motor.
    *
    * Es una tercera llave y no la de gobierno reaprovechada porque lo que autoriza cuesta dinero:

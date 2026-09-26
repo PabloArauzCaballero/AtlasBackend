@@ -9,6 +9,8 @@ import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { CreditApplicationDecisionDto } from '../credit.schemas.js';
 import { CreditRepository } from '../credit.repository.js';
+import { CreditReviewCaseRepository } from '../credit-review-case.repository.js';
+import { REVIEW_CASE_SOURCE } from '../credit-review-case.constants.js';
 
 const DECISION_TO_STATUS: Readonly<Record<CreditApplicationDecisionDto['decision'], string>> = {
   approve: 'approved',
@@ -17,6 +19,30 @@ const DECISION_TO_STATUS: Readonly<Record<CreditApplicationDecisionDto['decision
 };
 
 const CLOSED_STATUSES = ['approved', 'rejected', 'cancelled', 'expired'];
+
+/**
+ * Modos de decisión que una decisión humana NO reescribe: dicen POR QUÉ una persona tuvo que decidir
+ * y ese dato se perdería al aplanarlo a `manual` —un periodo con el Motor caído, resuelto a mano,
+ * dejaría de distinguirse de uno con un producto que siempre pasa por revisión—.
+ */
+const PRESERVED_DECISION_MODES: ReadonlySet<string> = new Set(['engine_unavailable_manual', 'seed_demo']);
+
+/**
+ * ¿La bandeja de esta solicitud es la del Motor?
+ *
+ * Con el registro de C-1 la respuesta está en la fila: `manualReviewCaseSource`. Sólo si el Motor
+ * abrió caso se delega; que el Motor haya EJECUTADO la solicitud no basta —un `review` sin
+ * `caseCode` deja la solicitud sin bandeja allí, y rechazar la decisión humana la dejaba sin salida
+ * en ningún sitio—. Las anteriores a C-1 no dicen quién abrió caso: se conserva lo que hacían.
+ */
+function reviewBelongsToEngine(application: {
+  manualReviewCaseSource?: string | null;
+  decisionExecutionId?: string | null;
+  decisionMode?: string | null;
+}): boolean {
+  if (application.manualReviewCaseSource) return application.manualReviewCaseSource === REVIEW_CASE_SOURCE.engine;
+  return Boolean(application.decisionExecutionId) && application.decisionMode === 'decision_engine';
+}
 
 /** Cómo quedó la solicitud tras la revisión humana que se hizo EN el Motor. */
 const ENGINE_REVIEW_TO_STATUS: Readonly<Record<'APPROVE' | 'DECLINE', string>> = {
@@ -36,6 +62,7 @@ export class CreditDecisionService {
   constructor(
     private readonly creditRepository: CreditRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly reviewCases: CreditReviewCaseRepository,
   ) {}
 
   async decide(input: { tenantId: string; applicationId: string; body: CreditApplicationDecisionDto; currentUser: AuthenticatedUser }) {
@@ -44,18 +71,22 @@ export class CreditDecisionService {
       if (!application) throw new NotFoundException('CREDIT_APPLICATION_NOT_FOUND');
       if (CLOSED_STATUSES.includes(application.status)) throw new ConflictException('CREDIT_APPLICATION_ALREADY_DECIDED');
       /*
-       * Una solicitud que el Motor YA vio no se decide aquí.
+       * Una solicitud cuyo caso vive EN el Motor no se decide aquí.
        *
        * Hasta el 2026-09-14 este método aprobaba cualquier solicitud abierta sin mirar
        * `decisionMode`: un operador podía convertir en `approved` —y desembolsable— una solicitud
        * que el Motor había derivado a su propia cola de revisión, y la respuesta a «quién aprobó»
-       * era dos personas que no se ven. Con `decision_execution_id` la bandeja buena es la del
-       * Motor y su resolución vuelve por `applyEngineManualReview`. La decisión humana de aquí
-       * queda para lo que el Motor no llegó a ver: `engine_unavailable_manual` o una solicitud
-       * anterior a la integración. Se corta en el servicio y no en la pantalla porque una pantalla
-       * se salta con curl.
+       * era dos personas que no se ven. Con el caso del Motor la bandeja buena es la suya y su
+       * resolución vuelve por `applyEngineManualReview`.
+       *
+       * El corte se hizo entonces por «el Motor ejecutó esto», y eso dejó un callejón (C-1): un
+       * desenlace `review` SIN `manualReview.caseCode` no abre bandeja en el Motor, y esta guarda
+       * rechazaba igual la decisión humana —la solicitud quedaba `under_review` sin salida en
+       * ningún sitio—. Ahora se corta sólo cuando el Motor SÍ abrió caso (`reviewBelongsToEngine`);
+       * si no lo abrió, Atlas abrió el suyo al recibir la respuesta y se decide aquí. Se corta en el
+       * servicio y no en la pantalla porque una pantalla se salta con curl.
        */
-      if (application.decisionExecutionId && application.decisionMode === 'decision_engine') {
+      if (reviewBelongsToEngine(application)) {
         throw new ConflictException(
           `CREDIT_DECISION_DELEGADA_AL_MOTOR: la solicitud ${application.applicationCode ?? application.id} la decidió la ejecución ` +
             `${application.decisionExecutionId} del Motor; su revisión se resuelve allí.`,
@@ -66,6 +97,15 @@ export class CreditDecisionService {
       const newStatus = DECISION_TO_STATUS[input.body.decision];
       const now = new Date();
 
+      /*
+       * Una decisión humana se escribe como humana (C-3). Antes sólo se tocaba `status` y el motivo,
+       * así que un producto `requiresManualReview` —que nace sin modo— quedaba con `decision_mode`
+       * NULO tras decidirlo una persona, y una solicitud que el Motor había mandado a revisión seguía
+       * figurando `decision_engine` aunque la resolviera alguien a mano: cualquier tablero de «cuánto
+       * aprueba el Motor» contaba una aprobación que el Motor no dio.
+       */
+      const decisionMode = PRESERVED_DECISION_MODES.has(application.decisionMode ?? '') ? application.decisionMode : 'manual';
+
       await this.creditRepository.updateApplicationStatus(
         application,
         {
@@ -73,9 +113,30 @@ export class CreditDecisionService {
           reasonCode: input.body.reasonCode,
           decidedByInternalUserId: input.currentUser.internalUserId ?? null,
           now,
+          decisionMode,
         },
         { transaction },
       );
+
+      // El caso propio de Atlas se cierra con la solicitud, para que no quede en la cola de
+      // operaciones un caso abierto de algo que ya está resuelto. `request_more_information` deja la
+      // solicitud abierta y por eso deja también el caso.
+      if (
+        CLOSED_STATUSES.includes(newStatus) &&
+        application.manualReviewCaseSource === REVIEW_CASE_SOURCE.atlas &&
+        application.manualReviewCaseCode
+      ) {
+        await this.reviewCases.close(
+          {
+            tenantId: input.tenantId,
+            caseCode: application.manualReviewCaseCode,
+            resolution: input.body.decision,
+            notes: input.body.notes ?? null,
+            now,
+          },
+          { transaction },
+        );
+      }
 
       await this.creditRepository.createApplicationEvent(
         {

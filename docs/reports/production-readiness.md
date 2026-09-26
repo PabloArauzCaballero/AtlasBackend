@@ -4,6 +4,11 @@ Checklist objetivo por área. Cada casilla marcada tiene detrás un comando ejec
 verificable; las que no se pudieron comprobar en esta máquina se declaran como tales en la §8, no se
 omiten.
 
+> **Actualización 2026-09-24 (plan de cumplimiento).** Este checklist es de julio y **no** es una
+> declaración de cumplimiento: el alcance de release, el estado de cada brecha y su evidencia viven
+> ahora en `docs/compliance/release-scope.json` y `docs/compliance/requirements/*.json`, y sólo el
+> evaluador los declara VERIFIED contra el SHA del candidato. Ver §10.
+
 ---
 
 ## 1. Graphify
@@ -104,7 +109,31 @@ impiden una declaración incondicional. Ver [Validación final](final-validation
 | Reglas Redocly con error | 0 | **0** |
 | Errores de compilación MkDocs | 0 | **0** |
 | Marcadores TODO/TBD en documentación | 0 | **0** |
-| Riesgos críticos abiertos | 0 | **0** |
+| Riesgos críticos abiertos | 0 | Ver `docs/compliance/release-scope.json` (§10): la cifra de julio ya no aplica |
 | Runbooks críticos disponibles | 100 % | Despliegue sí; backup/restore pendiente de ensayo |
 | Pruebas en verde | 100 % | **2 533 / 2 533** (293 suites) |
 | Operaciones con `description` larga | — | 118/264 (deuda declarada ATLAS-DOC-006) |
+
+---
+
+## 10. Plan de cumplimiento — lado Core (2026-09-24)
+
+Lo que esta revisión cambió y lo que sigue abierto. El detalle, las pruebas y los bloqueos por
+requisito están en `docs/compliance/requirements/P-08.json` … `P-11.json`; las decisiones de negocio
+tomadas por defecto (conservadoras) en `docs/compliance/decisions.md`.
+
+| Brecha | Estado en Core | Evidencia |
+|---|---|---|
+| B01 · plantilla de entorno y OpenAPI estable | Implementado (P-01) | `yarn check:env-example`, `yarn check:openapi`, `test/unit/config/*` |
+| B02 · despliegue ligado a CI y SHA servido | Implementado (P-01) | `.github/tests/*` |
+| B12 · réplica de consentimiento duradera; revocación bloquea en Core con el motor caído | Implementado (P-09) | `test/integration/credit/consent-enforcement.spec.ts` |
+| B13 · Core no concede con resultado técnico/desconocido/pendiente | Implementado lado Core (P-10) | `test/contracts/credit/decision-consumption.contract.spec.ts` |
+| B15 · reserva de exposición en la concesión; conciliación que alerta falta de datos | Implementado (P-11) | `test/integration/credit/exposure-reservation.spec.ts` |
+| B19 · restore, rollback integral, alertas e integraciones reales | **Abierto** | Sigue sin ensayo (§6, §8) |
+| B20 · ciclo S2S de pago con duplicados y fallos | **Abierto**: el lado Core (atomicidad, autorización, idempotencia, versión de agregado) está probado; falta la entrega Core→ERP y la jornada conjunta | `test/integration/credit/payment-lifecycle.spec.ts` |
+
+Corrección a lo que este documento decía: el evento del aviso de pago **no** era atómico con el cambio
+de negocio. `EventsService.publish` escribía el outbox por otra conexión aunque se llamara dentro de
+una transacción; desde P-08 recibe la transacción de quien llama y la usa. Y el desembolso no leía el
+límite de la línea: desde P-11 reserva el cupo bajo el cerrojo del cliente y falla cerrado sin línea.
+

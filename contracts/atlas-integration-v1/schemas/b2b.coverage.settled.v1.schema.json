@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.atlas.internal/atlas-integration-v1/b2b.coverage.settled.v1.schema.json",
+  "title": "b2b.coverage.settled v1 — ATLAS pagó al comercio la cuota incumplida y nació la CxC de recuperación",
+  "description": "Productor: ERP (confirmación de la liquidación con doble control). Consumidor: Core (proyección consultable del estado de cobertura de la cuota; Core NO cambia la cuota ni su saldo). coreRef es null si la cuota del ERP no está mapeada a una cuota de Core.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["payableId", "installmentId", "purchaseId", "merchantAccountId", "consumerId", "settlementId", "settlementReference", "amount", "currency", "paidAt", "recoveryId", "coreRef"],
+  "properties": {
+    "payableId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "installmentId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "purchaseId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "merchantAccountId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "consumerId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "settlementId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "settlementReference": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "amount": { "$ref": "common.schema.json#/$defs/positiveDecimalAmount" },
+    "currency": { "$ref": "common.schema.json#/$defs/currency" },
+    "paidAt": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "recoveryId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "coreRef": { "oneOf": [{ "$ref": "common.schema.json#/$defs/coreRef" }, { "type": "null" }] }
+  }
+}

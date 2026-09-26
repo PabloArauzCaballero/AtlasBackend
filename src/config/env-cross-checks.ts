@@ -8,7 +8,9 @@ import { DEFAULT_JWT_SECRET, DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY, type Raw
 import { checkNotificationProviders, type RequireWebhook, type RequireWhen } from './env.notification-providers.checks.js';
 import { checkFileStorage } from './env.files.checks.js';
 import { checkStoragePublicEndpoint } from './env.storage.checks.js';
+import { checkAssist } from './env.assist.checks.js';
 import { checkDecisionEngine } from './env.decision-engine.checks.js';
+import { checkErpEvents } from './env.erp.checks.js';
 import { checkInternalSecondFactor, checkPiiEncryptionProvider, checkSqlLogging } from './env.security.checks.js';
 
 /**
@@ -294,5 +296,7 @@ export function applyEnvCrossChecks(data: RawAppEnv, ctx: z.RefinementCtx): void
   checkFileStorage(data, ctx);
   checkMailSender(data, requireWhen);
   checkDecisionEngine(data, ctx);
+  checkErpEvents(data, ctx);
+  checkAssist(data, ctx);
   checkNotificationProviders(data, requireWhen, requireWebhook);
 }

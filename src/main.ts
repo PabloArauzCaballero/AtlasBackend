@@ -30,8 +30,11 @@ import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
 import { assertDecoratorMetadataIsAvailable } from './common/bootstrap/decorator-metadata.guard.js';
 
-/** La única ruta cuyo cuerpo crudo se conserva: el webhook de eventos de SendGrid firma esos bytes. */
-const RAW_BODY_PATH = '/internal/notifications/sendgrid-events';
+/**
+ * Las únicas rutas cuyo cuerpo crudo se conserva, porque quien llama firma esos bytes: el webhook de
+ * eventos de SendGrid y el receptor de eventos firmados del ERP (P-14).
+ */
+const RAW_BODY_PATHS = ['/internal/notifications/sendgrid-events', '/internal/integration/erp/events'];
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('AtlasBootstrap');
@@ -80,7 +83,7 @@ async function bootstrap(): Promise<void> {
   app.useBodyParser('json', {
     limit: env.API_JSON_BODY_LIMIT,
     verify: (request: IncomingMessage & { rawBody?: Buffer }, _response: unknown, buffer: Buffer) => {
-      if (request.url?.includes(RAW_BODY_PATH)) request.rawBody = Buffer.from(buffer);
+      if (RAW_BODY_PATHS.some((path) => request.url?.includes(path))) request.rawBody = Buffer.from(buffer);
     },
   });
   app.useBodyParser('urlencoded', { limit: env.API_JSON_BODY_LIMIT, extended: true });
