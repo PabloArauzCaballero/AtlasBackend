@@ -17,6 +17,7 @@ import {
   ProviderHealthLogModel,
 } from '../../database/models/index.js';
 import { NormalizedExternalObservation, ProviderHealthResult } from './domain/external-provider.types.js';
+import { providerRequestCountWhere, type ProviderRequestCountQuery } from './provider-request-count.filter.js';
 
 type QueryOptions = { transaction?: Transaction };
 
@@ -191,12 +192,8 @@ export class ExternalDataRepository {
     return provider;
   }
 
-  countRequests(input: { providerId: string; customerId?: string; from: Date; to?: Date; statuses?: string[] }): Promise<number> {
-    const where: Record<string, unknown> = { providerId: input.providerId, requestedAt: { [Op.gte]: input.from } };
-    if (input.to) where.requestedAt = { [Op.gte]: input.from, [Op.lt]: input.to };
-    if (input.customerId) where.customerId = input.customerId;
-    if (input.statuses?.length) where.responseStatus = { [Op.in]: input.statuses };
-    return this.dataProviderRequestModel.count({ where });
+  countRequests(input: ProviderRequestCountQuery): Promise<number> {
+    return this.dataProviderRequestModel.count({ where: providerRequestCountWhere(input) });
   }
 
   listIdempotencyAuditRequests(input: { tenantId?: string; from: Date; limit?: number }): Promise<DataProviderRequestModel[]> {

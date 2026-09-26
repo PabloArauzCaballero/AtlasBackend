@@ -1,0 +1,118 @@
+/**
+ * @file Catálogo de recetas: índice de plantillas publicadas, campañas y matriz de cobertura.
+ * @business Esta pieza es lo que el laboratorio QA enseña como «journeys precargados».
+ * @system una sola fuente consumida por la API, el worker, el CLI y la prueba de cobertura.
+ */
+import { createHash } from 'node:crypto';
+import type { JourneyTemplate } from '../domain/journey-recipe.types.js';
+import { ACCOUNT_SIGNUP_TO_LOGIN, POST_LOGIN_FIRST_SCREEN } from './customer-account.recipes.js';
+import { CUSTOMER_CREDIT_JOURNEY, CUSTOMER_ONBOARDING_INCOMPLETE } from './customer-credit.recipes.js';
+import { CUSTOMER_PROFILE_LIFECYCLE } from './customer-profile.recipes.js';
+import { CUSTOMER_ONBOARDING_SUBMISSION } from './customer-submission.recipes.js';
+import { CUSTOMER_WHATSAPP_VERIFICATION } from './customer-channels.recipes.js';
+import { CUSTOMER_IDENTITY_MANUAL_REVIEW } from './customer-identity-review.recipes.js';
+import { CUSTOMER_FULL_LIFECYCLE_NORMAL } from './customer-lifecycle.recipes.js';
+import { MERCHANT_SUPPORT_AND_ACCESS } from './merchant-support.recipes.js';
+import { PARTNER_FULL_ONBOARDING } from './partner-onboarding.recipes.js';
+import { COVERAGE_GAPS, type GapReason } from './coverage-gaps.js';
+
+export const JOURNEY_TEMPLATES: readonly JourneyTemplate[] = [
+  ACCOUNT_SIGNUP_TO_LOGIN,
+  POST_LOGIN_FIRST_SCREEN,
+  CUSTOMER_CREDIT_JOURNEY,
+  CUSTOMER_ONBOARDING_INCOMPLETE,
+  CUSTOMER_PROFILE_LIFECYCLE,
+  CUSTOMER_ONBOARDING_SUBMISSION,
+  CUSTOMER_FULL_LIFECYCLE_NORMAL,
+  PARTNER_FULL_ONBOARDING,
+  MERCHANT_SUPPORT_AND_ACCESS,
+  CUSTOMER_WHATSAPP_VERIFICATION,
+  CUSTOMER_IDENTITY_MANUAL_REVIEW,
+];
+
+export type JourneyCampaign = {
+  code: string;
+  name: string;
+  description: string;
+  templates: Array<{ code: string; version: string; share: number }>;
+};
+
+/** Una campaña reparte N personas entre plantillas; el total se enseña antes de ejecutar. */
+export const JOURNEY_CAMPAIGNS: readonly JourneyCampaign[] = [
+  {
+    code: 'regression_normal',
+    name: 'Regresión normal',
+    description: 'Recorridos del cliente con datos normales: alta, primera pantalla y decisión de crédito.',
+    templates: [
+      { code: 'account_signup_to_login', version: '1.0.0', share: 1 },
+      { code: 'post_login_first_screen', version: '1.0.0', share: 1 },
+      { code: 'customer_credit_decision', version: '1.1.0', share: 2 },
+      { code: 'customer_profile_lifecycle', version: '1.1.0', share: 1 },
+    ],
+  },
+  {
+    code: 'errors_and_boundaries',
+    name: 'Errores y fronteras',
+    description: 'Rechazos esperados: el error exacto es el éxito y no quedan efectos indebidos.',
+    templates: [{ code: 'customer_onboarding_incomplete', version: '1.0.0', share: 1 }],
+  },
+];
+
+export function findTemplate(code: string, version: string): JourneyTemplate | undefined {
+  return JOURNEY_TEMPLATES.find((template) => template.code === code && template.version === version);
+}
+
+/** Hash canónico de la receta: entra en el plan congelado y detecta cualquier edición posterior. */
+export function recipeHash(template: JourneyTemplate): string {
+  return createHash('sha256').update(canonical(template)).digest('hex');
+}
+
+function canonical(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value ?? null);
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  const keys = Object.keys(value).sort();
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(',')}}`;
+}
+
+/**
+ * Clave de endpoint de un paso: `POST /customers/:customerId/credit-applications`. Las recetas
+ * escriben `{{resources.customerId}}` y el catálogo de flujos `:customerId`; los dos se normalizan a
+ * la misma forma para que una receta cubra el nodo de CUALQUIER flujo que llame a ese endpoint.
+ */
+export function endpointKey(method: string, path: string): string {
+  const normalized = path
+    .replace(/\{\{\s*[a-zA-Z]+\.([a-zA-Z0-9_]+)\s*\}\}/g, ':$1')
+    .replace(/:[a-zA-Z0-9_]+/g, ':param')
+    .replace(/\/+$/, '');
+  return `${method.toUpperCase()} ${normalized}`;
+}
+
+/** Endpoints que la plantilla ejecuta. */
+export function templateEndpoints(template: JourneyTemplate): Set<string> {
+  return new Set(template.steps.map((step) => endpointKey(step.method, step.path)));
+}
+
+export type CoverageRow = {
+  stepCode: string;
+  status: 'COVERED' | 'GAP';
+  templates: string[];
+  gapReason?: GapReason;
+};
+
+/** Matriz stepCode × plantillas. Recibe los códigos del inventario para no depender de la semilla. */
+export function coverageMatrix(inventory: readonly string[]): CoverageRow[] {
+  const covering = new Map<string, Set<string>>();
+  for (const template of JOURNEY_TEMPLATES) {
+    for (const step of template.steps) {
+      if (!step.workflowStepCode) continue;
+      const set = covering.get(step.workflowStepCode) ?? new Set<string>();
+      set.add(`${template.code}@${template.version}`);
+      covering.set(step.workflowStepCode, set);
+    }
+  }
+  return inventory.map((stepCode) => {
+    const templates = [...(covering.get(stepCode) ?? [])].sort();
+    if (templates.length > 0) return { stepCode, status: 'COVERED', templates };
+    return { stepCode, status: 'GAP', templates, gapReason: COVERAGE_GAPS[stepCode] };
+  });
+}

@@ -25,6 +25,7 @@ import { SYSTEMS_GOVERNANCE_NARRATIVES } from './systems-governance.fixtures.js'
 import { PARTNER_ONBOARDING_NARRATIVES } from './partner-onboarding.fixtures.js';
 import { SUPPORT_SERVICE_MANAGEMENT_NARRATIVES } from './support-service-management.fixtures.js';
 import { FLOW_INTELLIGENCE_NARRATIVES } from './flow-intelligence.fixtures.js';
+import { QA_ORCHESTRATION_NARRATIVES } from './qa-orchestration.fixtures.js';
 import { WORKFLOW_CATALOG_NARRATIVES } from './workflow-catalog.fixtures.js';
 
 export type { EntityBusinessNarrative } from './entity-narrative.types.js';
@@ -53,6 +54,7 @@ export const ENTITY_BUSINESS_NARRATIVES: readonly EntityBusinessNarrative[] = [
   ...PARTNER_ONBOARDING_NARRATIVES,
   ...SUPPORT_SERVICE_MANAGEMENT_NARRATIVES,
   ...FLOW_INTELLIGENCE_NARRATIVES,
+  ...QA_ORCHESTRATION_NARRATIVES,
 ];
 
 /**

@@ -165,6 +165,8 @@ describe('ExternalDataDecisionService', () => {
       (repository.countRequests as jest.Mock).mockResolvedValueOnce(3 as never);
       const result = await service.evaluateCircuitBreaker({ providerId: 'p1', providerCode: 'INFOCENTER', mode: 'production' });
       expect(result).toMatchObject({ blocked: true, reasonCode: 'INFOCENTER_CIRCUIT_BREAKER_OPEN' });
+      // Sólo cuenta lo que respondió el proveedor: sus propios rechazos no lo mantienen abierto.
+      expect(repository.countRequests).toHaveBeenCalledWith(expect.objectContaining({ onlyProviderOutcomes: true }));
     });
 
     it('stays closed just below the threshold', async () => {
