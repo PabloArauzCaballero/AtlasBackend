@@ -66,6 +66,10 @@ export const qaPersonasQuerySchema = z.object({
 });
 export type QaPersonasQueryDto = z.infer<typeof qaPersonasQuerySchema>;
 
+/** Sin `bucketSeconds`, el servicio elige el tramo que deja la corrida en ≤ 120 tramos. */
+export const qaTimelineQuerySchema = z.object({ bucketSeconds: z.coerce.number().int().min(1).max(60).optional() });
+export type QaTimelineQueryDto = z.infer<typeof qaTimelineQuerySchema>;
+
 export const qaEventsQuerySchema = z.object({ after: z.coerce.number().int().min(0).default(0) });
 export type QaEventsQueryDto = z.infer<typeof qaEventsQuerySchema>;
 

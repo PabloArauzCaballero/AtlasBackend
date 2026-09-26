@@ -6,7 +6,6 @@
  *   firmada, y el QR lleva un código legible (fixture `payment_qr`) porque el backend lo decodifica.
  */
 import type { RecipeStep } from '../domain/journey-recipe.types.js';
-import { SYNTHETIC_UPLOAD_BYTES } from '../fixtures/synthetic-upload.js';
 
 const p = (suffix: string) => `/partner-onboarding/{{resources.partnerId}}${suffix}`;
 
@@ -44,7 +43,7 @@ const DOSSIER: RecipeStep[] = [
     path: p('/documents/upload-url'),
     actor: 'merchant_user',
     idempotency: 'per_operation',
-    body: { documentKind: 'power-of-attorney', contentType: 'image/jpeg', sizeBytes: SYNTHETIC_UPLOAD_BYTES },
+    body: { documentKind: 'power-of-attorney', contentType: 'image/jpeg', sizeBytes: { $ref: 'uploads.identity_front.sizeBytes' } },
     expect: { status: [200, 201], assertions: [{ kind: 'type', path: 'data.uploadUrl', type: 'string' }] },
     extract: [
       { to: 'resources.poaUrl', from: 'response.data.uploadUrl', required: true },
@@ -203,7 +202,7 @@ const FILES: RecipeStep[] = [
     actor: 'merchant_user',
     dependsOn: ['partner.branch_create'],
     idempotency: 'per_operation',
-    body: { qrKind: 'business', contentType: 'image/jpeg', sizeBytes: SYNTHETIC_UPLOAD_BYTES },
+    body: { qrKind: 'business', contentType: 'image/jpeg', sizeBytes: { $ref: 'uploads.payment_qr.sizeBytes' } },
     expect: { status: [200, 201], assertions: [{ kind: 'type', path: 'data.uploadUrl', type: 'string' }] },
     extract: [
       { to: 'resources.qrUrl', from: 'response.data.uploadUrl', required: true },
@@ -245,7 +244,7 @@ const FILES: RecipeStep[] = [
     actor: 'merchant_user',
     dependsOn: ['partner.start'],
     idempotency: 'per_operation',
-    body: { qrKind: 'bank', contentType: 'image/jpeg', sizeBytes: SYNTHETIC_UPLOAD_BYTES },
+    body: { qrKind: 'bank', contentType: 'image/jpeg', sizeBytes: { $ref: 'uploads.payment_qr.sizeBytes' } },
     expect: { status: [200, 201], assertions: [{ kind: 'type', path: 'data.uploadUrl', type: 'string' }] },
     extract: [
       { to: 'resources.bankQrUrl', from: 'response.data.uploadUrl', required: true },

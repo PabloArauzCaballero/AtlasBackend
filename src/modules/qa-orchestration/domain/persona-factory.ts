@@ -38,6 +38,7 @@
  * entra en el flujo que genera nombre, edad o ciudad.
  */
 import { createHash } from 'node:crypto';
+import { APELLIDOS, NOMBRES_F, NOMBRES_M } from './persona-names.js';
 
 /**
  * Versión del generador. Entra en el snapshot de la corrida: si cambia la forma de derivar una
@@ -46,14 +47,19 @@ import { createHash } from 'node:crypto';
  * Los rangos de documento y teléfono reducen la probabilidad de coincidir con alguien real, pero
  * NO la garantizan: la garantía operacional es el aislamiento de red y los sinks QA del entorno.
  */
-export const PERSONA_GENERATOR_VERSION = 'persona-factory@1';
+export const PERSONA_GENERATOR_VERSION = 'persona-factory@2';
 
 export type Persona = {
   ordinal: number;
   personaKey: string;
   synthetic: true;
+  /** Sexo registral, coherente con el nombre: el mock lo usa para la selfie y el carnet. */
+  sex: Sex;
   firstName: string;
+  /** Apellido paterno. */
   lastName: string;
+  /** Apellido materno: en Bolivia el carnet lleva los dos. */
+  secondLastName: string;
   birthDate: string;
   age: number;
   documentNumber: string;
@@ -73,6 +79,7 @@ export type Persona = {
 };
 
 export type CaseCategory = 'VALID' | 'BOUNDARY' | 'ERROR';
+export type Sex = 'F' | 'M';
 export type Archetype = 'nuevo_completo' | 'recurrente' | 'credito_elegible' | 'revision_manual' | 'rechazo_esperado';
 
 /** Ciudades con su departamento y su prefijo real: el par no se sortea por separado. */
@@ -86,9 +93,6 @@ const CIUDADES = [
   { city: 'Potosí', department: 'Potosí', prefix: '6' },
   { city: 'Trinidad', department: 'Beni', prefix: '7' },
 ] as const;
-
-const NOMBRES = ['Ana', 'Luis', 'Carla', 'Jorge', 'Mariela', 'Ramiro', 'Fabiola', 'Diego', 'Rosa', 'Iván', 'Noelia', 'Marco'];
-const APELLIDOS = ['Quispe', 'Mamani', 'Chávez', 'Rojas', 'Vargas', 'Condori', 'Salazar', 'Terceros', 'Flores', 'Arce'];
 
 const ARCHETYPES: Archetype[] = ['nuevo_completo', 'recurrente', 'credito_elegible', 'revision_manual', 'rechazo_esperado'];
 
@@ -167,13 +171,20 @@ export function buildPersona(input: {
   const mix = input.mix ?? { valid: 3, boundary: 1, error: 1 };
 
   const identity = stream(masterSeed, ordinal, 'identity');
+  const naming = stream(masterSeed, ordinal, 'naming');
   const contact = stream(masterSeed, ordinal, 'contact');
   const finance = stream(masterSeed, ordinal, 'finance');
   const device = stream(masterSeed, ordinal, 'device');
 
   const lugar = pick(identity, CIUDADES);
-  const firstName = pick(identity, NOMBRES);
-  const lastName = pick(identity, APELLIDOS);
+  // Nombre y apellidos en su propio flujo: ampliar una lista no mueve la edad ni la ciudad.
+  const sex: Sex = naming() < 0.5 ? 'F' : 'M';
+  const firstName = pick(naming, sex === 'F' ? NOMBRES_F : NOMBRES_M);
+  const lastName = pick(naming, APELLIDOS);
+  // Paterno y materno distintos: repetirlos existe, pero es raro y confunde al leer una corrida.
+  let secondLastName = pick(naming, APELLIDOS);
+  for (let attempt = 0; secondLastName === lastName && attempt < 8; attempt += 1) secondLastName = pick(naming, APELLIDOS);
+  if (secondLastName === lastName) secondLastName = APELLIDOS[(APELLIDOS.indexOf(lastName) + 1) % APELLIDOS.length];
 
   // La edad manda y la fecha se deriva de ella contra `refDate`, no al revés: así no hay forma de
   // producir un mayor de edad con fecha de nacimiento de hace diez años.
@@ -189,8 +200,10 @@ export function buildPersona(input: {
     ordinal,
     personaKey,
     synthetic: true,
+    sex,
     firstName,
     lastName,
+    secondLastName,
     birthDate: birth.toISOString().slice(0, 10),
     age,
     documentNumber,

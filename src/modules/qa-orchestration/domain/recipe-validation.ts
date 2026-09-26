@@ -4,7 +4,14 @@
  *   produce, un ciclo o un reintento de escritura sin idempotencia no llegan a generar tráfico.
  * @system cada paso sólo puede consumir lo que produce un ANCESTRO en su cadena de dependencias.
  */
-import { ASSERTION_KINDS, type Assertion, type JourneyTemplate, type RecipeStep } from './journey-recipe.types.js';
+import {
+  ASSERTION_KINDS,
+  UPLOAD_IMAGE_KINDS,
+  type Assertion,
+  type JourneyTemplate,
+  type RecipeStep,
+  type UploadImageKind,
+} from './journey-recipe.types.js';
 import type { QaBlocker } from './qa-run.types.js';
 import { conditionPaths, referencedPaths } from './typed-bindings.js';
 
@@ -12,8 +19,10 @@ import { conditionPaths, referencedPaths } from './typed-bindings.js';
 export const PERSONA_FIELDS = [
   'ordinal',
   'personaKey',
+  'sex',
   'firstName',
   'lastName',
+  'secondLastName',
   'birthDate',
   'age',
   'documentNumber',
@@ -77,8 +86,20 @@ function resolvable(path: string, available: Set<string>): boolean {
   if (root === 'persona') return (PERSONA_FIELDS as readonly string[]).includes(field);
   if (root === 'run') return RUN_FIELDS.includes(field);
   if (root === 'response' || root === 'cookies') return true;
+  // Tamaño de la imagen de la persona: lo resuelve el worker antes del primer paso.
+  if (root === 'uploads') return (UPLOAD_IMAGE_KINDS as readonly string[]).includes(field) && path === `uploads.${field}.sizeBytes`;
   // Condicionar sobre un recurso opcional es legítimo si ALGÚN ancestro lo intenta extraer.
   return available.has(path) || [...available].some((candidate) => path.startsWith(`${candidate}.`) || path.startsWith(`${candidate}[`));
+}
+
+/** Imágenes que la receta sube o cuyo tamaño declara: las que el worker resuelve por persona. */
+export function uploadKindsOf(template: JourneyTemplate): UploadImageKind[] {
+  const kinds = new Set<string>();
+  for (const step of template.steps) {
+    if (step.upload) kinds.add(step.upload.image);
+    for (const path of neededPaths(step)) if (path.startsWith('uploads.')) kinds.add(path.split('.')[1]);
+  }
+  return UPLOAD_IMAGE_KINDS.filter((kind) => kinds.has(kind));
 }
 
 type Graph = { steps: RecipeStep[]; index: Map<string, number>; produces: Map<string, Set<string>>; fixtures: Set<string> };

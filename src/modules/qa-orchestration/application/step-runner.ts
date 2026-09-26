@@ -12,7 +12,7 @@ import { idempotencyKeyFor } from '../domain/run-accounting.js';
 import { BindingUnresolvedError, interpolate, readOptional, resolveBinding, type BindingScope } from '../domain/typed-bindings.js';
 import type { AttemptRecord, StepRecord, TransportResponse } from './executor.ports.js';
 import type { PersonaExecutionDeps, PersonaExecutionInput } from './journey-executor.js';
-import { syntheticImage } from '../fixtures/synthetic-upload.js';
+import { uploadImageFor } from './qa-upload-images.js';
 
 const RATE_LIMIT_WAIT_MS = 61_000;
 const MAX_RATE_LIMIT_RETRIES = 3;
@@ -203,7 +203,7 @@ export class StepRunner {
         failures: [{ code: 'BINDING_UNRESOLVED', message: upload.urlFrom }],
       });
     }
-    const { bytes, sha256 } = syntheticImage(upload.image, this.input.personaKey);
+    const { bytes, sha256, source } = uploadImageFor(this.input.scope, upload.image, this.input.personaKey);
     const slot = await this.deps.budget.acquire();
     if (!slot.ok) return this.result(slot.reason === 'CANCELLED' ? 'CANCELLED' : 'INDETERMINATE', { reason: slot.reason });
     let response: TransportResponse;
@@ -228,7 +228,7 @@ export class StepRunner {
     if (verdict.status !== 'PASSED')
       return this.result(verdict.status, { failures: verdict.failures, reason: verdict.failures[0]?.message });
     setPath(this.input.scope as Record<string, unknown>, upload.extractSha256To, sha256);
-    this.evidence.extracted = { [upload.extractSha256To]: sha256, bytes: bytes.length };
+    this.evidence.extracted = { [upload.extractSha256To]: sha256, bytes: bytes.length, imageSource: source };
     return this.result('PASSED');
   }
 

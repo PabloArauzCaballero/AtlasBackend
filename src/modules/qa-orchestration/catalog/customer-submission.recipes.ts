@@ -6,7 +6,6 @@
  *   webhook) y las imágenes son bytes JPEG sintéticos subidos a la URL firmada del almacenamiento QA.
  */
 import type { JourneyTemplate, RecipeStep } from '../domain/journey-recipe.types.js';
-import { SYNTHETIC_UPLOAD_BYTES } from '../fixtures/synthetic-upload.js';
 import { SIGNUP_STEPS } from './customer-account.recipes.js';
 
 const o = (suffix: string) => `/customer-onboarding/{{resources.customerId}}${suffix}`;
@@ -23,7 +22,7 @@ function evidenceSteps(image: Image, workflowStepCode?: string): RecipeStep[] {
       actor: 'customer',
       dependsOn: ['signup.me'],
       idempotency: 'per_operation',
-      body: { documentType: image, contentType: 'image/jpeg', sizeBytes: SYNTHETIC_UPLOAD_BYTES },
+      body: { documentType: image, contentType: 'image/jpeg', sizeBytes: { $ref: `uploads.${image}.sizeBytes` } },
       expect: { status: [200, 201], assertions: [{ kind: 'type', path: 'data.uploadUrl', type: 'string' }] },
       extract: [
         { to: `resources.${image}_url`, from: 'response.data.uploadUrl', required: true },

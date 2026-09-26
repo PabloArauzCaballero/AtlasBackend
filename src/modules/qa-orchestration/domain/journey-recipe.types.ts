@@ -136,13 +136,21 @@ export type RecipeStep = {
    * para no acabar nunca en la evidencia.
    */
   otp?: { channel: 'email' | 'sms' | 'whatsapp'; toFrom: JourneyPath; extractTo: string; deadlineMs?: number };
-  upload?: { urlFrom: JourneyPath; image: 'identity_front' | 'identity_back' | 'selfie' | 'payment_qr'; extractSha256To: string };
+  upload?: { urlFrom: JourneyPath; image: UploadImageKind; extractSha256To: string };
   /**
    * Repetible al retomar tras un reinicio para recuperar la sesión (el login). Los tokens no se
    * persisten, así que la persona vuelve a entrar con sus credenciales deterministas.
    */
   replayOnResume?: boolean;
 };
+
+/**
+ * Imágenes que una persona sube. El paso que pide la URL firmada declara su tamaño EXACTO con
+ * `{ $ref: 'uploads.<tipo>.sizeBytes' }`: el worker resuelve la imagen de la persona antes de
+ * empezar (la del mock si responde, la genérica si no), así que tamaño declarado y subido coinciden.
+ */
+export const UPLOAD_IMAGE_KINDS = ['identity_front', 'identity_back', 'selfie', 'payment_qr'] as const;
+export type UploadImageKind = (typeof UPLOAD_IMAGE_KINDS)[number];
 
 export type TemplateStatus = 'READY' | 'BLOCKED' | 'DRAFT';
 
