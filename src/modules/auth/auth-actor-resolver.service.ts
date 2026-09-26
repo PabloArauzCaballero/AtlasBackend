@@ -8,7 +8,9 @@ import { ATLAS_USER_ROLES, AtlasUserRole } from '../../common/types/auth.types.j
 import { decryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { hashSensitiveText } from '../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
+import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
+import { MerchantActorRepository } from './merchant-actor.repository.js';
 
 /** Actor autenticable ya resuelto (cliente, usuario interno o de plataforma), con su rol vigente. */
 export type ResolvedActor = {
@@ -39,6 +41,8 @@ export class AuthActorResolverService {
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly customersRepository: CustomersRepository,
+    private readonly customerContactsRepository: CustomerContactsRepository,
+    private readonly merchantActorRepository: MerchantActorRepository,
   ) {}
 
   /** Resuelve el actor durante el login, a partir del identificador que el usuario escribió. */
@@ -74,6 +78,10 @@ export class AuthActorResolverService {
       };
     }
 
+    if (actorType === 'merchant_user') {
+      return this.resolveMerchantActor(await this.merchantActorRepository.findMerchantUserByEmail(identifier, tenantId));
+    }
+
     // platform_user
     const platformUser = await this.authRepository.findPlatformUserByEmail(identifier);
     if (!platformUser || platformUser.status !== 'active' || !platformUser.roleCode || !isKnownRole(platformUser.roleCode)) {
@@ -89,6 +97,34 @@ export class AuthActorResolverService {
   }
 
   /**
+   * Identidad del comercio afiliado, con la misma comprobación en el login y en el refresh.
+   *
+   * Fail-closed en tres puntos: identidad inexistente, estado distinto de `active`, o rol fuera del
+   * vocabulario que acepta el guard. Una identidad `invited` todavía no ha aceptado su alta; una
+   * `suspended` es exactamente el caso que el portal del comercio tiene que impedir sin depender de
+   * que el ERP se acuerde de comprobarlo.
+   */
+  private resolveMerchantActor(
+    merchantUser: {
+      id: string;
+      tenantId: string;
+      roleCode: string;
+      email: string;
+      fullName: string | null;
+      status: string;
+    } | null,
+  ): ResolvedActor | null {
+    if (!merchantUser || merchantUser.status !== 'active' || !isKnownRole(merchantUser.roleCode)) return null;
+    return {
+      id: merchantUser.id,
+      tenantId: merchantUser.tenantId,
+      role: merchantUser.roleCode,
+      email: merchantUser.email,
+      displayName: merchantUser.fullName,
+    };
+  }
+
+  /**
    * Correo de contacto del cliente para mensajes transaccionales.
    *
    * Prefiere un correo ya verificado; si no hay ninguno verificado, acepta uno declarado. Un fallo
@@ -96,7 +132,7 @@ export class AuthActorResolverService {
    * `null`, que el llamador trata como "no hay canal disponible".
    */
   private async resolveCustomerEmail(tenantId: string, customerId: string): Promise<string | null> {
-    const contacts = await this.customersRepository.findContactMethods(tenantId, customerId);
+    const contacts = await this.customerContactsRepository.findContactMethods(tenantId, customerId);
     const emails = contacts.filter((contact) => contact.contactType === 'email' && contact.contactValueEncrypted !== null);
     const preferred = emails.find((contact) => contact.status === 'verified') ?? emails[0];
     if (!preferred) return null;
@@ -106,6 +142,23 @@ export class AuthActorResolverService {
       // Sobre ilegible (rotación de clave incompleta, dato corrupto): sin canal, sin filtración.
       return null;
     }
+  }
+
+  /**
+   * Igual que `reResolveActorRole`, pero con el correo resuelto también para `customer`.
+   *
+   * `reResolveActorRole` devuelve `email: null` para un cliente porque sus consumidores —refresh y
+   * verificación de PIN— no envían nada: el correo del cliente está cifrado en `customer_contacts`
+   * y descifrarlo en cada rotación de token sería trabajo puro y duro sin destinatario. Quien SÍ
+   * necesita el canal —el cambio de contraseña— lo pide por aquí y paga ese descifrado una vez.
+   *
+   * Sin esto, un cliente autenticado veía "no hay canal para entregar el código" con un correo
+   * verificado en su ficha.
+   */
+  async reResolveActorWithEmail(actorType: ActorType, actorId: string, tenantId: string | null): Promise<ResolvedActor | null> {
+    const actor = await this.reResolveActorRole(actorType, actorId, tenantId);
+    if (!actor || actor.email || actorType !== 'customer' || !tenantId) return actor;
+    return { ...actor, email: await this.resolveCustomerEmail(tenantId, actorId) };
   }
 
   /** Re-resuelve el rol/tenant vigentes de un actor ya conocido por su id (refresh y verificación de PIN). */
@@ -126,6 +179,12 @@ export class AuthActorResolverService {
         displayName: internalUser.fullName,
       };
     }
+    if (actorType === 'merchant_user') {
+      // El refresh vuelve a leer el estado: suspender a un usuario del comercio corta su sesión en
+      // la siguiente rotación, sin esperar a que caduque el access token.
+      return this.resolveMerchantActor(await this.merchantActorRepository.findMerchantUserById(actorId));
+    }
+
     const platformUser = await this.authRepository.findPlatformUserById(actorId);
     if (!platformUser || platformUser.status !== 'active' || !platformUser.roleCode || !isKnownRole(platformUser.roleCode)) return null;
     return { id: actorId, tenantId: null, role: platformUser.roleCode, email: platformUser.email, displayName: platformUser.fullName };

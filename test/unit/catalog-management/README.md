@@ -13,6 +13,7 @@
 |---|---|
 | [`catalog-data-governance.repository.spec.ts`](./catalog-data-governance.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`catalog-data-governance.service.spec.ts`](./catalog-data-governance.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`catalog-definition-rows.mapper.spec.ts`](./catalog-definition-rows.mapper.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`catalog-definitions.repository.spec.ts`](./catalog-definitions.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`catalog-definitions.service.spec.ts`](./catalog-definitions.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`catalog-ingestion.service.spec.ts`](./catalog-ingestion.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |

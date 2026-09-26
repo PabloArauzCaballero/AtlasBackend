@@ -8,9 +8,9 @@ import { InternalAccessCatalogController } from '../../../src/modules/internal-u
 describe('InternalAccessCatalogController', () => {
   function build() {
     const service = {
-      listRoles: jest.fn(async () => ({ items: [] })),
-      getRole: jest.fn(async () => ({ id: '5' })),
-      listPermissions: jest.fn(async () => ({ items: [] })),
+      listRoles: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      getRole: jest.fn(async (..._args: unknown[]) => ({ id: '5' })),
+      listPermissions: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
     };
     return { controller: new InternalAccessCatalogController(service as never), service };
   }

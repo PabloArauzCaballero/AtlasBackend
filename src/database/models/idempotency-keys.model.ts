@@ -41,6 +41,15 @@ export class IdempotencyKeyModel extends Model {
   @Column({ field: 'locked_until', type: DataType.DATE })
   declare lockedUntil: Date | null;
 
+  /**
+   * Testigo de la concesión vigente (AT-009). Lo fija quien reclama la clave —al crearla o al
+   * recuperar un lease vencido— con una actualización condicional, y sólo quien lo posee puede
+   * completar o fallar el registro: un proceso viejo que despierta después de perder el lease no
+   * pisa el resultado del dueño actual.
+   */
+  @Column({ field: 'owner_token', type: DataType.STRING(64) })
+  declare ownerToken: string | null;
+
   @Column({ field: 'completed_at', type: DataType.DATE })
   declare completedAt: Date | null;
 

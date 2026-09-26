@@ -10,7 +10,7 @@ import { SystemsReviewService } from '../../../src/modules/systems-ops/systems-r
 describe('SystemsReviewService', () => {
   function build() {
     const reviewRepository = {
-      listReviewQueue: jest.fn(async () => ({
+      listReviewQueue: jest.fn(async (..._args: unknown[]) => ({
         endpoints: { rows: [] as unknown[], count: 0 },
         dataEntities: { rows: [] as unknown[], count: 0 },
         dataImpacts: { rows: [] as unknown[], count: 0 },
@@ -18,12 +18,12 @@ describe('SystemsReviewService', () => {
         dataColumns: { rows: [] as unknown[], count: 0 },
         toolRequirements: { rows: [] as unknown[], count: 0 },
       })),
-      updateEndpointReview: jest.fn(async () => null),
-      updateDataEntityReview: jest.fn(async () => null),
-      updateDataImpactReview: jest.fn(async () => null),
-      updateFieldImpactReview: jest.fn(async () => null),
-      updateDataColumnReview: jest.fn(async () => null),
-      updateToolRequirementReview: jest.fn(async () => null),
+      updateEndpointReview: jest.fn(async (..._args: unknown[]) => null),
+      updateDataEntityReview: jest.fn(async (..._args: unknown[]) => null),
+      updateDataImpactReview: jest.fn(async (..._args: unknown[]) => null),
+      updateFieldImpactReview: jest.fn(async (..._args: unknown[]) => null),
+      updateDataColumnReview: jest.fn(async (..._args: unknown[]) => null),
+      updateToolRequirementReview: jest.fn(async (..._args: unknown[]) => null),
     };
     const service = new SystemsReviewService(reviewRepository as never);
     return { service, reviewRepository };

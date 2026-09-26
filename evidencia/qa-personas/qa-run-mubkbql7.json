@@ -1,0 +1,656 @@
+{
+  "runId": "qa-run-mubkbql7",
+  "seed": "atlas-2026-09-21",
+  "runNamespace": "qa-run-mubkbql7",
+  "refDate": "2026-09-21T18:12:28.123Z",
+  "baseUrl": "http://127.0.0.1:3005/api/v1",
+  "personas": 20,
+  "durationMs": 66924,
+  "concurrencia": {
+    "maxPersonasSolapadas": 20,
+    "esConcurrente": true
+  },
+  "aislamiento": {
+    "customersCreados": 20,
+    "customerIdsDistintos": 20,
+    "sinFugaEntrePersonas": true
+  },
+  "pasos": {
+    "total": 420,
+    "passed": 420,
+    "failed": 0,
+    "skippedDependency": 0,
+    "indeterminate": 0,
+    "assertionPassRate": 1
+  },
+  "latenciaHttp": {
+    "count": 420,
+    "min": 13,
+    "p50": 104,
+    "p95": 724,
+    "p99": 1286,
+    "max": 1578,
+    "insufficientSamples": false
+  },
+  "admissionLag": {
+    "count": 40,
+    "min": 0.0015000000000782165,
+    "p50": 0.005100000000084037,
+    "p95": 60041.8226,
+    "p99": 60043.541,
+    "max": 60043.541,
+    "insufficientSamples": false
+  },
+  "recorridos": [
+    {
+      "code": "account_signup_to_login",
+      "name": "Alta de cuenta: de la primera pantalla a la sesión iniciada",
+      "personas": 20,
+      "completados": 20,
+      "parciales": 0,
+      "fallados": 0,
+      "indeterminados": 0,
+      "pasos": {
+        "passed": 80,
+        "failed": 0,
+        "skipped": 0,
+        "indeterminate": 0
+      },
+      "latencia": {
+        "count": 80,
+        "min": 17,
+        "p50": 118,
+        "p95": 714,
+        "p99": 751,
+        "max": 751,
+        "insufficientSamples": false
+      },
+      "fallosDistintos": []
+    },
+    {
+      "code": "post_login_first_screen",
+      "name": "De la sesión iniciada a la primera pantalla",
+      "personas": 20,
+      "completados": 20,
+      "parciales": 0,
+      "fallados": 0,
+      "indeterminados": 0,
+      "pasos": {
+        "passed": 200,
+        "failed": 0,
+        "skipped": 0,
+        "indeterminate": 0
+      },
+      "latencia": {
+        "count": 200,
+        "min": 13,
+        "p50": 109,
+        "p95": 215,
+        "p99": 296,
+        "max": 305,
+        "insufficientSamples": false
+      },
+      "fallosDistintos": []
+    },
+    {
+      "code": "customer_credit_journey",
+      "name": "Recorrido del cliente hasta la decisión de crédito",
+      "personas": 20,
+      "completados": 20,
+      "parciales": 0,
+      "fallados": 0,
+      "indeterminados": 0,
+      "pasos": {
+        "passed": 140,
+        "failed": 0,
+        "skipped": 0,
+        "indeterminate": 0
+      },
+      "latencia": {
+        "count": 140,
+        "min": 18,
+        "p50": 83,
+        "p95": 1114,
+        "p99": 1570,
+        "max": 1578,
+        "insufficientSamples": false
+      },
+      "fallosDistintos": []
+    }
+  ],
+  "categorias": [
+    {
+      "categoria": "VALID",
+      "personas": 12
+    },
+    {
+      "categoria": "BOUNDARY",
+      "personas": 4
+    },
+    {
+      "categoria": "ERROR",
+      "personas": 4
+    }
+  ],
+  "evidenciaEmulador": {
+    "journal": {
+      "llamadasObservadas": 0,
+      "proveedores": [],
+      "personasDistintas": 0
+    },
+    "consultasExternasExitosas": 20,
+    "modosObservados": [
+      "mock_server"
+    ],
+    "llamadasEnNamespaceLegacy": 20,
+    "veredicto": "SIN_CONTEXTO_DE_CORRIDA",
+    "detalle": "20 consulta(s) en modo mock_server; el emulador atendió 20 en el namespace legacy. El tráfico SÍ salió por la red. Falta que el backend propague `qaContext` desde una corrida autorizada: el emulador rechaza —a propósito— que una cabecera del cliente elija namespace."
+  },
+  "detalle": [
+    {
+      "persona": {
+        "personaKey": "p-0001",
+        "archetype": "recurrente",
+        "caseCategory": "VALID",
+        "documentNumber": "90024721",
+        "email": "qa.p-0001.6090aa9f@example.test"
+      },
+      "journeys": [
+        {
+          "code": "account_signup_to_login",
+          "outcomes": [
+            {
+              "stepKey": "signup.consent_documents",
+              "method": "GET",
+              "path": "/consent-documents/active",
+              "httpStatus": 200,
+              "latencyMs": 117,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "signup.start",
+              "method": "POST",
+              "path": "/customer-onboarding/start",
+              "httpStatus": 201,
+              "latencyMs": 531,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 201"
+            },
+            {
+              "stepKey": "signup.login",
+              "method": "POST",
+              "path": "/auth/login",
+              "httpStatus": 200,
+              "latencyMs": 93,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "signup.me",
+              "method": "GET",
+              "path": "/auth/me",
+              "httpStatus": 200,
+              "latencyMs": 27,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            }
+          ],
+          "terminal": "COMPLETED"
+        },
+        {
+          "code": "post_login_first_screen",
+          "outcomes": [
+            {
+              "stepKey": "first_screen.auth_me",
+              "method": "GET",
+              "path": "/auth/me",
+              "httpStatus": 200,
+              "latencyMs": 13,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.customer_me",
+              "method": "GET",
+              "path": "/customers/137/me",
+              "httpStatus": 200,
+              "latencyMs": 65,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.onboarding_status",
+              "method": "GET",
+              "path": "/customer-onboarding/137/status",
+              "httpStatus": 200,
+              "latencyMs": 188,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.session_state",
+              "method": "GET",
+              "path": "/customers/137/session-state",
+              "httpStatus": 200,
+              "latencyMs": 142,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.observations",
+              "method": "GET",
+              "path": "/customer-onboarding/137/observations",
+              "httpStatus": 200,
+              "latencyMs": 98,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.eligibility",
+              "method": "GET",
+              "path": "/customers/137/eligibility",
+              "httpStatus": 200,
+              "latencyMs": 182,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.credit_products",
+              "method": "GET",
+              "path": "/customers/137/credit-products",
+              "httpStatus": 200,
+              "latencyMs": 150,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.credit_applications",
+              "method": "GET",
+              "path": "/customers/137/credit-applications",
+              "httpStatus": 200,
+              "latencyMs": 117,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.unread_count",
+              "method": "GET",
+              "path": "/customers/137/notifications/unread-count",
+              "httpStatus": 200,
+              "latencyMs": 28,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.token_refresh",
+              "method": "POST",
+              "path": "/auth/refresh",
+              "httpStatus": 200,
+              "latencyMs": 109,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            }
+          ],
+          "terminal": "COMPLETED"
+        },
+        {
+          "code": "customer_credit_journey",
+          "outcomes": [
+            {
+              "stepKey": "credit.external_consent",
+              "method": "POST",
+              "path": "/external-data/consents",
+              "httpStatus": 201,
+              "latencyMs": 36,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 201"
+            },
+            {
+              "stepKey": "credit.external_preview",
+              "method": "POST",
+              "path": "/external-data/requests/preview",
+              "httpStatus": 200,
+              "latencyMs": 75,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "credit.external_request",
+              "method": "POST",
+              "path": "/external-data/requests",
+              "httpStatus": 200,
+              "latencyMs": 904,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "credit.status",
+              "method": "GET",
+              "path": "/customer-onboarding/137/status",
+              "httpStatus": 200,
+              "latencyMs": 88,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "credit.products",
+              "method": "GET",
+              "path": "/customers/137/credit-products",
+              "httpStatus": 200,
+              "latencyMs": 77,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "credit.apply",
+              "method": "POST",
+              "path": "/customers/137/credit-applications",
+              "httpStatus": 422,
+              "latencyMs": 340,
+              "expected": "HTTP 200|201|400|403|409|422",
+              "outcome": "PASSED",
+              "actual": "HTTP 422"
+            },
+            {
+              "stepKey": "credit.verify_effect",
+              "method": "GET",
+              "path": "/customers/137/credit-applications",
+              "httpStatus": 200,
+              "latencyMs": 27,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            }
+          ],
+          "terminal": "COMPLETED"
+        }
+      ],
+      "startedAt": 303.1013,
+      "finishedAt": 6381.833,
+      "resources": {
+        "customerId": "137",
+        "sessionId": "137",
+        "deviceId": "29",
+        "eligible": "false",
+        "externalConsent": "true",
+        "externalRequestId": "62",
+        "providerVerdict": "FOUND",
+        "externalModeUsed": "mock_server",
+        "lifecycleStatus": "registered"
+      }
+    },
+    {
+      "persona": {
+        "personaKey": "p-0002",
+        "archetype": "credito_elegible",
+        "caseCategory": "VALID",
+        "documentNumber": "90024722",
+        "email": "qa.p-0002.6090aa9f@example.test"
+      },
+      "journeys": [
+        {
+          "code": "account_signup_to_login",
+          "outcomes": [
+            {
+              "stepKey": "signup.consent_documents",
+              "method": "GET",
+              "path": "/consent-documents/active",
+              "httpStatus": 200,
+              "latencyMs": 118,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "signup.start",
+              "method": "POST",
+              "path": "/customer-onboarding/start",
+              "httpStatus": 201,
+              "latencyMs": 536,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 201"
+            },
+            {
+              "stepKey": "signup.login",
+              "method": "POST",
+              "path": "/auth/login",
+              "httpStatus": 200,
+              "latencyMs": 105,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "signup.me",
+              "method": "GET",
+              "path": "/auth/me",
+              "httpStatus": 200,
+              "latencyMs": 17,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            }
+          ],
+          "terminal": "COMPLETED"
+        },
+        {
+          "code": "post_login_first_screen",
+          "outcomes": [
+            {
+              "stepKey": "first_screen.auth_me",
+              "method": "GET",
+              "path": "/auth/me",
+              "httpStatus": 200,
+              "latencyMs": 16,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.customer_me",
+              "method": "GET",
+              "path": "/customers/139/me",
+              "httpStatus": 200,
+              "latencyMs": 102,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.onboarding_status",
+              "method": "GET",
+              "path": "/customer-onboarding/139/status",
+              "httpStatus": 200,
+              "latencyMs": 218,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.session_state",
+              "method": "GET",
+              "path": "/customers/139/session-state",
+              "httpStatus": 200,
+              "latencyMs": 113,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.observations",
+              "method": "GET",
+              "path": "/customer-onboarding/139/observations",
+              "httpStatus": 200,
+              "latencyMs": 116,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.eligibility",
+              "method": "GET",
+              "path": "/customers/139/eligibility",
+              "httpStatus": 200,
+              "latencyMs": 179,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.credit_products",
+              "method": "GET",
+              "path": "/customers/139/credit-products",
+              "httpStatus": 200,
+              "latencyMs": 184,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.credit_applications",
+              "method": "GET",
+              "path": "/customers/139/credit-applications",
+              "httpStatus": 200,
+              "latencyMs": 97,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.unread_count",
+              "method": "GET",
+              "path": "/customers/139/notifications/unread-count",
+              "httpStatus": 200,
+              "latencyMs": 52,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "first_screen.token_refresh",
+              "method": "POST",
+              "path": "/auth/refresh",
+              "httpStatus": 200,
+              "latencyMs": 53,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            }
+          ],
+          "terminal": "COMPLETED"
+        },
+        {
+          "code": "customer_credit_journey",
+          "outcomes": [
+            {
+              "stepKey": "credit.external_consent",
+              "method": "POST",
+              "path": "/external-data/consents",
+              "httpStatus": 201,
+              "latencyMs": 31,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 201"
+            },
+            {
+              "stepKey": "credit.external_preview",
+              "method": "POST",
+              "path": "/external-data/requests/preview",
+              "httpStatus": 200,
+              "latencyMs": 75,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "credit.external_request",
+              "method": "POST",
+              "path": "/external-data/requests",
+              "httpStatus": 200,
+              "latencyMs": 758,
+              "expected": "HTTP 200|201",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "credit.status",
+              "method": "GET",
+              "path": "/customer-onboarding/139/status",
+              "httpStatus": 200,
+              "latencyMs": 40,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "credit.products",
+              "method": "GET",
+              "path": "/customers/139/credit-products",
+              "httpStatus": 200,
+              "latencyMs": 98,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            },
+            {
+              "stepKey": "credit.apply",
+              "method": "POST",
+              "path": "/customers/139/credit-applications",
+              "httpStatus": 422,
+              "latencyMs": 277,
+              "expected": "HTTP 200|201|400|403|409|422",
+              "outcome": "PASSED",
+              "actual": "HTTP 422"
+            },
+            {
+              "stepKey": "credit.verify_effect",
+              "method": "GET",
+              "path": "/customers/139/credit-applications",
+              "httpStatus": 200,
+              "latencyMs": 99,
+              "expected": "HTTP 200",
+              "outcome": "PASSED",
+              "actual": "HTTP 200"
+            }
+          ],
+          "terminal": "COMPLETED"
+        }
+      ],
+      "startedAt": 304.2161,
+      "finishedAt": 6273.7118,
+      "resources": {
+        "customerId": "139",
+        "sessionId": "139",
+        "deviceId": "30",
+        "eligible": "false",
+        "externalConsent": "true",
+        "externalRequestId": "65",
+        "providerVerdict": "FOUND",
+        "externalModeUsed": "mock_server",
+        "lifecycleStatus": "registered"
+      }
+    }
+  ],
+  "_nota": "Detalle recortado a 2 personas de 20: el resto es la misma estructura y pesaba 1 MB en el repositorio."
+}

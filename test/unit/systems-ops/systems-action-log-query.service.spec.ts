@@ -9,10 +9,10 @@ import { SystemsActionLogQueryService } from '../../../src/modules/systems-ops/s
 describe('SystemsActionLogQueryService', () => {
   function build() {
     const actionLogRepository = {
-      listActionLogs: jest.fn(async () => ({ rows: [] as unknown[], meta: {} })),
-      findActionLogsByRequest: jest.fn(async () => [] as unknown[]),
-      getTrafficLatencyByRoute: jest.fn(async () => [] as unknown[]),
-      getTrafficLatencyTimeseries: jest.fn(async () => [] as unknown[]),
+      listActionLogs: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], meta: {} })),
+      findActionLogsByRequest: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      getTrafficLatencyByRoute: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+      getTrafficLatencyTimeseries: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
     };
     const service = new SystemsActionLogQueryService(actionLogRepository as never);
     return { service, actionLogRepository };

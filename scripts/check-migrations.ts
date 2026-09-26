@@ -22,6 +22,13 @@
  *  4. ERROR — migración sin `up` o sin `down` exportado (reversibilidad).
  *  5. AVISO — la misma tabla creada por dos migraciones, todas idempotentes. No rompe el arranque,
  *     pero es duplicación real que hay que resolver; se reporta sin fallar.
+ *  6. ERROR — `ADD CONSTRAINT` en `up` sin forma de reaplicarse. PostgreSQL no tiene
+ *     `ADD CONSTRAINT IF NOT EXISTS`, así que hace falta un `DROP CONSTRAINT IF EXISTS` previo o una
+ *     guarda que consulte `pg_constraint`/`to_regclass`. Sin eso, el archivo puede ser idempotente en
+ *     todo lo demás —`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`— y aun así abortar en
+ *     la primera restricción al reaplicarse: una reinstalación, un `down`→`up` o el reintento de una
+ *     migración que falló a la mitad. Se encontraron cinco así en cuatro archivos (2026-09-13), todas
+ *     corregidas; esta regla es el trinquete.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -40,6 +47,18 @@ const ALLOWED_DUPLICATE_TIMESTAMPS: Record<string, string> = {
     'cambio de metadatos de systems-ops escrito dos veces. Ambas son idempotentes (ADD COLUMN/CREATE TABLE ' +
     'IF NOT EXISTS), así que el orden entre ellas no altera el esquema resultante. Ya están aplicadas en ' +
     'entornos existentes: renombrarlas rompería SequelizeMeta.',
+  '20260820120000':
+    'add-partner-profile-owner toca `partner_profiles` y add-platform-block-to-systems-catalog toca ' +
+    'el catálogo de systems-ops (`system_endpoint_catalog`, `system_data_entity_catalog` y una tabla ' +
+    'nueva en `platform_ops`). No comparten ni una tabla, así que el orden entre ellas no puede ' +
+    'cambiar el esquema resultante. Ya están aplicadas en dev y en el VPS: renombrar una la volvería ' +
+    'a ejecutar, porque SequelizeMeta guarda el NOMBRE del archivo.',
+  '20260909120000':
+    'create-partner-contract-templates y create-system-flow-catalog las escribieron dos sesiones a la ' +
+    'vez el mismo día. No comparten ni una tabla —plantillas de contrato de comercio frente al catálogo ' +
+    'de flujos de systems-ops— y ambas crean con IF NOT EXISTS, así que el orden entre ellas no puede ' +
+    'cambiar el esquema. Ya están aplicadas en dev por el autodespliegue: renombrar una la volvería a ' +
+    'ejecutar.',
 };
 
 type TableCreation = { table: string; migration: string; idempotent: boolean };
@@ -90,13 +109,54 @@ function createdTables(migration: string, source: string): TableCreation[] {
     // Una interpolación cuya constante no se pudo resolver se reporta como error propio: es peor
     // ignorarla en silencio (dejaría de cubrir esa tabla) que fallar y obligar a nombrarla.
     if (!table) {
-      creations.push({ table: `<no resuelto: ${match[2] ?? match[3]}>`, migration, idempotent: false });
+      // El marcador lleva el NOMBRE DEL ARCHIVO: dos migraciones distintas suelen llamar `TABLE` a su
+      // constante, y sin esto sus marcadores eran idénticos y se reportaban como una colisión de tabla
+      // que no existe. Pasó el 2026-09-09 entre `create-decision-artifact-bindings` y
+      // `create-partner-contract-templates`, que no comparten ninguna.
+      creations.push({ table: `<no resuelto: ${match[2] ?? match[3]} en ${migration}>`, migration, idempotent: false });
       continue;
     }
     creations.push({ table, migration, idempotent: Boolean(match[1]) });
   }
 
   return creations;
+}
+
+/** Cuerpo de `up`: lo de `down` no se mira, porque allí `DROP ... IF EXISTS` ya es la norma. */
+function upBody(source: string): string {
+  const start = source.search(/export\s+(?:async\s+function|const)\s+up\b/);
+  if (start < 0) return '';
+  const end = source.search(/export\s+(?:async\s+function|const)\s+down\b/);
+  return end > start ? source.slice(start, end) : source.slice(start);
+}
+
+/**
+ * Restricciones que `up` añade sin poder reaplicarse (regla 6).
+ *
+ * Se admite como guarda un `DROP CONSTRAINT IF EXISTS` del MISMO nombre por delante, o un bloque que
+ * pregunte antes por `pg_constraint`/`to_regclass` — las dos formas que ya usa el repositorio.
+ */
+function unguardedConstraints(source: string): string[] {
+  // Los comentarios se quitan ANTES de buscar: varias migraciones EXPLICAN en prosa por qué hace
+  // falta la guarda («ADD CONSTRAINT sin guarda fallaría»), y contar esas frases como hallazgos
+  // convertiría el gate en ruido justo en los archivos que ya hacen lo correcto.
+  const up = upBody(source)
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ')
+    .replace(/^\s*--[^\n]*/gm, ' ');
+  const names: string[] = [];
+  for (const match of up.matchAll(/ADD\s+CONSTRAINT\s+"?([A-Za-z_][A-Za-z0-9_]*)"?/gi)) {
+    const name = match[1];
+    if (/^if$/i.test(name)) continue;
+    const before = up.slice(0, match.index ?? 0);
+    const dropped = new RegExp(`DROP\\s+CONSTRAINT\\s+IF\\s+EXISTS\\s+"?${name}"?`, 'i').test(before);
+    const guarded = new RegExp(`conname\\s*=\\s*'${name}'`, 'i').test(before) || /to_regclass\s*\(/i.test(before.slice(-800));
+    // Tercer idioma válido y en uso: el `ALTER` dentro de un `DO` que atrapa `duplicate_object`.
+    // Reaplicar entonces no aborta —la excepción se traga— y la restricción queda igual.
+    const rescued = /EXCEPTION\s+WHEN\s+duplicate_object/i.test(up.slice(match.index ?? 0, (match.index ?? 0) + 400));
+    if (!dropped && !guarded && !rescued) names.push(name);
+  }
+  return [...new Set(names)];
 }
 
 function main(): void {
@@ -126,6 +186,16 @@ function main(): void {
 
     for (const creation of createdTables(file, source)) {
       byTable.set(creation.table, [...(byTable.get(creation.table) ?? []), creation]);
+    }
+
+    const unguarded = unguardedConstraints(source);
+    if (unguarded.length > 0) {
+      errors.push(
+        `${file}: añade ${unguarded.map((name) => `\`${name}\``).join(', ')} sin poder reaplicarse. ` +
+          'PostgreSQL no admite `ADD CONSTRAINT IF NOT EXISTS`: antepón `ALTER TABLE ... DROP CONSTRAINT ' +
+          'IF EXISTS <nombre>;` o envuélvelo en una guarda que consulte `pg_constraint`. Tal cual está, ' +
+          'reaplicar esta migración aborta en esa restricción.',
+      );
     }
   }
 

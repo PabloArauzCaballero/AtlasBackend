@@ -288,6 +288,12 @@ export class SystemsCatalogRepository {
   async upsertDataEntity(seed: DataEntitySeed): Promise<void> {
     const now = new Date();
     await this.dataEntityModel.upsert({
+      /*
+       * El `system_code` viaja EXPLICITO aunque tenga valor por defecto: forma parte de la clave
+       * unica, y una clave de conflicto que depende de un default se rompe en silencio el dia que
+       * alguien cambia ese default.
+       */
+      systemCode: 'ATLAS_BACKEND',
       schemaName: seed.schemaName,
       tableName: seed.tableName,
       modelName: seed.modelName ?? null,
@@ -310,7 +316,7 @@ export class SystemsCatalogRepository {
       dataNature: seed.dataNature ?? 'OPERACIONAL',
       domainCode: seed.domainCode ?? null,
       dataGrain: seed.dataGrain ?? `Una fila representa un registro operacional de ${seed.tableName}.`,
-      sourceSystem: seed.sourceSystem ?? 'atlas_backend',
+      sourceSystem: seed.sourceSystem ?? 'atlas-backend',
       operationalRulesJson: seed.operationalRulesJson ?? [],
       qualityRulesJson: seed.qualityRulesJson ?? [],
       keyRelationshipsSummary: seed.keyRelationshipsSummary ?? null,
@@ -331,214 +337,6 @@ export class SystemsCatalogRepository {
       detectedFrom: seed.detectedFrom,
       confidenceLevel: seed.confidenceLevel,
       reviewStatus: seed.reviewStatus,
-      createdAtValue: now,
-      updatedAtValue: now,
-    } as never);
-  }
-
-  findToolRequirementsByEndpoint(endpointId: string): Promise<SystemEndpointToolRequirementModel[]> {
-    return this.endpointToolModel.findAll({ where: { endpointId }, order: [['id', 'ASC']] } as FindOptions);
-  }
-
-  findDataImpactsByEndpoint(endpointId: string): Promise<SystemEndpointDataEntityImpactModel[]> {
-    return this.dataImpactModel.findAll({
-      where: { endpointId },
-      order: [
-        ['impactLevel', 'DESC'],
-        ['id', 'ASC'],
-      ],
-    } as FindOptions);
-  }
-
-  findFieldImpactsByEndpoint(endpointId: string): Promise<SystemEndpointFieldImpactModel[]> {
-    return this.fieldImpactModel.findAll({ where: { endpointId }, order: [['fieldName', 'ASC']] } as FindOptions);
-  }
-
-  findFieldImpactsByDataEntity(dataEntityId: string): Promise<SystemEndpointFieldImpactModel[]> {
-    return this.fieldImpactModel.findAll({ where: { dataEntityId }, order: [['fieldName', 'ASC']] } as FindOptions);
-  }
-
-  findDataImpactsByEntity(dataEntityId: string): Promise<SystemEndpointDataEntityImpactModel[]> {
-    return this.dataImpactModel.findAll({
-      where: { dataEntityId },
-      order: [
-        ['impactLevel', 'DESC'],
-        ['id', 'ASC'],
-      ],
-    } as FindOptions);
-  }
-
-  async listDataFields(query: SystemsListQueryDto) {
-    const search = query.q?.trim();
-    const result = await this.dataFieldModel.findAndCountAll({
-      where: search
-        ? {
-            [Op.or]: [
-              { tableName: { [Op.iLike]: `%${search}%` } },
-              { columnName: { [Op.iLike]: `%${search}%` } },
-              { businessMeaning: { [Op.iLike]: `%${search}%` } },
-              { domainCode: { [Op.iLike]: `%${search}%` } },
-            ],
-          }
-        : {},
-      order: [
-        ['tableName', 'ASC'],
-        ['ordinalPosition', 'ASC'],
-        ['columnName', 'ASC'],
-      ],
-      limit: query.limit,
-      offset: toOffset(query),
-    } as FindAndCountOptions);
-    return { rows: result.rows, meta: buildPaginationMeta(query, result.count) };
-  }
-
-  findFieldsByEntity(dataEntityId: string): Promise<SystemDataFieldCatalogModel[]> {
-    return this.dataFieldModel.findAll({
-      where: { dataEntityId },
-      order: [
-        ['ordinalPosition', 'ASC'],
-        ['columnName', 'ASC'],
-      ],
-    } as FindOptions);
-  }
-
-  findFieldsByTable(schemaName: string, tableName: string): Promise<SystemDataFieldCatalogModel[]> {
-    return this.dataFieldModel.findAll({
-      where: { schemaName, tableName },
-      order: [
-        ['ordinalPosition', 'ASC'],
-        ['columnName', 'ASC'],
-      ],
-    } as FindOptions);
-  }
-
-  async listRelationships(query: SystemsListQueryDto) {
-    const search = query.q?.trim();
-    const result = await this.relationshipModel.findAndCountAll({
-      where: search
-        ? {
-            [Op.or]: [
-              { sourceTable: { [Op.iLike]: `%${search}%` } },
-              { targetTable: { [Op.iLike]: `%${search}%` } },
-              { businessReason: { [Op.iLike]: `%${search}%` } },
-            ],
-          }
-        : {},
-      order: [
-        ['sourceTable', 'ASC'],
-        ['targetTable', 'ASC'],
-      ],
-      limit: query.limit,
-      offset: toOffset(query),
-    } as FindAndCountOptions);
-    return { rows: result.rows, meta: buildPaginationMeta(query, result.count) };
-  }
-
-  async findRelationshipsByTable(schemaName: string, tableName: string): Promise<SystemDataRelationshipCatalogModel[]> {
-    return this.relationshipModel.findAll({
-      where: {
-        [Op.or]: [
-          { sourceSchema: schemaName, sourceTable: tableName },
-          { targetSchema: schemaName, targetTable: tableName },
-        ],
-      },
-      order: [
-        ['sourceTable', 'ASC'],
-        ['targetTable', 'ASC'],
-      ],
-    } as FindOptions);
-  }
-
-  async listOperationalRules(query: SystemsListQueryDto) {
-    const search = query.q?.trim();
-    const result = await this.operationalRuleModel.findAndCountAll({
-      where: search
-        ? {
-            [Op.or]: [
-              { ruleCode: { [Op.iLike]: `%${search}%` } },
-              { tableName: { [Op.iLike]: `%${search}%` } },
-              { endpointCode: { [Op.iLike]: `%${search}%` } },
-              { description: { [Op.iLike]: `%${search}%` } },
-            ],
-          }
-        : {},
-      order: [
-        ['scopeType', 'ASC'],
-        ['ruleType', 'ASC'],
-        ['ruleCode', 'ASC'],
-      ],
-      limit: query.limit,
-      offset: toOffset(query),
-    } as FindAndCountOptions);
-    return { rows: result.rows, meta: buildPaginationMeta(query, result.count) };
-  }
-
-  findOperationalRulesByTable(schemaName: string, tableName: string): Promise<SystemOperationalRuleCatalogModel[]> {
-    return this.operationalRuleModel.findAll({
-      where: { schemaName, tableName },
-      order: [
-        ['severity', 'DESC'],
-        ['ruleType', 'ASC'],
-      ],
-    } as FindOptions);
-  }
-
-  async listDomains(query: SystemsListQueryDto) {
-    const search = query.q?.trim();
-    const result = await this.domainModel.findAndCountAll({
-      where: search
-        ? {
-            [Op.or]: [
-              { domainCode: { [Op.iLike]: `%${search}%` } },
-              { domainName: { [Op.iLike]: `%${search}%` } },
-              { description: { [Op.iLike]: `%${search}%` } },
-            ],
-          }
-        : {},
-      order: [['domainCode', 'ASC']],
-      limit: query.limit,
-      offset: toOffset(query),
-    } as FindAndCountOptions);
-    return { rows: result.rows, meta: buildPaginationMeta(query, result.count) };
-  }
-
-  findDomainByCode(domainCode: string): Promise<SystemDomainCatalogModel | null> {
-    return this.domainModel.findOne({ where: { domainCode } } as FindOptions);
-  }
-
-  findPayloadContractsByEndpoint(endpointId: string): Promise<SystemEndpointPayloadContractModel[]> {
-    return this.payloadContractModel.findAll({
-      where: { endpointId },
-      order: [
-        ['contractType', 'ASC'],
-        ['id', 'ASC'],
-      ],
-    } as FindOptions);
-  }
-
-  async upsertDataImpact(values: UpsertDataImpactInput): Promise<void> {
-    const now = new Date();
-    await this.dataImpactModel.upsert({
-      endpointId: values.endpointId,
-      dataEntityId: values.dataEntityId,
-      operationType: values.operationType,
-      impactLevel: values.impactLevel,
-      isPrimaryEntity: values.isPrimaryEntity ?? false,
-      isTransactional: values.operationType !== 'READ',
-      rollbackRequired: values.operationType !== 'READ',
-      affectsCustomerState: values.affectsCustomerState ?? false,
-      affectsFinancialState: values.affectsFinancialState ?? false,
-      affectsRiskState: values.affectsRiskState ?? false,
-      affectsLegalState: values.affectsLegalState ?? false,
-      affectsDeviceState: values.affectsDeviceState ?? false,
-      affectsNotificationState: values.affectsNotificationState ?? false,
-      requiresAuditLog: true,
-      requiresRegressionTest: values.operationType !== 'READ',
-      requiresStressTest: values.requiresStressTest ?? false,
-      notes: values.notes ?? null,
-      detectedFrom: values.detectedFrom ?? 'docs',
-      confidenceLevel: values.confidenceLevel ?? 'MEDIUM',
-      reviewStatus: values.reviewStatus ?? 'NEEDS_REVIEW',
       createdAtValue: now,
       updatedAtValue: now,
     } as never);

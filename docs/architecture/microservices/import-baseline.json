@@ -1,0 +1,4348 @@
+{
+  "generatedAt": "2026-09-12T01:17:47.240Z",
+  "summary": {
+    "files": 1200,
+    "edges": 4417,
+    "crossModuleEdges": 299,
+    "modules": 41,
+    "cycles": [
+      [
+        "modules/auth",
+        "modules/internal-users",
+        "modules/mail-sender",
+        "modules/notifications"
+      ]
+    ],
+    "leaksByKind": {
+      "repository": 66,
+      "service": 102
+    },
+    "unresolvedDynamic": 2
+  },
+  "modules": {
+    "modules/app-content": {
+      "imports": [],
+      "importedBy": [],
+      "crossModuleEdges": 0
+    },
+    "modules/audit": {
+      "imports": [
+        "modules/systems-ops"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 3
+    },
+    "modules/auth": {
+      "imports": [
+        "modules/customers",
+        "modules/mail-sender"
+      ],
+      "importedBy": [
+        "modules/customer-onboarding",
+        "modules/internal-users",
+        "modules/merchant-identity"
+      ],
+      "crossModuleEdges": 9
+    },
+    "modules/catalog-management": {
+      "imports": [],
+      "importedBy": [],
+      "crossModuleEdges": 0
+    },
+    "modules/consents": {
+      "imports": [
+        "modules/customers"
+      ],
+      "importedBy": [
+        "modules/customer-onboarding",
+        "modules/customer-privacy"
+      ],
+      "crossModuleEdges": 1
+    },
+    "modules/credit": {
+      "imports": [
+        "modules/customers",
+        "modules/decision-engine",
+        "modules/expedientes",
+        "modules/partner-onboarding"
+      ],
+      "importedBy": [
+        "modules/loan-payment-claims",
+        "modules/loans",
+        "modules/runtime-jobs"
+      ],
+      "crossModuleEdges": 29
+    },
+    "modules/credit-rating": {
+      "imports": [
+        "modules/loans"
+      ],
+      "importedBy": [
+        "modules/runtime-jobs"
+      ],
+      "crossModuleEdges": 2
+    },
+    "modules/customer-device-signals": {
+      "imports": [
+        "modules/customers"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 3
+    },
+    "modules/customer-onboarding": {
+      "imports": [
+        "modules/auth",
+        "modules/consents",
+        "modules/customers",
+        "modules/expedientes",
+        "modules/external-data",
+        "modules/mail-sender",
+        "modules/notifications",
+        "modules/risk",
+        "modules/sessions"
+      ],
+      "importedBy": [
+        "modules/mobile-identity",
+        "modules/operations",
+        "modules/runtime-jobs"
+      ],
+      "crossModuleEdges": 84
+    },
+    "modules/customer-privacy": {
+      "imports": [
+        "modules/consents",
+        "modules/customers"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 4
+    },
+    "modules/customer-telemetry": {
+      "imports": [
+        "modules/customers"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 2
+    },
+    "modules/customers": {
+      "imports": [],
+      "importedBy": [
+        "modules/auth",
+        "modules/consents",
+        "modules/credit",
+        "modules/customer-device-signals",
+        "modules/customer-onboarding",
+        "modules/customer-privacy",
+        "modules/customer-telemetry",
+        "modules/expedientes",
+        "modules/fraud",
+        "modules/loans",
+        "modules/mobile-welcome-audio",
+        "modules/notifications",
+        "modules/operations",
+        "modules/risk",
+        "modules/sessions",
+        "modules/workflow-catalog"
+      ],
+      "crossModuleEdges": 0
+    },
+    "modules/data-notebook": {
+      "imports": [],
+      "importedBy": [
+        "modules/sql-console"
+      ],
+      "crossModuleEdges": 0
+    },
+    "modules/data-quality": {
+      "imports": [],
+      "importedBy": [],
+      "crossModuleEdges": 0
+    },
+    "modules/decision-engine": {
+      "imports": [],
+      "importedBy": [
+        "modules/credit",
+        "modules/loans",
+        "modules/mobile-identity",
+        "modules/partner-onboarding",
+        "modules/risk",
+        "modules/runtime-jobs"
+      ],
+      "crossModuleEdges": 0
+    },
+    "modules/events": {
+      "imports": [
+        "modules/notifications"
+      ],
+      "importedBy": [
+        "modules/loan-payment-claims",
+        "modules/runtime-jobs",
+        "modules/support",
+        "modules/systems-ops"
+      ],
+      "crossModuleEdges": 2
+    },
+    "modules/expedientes": {
+      "imports": [
+        "modules/customers",
+        "modules/internal-users"
+      ],
+      "importedBy": [
+        "modules/credit",
+        "modules/customer-onboarding",
+        "modules/loan-payment-claims",
+        "modules/runtime-jobs"
+      ],
+      "crossModuleEdges": 5
+    },
+    "modules/external-data": {
+      "imports": [],
+      "importedBy": [
+        "modules/customer-onboarding"
+      ],
+      "crossModuleEdges": 0
+    },
+    "modules/fraud": {
+      "imports": [
+        "modules/customers"
+      ],
+      "importedBy": [
+        "modules/operations"
+      ],
+      "crossModuleEdges": 2
+    },
+    "modules/health": {
+      "imports": [],
+      "importedBy": [],
+      "crossModuleEdges": 0
+    },
+    "modules/internal-portal": {
+      "imports": [],
+      "importedBy": [],
+      "crossModuleEdges": 0
+    },
+    "modules/internal-users": {
+      "imports": [
+        "modules/auth"
+      ],
+      "importedBy": [
+        "modules/expedientes",
+        "modules/merchant-identity",
+        "modules/notifications",
+        "modules/partner-onboarding",
+        "modules/systems-ops"
+      ],
+      "crossModuleEdges": 5
+    },
+    "modules/loan-payment-claims": {
+      "imports": [
+        "modules/credit",
+        "modules/events",
+        "modules/expedientes",
+        "modules/loans",
+        "modules/partner-onboarding"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 17
+    },
+    "modules/loans": {
+      "imports": [
+        "modules/credit",
+        "modules/customers",
+        "modules/decision-engine",
+        "modules/partner-onboarding"
+      ],
+      "importedBy": [
+        "modules/credit-rating",
+        "modules/loan-payment-claims",
+        "modules/runtime-jobs"
+      ],
+      "crossModuleEdges": 12
+    },
+    "modules/log-sync": {
+      "imports": [
+        "modules/systems-ops"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 1
+    },
+    "modules/mail-sender": {
+      "imports": [
+        "modules/notifications"
+      ],
+      "importedBy": [
+        "modules/auth",
+        "modules/customer-onboarding",
+        "modules/partner-onboarding"
+      ],
+      "crossModuleEdges": 5
+    },
+    "modules/merchant-identity": {
+      "imports": [
+        "modules/auth",
+        "modules/internal-users"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 8
+    },
+    "modules/mobile-identity": {
+      "imports": [
+        "modules/customer-onboarding",
+        "modules/decision-engine"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 9
+    },
+    "modules/mobile-welcome-audio": {
+      "imports": [
+        "modules/customers"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 2
+    },
+    "modules/notifications": {
+      "imports": [
+        "modules/customers",
+        "modules/internal-users"
+      ],
+      "importedBy": [
+        "modules/customer-onboarding",
+        "modules/events",
+        "modules/mail-sender",
+        "modules/runtime-jobs",
+        "modules/systems-ops"
+      ],
+      "crossModuleEdges": 4
+    },
+    "modules/operations": {
+      "imports": [
+        "modules/customer-onboarding",
+        "modules/customers",
+        "modules/fraud",
+        "modules/risk"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 12
+    },
+    "modules/partner-onboarding": {
+      "imports": [
+        "modules/decision-engine",
+        "modules/internal-users",
+        "modules/mail-sender"
+      ],
+      "importedBy": [
+        "modules/credit",
+        "modules/loan-payment-claims",
+        "modules/loans",
+        "modules/runtime-jobs",
+        "modules/support"
+      ],
+      "crossModuleEdges": 12
+    },
+    "modules/risk": {
+      "imports": [
+        "modules/customers",
+        "modules/decision-engine"
+      ],
+      "importedBy": [
+        "modules/customer-onboarding",
+        "modules/operations"
+      ],
+      "crossModuleEdges": 4
+    },
+    "modules/runtime-hardening": {
+      "imports": [],
+      "importedBy": [],
+      "crossModuleEdges": 0
+    },
+    "modules/runtime-jobs": {
+      "imports": [
+        "modules/credit",
+        "modules/credit-rating",
+        "modules/customer-onboarding",
+        "modules/decision-engine",
+        "modules/events",
+        "modules/expedientes",
+        "modules/loans",
+        "modules/notifications",
+        "modules/partner-onboarding",
+        "modules/support"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 34
+    },
+    "modules/schema-management": {
+      "imports": [],
+      "importedBy": [],
+      "crossModuleEdges": 0
+    },
+    "modules/sessions": {
+      "imports": [
+        "modules/customers"
+      ],
+      "importedBy": [
+        "modules/customer-onboarding"
+      ],
+      "crossModuleEdges": 4
+    },
+    "modules/sql-console": {
+      "imports": [
+        "modules/data-notebook"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 3
+    },
+    "modules/support": {
+      "imports": [
+        "modules/events",
+        "modules/partner-onboarding"
+      ],
+      "importedBy": [
+        "modules/runtime-jobs"
+      ],
+      "crossModuleEdges": 5
+    },
+    "modules/systems-ops": {
+      "imports": [
+        "modules/events",
+        "modules/internal-users",
+        "modules/notifications"
+      ],
+      "importedBy": [
+        "modules/audit",
+        "modules/log-sync",
+        "modules/workflow-catalog"
+      ],
+      "crossModuleEdges": 9
+    },
+    "modules/workflow-catalog": {
+      "imports": [
+        "modules/customers",
+        "modules/systems-ops"
+      ],
+      "importedBy": [],
+      "crossModuleEdges": 7
+    }
+  },
+  "cycles": [
+    [
+      "modules/auth",
+      "modules/internal-users",
+      "modules/mail-sender",
+      "modules/notifications"
+    ]
+  ],
+  "leaks": [
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/auth/auth-actor-resolver.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerContactsRepository",
+      "source": "src/modules/auth/auth-actor-resolver.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "MailSenderService",
+      "source": "src/modules/auth/auth-credentials.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "MailSenderService",
+      "source": "src/modules/auth/auth-password-change.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "MailSenderService",
+      "source": "src/modules/auth/auth-password-reset.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "MailSenderService",
+      "source": "src/modules/auth/auth-second-factor.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "MailSenderService",
+      "source": "src/modules/auth/auth.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExpedienteHooksService",
+      "source": "src/modules/credit/application/bank-statement.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/credit/application/credit-application-admission.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerEligibilityRepository",
+      "source": "src/modules/credit/application/credit-application-admission.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerDirectoryService",
+      "source": "src/modules/credit/application/credit-application-admission.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerProfileService",
+      "source": "src/modules/credit/application/credit-application-admission.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/credit/application/credit-application.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerEligibilityRepository",
+      "source": "src/modules/credit/application/credit-application.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerDirectoryService",
+      "source": "src/modules/credit/application/credit-application.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerProfileService",
+      "source": "src/modules/credit/application/credit-application.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerDirectoryService",
+      "source": "src/modules/credit/application/credit-business-acceptance.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerProfileService",
+      "source": "src/modules/credit/application/credit-business-acceptance.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "DecisionArtifactBindingService",
+      "source": "src/modules/credit/application/credit-line-recalculation.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "SubjectReferenceService",
+      "source": "src/modules/credit/application/credit-line-recalculation.service.ts",
+      "target": "src/modules/decision-engine/subject-reference.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "UnderwritingFeaturesService",
+      "source": "src/modules/credit/application/credit-line-recalculation.service.ts",
+      "target": "src/modules/decision-engine/underwriting-features.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "DecisionArtifactBindingService",
+      "source": "src/modules/credit/application/credit-line-writer.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "SubjectReferenceService",
+      "source": "src/modules/credit/application/credit-line-writer.service.ts",
+      "target": "src/modules/decision-engine/subject-reference.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "UnderwritingFeaturesService",
+      "source": "src/modules/credit/application/credit-line-writer.service.ts",
+      "target": "src/modules/decision-engine/underwriting-features.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/credit/application/credit-product.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerEligibilityRepository",
+      "source": "src/modules/credit/application/credit-product.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CreditDecisionEngineService",
+      "source": "src/modules/credit/application/credit-underwriting.service.ts",
+      "target": "src/modules/decision-engine/credit-decision-engine.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-device-signals/application/customer-address-book.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-device-signals/application/device-signals-access.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExpedienteHooksService",
+      "source": "src/modules/customer-onboarding/customer-onboarding.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/contact-method-resolution.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerContactsRepository",
+      "source": "src/modules/customer-onboarding/application/contact-method-resolution.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "AuthRepository",
+      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
+      "target": "src/modules/auth/auth.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "OneTimeCodePurpose",
+      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
+      "target": "src/modules/auth/auth.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "AuthOneTimeCodeRepository",
+      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
+      "target": "src/modules/auth/auth-one-time-code.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "MailSenderService",
+      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/customer-onboarding/application/customer-address-package.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/customer-onboarding/application/customer-address-package.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-address-package.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/customer-onboarding/application/customer-compliance-screening.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/customer-onboarding/application/customer-compliance-screening.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-compliance-screening.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/customer-onboarding/application/customer-contact-methods.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-contact-methods.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/customer-onboarding/application/customer-contact-verification.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/customer-onboarding/application/customer-contact-verification.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-contact-verification.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-document-upload.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/customer-onboarding/application/customer-financial-profile.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-financial-profile.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExpedienteHooksService",
+      "source": "src/modules/customer-onboarding/application/customer-identity-package.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/customer-onboarding/application/customer-identity-package.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/customer-onboarding/application/customer-identity-package.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-identity-package.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExternalDataService",
+      "source": "src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts",
+      "target": "src/modules/external-data/external-data.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "ConsentsRepository",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-guards.service.ts",
+      "target": "src/modules/consents/consents.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-guards.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "AuthRepository",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/auth/auth.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "AuthTokenIssuerService",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/auth/auth-token-issuer.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "ConsentsRepository",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/consents/consents.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerContactsRepository",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "SessionsRepository",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/sessions/sessions.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerEligibilityRepository",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerEligibilityRiskRepository",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility-risk.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExpedienteHooksService",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "RiskService",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/risk/risk.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerEligibilityRepository",
+      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "ConsentsRepository",
+      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
+      "target": "src/modules/consents/consents.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/customer-onboarding/application/customer-reference-contacts.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-reference-contacts.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/customer-onboarding/application/customer-verification.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/customer-onboarding/application/customer-verification.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-verification.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/customer-onboarding/application/identity-manual-review-outcome.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/onboarding-device-session.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "SessionsRepository",
+      "source": "src/modules/customer-onboarding/application/onboarding-device-session.service.ts",
+      "target": "src/modules/sessions/sessions.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "ConsentsRepository",
+      "source": "src/modules/customer-privacy/customer-privacy.service.ts",
+      "target": "src/modules/consents/consents.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-privacy/customer-privacy.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-telemetry/customer-telemetry.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "NotificationOrchestratorService",
+      "source": "src/modules/events/events.service.ts",
+      "target": "src/modules/notifications/notification-orchestrator.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "InternalRbacRepository",
+      "source": "src/modules/expedientes/application/actor.service.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerContactsRepository",
+      "source": "src/modules/expedientes/application/contactos.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "InternalPermissionHoldersRepository",
+      "source": "src/modules/expedientes/application/visibilidad.service.ts",
+      "target": "src/modules/internal-users/internal-permission-holders.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/fraud/fraud.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "AuthService",
+      "source": "src/modules/internal-users/internal-auth.service.ts",
+      "target": "src/modules/auth/auth.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "AuthSecondFactorService",
+      "source": "src/modules/internal-users/internal-users.service.ts",
+      "target": "src/modules/auth/auth-second-factor.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExpedienteHooksService",
+      "source": "src/modules/loan-payment-claims/loan-payment-claims.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "EventsService",
+      "source": "src/modules/loan-payment-claims/loan-payment-claims.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "LoanPaymentService",
+      "source": "src/modules/loan-payment-claims/partner-payment-claims.service.ts",
+      "target": "src/modules/loans/application/loan-payment.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerProfileService",
+      "source": "src/modules/loan-payment-claims/partner-payment-claims.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "EventsService",
+      "source": "src/modules/loan-payment-claims/partner-payment-claims.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "LoansRepository",
+      "source": "src/modules/loan-payment-claims/partner-portfolio.service.ts",
+      "target": "src/modules/loans/loans.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CreditRepository",
+      "source": "src/modules/loan-payment-claims/partner-portfolio.service.ts",
+      "target": "src/modules/credit/credit.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerProfileService",
+      "source": "src/modules/loan-payment-claims/partner-portfolio.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "LoansRepository",
+      "source": "src/modules/loan-payment-claims/payment-claims.shared.ts",
+      "target": "src/modules/loans/loans.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CreditRepository",
+      "source": "src/modules/loan-payment-claims/payment-claims.shared.ts",
+      "target": "src/modules/credit/credit.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerProfileService",
+      "source": "src/modules/loan-payment-claims/payment-instruction.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerQrService",
+      "source": "src/modules/loan-payment-claims/payment-instruction.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-qr.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "OutcomeDispatchService",
+      "source": "src/modules/loans/loans-operations.controller.ts",
+      "target": "src/modules/decision-engine/outcome-dispatch.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerDirectoryService",
+      "source": "src/modules/loans/application/loan-calendar.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CreditLineService",
+      "source": "src/modules/loans/application/loan-delinquency.service.ts",
+      "target": "src/modules/credit/application/credit-line.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CreditRepository",
+      "source": "src/modules/loans/application/loan-disbursement.service.ts",
+      "target": "src/modules/credit/credit.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerDirectoryService",
+      "source": "src/modules/loans/application/loan-query.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerDirectoryService",
+      "source": "src/modules/loans/application/loan-spending.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/loans/application/spending-report.layout.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/loans/application/spending-report.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "NotificationProviderConfigService",
+      "source": "src/modules/mail-sender/webhook-mail.transport.ts",
+      "target": "src/modules/notifications/adapters/notification-provider-config.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "AuthService",
+      "source": "src/modules/merchant-identity/merchant-auth.service.ts",
+      "target": "src/modules/auth/auth.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "MerchantActorRepository",
+      "source": "src/modules/merchant-identity/merchant-auth.service.ts",
+      "target": "src/modules/auth/merchant-actor.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "AuthRepository",
+      "source": "src/modules/merchant-identity/merchant-users.service.ts",
+      "target": "src/modules/auth/auth.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "MerchantActorRepository",
+      "source": "src/modules/merchant-identity/merchant-users.service.ts",
+      "target": "src/modules/auth/merchant-actor.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "DecisionArtifactBindingService",
+      "source": "src/modules/mobile-identity/mobile-identity-signals.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerContactsSnapshotService",
+      "source": "src/modules/mobile-identity/mobile-identity-signals.service.ts",
+      "target": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "DecisionArtifactBindingService",
+      "source": "src/modules/mobile-identity/mobile-identity.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerContactsSnapshotService",
+      "source": "src/modules/mobile-identity/mobile-identity.service.ts",
+      "target": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/mobile-welcome-audio/mobile-welcome-audio.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/notifications/notification-broadcast.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "InternalRbacRepository",
+      "source": "src/modules/notifications/notification-broadcast.service.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "FraudService",
+      "source": "src/modules/operations/operations.controller.ts",
+      "target": "src/modules/fraud/fraud.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/operations/operations.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerContactsSnapshotService",
+      "source": "src/modules/operations/operations.service.ts",
+      "target": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/operations/operations.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerContactsRepository",
+      "source": "src/modules/operations/operations.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "RiskRepository",
+      "source": "src/modules/operations/operations.service.ts",
+      "target": "src/modules/risk/risk.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "MailSenderService",
+      "source": "src/modules/partner-onboarding/application/partner-contact-verification.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "DecisionArtifactBindingService",
+      "source": "src/modules/partner-onboarding/application/partner-kyb-decision.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/risk/risk.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "RiskDecisionEngineService",
+      "source": "src/modules/risk/application/risk-policy-decision.service.ts",
+      "target": "src/modules/decision-engine/risk-decision-engine.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExpedientesMantenimientoService",
+      "source": "src/modules/runtime-jobs/expedientes-jobs.controller.ts",
+      "target": "src/modules/expedientes/jobs/expedientes-mantenimiento.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "DebtRatingService",
+      "source": "src/modules/runtime-jobs/runtime-decision-jobs.controller.ts",
+      "target": "src/modules/credit-rating/application/debt-rating.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "OutcomeDispatchService",
+      "source": "src/modules/runtime-jobs/runtime-decision-jobs.controller.ts",
+      "target": "src/modules/decision-engine/outcome-dispatch.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "DebtRatingService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/credit-rating/application/debt-rating.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "OutcomeDispatchService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/decision-engine/outcome-dispatch.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerKybSyncService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/partner-onboarding/application/partner-kyb-sync.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "SupportSlaService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/support/application/support-sla.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CreditLineRefreshService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/credit/application/credit-line-refresh.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "LoanDelinquencyService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/loans/application/loan-delinquency.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "OnboardingAbandonmentService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/customer-onboarding/application/onboarding-abandonment.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "EventsService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "EventsService",
+      "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "NotificationOrchestratorService",
+      "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
+      "target": "src/modules/notifications/notification-orchestrator.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "NotificationsRepository",
+      "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
+      "target": "src/modules/notifications/notifications.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CreditLineRefreshService",
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/credit/application/credit-line-refresh.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "OnboardingAbandonmentService",
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/customer-onboarding/application/onboarding-abandonment.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "LoanDelinquencyService",
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/loans/application/loan-delinquency.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "DebtRatingService",
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/credit-rating/application/debt-rating.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "OutcomeDispatchService",
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/decision-engine/outcome-dispatch.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerKybSyncService",
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/partner-onboarding/application/partner-kyb-sync.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "SupportSlaService",
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/support/application/support-sla.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/sessions/application/session-heartbeat.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/sessions/application/session-query.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/sessions/application/session-start.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "DataNotebookHistoryService",
+      "source": "src/modules/sql-console/sql-console.controller.ts",
+      "target": "src/modules/data-notebook/data-notebook-history.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerProfileService",
+      "source": "src/modules/support/application/support-actor.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "EventsService",
+      "source": "src/modules/support/application/support-audit.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "EventsService",
+      "source": "src/modules/support/application/support-sla.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "NotificationBroadcastService",
+      "source": "src/modules/systems-ops/systems-health-monitor.service.ts",
+      "target": "src/modules/notifications/notification-broadcast.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/workflow-catalog/application/workflow-progress.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    }
+  ],
+  "unresolvedDynamic": [
+    {
+      "source": "src/common/utils/crypto/kms-key-provider.ts",
+      "text": "import(packageName)"
+    },
+    {
+      "source": "src/database/migrate.ts",
+      "text": "import(pathToFileURL(path).href)"
+    }
+  ],
+  "crossModuleEdges": [
+    {
+      "source": "src/modules/audit/http-action-log.service.ts",
+      "target": "src/modules/systems-ops/endpoint-code.util.ts",
+      "kind": "runtime",
+      "symbols": [
+        "endpointPathMatches",
+        "endpointPathSpecificity"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/audit/http-action-log.service.ts",
+      "target": "src/modules/systems-ops/systems-sanitizer.ts",
+      "kind": "runtime",
+      "symbols": [
+        "sanitizeForSystemsOps"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/audit/system-action-log-row.mapper.ts",
+      "target": "src/modules/systems-ops/systems-sanitizer.ts",
+      "kind": "runtime",
+      "symbols": [
+        "hashPayload",
+        "idempotencyLast4",
+        "sanitizeForSystemsOps"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/auth/auth-actor-resolver.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/auth/auth-actor-resolver.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerContactsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/auth/auth-credentials.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/auth/auth-password-change.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/auth/auth-password-reset.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/auth/auth-second-factor.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/auth/auth.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/auth/auth.module.ts",
+      "target": "src/modules/mail-sender/mail-sender.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/auth/auth.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/consents/consents.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/credit.module.ts",
+      "target": "src/modules/expedientes/expedientes.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedientesModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/credit.module.ts",
+      "target": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerOnboardingModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/credit.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/credit.module.ts",
+      "target": "src/modules/decision-engine/decision-engine.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/bank-statement-review.worker.ts",
+      "target": "src/modules/decision-engine/bank-statement-engine.client.ts",
+      "kind": "runtime",
+      "symbols": [
+        "BankStatementEngineClient",
+        "StatementRun"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/bank-statement.service.ts",
+      "target": "src/modules/decision-engine/bank-statement-engine.client.ts",
+      "kind": "type-only",
+      "symbols": [
+        "StatementRun"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/bank-statement.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedienteHooksService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-application-admission.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-application-admission.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-application-admission.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerDirectoryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-application-admission.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerProfileService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-application.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-application.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-application.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerDirectoryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-application.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerProfileService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-business-acceptance.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerDirectoryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-business-acceptance.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerProfileService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-line-recalculation.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionArtifactBindingService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-line-recalculation.service.ts",
+      "target": "src/modules/decision-engine/decision-engine.client.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineClient"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-line-recalculation.service.ts",
+      "target": "src/modules/decision-engine/subject-reference.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CREDIT_DECISION_PURPOSE",
+        "SubjectReferenceService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-line-recalculation.service.ts",
+      "target": "src/modules/decision-engine/underwriting-features.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "UnderwritingFeaturesService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-line-writer.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionArtifactBindingService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-line-writer.service.ts",
+      "target": "src/modules/decision-engine/decision-engine.client.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineClient"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-line-writer.service.ts",
+      "target": "src/modules/decision-engine/subject-reference.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SubjectReferenceService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-line-writer.service.ts",
+      "target": "src/modules/decision-engine/underwriting-features.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "UnderwritingFeaturesService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-product.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-product.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-underwriting.service.ts",
+      "target": "src/modules/decision-engine/credit-decision-engine.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditDecisionEngineService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-underwriting.service.ts",
+      "target": "src/modules/decision-engine/decision-engine.types.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionOutcome",
+        "DecisionResponse"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit-rating/application/debt-rating.service.ts",
+      "target": "src/modules/loans/domain/money.util.ts",
+      "kind": "runtime",
+      "symbols": [
+        "fromCents",
+        "toCents"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit-rating/application/rating-query.service.ts",
+      "target": "src/modules/loans/domain/money.util.ts",
+      "kind": "runtime",
+      "symbols": [
+        "fromCents",
+        "sumCents",
+        "toCents"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-device-signals/customer-device-signals.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-device-signals/application/customer-address-book.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-device-signals/application/device-signals-access.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding-profile.schemas.ts",
+      "target": "src/modules/customers/customer-eligibility.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EMPLOYMENT_STATUS_VALUES",
+        "MAXIMUM_CUSTOMER_AGE_YEARS",
+        "MAXIMUM_REFERENCE_CONTACTS",
+        "MINIMUM_CUSTOMER_AGE_YEARS",
+        "SOURCE_OF_FUNDS_VALUES"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding-profile.schemas.ts",
+      "target": "src/modules/customers/application/customer-eligibility.evaluator.ts",
+      "kind": "runtime",
+      "symbols": [
+        "calculateAgeInYears"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.mapper.ts",
+      "target": "src/modules/customers/customer-eligibility.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ONBOARDING_SECTION_CODES"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/expedientes/expedientes.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedientesModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/consents/consents.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ConsentsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/sessions/sessions.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SessionsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/auth/auth.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/mail-sender/mail-sender.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/notifications/notifications.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "NotificationsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/external-data/external-data.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExternalDataModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/risk/risk.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "RiskModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedienteHooksService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/contact-method-resolution.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/contact-method-resolution.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerContactsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
+      "target": "src/modules/auth/auth.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthRepository",
+        "OneTimeCodePurpose"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
+      "target": "src/modules/auth/auth-one-time-code.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthOneTimeCodeRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
+      "target": "src/modules/notifications/adapters/notification-channel-adapter.ts",
+      "kind": "runtime",
+      "symbols": [
+        "NotificationChannelAdapter"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
+      "target": "src/modules/notifications/adapters/sms.adapter.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SmsNotificationAdapter"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
+      "target": "src/modules/notifications/adapters/whatsapp.adapter.ts",
+      "kind": "runtime",
+      "symbols": [
+        "WhatsAppNotificationAdapter"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-address-package.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-address-package.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-address-package.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EDITABLE_ONBOARDING_STATUSES",
+        "normalizeLifecycleStatus"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-address-package.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-compliance-screening.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-compliance-screening.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-compliance-screening.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-contact-methods.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-contact-methods.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EDITABLE_ONBOARDING_STATUSES",
+        "normalizeLifecycleStatus"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-contact-methods.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-contact-verification.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-contact-verification.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-contact-verification.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-document-upload.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CREDIT_ELIGIBLE_STATUS",
+        "EDITABLE_ONBOARDING_STATUSES",
+        "normalizeLifecycleStatus"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-document-upload.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-financial-profile.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-financial-profile.service.ts",
+      "target": "src/modules/customers/customer-eligibility.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "FINANCIAL_ATTRIBUTE_CODES",
+        "FinancialAttributeCode"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-financial-profile.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EDITABLE_ONBOARDING_STATUSES",
+        "normalizeLifecycleStatus"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-financial-profile.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-identity-package.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedienteHooksService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-identity-package.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-identity-package.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-identity-package.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EDITABLE_ONBOARDING_STATUSES",
+        "normalizeLifecycleStatus"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-identity-package.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts",
+      "target": "src/modules/external-data/external-data.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExternalDataService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-guards.service.ts",
+      "target": "src/modules/consents/consents.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ConsentsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-guards.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/auth/auth.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/auth/auth-token-issuer.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthTokenIssuerService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/consents/consents.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ConsentsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerContactsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/sessions/sessions.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SessionsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "INITIAL_CUSTOMER_LIFECYCLE_STATUS"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "normalizeLifecycleStatus"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility-risk.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityRiskRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedienteHooksService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
+      "target": "src/modules/risk/risk.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "RiskService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.evaluator.ts",
+      "kind": "runtime",
+      "symbols": [
+        "calculateAgeInYears"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EDITABLE_ONBOARDING_STATUSES",
+        "normalizeLifecycleStatus"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
+      "target": "src/modules/customers/customer-eligibility.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "IDENTITY_VERIFIED_RESULT"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
+      "target": "src/modules/consents/consents.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ConsentsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-reference-contacts.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-reference-contacts.service.ts",
+      "target": "src/modules/customers/customer-eligibility.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MAXIMUM_REFERENCE_CONTACTS"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-reference-contacts.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EDITABLE_ONBOARDING_STATUSES",
+        "normalizeLifecycleStatus"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-reference-contacts.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-verification.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-verification.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-verification.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/identity-manual-review-outcome.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-device-session.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-device-session.service.ts",
+      "target": "src/modules/sessions/sessions.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SessionsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-privacy/customer-privacy.module.ts",
+      "target": "src/modules/consents/consents.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ConsentsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-privacy/customer-privacy.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-privacy/customer-privacy.service.ts",
+      "target": "src/modules/consents/consents.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ConsentsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-privacy/customer-privacy.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-telemetry/customer-telemetry.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-telemetry/customer-telemetry.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/events/events.module.ts",
+      "target": "src/modules/notifications/notifications.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "NotificationsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/events/events.service.ts",
+      "target": "src/modules/notifications/notification-orchestrator.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "NotificationOrchestratorService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/expedientes/expedientes.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/expedientes/expedientes.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/expedientes/application/actor.service.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalRbacRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/expedientes/application/contactos.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerContactsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/expedientes/application/visibilidad.service.ts",
+      "target": "src/modules/internal-users/internal-permission-holders.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalPermissionHoldersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/fraud/fraud.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/fraud/fraud.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/internal-users/internal-auth.controller.ts",
+      "target": "src/modules/auth/auth.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "isLoginPinChallenge"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/internal-users/internal-auth.controller.ts",
+      "target": "src/modules/auth/auth.schemas.ts",
+      "kind": "runtime",
+      "symbols": [
+        "LoginPinVerifyDto",
+        "loginPinVerifySchema"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/internal-users/internal-auth.service.ts",
+      "target": "src/modules/auth/auth.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthService",
+        "LoginPinChallenge",
+        "isLoginPinChallenge"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/internal-users/internal-users.module.ts",
+      "target": "src/modules/auth/auth.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/internal-users/internal-users.service.ts",
+      "target": "src/modules/auth/auth-second-factor.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthSecondFactorService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/loan-payment-claims.module.ts",
+      "target": "src/modules/credit/credit.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/loan-payment-claims.module.ts",
+      "target": "src/modules/events/events.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/loan-payment-claims.module.ts",
+      "target": "src/modules/expedientes/expedientes.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedientesModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/loan-payment-claims.module.ts",
+      "target": "src/modules/loans/loans.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "LoansModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/loan-payment-claims.module.ts",
+      "target": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerOnboardingModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/loan-payment-claims.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedienteHooksService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/loan-payment-claims.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/partner-payment-claims.service.ts",
+      "target": "src/modules/loans/application/loan-payment.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "LoanPaymentService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/partner-payment-claims.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerProfileService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/partner-payment-claims.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/partner-portfolio.service.ts",
+      "target": "src/modules/loans/loans.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "LoansRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/partner-portfolio.service.ts",
+      "target": "src/modules/credit/credit.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/partner-portfolio.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerProfileService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/payment-claims.shared.ts",
+      "target": "src/modules/loans/loans.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "LoansRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/payment-claims.shared.ts",
+      "target": "src/modules/credit/credit.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/payment-instruction.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerProfileService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/payment-instruction.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-qr.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerQrService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/loans-operations.controller.ts",
+      "target": "src/modules/decision-engine/outcome-dispatch.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OutcomeDispatchService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/loans.module.ts",
+      "target": "src/modules/credit/credit.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/loans.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/loans.module.ts",
+      "target": "src/modules/decision-engine/decision-engine.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/loans.module.ts",
+      "target": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerOnboardingModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/loan-calendar.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerDirectoryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/loan-delinquency.service.ts",
+      "target": "src/modules/credit/application/credit-line.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditLineService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/loan-disbursement.service.ts",
+      "target": "src/modules/credit/credit.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/loan-query.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerDirectoryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/loan-spending.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerDirectoryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/spending-report.layout.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/spending-report.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/log-sync/mongo-logs.controller.ts",
+      "target": "src/modules/systems-ops/systems-controller.decorators.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SystemsOpsControllerSecurity"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mail-sender/gmail-mail.transport.ts",
+      "target": "src/modules/notifications/adapters/gmail/gmail.adapter.ts",
+      "kind": "runtime",
+      "symbols": [
+        "GmailApiAdapter"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mail-sender/mail-sender.client.ts",
+      "target": "src/modules/notifications/adapters/http-adapter.util.ts",
+      "kind": "runtime",
+      "symbols": [
+        "getJson",
+        "postJson"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mail-sender/mail-sender.module.ts",
+      "target": "src/modules/notifications/adapters/gmail/gmail-mail.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "GmailMailModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mail-sender/webhook-mail.transport.ts",
+      "target": "src/modules/notifications/adapters/http-adapter.util.ts",
+      "kind": "runtime",
+      "symbols": [
+        "postJson"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mail-sender/webhook-mail.transport.ts",
+      "target": "src/modules/notifications/adapters/notification-provider-config.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "NotificationProviderConfigService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/merchant-identity/merchant-auth.service.ts",
+      "target": "src/modules/auth/auth.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthService",
+        "isLoginPinChallenge"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/merchant-identity/merchant-auth.service.ts",
+      "target": "src/modules/auth/merchant-actor.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MerchantActorRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/merchant-identity/merchant-identity.module.ts",
+      "target": "src/modules/auth/auth.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/merchant-identity/merchant-identity.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/merchant-identity/merchant-users.controller.ts",
+      "target": "src/modules/internal-users/guards/internal-permissions.guard.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalPermissionsGuard"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/merchant-identity/merchant-users.controller.ts",
+      "target": "src/modules/internal-users/internal-permissions.decorator.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalPermissions"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/merchant-identity/merchant-users.service.ts",
+      "target": "src/modules/auth/auth.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/merchant-identity/merchant-users.service.ts",
+      "target": "src/modules/auth/merchant-actor.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MerchantActorRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity-signals.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionArtifactBindingService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity-signals.service.ts",
+      "target": "src/modules/decision-engine/decision-engine.client.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineClient"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity-signals.service.ts",
+      "target": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerContactsSnapshotService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity-signals.service.ts",
+      "target": "src/modules/customer-onboarding/customer-contacts-snapshot.schemas.ts",
+      "kind": "type-only",
+      "symbols": [
+        "ContactsSnapshotFeatures"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity.module.ts",
+      "target": "src/modules/decision-engine/decision-engine.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity.module.ts",
+      "target": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerOnboardingModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionArtifactBindingService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity.service.ts",
+      "target": "src/modules/decision-engine/decision-engine.client.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineClient"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity.service.ts",
+      "target": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerContactsSnapshotService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-welcome-audio/mobile-welcome-audio.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-welcome-audio/mobile-welcome-audio.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/notifications/notification-broadcast.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/notifications/notification-broadcast.service.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalRbacRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/notifications/notifications.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/notifications/notifications.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.controller.ts",
+      "target": "src/modules/fraud/fraud.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "FraudService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.controller.ts",
+      "target": "src/modules/fraud/fraud.schemas.ts",
+      "kind": "runtime",
+      "symbols": [
+        "fraudDecisionParamsSchema",
+        "FraudDecisionParamsDto",
+        "fraudDecisionSchema",
+        "FraudDecisionDto"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.module.ts",
+      "target": "src/modules/risk/risk.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "RiskModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.module.ts",
+      "target": "src/modules/fraud/fraud.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "FraudModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.module.ts",
+      "target": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerOnboardingModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.service.ts",
+      "target": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerContactsSnapshotService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleStatus"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerContactsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.service.ts",
+      "target": "src/modules/risk/risk.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "RiskRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/partner-contract-templates.controller.ts",
+      "target": "src/modules/internal-users/internal-permissions.decorator.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalPermissions"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/partner-contract-templates.controller.ts",
+      "target": "src/modules/internal-users/guards/internal-permissions.guard.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalPermissionsGuard"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "target": "src/modules/decision-engine/decision-engine.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "target": "src/modules/mail-sender/mail-sender.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/partner-operations.controller.ts",
+      "target": "src/modules/internal-users/internal-permissions.decorator.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalPermissions"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/partner-operations.controller.ts",
+      "target": "src/modules/internal-users/guards/internal-permissions.guard.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalPermissionsGuard"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/application/partner-contact-verification.service.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/application/partner-kyb-decision.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionArtifactBindingService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/application/partner-kyb-decision.service.ts",
+      "target": "src/modules/decision-engine/decision-engine.client.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineClient"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/application/partner-kyb-decision.service.ts",
+      "target": "src/modules/decision-engine/decision-engine.types.ts",
+      "kind": "type-only",
+      "symbols": [
+        "DecisionResponse"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/application/partner-kyb-sync.service.ts",
+      "target": "src/modules/decision-engine/decision-engine.client.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineClient"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/risk/risk.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/risk/risk.module.ts",
+      "target": "src/modules/decision-engine/decision-engine.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/risk/risk.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/risk/application/risk-policy-decision.service.ts",
+      "target": "src/modules/decision-engine/risk-decision-engine.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "RiskDecisionEngineService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/expedientes-jobs.controller.ts",
+      "target": "src/modules/expedientes/jobs/expedientes-mantenimiento.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedientesMantenimientoService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-decision-jobs.controller.ts",
+      "target": "src/modules/credit-rating/application/debt-rating.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DebtRatingService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-decision-jobs.controller.ts",
+      "target": "src/modules/decision-engine/outcome-dispatch.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OutcomeDispatchService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/credit/credit.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/credit-rating/credit-rating.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditRatingModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/decision-engine/decision-engine.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/credit-rating/application/debt-rating.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DebtRatingService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/decision-engine/outcome-dispatch.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OutcomeDispatchService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerOnboardingModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/partner-onboarding/application/partner-kyb-sync.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerKybSyncService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerOnboardingModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/loans/loans.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "LoansModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/support/support.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SupportModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/support/application/support-sla.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SupportSlaService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/events/events.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/notifications/notifications.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "NotificationsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/credit/application/bank-statement-review.worker.ts",
+      "kind": "runtime",
+      "symbols": [
+        "BankStatementReviewWorker"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/credit/application/credit-line-refresh.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditLineRefreshService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/loans/application/loan-delinquency.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "LoanDelinquencyService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/customer-onboarding/application/onboarding-abandonment.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OnboardingAbandonmentService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/expedientes/expedientes.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedientesModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.service.ts",
+      "target": "src/modules/events/event-registry.ts",
+      "kind": "runtime",
+      "symbols": [
+        "listEventDefinitions"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
+      "target": "src/modules/notifications/notification-orchestrator.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "NotificationOrchestratorService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
+      "target": "src/modules/notifications/notifications.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "NotificationsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/credit/application/bank-statement-review.worker.ts",
+      "kind": "runtime",
+      "symbols": [
+        "BankStatementReviewWorker"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/credit/application/credit-line-refresh.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditLineRefreshService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/customer-onboarding/application/onboarding-abandonment.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OnboardingAbandonmentService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/loans/application/loan-delinquency.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "LoanDelinquencyService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/credit-rating/application/debt-rating.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DebtRatingService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/decision-engine/outcome-dispatch.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OutcomeDispatchService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/partner-onboarding/application/partner-kyb-sync.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerKybSyncService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/scheduled-jobs.catalog.ts",
+      "target": "src/modules/support/application/support-sla.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SupportSlaService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/sessions/sessions.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/sessions/application/session-heartbeat.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/sessions/application/session-query.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/sessions/application/session-start.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/sql-console/sql-console-query.service.ts",
+      "target": "src/modules/data-notebook/data-notebook-masking.ts",
+      "kind": "runtime",
+      "symbols": [
+        "applyColumnPolicies",
+        "describeColumns"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/sql-console/sql-console.controller.ts",
+      "target": "src/modules/data-notebook/data-notebook-history.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DataNotebookHistoryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/sql-console/sql-console.module.ts",
+      "target": "src/modules/data-notebook/data-notebook.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DataNotebookModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/support/support.module.ts",
+      "target": "src/modules/events/events.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/support/support.module.ts",
+      "target": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerOnboardingModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/support/application/support-actor.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerProfileService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/support/application/support-audit.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/support/application/support-sla.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/system-flows-review.controller.ts",
+      "target": "src/modules/internal-users/internal-permissions.decorator.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalPermissions"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/system-flows-review.controller.ts",
+      "target": "src/modules/internal-users/guards/internal-permissions.guard.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalPermissionsGuard"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/system-flows.async.service.ts",
+      "target": "src/modules/events/event-registry.ts",
+      "kind": "runtime",
+      "symbols": [
+        "listEventDefinitions"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/system-flows.controller.ts",
+      "target": "src/modules/internal-users/internal-permissions.decorator.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalPermissions"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/system-flows.controller.ts",
+      "target": "src/modules/internal-users/guards/internal-permissions.guard.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalPermissionsGuard"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/system-flows.graph.events.ts",
+      "target": "src/modules/events/event-registry.ts",
+      "kind": "runtime",
+      "symbols": [
+        "listEventDefinitions"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/systems-health-monitor.service.ts",
+      "target": "src/modules/notifications/notification-broadcast.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "NotificationBroadcastService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/systems-ops.module.ts",
+      "target": "src/modules/notifications/notifications.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "NotificationsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/systems-ops.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/workflow-catalog/workflow-catalog.module.ts",
+      "target": "src/modules/customers/customers.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/workflow-catalog/workflow-progress.controller.ts",
+      "target": "src/modules/customers/customers.schemas.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerIdParamsDto",
+        "customerIdParamsSchema"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/workflow-catalog/application/workflow-completion-rule.util.ts",
+      "target": "src/modules/customers/application/customer-eligibility.evaluator.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EligibilityAssessment"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/workflow-catalog/application/workflow-completion-rule.util.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OPERATION_BLOCKING_STATUSES"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/workflow-catalog/application/workflow-consistency.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CUSTOMER_LIFECYCLE_STATUSES"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/workflow-catalog/application/workflow-consistency.service.ts",
+      "target": "src/modules/systems-ops/endpoint-code.util.ts",
+      "kind": "runtime",
+      "symbols": [
+        "buildEndpointCode"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/workflow-catalog/application/workflow-progress.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    }
+  ]
+}

@@ -3,12 +3,15 @@
  * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { LocalRecipientDirectoryAdapter } from './infrastructure/directory/local-recipient-directory.adapter.js';
+import { legacyCustomerContactTargets } from './infrastructure/directory/legacy-contact-targets.js';
 import { Op, UniqueConstraintError } from 'sequelize';
-import { lastCharacters, sha256Hex } from '../../common/utils/crypto/hash.util.js';
+import { lastCharacters } from '../../common/utils/crypto/hash.util.js';
 import { decryptSecretEnvelope, encryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
-import { redactSensitiveObject, stableStringify } from '../../common/utils/privacy/redaction.util.js';
+import { redactSensitiveObject } from '../../common/utils/privacy/redaction.util.js';
+import { deviceTokenFingerprint } from './infrastructure/persistence/device-token-fingerprint.js';
 import {
   CustomerContactMethodModel,
   DeviceTokenModel,
@@ -30,14 +33,16 @@ import {
   UpdateTemplateDto,
   UpsertDeviceTokenDto,
 } from './notifications.schemas.js';
-import { DeliveryResult, DeliveryTarget, NotificationChannel, NotificationMessagePayload, RecipientType } from './notification-types.js';
 import {
-  buildEncryptedDeliveryTargets,
-  channelContactType,
-  decryptDeliveryTargets,
-  encryptedValueToString,
-  mergeDeliveryTargets,
-} from './notification-delivery-targets.util.js';
+  PushDevice,
+  DeliveryResult,
+  DeliveryTarget,
+  NotificationChannel,
+  NotificationMessagePayload,
+  RecipientType,
+} from './notification-types.js';
+import { buildEncryptedDeliveryTargets, decryptDeliveryTargets } from './notification-delivery-targets.util.js';
+import { notExpired, ownedByGenericJobs } from './campaigns/notification-visibility.util.js';
 
 // Tamaño de lote para insertar mensajes de broadcast. Un único bulkCreate con decenas de miles de
 // filas produce una sentencia SQL gigante; trocear acota memoria del driver/servidor por INSERT.
@@ -54,6 +59,7 @@ export class NotificationsRepository {
     // fachada delega para conservar su API pública.
     private readonly templatesRepository: NotificationTemplatesRepository,
     private readonly preferencesRepository: NotificationPreferencesRepository,
+    @Optional() private readonly recipientDirectory?: LocalRecipientDirectoryAdapter,
   ) {}
 
   // --- Plantillas: delegado en `NotificationTemplatesRepository` (Fase 2.3) ---------------------
@@ -136,7 +142,7 @@ export class NotificationsRepository {
     }
   }
 
-  private async findByIdempotencyKey(tenantId: string | null, idempotencyKey: string): Promise<NotificationMessageModel | null> {
+  async findByIdempotencyKey(tenantId: string | null, idempotencyKey: string): Promise<NotificationMessageModel | null> {
     return this.messageModel.findOne({ where: { tenantId, idempotencyKey } });
   }
 
@@ -269,7 +275,7 @@ export class NotificationsRepository {
   }
 
   async listRecipientMessages(tenantId: string, recipientType: RecipientType, recipientId: string, query: CustomerNotificationsQueryDto) {
-    const where: Record<string, unknown> = { tenantId, recipientType, recipientId, channel: 'in_app' };
+    const where: Record<string | symbol, unknown> = { tenantId, recipientType, recipientId, channel: 'in_app', ...notExpired() };
     if (query.status) where.status = query.status;
     if (query.channel) where.channel = query.channel;
     if (query.from || query.to) {
@@ -302,15 +308,15 @@ export class NotificationsRepository {
         channel: 'in_app',
         readAt: null,
         status: { [Op.notIn]: ['cancelled', 'failed'] },
+        ...notExpired(),
       } as never,
     });
   }
 
   /**
-   * Mensajes que quedaron a medio entregar y nadie va a retomar (hallazgo A-03). `sending` entra
-   * junto a `pending`: es el estado intermedio que deja `markMessageSending`, donde un proceso que
-   * muere entre marcar y entregar deja el mensaje clavado. El corte por antigüedad evita competir
-   * con una entrega legítima en vuelo.
+   * Mensajes a medio entregar que nadie va a retomar (A-03). `sending` entra junto a `pending`: lo deja
+   * `markMessageSending` si el proceso muere entre marcar y entregar. El corte por antigüedad evita
+   * competir con una entrega en vuelo; los avisos de campaña y los programados a futuro no son suyos.
    */
   listStuckMessages(input: { tenantId: string; olderThanMinutes: number; limit: number }): Promise<NotificationMessageModel[]> {
     const cutoff = new Date(Date.now() - input.olderThanMinutes * 60_000);
@@ -319,6 +325,7 @@ export class NotificationsRepository {
         tenantId: input.tenantId,
         status: { [Op.in]: ['pending', 'sending'] },
         createdAtValue: { [Op.lt]: cutoff },
+        ...ownedByGenericJobs(),
       } as never,
       order: [['createdAtValue', 'ASC']],
       limit: input.limit,
@@ -440,7 +447,7 @@ export class NotificationsRepository {
   }
 
   async upsertDeviceToken(tenantId: string, customerId: string, body: UpsertDeviceTokenDto): Promise<DeviceTokenModel> {
-    const tokenHash = sha256Hex(stableStringify({ token: body.token }));
+    const tokenHash = deviceTokenFingerprint(body.token);
     const now = new Date();
     const existing = await this.deviceTokenModel.findOne({ where: { tenantId, customerId, platform: body.platform, tokenHash } });
     if (existing) {
@@ -474,37 +481,30 @@ export class NotificationsRepository {
 
   async getCustomerContactTargets(tenantId: string | null, customerId: string, channel: NotificationChannel): Promise<DeliveryTarget[]> {
     if (!tenantId) return [];
-    const spec = channelContactType(channel);
-    if (!spec) return [];
-    const rows = await this.contactMethodModel.findAll({
-      where: {
-        tenantId,
-        customerId,
-        contactType: spec.contactType,
-        contactValueEncrypted: { [Op.ne]: null },
-        deleted: { [Op.ne]: true },
-      } as never,
-      order: [
-        ['isPrimary', 'DESC'],
-        ['lastSeenAt', 'DESC'],
-        ['id', 'ASC'],
-      ],
-    });
-    const resolvedTargets = await Promise.all(
-      rows.map(async (row) => {
-        const encrypted = encryptedValueToString(row.contactValueEncrypted as string | Buffer | null);
-        const address = await decryptSecretEnvelope(encrypted);
-        return address ? [{ kind: spec.kind, address }] : [];
-      }),
-    );
-    return mergeDeliveryTargets(resolvedTargets.flat());
+    // AT-039: con el directorio presente, las direcciones llegan por el puerto de Clientes; sin él, lectura legada.
+    if (this.recipientDirectory) return this.recipientDirectory.resolveTargets({ tenantId, customerId, channel });
+    return legacyCustomerContactTargets(this.contactMethodModel, tenantId, customerId, channel);
   }
 
-  async getActiveDeviceTokenSecrets(tenantId: string | null, customerId: string): Promise<string[]> {
+  /**
+   * Los dispositivos activos, CON su plataforma.
+   *
+   * Antes devolvía sólo los tokens, y esa pérdida hacía imposible entregar a un iPhone: un token de
+   * iOS lo emite Apple y hay que mandarlo a APNs, mientras que uno de Android lo emite Firebase. Sin
+   * la plataforma, todos acababan en FCM y los de iPhone se rechazaban siempre.
+   */
+  async getActivePushDevices(tenantId: string | null, customerId: string): Promise<PushDevice[]> {
     if (!tenantId) return [];
     const rows = await this.deviceTokenModel.findAll({ where: { tenantId, customerId, isActive: true } });
-    const decrypted = await Promise.all(rows.map((row) => decryptSecretEnvelope(row.tokenEncrypted)));
-    return Array.from(new Set(decrypted.filter((token): token is string => Boolean(token))));
+    const devices = await Promise.all(
+      rows.map(async (row) => ({ token: await decryptSecretEnvelope(row.tokenEncrypted), platform: row.platform })),
+    );
+    const seen = new Set<string>();
+    return devices.filter((device): device is PushDevice => {
+      if (!device.token || seen.has(device.token)) return false;
+      seen.add(device.token);
+      return true;
+    });
   }
 
   async deactivateDeviceToken(tenantId: string, customerId: string, deviceTokenId: string): Promise<DeviceTokenModel> {

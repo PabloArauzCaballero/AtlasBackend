@@ -9,16 +9,16 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`risk-heuristic-v0.constants.ts`](./risk-heuristic-v0.constants.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`risk.controller.ts`](./risk.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`risk.dtos.ts`](./risk.dtos.ts) | DTOs: contrato estable de salida sin filtrar modelos de persistencia. |
-| [`risk.mapper.ts`](./risk.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
-| [`risk.module.ts`](./risk.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`risk.repository.ts`](./risk.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`risk.schemas.ts`](./risk.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
-| [`risk.service.ts`](./risk.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| Documento o código                                                   | Responsabilidad                                                                |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [`risk-heuristic-v0.constants.ts`](./risk-heuristic-v0.constants.ts) | Artefacto de soporte específico de esta carpeta.                               |
+| [`risk.controller.ts`](./risk.controller.ts)                         | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`risk.dtos.ts`](./risk.dtos.ts)                                     | DTOs: contrato estable de salida sin filtrar modelos de persistencia.          |
+| [`risk.mapper.ts`](./risk.mapper.ts)                                 | Mapper: transforma modelos internos a contratos de transporte.                 |
+| [`risk.module.ts`](./risk.module.ts)                                 | Módulo NestJS: declara el límite de inyección y sus dependencias.              |
+| [`risk.repository.ts`](./risk.repository.ts)                         | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
+| [`risk.schemas.ts`](./risk.schemas.ts)                               | Esquemas Zod: validan entradas y parámetros en el borde del sistema.           |
+| [`risk.service.ts`](./risk.service.ts)                               | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
 
 ## Subcarpetas
 

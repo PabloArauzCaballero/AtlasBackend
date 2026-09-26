@@ -5,20 +5,17 @@
  */
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../../common/types/auth.types.js';
-import {
-  SchemaManagementRepository,
-  SchemaChangeLogRow,
-  SchemaTableRow,
-  SchemaVersionCounts,
-  SchemaVersionRow,
-} from '../schema-management.repository.js';
+import { SchemaManagementRepository, SchemaVersionCounts, SchemaVersionRow } from '../schema-management.repository.js';
+import { SchemaChangeLogRepository } from '../schema-change-log.repository.js';
 import { SchemaManagementValidationService } from './schema-management-validation.service.js';
+import { mapChangeLogRow, mapTableRow, mapVersionRowWithCounts } from './schema-management.mapper.js';
 import type { ApproveSchemaChangeRequest, CreateSchemaTableRequest } from '../schema-management.schemas.js';
 import {
   ApprovalResponseDto,
   SchemaChangeLogDto,
   SchemaChangeLogListResponseDto,
   SchemaColumnDto,
+  SchemaNamesListResponseDto,
   SchemaRelationshipDto,
   SchemaTableDto,
   SchemaTablesListResponseDto,
@@ -52,6 +49,9 @@ export class SchemaManagementService {
 
   constructor(
     private readonly repo: SchemaManagementRepository,
+    // La auditoría de propuestas vive en su propio repositorio: es una responsabilidad distinta
+    // de leer el inventario, con su propio lock pesimista al resolver.
+    private readonly changeLog: SchemaChangeLogRepository,
     private readonly validation: SchemaManagementValidationService,
   ) {}
 
@@ -66,7 +66,7 @@ export class SchemaManagementService {
     // COUNT(*) por fila vía mapVersionRow (hasta 60 queries para una página de 20).
     const countsByVersion = await this.repo.countTablesColumnsRelationshipsForVersions(rows.map((row) => row._id));
     const emptyCounts: SchemaVersionCounts = { tablesCount: 0, columnsCount: 0, relationshipsCount: 0 };
-    const versions = rows.map((row) => this.mapVersionRowWithCounts(row, countsByVersion.get(row._id) ?? emptyCounts));
+    const versions = rows.map((row) => mapVersionRowWithCounts(row, countsByVersion.get(row._id) ?? emptyCounts));
 
     return { versions, total, limit, offset };
   }
@@ -83,16 +83,54 @@ export class SchemaManagementService {
   // TABLES
   // =========================================================================
 
-  async listSchemaTables(versionId: string, tableType: string | undefined, limit = 50, offset = 0): Promise<SchemaTablesListResponseDto> {
+  /**
+   * Los esquemas de datos de una versión. Es el primer nivel de la navegación del catálogo: se
+   * elige un esquema y solo entonces se listan sus tablas.
+   */
+  async listSchemaNames(versionId: string): Promise<SchemaNamesListResponseDto> {
     const version = await this.repo.getSchemaVersion(versionId);
     if (!version) {
       throw new NotFoundException(`Schema version ${versionId} not found`);
     }
 
-    const { rows, total } = await this.repo.listSchemaTables(versionId, tableType, limit, offset);
-    const tables = rows.map((row) => this.mapTableRow(row));
+    const rows = await this.repo.listSchemaNamesForVersion(versionId);
+    return {
+      versionId,
+      schemas: rows.map((row) => ({
+        schemaName: row.schema_name,
+        tablesCount: Number(row.tables_count),
+        columnsCount: Number(row.columns_count),
+      })),
+    };
+  }
 
-    return { tables, total, limit, offset, versionId };
+  async listSchemaTables(
+    versionId: string,
+    tableType: string | undefined,
+    limit = 50,
+    offset = 0,
+    schemaName?: string,
+  ): Promise<SchemaTablesListResponseDto> {
+    const version = await this.repo.getSchemaVersion(versionId);
+    if (!version) {
+      throw new NotFoundException(`Schema version ${versionId} not found`);
+    }
+
+    const { rows, total } = await this.repo.listSchemaTables(versionId, tableType, limit, offset, schemaName);
+    // Los contadores se rellenan por lotes para la página: `mapTableRow` los deja en 0 y sin este
+    // paso el inventario declaraba que ninguna tabla del esquema tenía columnas ni relaciones.
+    const countsByTable = await this.repo.countColumnsAndRelationshipsForTables(rows.map((row) => row._id));
+    const tables = rows.map((row) => {
+      const dto = mapTableRow(row);
+      const counts = countsByTable.get(row._id);
+      if (counts) {
+        dto.columnsCount = counts.columnsCount;
+        dto.relationshipsCount = counts.relationshipsCount;
+      }
+      return dto;
+    });
+
+    return { tables, total, limit, offset, versionId, ...(schemaName ? { schemaName } : {}) };
   }
 
   async getSchemaTable(tableId: string): Promise<SchemaTableDto> {
@@ -106,7 +144,7 @@ export class SchemaManagementService {
       this.repo.getSchemaRelationshipsForTable(tableId),
     ]);
 
-    const dto = this.mapTableRow(table);
+    const dto = mapTableRow(table);
     dto.columnsCount = columns.length;
     dto.relationshipsCount = relationships.length;
 
@@ -159,7 +197,7 @@ export class SchemaManagementService {
       });
     }
 
-    const entry = await this.repo.createChangeLogEntry({
+    const entry = await this.changeLog.createChangeLogEntry({
       changeType: 'CREATE_TABLE',
       affectedEntityType: 'TABLE',
       changePayload: {
@@ -177,7 +215,7 @@ export class SchemaManagementService {
 
     this.logger.log(`Schema change proposed: changeId=${entry._id} type=CREATE_TABLE table=${data.tableName} requester=${requesterId}`);
 
-    return this.mapChangeLogRow(entry);
+    return mapChangeLogRow(entry);
   }
 
   // =========================================================================
@@ -192,9 +230,9 @@ export class SchemaManagementService {
     this.assertRole(currentUser, APPROVER_ROLES, 'approve schema changes');
     const approverId = this.requirePlatformUserId(currentUser);
 
-    const updated = await this.repo.withTransaction(async (transaction) => {
+    const updated = await this.changeLog.withTransaction(async (transaction) => {
       // Lock pesimista: previene doble aprobación concurrente del mismo cambio.
-      const entry = await this.repo.getChangeLogEntryForUpdate(changeId, transaction);
+      const entry = await this.changeLog.getChangeLogEntryForUpdate(changeId, transaction);
 
       if (!entry) {
         throw new NotFoundException(`Schema change ${changeId} not found`);
@@ -213,7 +251,7 @@ export class SchemaManagementService {
 
       const approving = data.approval === 'approve';
 
-      return this.repo.resolveChangeLogEntry(
+      return this.changeLog.resolveChangeLogEntry(
         changeId,
         {
           approvalStatus: approving ? 'approved' : 'rejected',
@@ -258,10 +296,10 @@ export class SchemaManagementService {
     limit = 50,
     offset = 0,
   ): Promise<SchemaChangeLogListResponseDto> {
-    const { rows, total } = await this.repo.listChangeLog(approvalStatus, changeType, requesterUserId, limit, offset);
+    const { rows, total } = await this.changeLog.listChangeLog(approvalStatus, changeType, requesterUserId, limit, offset);
 
     return {
-      changes: rows.map((row) => this.mapChangeLogRow(row)),
+      changes: rows.map((row) => mapChangeLogRow(row)),
       total,
       limit,
       offset,
@@ -291,57 +329,6 @@ export class SchemaManagementService {
       this.repo.countColumnsInVersion(row._id),
       this.repo.countRelationshipsInVersion(row._id),
     ]);
-    return this.mapVersionRowWithCounts(row, { tablesCount, columnsCount, relationshipsCount });
-  }
-
-  private mapVersionRowWithCounts(row: SchemaVersionRow, counts: SchemaVersionCounts): SchemaVersionDto {
-    const dto = new SchemaVersionDto();
-    dto._id = row._id;
-    dto.versionCode = row.version_code;
-    dto.createdAt = row.created_at;
-    dto.createdByPlatformUserId = row.created_by_platform_user_id;
-    dto.notes = row.notes;
-    dto.isActive = row.is_active;
-    dto.parentVersionId = row.parent_version_id;
-    dto.tablesCount = counts.tablesCount;
-    dto.columnsCount = counts.columnsCount;
-    dto.relationshipsCount = counts.relationshipsCount;
-    return dto;
-  }
-
-  private mapTableRow(row: SchemaTableRow): SchemaTableDto {
-    const dto = new SchemaTableDto();
-    dto._id = row._id;
-    dto.schemaVersionId = row.schema_version_id;
-    dto.tableName = row.table_name;
-    dto.tableType = row.table_type;
-    dto.isAppendOnly = row.is_append_only;
-    dto.isTenantScoped = row.is_tenant_scoped;
-    dto.description = row.description;
-    dto.columnsCount = 0;
-    dto.relationshipsCount = 0;
-    dto.createdAt = row.created_at;
-    return dto;
-  }
-
-  private mapChangeLogRow(row: SchemaChangeLogRow): SchemaChangeLogDto {
-    const dto = new SchemaChangeLogDto();
-    dto._id = row._id;
-    dto.changeId = row._id;
-    dto.schemaVersionId = row.schema_version_id;
-    dto.changeType = row.change_type;
-    dto.affectedEntityType = row.affected_entity_type;
-    dto.affectedEntityId = row.affected_entity_id;
-    dto.changePayload = row.change_payload;
-    dto.approvalStatus = row.approval_status;
-    dto.requesterPlatformUserId = row.requester_platform_user_id;
-    dto.approvedByPlatformUserId = row.approved_by_platform_user_id;
-    dto.approvedAt = row.approved_at;
-    dto.approvalNotes = row.approval_notes;
-    dto.changeResult = row.change_result;
-    dto.errorMessage = row.error_message;
-    dto.createdAt = row.created_at;
-    dto.rolledBack = row.rolled_back;
-    return dto;
+    return mapVersionRowWithCounts(row, { tablesCount, columnsCount, relationshipsCount });
   }
 }

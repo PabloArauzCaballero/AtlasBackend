@@ -4,8 +4,14 @@
  * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
  */
 import { Module } from '@nestjs/common';
+import { CustomerRecipientDirectoryAdapter } from './infrastructure/customer-recipient-directory.adapter.js';
+import { CustomerCampaignAudienceAdapter } from './infrastructure/customer-campaign-audience.adapter.js';
+import { CustomerRecipientDirectoryController } from './customer-recipient-directory.controller.js';
+import { CustomerStateAdapter } from './infrastructure/customer-state.adapter.js';
+import { CUSTOMER_STATE_PORT } from './application/ports/customer-state.port.js';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
+  CustomerConsumerSurveyAnswerModel,
   AttributeDefinitionModel,
   AuthCredentialModel,
   ConsentDocumentModel,
@@ -37,7 +43,10 @@ import { CustomerEligibilityController } from './customer-eligibility.controller
 import { CustomersController } from './customers.controller.js';
 import { CustomersRepository } from './customers.repository.js';
 import { CustomersService } from './customers.service.js';
+import { CustomerEligibilityPhasesRepository } from './repositories/customer-eligibility-phases.repository.js';
 import { CustomerEligibilityRepository } from './repositories/customer-eligibility.repository.js';
+import { CustomerEligibilityRiskRepository } from './repositories/customer-eligibility-risk.repository.js';
+import { CustomerContactsRepository } from './repositories/customer-contacts.repository.js';
 import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.repository.js';
 
 @Module({
@@ -64,21 +73,41 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
       ManualReviewCaseModel,
       WatchlistMatchModel,
       OnboardingFlowModel,
+      CustomerConsumerSurveyAnswerModel,
       OutboxEventModel,
       OutboxEventModel,
       FraudCaseModel,
     ]),
   ],
-  controllers: [CustomersController, CustomerEligibilityController],
+  controllers: [CustomersController, CustomerEligibilityController, CustomerRecipientDirectoryController],
   providers: [
+    CustomerEligibilityPhasesRepository,
+    // AT-020: Clientes implementa el directorio de destinatarios que Mensajería consume por puerto.
+    CustomerRecipientDirectoryAdapter,
+    CustomerCampaignAudienceAdapter,
+    CustomerStateAdapter,
+    { provide: CUSTOMER_STATE_PORT, useExisting: CustomerStateAdapter },
     CustomersService,
     CustomersRepository,
     CustomerLifecycleService,
     CustomerLifecycleRepository,
     CustomerEligibilityService,
     CustomerEligibilityRepository,
+    CustomerEligibilityRiskRepository,
+    CustomerContactsRepository,
     CustomerEligibilityDecisionService,
   ],
-  exports: [CustomersService, CustomersRepository, CustomerLifecycleService, CustomerEligibilityService, CustomerEligibilityRepository],
+  exports: [
+    CUSTOMER_STATE_PORT,
+    CustomerRecipientDirectoryAdapter,
+    CustomerCampaignAudienceAdapter,
+    CustomersService,
+    CustomersRepository,
+    CustomerLifecycleService,
+    CustomerEligibilityService,
+    CustomerEligibilityRepository,
+    CustomerEligibilityRiskRepository,
+    CustomerContactsRepository,
+  ],
 })
 export class CustomersModule {}

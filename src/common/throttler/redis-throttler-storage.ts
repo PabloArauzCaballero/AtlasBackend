@@ -74,10 +74,17 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
       }
 
       const totalHits = await this.redis.incr(hitKey);
-      if (totalHits === 1) {
+      let remainingTtlMs = totalHits === 1 ? -1 : await this.redis.pttl(hitKey);
+      // El PEXPIRE va SIEMPRE que la llave no tenga vencimiento, no sólo en el primer hit. Con la
+      // versión anterior bastaba con que ese único PEXPIRE se perdiera (corte de red, reinicio de
+      // Redis entre el INCR y el PEXPIRE, o un INCR concurrente que no fue el primero) para que el
+      // contador quedara con ttl=-1: nunca volvía a cero y, pasado el límite, esa ruta quedaba en
+      // 429 para siempre. Medido el 2026-09-14 en el despliegue de dev: el login llevaba 33 hits
+      // sin vencimiento y nadie podía entrar.
+      if (remainingTtlMs === -1) {
         await this.redis.pexpire(hitKey, ttl);
+        remainingTtlMs = ttl;
       }
-      const remainingTtlMs = await this.redis.pttl(hitKey);
       const timeToExpire = remainingTtlMs > 0 ? Math.ceil(remainingTtlMs / 1000) : Math.ceil(ttl / 1000);
 
       if (totalHits > limit) {

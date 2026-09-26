@@ -6,6 +6,7 @@ import { accessTokenSignOptions } from '../../src/common/utils/auth/jwt-claims.u
 import { env } from '../../src/config/env.js';
 import { AtlasUserRole } from '../../src/common/types/auth.types.js';
 import { redactSensitive } from './redact.js';
+import { randomBytes } from 'node:crypto';
 
 export const BASE_URL = process.env.BASE_URL ?? `http://localhost:${env.APP_PORT}/${env.API_PREFIX}`;
 export const TENANT_ID = process.env.TENANT_ID ?? '1';
@@ -14,6 +15,7 @@ export const DEVICE_ID = process.env.DEVICE_ID ?? '1';
 export const SESSION_ID = process.env.SESSION_ID ?? '1';
 export const INTERNAL_USER_ID = process.env.INTERNAL_USER_ID ?? '1';
 export const PLATFORM_USER_ID = process.env.PLATFORM_USER_ID ?? '1';
+export const MERCHANT_USER_ID = process.env.MERCHANT_USER_ID ?? '1';
 
 export type SmokeResponse<T = unknown> = {
   status: number;
@@ -104,7 +106,17 @@ export function token(role: AtlasUserRole, overrides: Record<string, string> = {
     role,
     tenantId: overrides.tenantId ?? TENANT_ID,
     ...(role === 'customer' ? { customerId: overrides.customerId ?? CUSTOMER_ID } : {}),
-    ...(role !== 'customer' ? { internalUserId: overrides.internalUserId ?? INTERNAL_USER_ID } : {}),
+    /*
+     * El comercio es una población PROPIA, y esto no la contemplaba.
+     *
+     * `merchant` caía en la rama de «todo lo que no es cliente» y salía con `internalUserId`, que
+     * es de otra población, y SIN `merchantUserId`. Con ese token el onboarding de comercios abría
+     * expedientes sin dueño —el emisor real deriva el dueño de ese claim— y luego no podía leerlos:
+     * `assertOwnPartnerResource` los trata como internos, que es justo lo que protege el histórico.
+     * El smoke fallaba con un 403 correcto contra un backend sano.
+     */
+    ...(role === 'merchant' ? { merchantUserId: overrides.merchantUserId ?? MERCHANT_USER_ID } : {}),
+    ...(role !== 'customer' && role !== 'merchant' ? { internalUserId: overrides.internalUserId ?? INTERNAL_USER_ID } : {}),
     ...(role === 'platform_admin' ? { platformUserId: overrides.platformUserId ?? PLATFORM_USER_ID } : {}),
   };
   const options: SignOptions = accessTokenSignOptions({
@@ -181,7 +193,9 @@ export function cookieValue(setCookie: readonly string[], name: string): string 
 }
 
 export function uniqueKey(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  // Aleatoriedad criptográfica: estas claves de idempotencia viajan a un servidor real y dos
+  // corridas simultáneas no pueden colisionar por haber arrancado en el mismo milisegundo.
+  return `${prefix}-${Date.now()}-${randomBytes(4).toString('hex')}`;
 }
 
 export function getString(value: unknown, path: string[], fallback?: string): string {
@@ -210,7 +224,37 @@ function getValueFromPath(value: unknown, path: string[]): unknown {
   return current;
 }
 
+/**
+ * El login interno ya no devuelve un token: devuelve un DESAFÍO.
+ *
+ * Desde que el segundo factor es obligatorio para `internal_user` y `platform_user`, un login con
+ * el canal de correo configurado responde `pinChallengeRequired: true` y un `challengeToken` que
+ * hay que canjear con el PIN entregado por correo. Ningún smoke lo canjea —el código va cifrado a
+ * un buzón—, así que los cuatro que autentican como actor interno se quedan sin `accessToken`.
+ *
+ * Sin esta comprobación el fallo salía como «no se encontró accessToken», que manda a buscar un
+ * campo ausente en vez de explicar que la política de autenticación cambió y cómo correr el smoke.
+ * La salida que el propio servicio documenta para entornos de prueba es `AUTH_LOGIN_PIN_ENABLED=false`.
+ */
+function assertNotPinChallenge(value: unknown): void {
+  if (typeof value !== 'object' || value === null) return;
+  const data = (value as { data?: unknown }).data;
+  const body = (typeof data === 'object' && data !== null ? data : value) as {
+    pinChallengeRequired?: unknown;
+  };
+  if (body.pinChallengeRequired !== true) return;
+  throw new Error(
+    'El login interno devolvió un DESAFÍO de segundo factor, no un token: los actores internos ' +
+      '(admin, platform_admin) tienen 2FA obligatorio cuando hay canal de correo configurado, y ' +
+      'este smoke no puede canjear un PIN que se entrega por correo.\n' +
+      'Levanta la API con AUTH_LOGIN_PIN_ENABLED=false para correr los smokes que autentican como ' +
+      'actor interno (es la salida que el propio AuthSecondFactorService documenta para entornos ' +
+      'de prueba; en producción el env schema la prohíbe).',
+  );
+}
+
 export function getStringFromPaths(value: unknown, paths: string[][]): string {
+  assertNotPinChallenge(value);
   const errors: string[] = [];
   for (const path of paths) {
     try {

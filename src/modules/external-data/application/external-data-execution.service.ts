@@ -24,6 +24,7 @@ import {
   toProviderCode,
 } from './external-data-policy.util.js';
 import { ExternalDataRequestResult, ExternalProviderExecutionInput } from '../domain/external-provider.types.js';
+import { contractViolationReason, validateProviderResponse } from '../domain/provider-response.contract.js';
 
 @Injectable()
 export class ExternalDataExecutionService {
@@ -64,7 +65,7 @@ export class ExternalDataExecutionService {
         return this.decision.replayIdempotentResult(existing, providerCode);
       }
     }
-    let consent: { id: string } | null = null;
+    let consent: { id: string } | null;
     try {
       consent = await this.validateConsent({
         tenantId: input.tenantId,
@@ -265,7 +266,18 @@ export class ExternalDataExecutionService {
         maxAttempts: policy?.retryMaxAttempts ?? 1,
         baseDelayMs: policy?.retryBackoffSeconds ? policy.retryBackoffSeconds * 1000 : 200,
       });
-      const observations = await adapter.normalize(raw, executionInput);
+      // Un 200 con el contrato roto NO puede seguir hacia `normalize()`.
+      //
+      // Los normalizadores rellenan lo que falta —`num(payload.matchScore) ?? 0`,
+      // `bool(payload.documentExists) ?? status === 'FOUND'`— así que una respuesta `{"status":
+      // "FOUND"}` sin un solo dato de la verificación salía del pipeline como cinco observaciones
+      // bien formadas, indistinguibles de una identidad de baja coincidencia. El cambio
+      // incompatible de un proveedor no rompía nada: degradaba en silencio la evidencia de un
+      // expediente KYC. Ahora es un fallo identificable, con los campos que faltaron, y sin
+      // observaciones inventadas.
+      const contractViolations = validateProviderResponse(providerCode, raw.payload, String(raw.status));
+      const contractBroken = contractViolations.length > 0;
+      const observations = contractBroken ? [] : await adapter.normalize(raw, executionInput);
       const features = featuresFromObservations(observations);
       const missingFeaturesJson = observations
         .filter((observation) => observation.valueString === 'DATA_NOT_AVAILABLE')
@@ -273,10 +285,12 @@ export class ExternalDataExecutionService {
           acc[observation.featureKey] = 'DATA_NOT_AVAILABLE';
           return acc;
         }, {});
-      const status = statusFromRaw(raw);
+      const status = contractBroken ? 'FAILED' : statusFromRaw(raw);
       const redactedPayload = redactSensitiveObject(raw.payload) as Record<string, unknown>;
       const responseHash = sha256Hex(stableStringify(redactedPayload));
-      const manualReviewRequired = observations.some((observation) => observation.manualReviewRequired === true);
+      // Sin observaciones no hay quien pida revisión manual, y una respuesta que no se pudo
+      // interpretar es exactamente el caso que un humano tiene que mirar.
+      const manualReviewRequired = contractBroken || observations.some((observation) => observation.manualReviewRequired === true);
 
       await this.sequelize.transaction(async (transaction) => {
         await this.repository.updateProviderRequest(
@@ -288,7 +302,15 @@ export class ExternalDataExecutionService {
             respondedAt: new Date(),
             providerRequestRef: raw.providerReference,
             actualCostAmount: policy ? String(policy.unitCostAmount) : undefined,
-            metadataJson: { providerCode, isMocked: raw.isMocked, scenario: input.body.scenario ?? null },
+            errorMessageSafe: contractBroken ? contractViolationReason(contractViolations) : undefined,
+            metadataJson: {
+              providerCode,
+              isMocked: raw.isMocked,
+              scenario: input.body.scenario ?? null,
+              // Los campos concretos que faltaron quedan en la evidencia: sin ellos, diagnosticar
+              // un cambio de contrato del proveedor obliga a reproducir la llamada.
+              ...(contractBroken ? { contractViolations } : {}),
+            },
           },
           { transaction },
         );
@@ -338,7 +360,10 @@ export class ExternalDataExecutionService {
         requestId: String(request.id),
         providerCode,
         status,
-        reasonCode: String(raw.payload.reasonCode ?? raw.status),
+        // El veredicto del proveedor viaja aparte del estado de ejecución: `status` colapsa a MOCKED
+        // toda respuesta simulada, así que quien decide identidad/crédito lo perdería.
+        providerVerdict: String(raw.status),
+        reasonCode: contractBroken ? contractViolationReason(contractViolations) : String(raw.payload.reasonCode ?? raw.status),
         observations,
         features,
         manualReviewRequired,
@@ -365,87 +390,6 @@ export class ExternalDataExecutionService {
     }
   }
 
-  async previewExternalDataRequest(input: { tenantId: string; body: ExternalDataRequestDto; requestedByUserId?: string }) {
-    const providerCode = toProviderCode(input.body.providerCode);
-    const provider = await this.registry.requireProvider(providerCode);
-    const policy = await this.repository.findCostPolicy(String(provider.id), input.body.queryType);
-    const mode = providerModeFromEnv(String(provider.providerCode), provider.defaultMode);
-    const consentStatus = await this.previewConsentStatus({
-      tenantId: input.tenantId,
-      customerId: input.body.customerId,
-      providerCode,
-      providerRequiresConsent: provider.requiresConsent !== false,
-      purpose: input.body.purpose,
-    });
-    let policyBlock = this.decision.evaluateCostPolicy({
-      providerCode,
-      policy,
-      decisionStage: input.body.decisionStage,
-      approvedByAdminId: input.body.approvedByAdminId,
-    });
-    if (!policyBlock.blocked) {
-      policyBlock = await this.decision.evaluateQuotaPolicy({
-        providerId: String(provider.id),
-        providerCode,
-        customerId: input.body.customerId,
-        policy,
-      });
-    }
-    if (!policyBlock.blocked) {
-      policyBlock = await this.decision.evaluateCircuitBreaker({ providerId: String(provider.id), providerCode, mode });
-    }
-    if (!policyBlock.blocked) {
-      const productionBlockers = productionIntegrationBlockers(providerCode, mode);
-      if (productionBlockers.length > 0) {
-        policyBlock = {
-          blocked: true,
-          status: 'PROVIDER_UNAVAILABLE',
-          reasonCode: `PRODUCTION_GATE_BLOCKED:${productionBlockers.join(',')}`,
-        };
-      }
-    }
-    const requestPayloadHash = sha256Hex(stableStringify(input.body.input));
-    const cacheTtlSeconds = input.body.forceRefresh ? 0 : this.decision.cacheTtlSeconds(policy);
-    const cacheHit =
-      cacheTtlSeconds > 0
-        ? await this.repository.findReusableProviderRequest({
-            tenantId: input.tenantId,
-            providerId: String(provider.id),
-            customerId: input.body.customerId,
-            queryType: input.body.queryType,
-            requestPayloadHash,
-            since: new Date(Date.now() - cacheTtlSeconds * 1000),
-          })
-        : null;
-    const disabled = mode === 'disabled';
-    const blockedByConsent = consentStatus.status === 'CONSENT_REQUIRED';
-    const blocked = disabled || blockedByConsent || policyBlock.blocked;
-    return {
-      providerCode,
-      queryType: input.body.queryType,
-      purpose: input.body.purpose,
-      decisionStage: input.body.decisionStage,
-      modeUsed: mode,
-      wouldExecute: !blocked,
-      status: disabled ? 'PROVIDER_UNAVAILABLE' : blockedByConsent ? 'CONSENT_REQUIRED' : policyBlock.status,
-      reasonCode: disabled ? `${providerCode}_PROVIDER_DISABLED` : blockedByConsent ? 'CONSENT_REQUIRED' : policyBlock.reasonCode,
-      consent: consentStatus,
-      costPolicy: this.decision.mapCostPolicy(policy),
-      estimatedCostAmount: policy ? String(policy.unitCostAmount) : null,
-      currency: policy?.currency ?? null,
-      requestPayloadHash,
-      cache: {
-        cacheTtlSeconds,
-        cacheEligible: cacheTtlSeconds > 0,
-        cacheHit: Boolean(cacheHit),
-        cachedRequestId: cacheHit ? String(cacheHit.id) : null,
-        forceRefresh: input.body.forceRefresh === true,
-      },
-      safeInputPreview: redactSensitiveObject(input.body.input),
-      note: 'Preflight contractual: no ejecuta provider ni guarda respuesta. Úsalo antes de proveedores costosos o producción.',
-    };
-  }
-
   private async validateConsent(input: {
     tenantId: string;
     customerId?: string;
@@ -462,20 +406,5 @@ export class ExternalDataExecutionService {
     );
     if (!consent) throw new ForbiddenException('CONSENT_REQUIRED');
     return consent;
-  }
-
-  private async previewConsentStatus(input: {
-    tenantId: string;
-    customerId?: string;
-    providerCode: string;
-    providerRequiresConsent: boolean;
-    purpose: string;
-  }): Promise<{ status: 'NOT_REQUIRED' | 'VALID' | 'CONSENT_REQUIRED'; consentId?: string; purposeCodes: string[] }> {
-    const purposeCodes = consentPurposeCodes(input.providerCode, input.purpose);
-    if (!input.providerRequiresConsent) return { status: 'NOT_REQUIRED', purposeCodes };
-    if (!input.customerId) return { status: 'CONSENT_REQUIRED', purposeCodes };
-    const consent = await this.repository.findCustomerConsent(input.tenantId, input.customerId, purposeCodes);
-    if (!consent) return { status: 'CONSENT_REQUIRED', purposeCodes };
-    return { status: 'VALID', consentId: String(consent.id), purposeCodes };
   }
 }

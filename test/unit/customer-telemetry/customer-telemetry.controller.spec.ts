@@ -10,7 +10,7 @@ import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.
  */
 describe('CustomerTelemetryController', () => {
   function build() {
-    const service = { ingestBatch: jest.fn(async () => ({ eventsProcessed: 3, metricsProcessed: 2 })) };
+    const service = { ingestBatch: jest.fn(async (..._args: unknown[]) => ({ eventsProcessed: 3, metricsProcessed: 2 })) };
     return { controller: new CustomerTelemetryController(service as never), service };
   }
   const params = { customerId: '9' } as never;

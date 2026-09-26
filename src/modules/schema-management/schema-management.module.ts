@@ -7,11 +7,12 @@ import { Module } from '@nestjs/common';
 import { SchemaManagementController } from './schema-management.controller.js';
 import { SchemaManagementService } from './services/schema-management.service.js';
 import { SchemaManagementValidationService } from './services/schema-management-validation.service.js';
+import { SchemaChangeLogRepository } from './schema-change-log.repository.js';
 import { SchemaManagementRepository } from './schema-management.repository.js';
 
 @Module({
   controllers: [SchemaManagementController],
-  providers: [SchemaManagementService, SchemaManagementValidationService, SchemaManagementRepository],
+  providers: [SchemaManagementService, SchemaManagementValidationService, SchemaManagementRepository, SchemaChangeLogRepository],
   exports: [SchemaManagementService],
 })
 export class SchemaManagementModule {}

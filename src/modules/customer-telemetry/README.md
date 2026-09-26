@@ -16,6 +16,12 @@
 | [`customer-telemetry.repository.ts`](./customer-telemetry.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`customer-telemetry.schemas.ts`](./customer-telemetry.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
 | [`customer-telemetry.service.ts`](./customer-telemetry.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`telemetry-activity.repository.ts`](./telemetry-activity.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`telemetry-behavior.repository.ts`](./telemetry-behavior.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`telemetry-device-signals.repository.ts`](./telemetry-device-signals.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`telemetry-on-device.repository.ts`](./telemetry-on-device.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`telemetry-repository-options.ts`](./telemetry-repository-options.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`telemetry-session-context.repository.ts`](./telemetry-session-context.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 
 ## Reglas de mantenimiento
 

@@ -7,6 +7,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { applyEnvCrossChecks } from '../src/config/env-cross-checks.js';
 import { envBaseSchema } from '../src/config/env.schema.js';
 import { PRODUCTION_CREDENTIAL_REQUIREMENTS } from '../src/modules/external-data/application/external-data-policy.util.js';
 
@@ -40,6 +41,46 @@ function externalProviderCredentialKeys(): string[] {
   return [...new Set(Object.values(PRODUCTION_CREDENTIAL_REQUIREMENTS).flat())].sort();
 }
 
+/** Marcas inequívocas de «esto hay que rellenarlo»: nunca deben llegar a un arranque real. */
+const PLACEHOLDER = /^<.*>$|^(change-me|changeme|tu-.*|secret-manager|<secret-manager>)$/i;
+
+function templateValues(source: string): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const line of source.split(/\r?\n/)) {
+    const match = /^([A-Z][A-Z0-9_]*)=(.*)$/.exec(line);
+    if (match) values[match[1]] = match[2].trim();
+  }
+  return values;
+}
+
+/**
+ * La plantilla de producción tiene que ser un punto de partida VÁLIDO.
+ *
+ * No basta con que nombre las variables: si un valor de ejemplo es sintácticamente inválido —una URL
+ * con `<host>` dentro, una cadena vacía donde el esquema pide longitud mínima—, quien la copia
+ * recibe un error que habla de otra cosa y pierde la tarde buscando el problema equivocado. Aquí se
+ * carga tal cual, con `NODE_ENV=production`, y se exige que TODO lo que falle sea un secreto por
+ * rellenar (lo que es correcto y esperable) y nada más.
+ *
+ * Es el gate que faltaba: hasta ahora nadie comprobaba que esa plantilla sirviera para arrancar.
+ */
+function checkProductionTemplateBoots(values: Record<string, string>): string[] {
+  const schema = envBaseSchema.superRefine(applyEnvCrossChecks);
+  const result = schema.safeParse({ ...values, NODE_ENV: 'production' });
+  if (result.success) return [];
+
+  const problemas: string[] = [];
+  for (const issue of result.error.issues) {
+    const key = issue.path.join('.');
+    const value = values[key];
+    // Un secreto todavía por rellenar es el fallo CORRECTO: la plantilla no trae credenciales.
+    if (value !== undefined && PLACEHOLDER.test(value)) continue;
+    if (value === undefined && issue.code === 'invalid_type') continue;
+    problemas.push(`${key || '(raíz)'}: ${issue.message} (valor de la plantilla: ${value === undefined ? 'ausente' : `"${value}"`})`);
+  }
+  return problemas;
+}
+
 function main(): void {
   const examplePath = resolve(process.cwd(), '.env.example');
   const productionExamplePath = resolve(process.cwd(), '.env.production.example');
@@ -55,8 +96,15 @@ function main(): void {
   const missingCredentials = credentialKeys.filter((key) => !present.has(key) || !presentInProduction.has(key)).sort();
   const repeated = duplicates(keys);
   const repeatedInProduction = duplicates(productionKeys);
+  const productionBootProblems = checkProductionTemplateBoots(templateValues(readFileSync(productionExamplePath, 'utf-8')));
 
-  if (missing.length > 0 || missingCredentials.length > 0 || repeated.length > 0 || repeatedInProduction.length > 0) {
+  if (
+    missing.length > 0 ||
+    missingCredentials.length > 0 ||
+    repeated.length > 0 ||
+    repeatedInProduction.length > 0 ||
+    productionBootProblems.length > 0
+  ) {
     console.error('❌ Las plantillas de entorno no representan un contrato íntegro.');
     if (missing.length > 0) console.error(`   Faltan: ${missing.join(', ')}`);
     if (missingCredentials.length > 0) {
@@ -67,12 +115,18 @@ function main(): void {
     }
     if (repeated.length > 0) console.error(`   Duplicadas en .env.example: ${repeated.join(', ')}`);
     if (repeatedInProduction.length > 0) console.error(`   Duplicadas en .env.production.example: ${repeatedInProduction.join(', ')}`);
+    if (productionBootProblems.length > 0) {
+      console.error(
+        '   .env.production.example no arrancaría por motivos que NO son «falta rellenar el secreto»:\n' +
+          productionBootProblems.map((problema) => `     - ${problema}`).join('\n'),
+      );
+    }
     process.exit(1);
   }
 
   console.log(
     `✅ .env.example cubre ${schemaKeys.length} variables tipadas y ${credentialKeys.length} credenciales de proveedor externo; ` +
-      'ambas plantillas están libres de duplicados.',
+      'ambas plantillas están libres de duplicados, y .env.production.example sólo falla por los secretos que hay que rellenar.',
   );
 }
 

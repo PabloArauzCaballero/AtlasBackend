@@ -45,7 +45,7 @@ describe('SessionStartService.startSession', () => {
     };
     const customersRepository = { findById: jest.fn() };
     const gpsWriter = {
-      createSessionGpsIfAllowed: jest.fn(async () => ({
+      createSessionGpsIfAllowed: jest.fn(async (..._args: unknown[]) => ({
         gpsObservationId: null,
         gpsObservationCreated: false,
         gpsObservationSkippedReason: 'gps_not_provided',

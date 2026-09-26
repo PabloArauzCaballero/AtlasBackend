@@ -9,8 +9,21 @@ para los proveedores externos.
 
 Las plantillas a copiar son [`.env.example`](../../.env.example) (desarrollo) y
 [`.env.production.example`](../../.env.production.example) (producción). El gate
-`yarn check:env-example` falla si alguna variable del contrato falta en ellas, así que la plantilla
-nunca se queda atrás del código.
+`yarn check:env-example` comprueba tres cosas distintas, y conviene saber cuál cubre a cuál:
+
+1. **`.env.example` nombra TODAS las variables del esquema tipado.** Es la plantilla de referencia;
+   si el código añade una variable y aquí no aparece, el gate falla.
+2. **Las 14 credenciales de proveedor externo están en LAS DOS plantillas.** Esas no viven en el
+   esquema —el código las lee por `process.env`—, así que sin esta regla no las cubría nadie.
+3. **`.env.production.example` arranca de verdad.** Se carga tal cual con `NODE_ENV=production` y se
+   exige que lo ÚNICO que falle sean los secretos por rellenar. Antes nadie comprobaba esa plantilla:
+   traía una URL de Redis inválida y una variable vacía que el esquema rechaza, de modo que quien la
+   copiaba recibía un error que hablaba de otra cosa.
+
+Lo que el gate NO exige es que la plantilla de producción nombre las ~257 variables del esquema: las
+que tienen un valor por omisión seguro no necesitan estar. Y desde el 2026-09-13, un arranque en
+producción RECHAZA cualquier valor que conserve la marca de plantilla (`<algo>`, `change-me`), así
+que una copia a medio rellenar ya no levanta.
 
 > **Qué NO hace este documento:** no lista las ~148 variables de configuración (intervalos, límites,
 > flags). Solo las **credenciales y secretos**: lo que hay que pedirle a alguien —un proveedor, un
@@ -128,13 +141,18 @@ elegir un proveedor sin sus credenciales impide el arranque.
 | Canal | Proveedor | Credenciales | Estado | Quién las provee |
 |---|---|---|---|---|
 | Email | `NOTIFICATION_EMAIL_PROVIDER=resend` | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | 🟠 | Resend — dominio verificado |
-| Email | `=sendgrid` | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` | 🟠 | SendGrid |
+| Email | `=sendgrid` | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` (opcionales: `SENDGRID_FROM_NAME`, `SENDGRID_REPLY_TO_EMAIL`) | 🟠 | SendGrid — el correo de Twilio; remitente verificado |
 | Email | `=gmail_api` | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_FROM_EMAIL` | 🟠 | Google Cloud — OAuth con consentimiento previo |
 | Push | `NOTIFICATION_PUSH_PROVIDER=fcm` | `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` | 🟠 | Firebase — cuenta de servicio (JSON) |
-| SMS | `NOTIFICATION_SMS_PROVIDER=twilio` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM` | 🟠 | Twilio |
+| SMS | `NOTIFICATION_SMS_PROVIDER=twilio` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, y `TWILIO_SMS_FROM` **o** `TWILIO_MESSAGING_SERVICE_SID` | 🟠 | Twilio |
 | WhatsApp | `NOTIFICATION_WHATSAPP_PROVIDER=meta_cloud` | `META_WHATSAPP_TOKEN`, `META_WHATSAPP_PHONE_NUMBER_ID` | 🟠 | Meta — WhatsApp Business, plantillas aprobadas |
 | WhatsApp | `=twilio` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` | 🟠 | Twilio |
 | Cualquiera | `=webhook` | `NOTIFICATION_WEBHOOK_URL` o la del canal (`NOTIFICATION_EMAIL_WEBHOOK_URL`, …) | 🟠 | Interno |
+| Estado de entrega | Callback de Twilio | `TWILIO_STATUS_CALLBACK_URL` (la URL pública EXACTA registrada en Twilio) | 🟠 | Twilio + red |
+| Estado de entrega | Eventos de SendGrid | `SENDGRID_EVENT_WEBHOOK_PUBLIC_KEY` | 🟠 | SendGrid — Event Webhook firmado |
+
+Las dos últimas son opcionales para ENVIAR y obligatorias para SABER si llegó: sin ellas toda entrega
+se queda en `sent` y ningún rebote vuelve a ATLAS. Ver `docs/notifications/channel-adapters.md`.
 
 **Consecuencia que suele sorprender:** sin ningún canal de email configurado —ni por proveedor ni por
 MailSender— el **segundo factor cae a login de un solo paso**. `isSecondFactorRequired` exige 2FA a

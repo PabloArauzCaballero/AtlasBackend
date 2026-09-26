@@ -41,7 +41,7 @@ describe('SessionsActivityAuditRepository', () => {
 
   it('upsertActivitySummary actualiza el existente e incrementa totalSessions', async () => {
     const { repo, customerActivitySummaryModel } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const existing = { totalSessions: 4, save } as never;
     (customerActivitySummaryModel.findOne as jest.Mock).mockResolvedValue(existing as never);
     await repo.upsertActivitySummary({ tenantId: 't1', customerId: 'c1', deviceId: 'd2', now, incrementSessionCount: true }, opts);
@@ -53,7 +53,7 @@ describe('SessionsActivityAuditRepository', () => {
 
   it('upsertActivitySummary trata totalSessions null del existente como 0 antes de incrementar', async () => {
     const { repo, customerActivitySummaryModel } = buildRepo();
-    const save = jest.fn(async () => ({}));
+    const save = jest.fn(async (..._args: unknown[]) => ({}));
     const existing = { totalSessions: null, save } as never;
     (customerActivitySummaryModel.findOne as jest.Mock).mockResolvedValue(existing as never);
     await repo.upsertActivitySummary({ tenantId: 't1', customerId: 'c1', deviceId: 'd2', now, incrementSessionCount: true }, opts);

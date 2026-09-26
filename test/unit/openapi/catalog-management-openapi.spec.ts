@@ -17,11 +17,11 @@ describe('catalog-management — OpenAPI del contexto de decisión', () => {
       providers: [{ provide: CatalogManagementService, useValue: {} }],
     })
       .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: jest.fn(() => true) })
+      .useValue({ canActivate: jest.fn((..._args: unknown[]) => true) })
       .overrideGuard(TenantGuard)
-      .useValue({ canActivate: jest.fn(() => true) })
+      .useValue({ canActivate: jest.fn((..._args: unknown[]) => true) })
       .overrideGuard(RolesGuard)
-      .useValue({ canActivate: jest.fn(() => true) })
+      .useValue({ canActivate: jest.fn((..._args: unknown[]) => true) })
       .compile();
 
     const app = moduleRef.createNestApplication();

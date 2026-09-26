@@ -15,10 +15,11 @@ export async function up({ context: queryInterface }: MigrationContext): Promise
   await queryInterface.sequelize.query(
     `DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE c.relname = 'ux_data_provider_requests_tenant_idempotency_key' AND n.nspname = current_schema()
-  ) THEN
+  -- to_regclass resuelve por el MISMO search_path que usa el CREATE de abajo. Antes se acotaba por
+  -- n.nspname = current_schema(), que durante una migración es public —el primer elemento de
+  -- ATLAS_MIGRATION_SEARCH_PATH— mientras el índice vive en integrations: la guarda respondía
+  -- siempre «no existe» y la segunda pasada moría con «relation already exists».
+  IF to_regclass('ux_data_provider_requests_tenant_idempotency_key') IS NULL THEN
     IF NOT EXISTS (
       SELECT 1
       FROM (
@@ -29,7 +30,7 @@ BEGIN
         HAVING COUNT(*) > 1
       ) duplicated_idempotency_keys
     ) THEN
-      CREATE UNIQUE INDEX "ux_data_provider_requests_tenant_idempotency_key"
+      CREATE UNIQUE INDEX IF NOT EXISTS "ux_data_provider_requests_tenant_idempotency_key"
         ON "data_provider_requests" ("_tenant_id", "idempotency_key")
         WHERE idempotency_key IS NOT NULL;
     END IF;

@@ -4,6 +4,7 @@
  * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
  */
 import { ToolSeed } from './systems-ops.types.js';
+import { PLATFORM_SERVICE_TOOL_SEEDS } from './platform-services.constants.js';
 
 export const SYSTEMS_OPS_ROLES = [
   'system_admin',
@@ -15,6 +16,16 @@ export const SYSTEMS_OPS_ROLES = [
   'compliance_analyst',
   'readonly_auditor',
 ] as const;
+
+/**
+ * Roles de SESIÓN que llegan a las rutas de Flujos, que además exigen permiso fino en cada método.
+ *
+ * Incluye `internal_operator` porque `legacyRoleForInternalRoles` convierte en él a los paquetes RBAC
+ * sin rol de sesión propio, como `DATA_GOVERNANCE_MANAGER`, que tiene `systems.flows.read` y `.review`.
+ * Sin esto recibían 403 antes de que nadie mirara su permiso. No abre nada por sí solo:
+ * `InternalPermissionsGuard` decide.
+ */
+export const SYSTEMS_OPS_FINE_PERMISSION_ROLES = [...SYSTEMS_OPS_ROLES, 'internal_operator'] as const;
 
 /**
  * Roles separados por superficie de acción. `readonly_auditor` puede leer, pero nunca escribir.
@@ -49,6 +60,7 @@ export const SYSTEMS_OPS_WRITE_ROLES = SYSTEMS_OPS_GOVERNANCE_ROLES;
  * aquí, junto a las listas que expande, para que añadir un rol sea un solo cambio.
  */
 export const SYSTEMS_OPS_ROLE_CONSTANTS: Record<string, readonly string[]> = {
+  SYSTEMS_OPS_FINE_PERMISSION_ROLES,
   SYSTEMS_OPS_ROLES,
   SYSTEMS_OPS_GOVERNANCE_ROLES,
   SYSTEMS_OPS_QA_ROLES,
@@ -61,6 +73,9 @@ export function canReadAllSystemsOpsTenants(role: string): boolean {
 }
 
 export const SYSTEM_TOOL_SEEDS: ToolSeed[] = [
+  // Los otros dos backends del ecosistema, en su propio archivo: su metadata es larga (valor de
+  // negocio, uso técnico, riesgos) y aquí sólo cabía la lista.
+  ...PLATFORM_SERVICE_TOOL_SEEDS,
   {
     code: 'POSTGRES',
     name: 'PostgreSQL',

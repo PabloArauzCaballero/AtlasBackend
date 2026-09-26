@@ -37,7 +37,7 @@ describe('JobTickGuard', () => {
 
   it('ejecuta el handler y reporta completed', async () => {
     const guard = new JobTickGuard({ timeoutMs: 0, onStall: jest.fn() });
-    const handler = jest.fn(async () => undefined);
+    const handler = jest.fn(async (..._args: unknown[]) => undefined);
 
     await expect(guard.run('process_events', handler)).resolves.toBe('completed');
     expect(handler).toHaveBeenCalledTimes(1);
@@ -59,7 +59,7 @@ describe('JobTickGuard', () => {
   it('se salta la tanda mientras haya otra en vuelo del mismo job', async () => {
     const guard = new JobTickGuard({ timeoutMs: 0, onStall: jest.fn() });
     const first = deferred();
-    const second = jest.fn(async () => undefined);
+    const second = jest.fn(async (..._args: unknown[]) => undefined);
 
     const running = guard.run('process_events', () => first.promise);
     const outcome = await guard.run('process_events', second);
@@ -74,7 +74,7 @@ describe('JobTickGuard', () => {
   it('jobs distintos no se bloquean entre sí', async () => {
     const guard = new JobTickGuard({ timeoutMs: 0, onStall: jest.fn() });
     const blocked = deferred();
-    const other = jest.fn(async () => undefined);
+    const other = jest.fn(async (..._args: unknown[]) => undefined);
 
     const running = guard.run('process_events', () => blocked.promise);
     const outcome = await guard.run('apply_retention_policies', other);

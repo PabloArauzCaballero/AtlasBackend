@@ -6,7 +6,7 @@
 import { env } from '../../../config/env.js';
 import { toAdapterError } from '../../../common/resilience/adapter-error.js';
 import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
-import { DeliveryResult, NotificationChannel, NotificationMessagePayload } from '../notification-types.js';
+import { DeliveryResult, NotificationMessagePayload } from '../notification-types.js';
 
 async function parseResponseJson(response: Response): Promise<Record<string, unknown>> {
   const text = await response.text().catch(() => '');
@@ -53,18 +53,44 @@ export function sentDelivery(provider: string, providerMessageId: string | null,
   return { status: 'sent', provider, providerMessageId, response: response ?? null, errorCode: null, errorMessage: null };
 }
 
+/**
+ * Lo que un adaptador recibe de una llamada saliente.
+ *
+ * `headers` existe porque hay proveedores que NO devuelven el identificador del mensaje en el
+ * cuerpo: SendGrid responde `202` con cuerpo VACÍO y el id en la cabecera `X-Message-Id`. Sin esta
+ * pieza, el adaptador de email guardaba el id interno de ATLAS como si fuera el del proveedor, y
+ * con eso ningún evento posterior (entregado, rebote, spam) se podía atribuir a su envío.
+ */
+export type AdapterHttpResponse = {
+  ok: boolean;
+  status: number;
+  json: Record<string, unknown>;
+  headers: Record<string, string>;
+};
+
+function collectHeaders(headers: Headers | undefined): Record<string, string> {
+  // Una respuesta sin cabeceras legibles no puede tumbar un envío que SÍ salió: el identificador del
+  // proveedor se perderá, y eso es peor que nada, pero no tanto como convertir un 202 en excepción.
+  if (!headers || typeof headers.forEach !== 'function') return {};
+  const collected: Record<string, string> = {};
+  headers.forEach((value, name) => {
+    collected[name.toLowerCase()] = value;
+  });
+  return collected;
+}
+
 async function fetchOnce(input: {
   url: string;
   method: 'GET' | 'POST';
   headers: Record<string, string>;
   body?: string;
-}): Promise<{ status: number; ok: boolean; json: Record<string, unknown> }> {
+}): Promise<{ status: number; ok: boolean; json: Record<string, unknown>; headers: Record<string, string> }> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), env.NOTIFICATION_PROVIDER_HTTP_TIMEOUT_MS);
   try {
     const response = await fetch(input.url, { method: input.method, headers: input.headers, body: input.body, signal: controller.signal });
     const json = await parseResponseJson(response);
-    return { status: response.status, ok: response.ok, json };
+    return { status: response.status, ok: response.ok, json, headers: collectHeaders(response.headers) };
   } finally {
     clearTimeout(timeout);
   }
@@ -83,7 +109,7 @@ async function callResilient(
   executor: ResilientAdapterExecutorService,
   provider: string,
   request: { url: string; method: 'GET' | 'POST'; headers: Record<string, string>; body?: string },
-): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
+): Promise<AdapterHttpResponse> {
   try {
     const result = await executor.run(
       async () => {
@@ -99,11 +125,32 @@ async function callResilient(
         baseDelayMs: env.NOTIFICATION_PROVIDER_HTTP_RETRY_BASE_DELAY_MS,
       },
     );
-    return { ok: true, status: result.status, json: result.json };
+    return { ok: true, status: result.status, json: result.json, headers: result.headers ?? {} };
   } catch (error) {
     const adapterError = toAdapterError({ provider, error });
-    return { ok: false, status: adapterError.httpStatus ?? 0, json: { error: adapterError.message, code: adapterError.code } };
+    return {
+      ok: false,
+      status: adapterError.httpStatus ?? 0,
+      json: { error: adapterError.message, code: adapterError.code, ...providerResponseOf(adapterError.cause) },
+      headers: {},
+    };
   }
+}
+
+/**
+ * El cuerpo que devolvió el proveedor cuando la llamada falló.
+ *
+ * `toAdapterError` guarda ese cuerpo en `cause` y `AdapterError.toJSON()` no lo emite —es el
+ * contrato normalizado, deliberadamente agnóstico del proveedor—, así que hasta ahora se perdía
+ * antes de llegar a `notification_deliveries`. Lo que quedaba registrado de un rechazo de Twilio era
+ * `HTTP 400` / `PROVIDER_ERROR`: cierto y completamente inútil, porque el motivo real viaja en el
+ * cuerpo (`{ code: 21211, message: "Invalid 'To' Phone Number" }`) y es lo único que distingue un
+ * número mal escrito de una baja voluntaria o de una cuenta sin saldo. Se re-expone aparte, bajo
+ * `providerResponse`, para no pisar `error`/`code`, que ya son contrato de los adaptadores.
+ */
+function providerResponseOf(cause: unknown): { providerResponse?: Record<string, unknown> } {
+  if (!cause || typeof cause !== 'object' || cause instanceof Error || Array.isArray(cause)) return {};
+  return { providerResponse: cause as Record<string, unknown> };
 }
 
 export async function postJson(
@@ -112,7 +159,7 @@ export async function postJson(
   url: string,
   headers: Record<string, string>,
   body: Record<string, unknown>,
-): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
+): Promise<AdapterHttpResponse> {
   return callResilient(executor, provider, {
     url,
     method: 'POST',
@@ -126,7 +173,7 @@ export async function getJson(
   provider: string,
   url: string,
   headers: Record<string, string>,
-): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
+): Promise<AdapterHttpResponse> {
   return callResilient(executor, provider, { url, method: 'GET', headers });
 }
 
@@ -136,15 +183,11 @@ export async function postForm(
   url: string,
   headers: Record<string, string>,
   body: Record<string, string>,
-): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
+): Promise<AdapterHttpResponse> {
   return callResilient(executor, provider, {
     url,
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded', ...headers },
     body: new URLSearchParams(body).toString(),
   });
-}
-
-export function supportsOnly(expected: NotificationChannel, actual: NotificationChannel): boolean {
-  return expected === actual;
 }

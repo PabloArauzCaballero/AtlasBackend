@@ -1,0 +1,29 @@
+# Unidad DEL SISTEMA, no de usuario: necesita hablar con el demonio de docker.
+#
+# No confundir con `atlas-autodeploy.service` (unidades de USUARIO, desactivadas el 2026-09-03):
+# aquella construia imagenes; esta solo compara y, como mucho, encola en Coolify.
+[Unit]
+Description=Reconcilia el VPS con la punta de dev (compara y encola en Coolify; no construye)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/atlas-reconcile-dev.sh
+
+# `flock` sin espera: si la pasada anterior sigue viva —GitHub lento, un `git ls-remote` colgado—
+# esta se salta en vez de acumularse. Con seis repos y un tope de 30 s cada uno, una pasada mala
+# puede durar tres minutos; el temporizador dispara cada quince.
+ExecCondition=/usr/bin/flock -n /run/atlas-reconcile.lock /bin/true
+
+# Un desfase recien encolado NO es un fallo (el script solo devuelve error con ATASCO o ERROR),
+# pero aun asi conviene que un rojo no deje la unidad en estado failed para siempre.
+SuccessExitStatus=0
+TimeoutStartSec=300
+
+# Cinturon: pase lo que pase, esto no compite con un build por la CPU.
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

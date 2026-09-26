@@ -14,11 +14,13 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { requireIdempotencyKey, tenantIdFromHeader } from '../../common/utils/http/headers.util.js';
+import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
 import {
   applyRetentionPoliciesSchema,
   purgeIdempotencyKeysSchema,
+  purgeProcessedOutboxSchema,
   PurgeIdempotencyKeysDto,
+  PurgeProcessedOutboxDto,
   retryStuckNotificationsSchema,
   RetryStuckNotificationsDto,
   deliverPendingNotificationsSchema,
@@ -38,9 +40,13 @@ import {
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
 import { RuntimeJobsService } from './runtime-jobs.service.js';
 
-function requireHeaders(tenantIdHeader: string | undefined, idempotencyKey: string | undefined): string {
+/**
+ * El tenant lo resuelve `@CurrentTenant()`; aquí solo queda exigir la clave de idempotencia, que
+ * es lo que impide que un doble disparo del operador ejecute el job dos veces.
+ */
+function requireHeaders(tenantId: string, idempotencyKey: string | undefined): string {
   requireIdempotencyKey(idempotencyKey);
-  return tenantIdFromHeader(tenantIdHeader);
+  return tenantId;
 }
 
 @ApiTags('runtime-jobs')
@@ -65,12 +71,12 @@ export class RuntimeJobsController {
   @Post('process-outbox')
   @HttpCode(HttpStatus.OK)
   processOutbox(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(processOutboxSchema)) body: ProcessOutboxDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.processOutbox({ tenantId: requireHeaders(tenantIdHeader, idempotencyKey), body, currentUser });
+    return this.service.processOutbox({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
 
   @ApiOperation({
@@ -84,12 +90,12 @@ export class RuntimeJobsController {
   @Post('process-events')
   @HttpCode(HttpStatus.OK)
   processEvents(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(processEventsSchema)) body: ProcessEventsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.processEvents({ tenantId: requireHeaders(tenantIdHeader, idempotencyKey), body, currentUser });
+    return this.service.processEvents({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
 
   @ApiOperation({ summary: 'Expirar sesiones inactivas', description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.' })
@@ -100,12 +106,12 @@ export class RuntimeJobsController {
   @Post('expire-stale-sessions')
   @HttpCode(HttpStatus.OK)
   expireStaleSessions(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(expireStaleSessionsSchema)) body: ExpireStaleSessionsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.expireStaleSessions({ tenantId: requireHeaders(tenantIdHeader, idempotencyKey), body, currentUser });
+    return this.service.expireStaleSessions({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
 
   @ApiOperation({
@@ -205,6 +211,30 @@ export class RuntimeJobsController {
   }
 
   @ApiOperation({
+    summary: 'Purgar eventos de outbox ya procesados',
+    description:
+      'ATLAS-DATA-003. `process-outbox` marca los eventos como `processed` y nadie los borraba: la tabla crecía sin techo ' +
+      'en la ruta más caliente de escritura, degradando el índice por el que se reclaman los pendientes. Solo borra ' +
+      '`processed` anteriores al período de retención; `pending` y `processing` nunca se tocan. Restringido a ' +
+      'admin/platform_admin/system.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: 'x-idempotency-key', required: true })
+  @ApiBody({ schema: zodToApiSchema(purgeProcessedOutboxSchema) })
+  @ApiResponse({ status: 200, description: 'Resultado de la purga del outbox.' })
+  @Post('purge-processed-outbox')
+  @HttpCode(HttpStatus.OK)
+  purgeProcessedOutbox(
+    @CurrentTenant() tenantId: string,
+    @Headers('x-idempotency-key') idempotencyKey: string | undefined,
+    @Body(new ZodValidationPipe(purgeProcessedOutboxSchema)) body: PurgeProcessedOutboxDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    requireIdempotencyKey(idempotencyKey);
+    return this.maintenance.purgeProcessedOutbox({ tenantId, body, currentUser });
+  }
+
+  @ApiOperation({
     summary: 'Aplicar políticas de retención de datos',
     description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.',
   })
@@ -215,12 +245,12 @@ export class RuntimeJobsController {
   @Post('apply-retention-policies')
   @HttpCode(HttpStatus.OK)
   applyRetentionPolicies(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(applyRetentionPoliciesSchema)) body: ApplyRetentionPoliciesDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.applyRetentionPolicies({ tenantId: requireHeaders(tenantIdHeader, idempotencyKey), body, currentUser });
+    return this.service.applyRetentionPolicies({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
 
   @ApiOperation({
@@ -234,11 +264,11 @@ export class RuntimeJobsController {
   @Post('recalculate-data-quality')
   @HttpCode(HttpStatus.OK)
   recalculateDataQuality(
-    @Headers('x-tenant-id') tenantIdHeader: string | undefined,
+    @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(recalculateDataQualitySchema)) body: RecalculateDataQualityDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.recalculateDataQuality({ tenantId: requireHeaders(tenantIdHeader, idempotencyKey), body, currentUser });
+    return this.service.recalculateDataQuality({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
 }

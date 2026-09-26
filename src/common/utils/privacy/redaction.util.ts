@@ -16,6 +16,22 @@
 const SENSITIVE_KEY_PATTERN =
   /(password|token|secret|authorization|cookie|otp|verificationCode|documentNumber|declaredNumber|encrypted|phone|email|lat|lng|gps|address|reference|rawPayload|evidence|storageKey|payload|identifier|fullName|firstName|lastName)|^name$/i;
 
+/**
+ * Escribe una clave en el objeto de salida SIN pasar por los descriptores heredados.
+ *
+ * Estas dos funciones reciben cuerpos de petición sin confiar en ellos —se usan para redactar antes
+ * de registrar— y una clave puede venir de fuera. Con `objeto[clave] = valor`, una clave llamada
+ * `__proto__` no crea una propiedad: invoca el SETTER heredado y cambia el prototipo del objeto que
+ * se está construyendo, de modo que lo que se escribe después se busca en otro sitio. Es la alerta
+ * `js/remote-property-injection` de CodeQL, y aquí es alcanzable desde la red.
+ *
+ * `defineProperty` crea la propiedad como dato, sin consultar setters: `__proto__` queda como una
+ * clave normal del objeto, que es exactamente lo que un registro redactado debe mostrar.
+ */
+function setOwnProperty(target: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
 export function stableStringify(value: unknown): string {
   return JSON.stringify(sortValue(value));
 }
@@ -30,7 +46,7 @@ export function sortValue(value: unknown): unknown {
     return Object.keys(input)
       .sort()
       .reduce<Record<string, unknown>>((accumulator, key) => {
-        accumulator[key] = sortValue(input[key]);
+        setOwnProperty(accumulator, key, sortValue(input[key]));
         return accumulator;
       }, {});
   }
@@ -47,7 +63,7 @@ export function redactSensitiveObject<T>(value: T, depth = 0): T | string {
     const input = value as Record<string, unknown>;
     const output: Record<string, unknown> = {};
     for (const [key, nestedValue] of Object.entries(input)) {
-      output[key] = SENSITIVE_KEY_PATTERN.test(key) ? '[REDACTED]' : redactSensitiveObject(nestedValue, depth + 1);
+      setOwnProperty(output, key, SENSITIVE_KEY_PATTERN.test(key) ? '[REDACTED]' : redactSensitiveObject(nestedValue, depth + 1));
     }
     return output as T;
   }

@@ -3,6 +3,8 @@
  * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
+import type { QaRunContext } from './qa-run-context.js';
+
 export type ExternalProviderMode = 'mock_local' | 'mock_server' | 'sandbox' | 'production' | 'disabled';
 
 export type ExternalProviderCode =
@@ -97,6 +99,12 @@ export type ExternalProviderExecutionInput = {
   requestedByUserId?: string;
   approvedByAdminId?: string;
   mockBaseUrl?: string;
+  /**
+   * Contexto de una corrida del motor QA, cuando esta ejecución viene de una. Es metadata de
+   * CONTROL: no entra en `input`, no cambia el hash del cuerpo y por tanto no altera idempotencia
+   * ni caché. Ver `qa-run-context.ts` para por qué ninguna de esas tres cosas es negociable.
+   */
+  qaContext?: QaRunContext;
 };
 
 export type ExternalProviderRawResult = {
@@ -128,6 +136,14 @@ export type ExternalDataRequestResult = {
   requestId: string | null;
   providerCode: string;
   status: ExternalProviderStatus;
+  /**
+   * Veredicto CRUDO del proveedor (`FOUND`, `NOT_FOUND`, `PARTIAL_MATCH`…), en el eje del negocio y
+   * NO en el de ejecución. `status` responde «¿la llamada se ejecutó?» (COMPLETED/MOCKED/FAILED) y
+   * colapsa a `MOCKED` cualquier respuesta simulada; este campo responde «¿qué dijo el proveedor?».
+   * Quien decide identidad o crédito debe leer ESTE, no `status`: con `status` un mock siempre sería
+   * `MOCKED` y una llamada real siempre `COMPLETED`, ninguno de los cuales es un veredicto.
+   */
+  providerVerdict?: string;
   reasonCode?: string;
   observations: NormalizedExternalObservation[];
   features: Record<string, unknown>;

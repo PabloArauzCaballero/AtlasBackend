@@ -13,7 +13,10 @@ const LEGAL_PATTERN = /(consent|privacy|retention|classification|sensitive|subje
 const DEVICE_PATTERN = /(device|fingerprint|sim|ip_reputation|telemetry|metric|behavior)/i;
 const LOCATION_PATTERN = /(gps|address|location)/i;
 const AUDIT_PATTERN = /(audit|log|event|outbox|job|idempotency|change)/i;
-const FINANCIAL_PATTERN = /(payment|purchase|installment|credit|limit|settlement|merchant|mdr|loan|debt|collection)/i;
+// `qr` y `pos_terminal` entran aquí porque son instrumentos de COBRO: el QR bancario apunta a una
+// cuenta y el terminal ejecuta la transacción. Sin ellos, las tablas del expediente del comercio se
+// catalogaban como si no tocaran dinero, y `is_audit_critical` salía en falso.
+const FINANCIAL_PATTERN = /(payment|purchase|installment|credit|limit|settlement|merchant|mdr|loan|debt|collection|qr_code|pos_terminal)/i;
 
 @Injectable()
 export class SystemsCatalogClassifierService {
@@ -59,6 +62,13 @@ export class SystemsCatalogClassifierService {
   }
 
   private moduleForTable(tableName: string): string {
+    /*
+     * El expediente del comercio va PRIMERO porque varias de sus tablas caerían en reglas de más
+     * abajo por casualidad del nombre —`partner_legal_representatives` contiene «legal»— y
+     * acabarían clasificadas en un módulo que no es el suyo. Con la regla al final, las cinco
+     * caían en el genérico `systems` y el portal las mostraba fuera de su dominio.
+     */
+    if (tableName.startsWith('partner_')) return 'partner_onboarding';
     if (tableName.startsWith('risk') || tableName.includes('feature')) return 'risk';
     if (tableName.includes('fraud') || tableName.includes('watchlist')) return 'fraud';
     if (tableName.includes('consent') || tableName.includes('privacy') || tableName.includes('retention')) return 'legal_privacy';

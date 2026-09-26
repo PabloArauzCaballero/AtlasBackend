@@ -21,13 +21,14 @@ viejo como `Superseded by ADR-XXXX` en vez de editarlo.
 
 ## Índice
 
-| ADR | Título | Estado | Fase del plan 10/10 |
-|-----|--------|--------|---------------------|
-| [0001](0001-outbox-en-postgresql.md) | Outbox transaccional en PostgreSQL (no cola dedicada) | Aceptado | 5.3 |
-| [0002](0002-redis-solo-en-produccion.md) | Redis obligatorio solo en producción para rate limiting distribuido | Aceptado | Infra/Costo |
-| [0003](0003-mongo-log-sync.md) | Sincronización de logs a MongoDB como visor operativo opcional | Aceptado | 3.1 |
-| [0004](0004-kms-envelope-encryption.md) | Envelope encryption con proveedor de claves intercambiable (local/KMS) | Aceptado | 3.3 |
-| [0005](0005-paginacion-por-cursor.md) | Paginación por cursor como camino por defecto de alto volumen | Aceptado | 5.1 |
+| ADR                                      | Título                                                                       | Estado    | Fase del plan 10/10 |
+| ---------------------------------------- | ---------------------------------------------------------------------------- | --------- | ------------------- |
+| [0001](0001-outbox-en-postgresql.md)     | Outbox transaccional en PostgreSQL (no cola dedicada)                        | Aceptado  | 5.3                 |
+| [0002](0002-redis-solo-en-produccion.md) | Redis obligatorio solo en producción para rate limiting distribuido          | Aceptado  | Infra/Costo         |
+| [0003](0003-mongo-log-sync.md)           | Sincronización de logs a MongoDB como visor operativo opcional               | Aceptado  | 3.1                 |
+| [0004](0004-kms-envelope-encryption.md)  | Envelope encryption con proveedor de claves intercambiable (local/KMS)       | Aceptado  | 3.3                 |
+| [0005](0005-paginacion-por-cursor.md)    | Paginación por cursor como camino por defecto de alto volumen                | Aceptado  | 5.1                 |
+| [0009](0009-onboarding-de-partner.md)    | Onboarding del partner paralelo al del consumidor, no generalizando el actor | Propuesto | —                   |
 
 ## Cómo añadir un ADR
 

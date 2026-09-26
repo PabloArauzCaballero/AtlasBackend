@@ -16,7 +16,12 @@ Fuente: código real + `docs/audit/revision-completa-backend-2026-07-21.md` (sec
 - **`_deleted` / soft-delete:** columnas booleanas de borrado lógico deben tener `DEFAULT false` y ser `NOT NULL` (una fila `NULL` es invisible para los filtros `!= true` y escapa de índices únicos parciales).
 - **FKs:** usar la política central de `atlas-schema-builder.util.ts` (`SET NULL` si nullable, `RESTRICT` si no, `onUpdate: CASCADE`).
 - **Mínimo privilegio:** el runtime corre como `atlas_app_rw` (sin DDL); migraciones como `atlas_migrator`. No pedir DDL al rol de runtime. Roles con `statement_timeout`/`idle_in_transaction_session_timeout`.
-- **Seeds:** perfiles (`production|development|demo|test`) con guardas anti-producción. Los seeders de producción deben ser idempotentes (`yarn db:seed:verify-prod-idempotency`).
+- **Seeds:** perfiles (`production|development|demo|test`) con guardas anti-producción. Los seeders de
+  producción deben ser idempotentes. **Ese gate ya no existe**: `db:seed:verify-prod-idempotency` y
+  `check:seed-profiles` se fueron del repositorio con los seeders cuando las semillas pasaron a una base
+  aparte (`25fb6cd`), y ningún comando los sustituye. Lo que sí se puede ejecutar hoy es
+  `yarn db:seed:status`, `yarn db:seed:verify-graph` y `yarn check:retention-coverage` (los tres
+  necesitan `SEED_SOURCE_*`). No prometas el gate viejo en una revisión: no correría nada.
 - **PII:** patrón hash-para-buscar + blob cifrado (envelope encryption). Las columnas cifradas nunca se indexan; las vistas `read_api` no exponen hashes ni blobs.
 - **No ejecutar migraciones/seeds contra una base real sin aprobación.** Nunca DDL destructivo en producción.
 

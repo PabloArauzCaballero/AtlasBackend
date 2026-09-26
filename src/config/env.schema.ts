@@ -12,7 +12,17 @@ import {
   optionalUrlEnvSchema,
 } from './env.primitives.js';
 import { databaseEnvShape } from './env.database.schema.js';
+import { dashboardsEnvShape } from './env.dashboards.schema.js';
+import { decisionEngineEnvShape } from './env.decision-engine.schema.js';
+import { erpEnvShape } from './env.erp.schema.js';
+import { observabilityEnvShape } from './env.observability.schema.js';
+import { filesEnvShape } from './env.files.schema.js';
 import { runtimeJobsEnvShape } from './env.runtime-jobs.schema.js';
+import { pushProviderEnvShape } from './env.push.schema.js';
+import { twilioProviderEnvShape } from './env.twilio.schema.js';
+import { brevoProviderEnvShape } from './env.brevo.schema.js';
+import { otpDeliveryEnvShape } from './env.otp.schema.js';
+import { metaWhatsAppProviderEnvShape } from './env.meta-whatsapp.schema.js';
 
 export const DEFAULT_JWT_SECRET = 'dev-only-atlas-access-token-secret-change-me';
 export const DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY = 'change-this-32-plus-character-key-for-device-tokens';
@@ -167,6 +177,18 @@ export const envBaseSchema = z.object({
   // Almacenamiento de evidencia (compatible con S3). Vacío = apagado: los endpoints responden 503
   // en vez de aceptar un `storageKey` que nadie puede verificar.
   STORAGE_S3_ENDPOINT: optionalUrlEnvSchema,
+  /**
+   * El extremo con el que se FIRMAN las URLs que se entregan al cliente, cuando no coincide con
+   * aquel por el que el backend alcanza el almacenamiento.
+   *
+   * Son dos caminos distintos a la misma cosa y en local no tienen por que ser el mismo nombre: el
+   * telefono llega a MinIO por la IP de la maquina y el contenedor por el nombre de servicio de su
+   * red. Es la misma situacion que en produccion cuando el bucket vive detras de un CDN o de un
+   * dominio propio: quien sube usa el publico, quien verifica usa el interno.
+   *
+   * Vacio = se usa `STORAGE_S3_ENDPOINT` para las dos cosas, que es el caso normal.
+   */
+  STORAGE_S3_PUBLIC_ENDPOINT: optionalUrlEnvSchema,
   STORAGE_S3_BUCKET: z.string().optional(),
   STORAGE_S3_REGION: z.string().default('us-east-1'),
   STORAGE_S3_ACCESS_KEY_ID: z.string().optional(),
@@ -175,10 +197,27 @@ export const envBaseSchema = z.object({
   STORAGE_S3_FORCE_PATH_STYLE: booleanEnvSchema.default(true),
   STORAGE_UPLOAD_URL_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(300),
 
+  // Servicio de archivos por adaptadores. Bloque propio en `env.files.schema.ts`.
+  ...filesEnvShape,
+
+  // Integración con el motor de decisión. Bloque propio en `env.decision-engine.schema.ts`.
+  ...decisionEngineEnvShape,
+  // Dirección del ERP, sólo para reportar su salud. Bloque propio en `env.erp.schema.ts`.
+  ...erpEnvShape,
+  ...dashboardsEnvShape,
+  ...otpDeliveryEnvShape,
+
+  /**
+   * Si Flujos devuelve el FICHERO y la LÍNEA de cada endpoint y pantalla —el atajo del hallazgo al
+   * código— y el árbol de fuentes para quien tenga `systems.flows.read`. Fuera de producción
+   * compensa; en producción el valor cae y el coste no, así que el defecto sigue al entorno (`env.ts`).
+   */
+  FLOWS_EXPOSE_SOURCE: optionalBooleanEnvSchema,
+
   NOTIFICATION_EMAIL_PROVIDER: z.enum(['disabled', 'resend', 'sendgrid', 'gmail_api', 'webhook']).default('disabled'),
   NOTIFICATION_PUSH_PROVIDER: z.enum(['disabled', 'fcm', 'webhook']).default('disabled'),
-  NOTIFICATION_SMS_PROVIDER: z.enum(['disabled', 'twilio', 'webhook']).default('disabled'),
-  NOTIFICATION_WHATSAPP_PROVIDER: z.enum(['disabled', 'meta_cloud', 'twilio', 'webhook']).default('disabled'),
+  NOTIFICATION_SMS_PROVIDER: z.enum(['disabled', 'twilio', 'brevo', 'webhook']).default('disabled'),
+  NOTIFICATION_WHATSAPP_PROVIDER: z.enum(['disabled', 'meta_cloud', 'twilio', 'brevo', 'webhook']).default('disabled'),
   NOTIFICATION_PHONE_PROVIDER: z.enum(['disabled', 'webhook']).default('disabled'),
   NOTIFICATION_WEBHOOK_URL: optionalUrlEnvSchema,
   NOTIFICATION_EMAIL_WEBHOOK_URL: optionalUrlEnvSchema,
@@ -191,26 +230,34 @@ export const envBaseSchema = z.object({
   NOTIFICATION_PROVIDER_HTTP_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().max(10_000).default(250),
   NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION: booleanEnvSchema,
   NOTIFICATION_DEFAULT_LOCALE: z.string().min(2).default('es-BO'),
+  /** El país que se le supone a un teléfono sin prefijo: Twilio sólo acepta E.164 y ATLAS guarda muchos nacionales (ver `toE164`). */
+  NOTIFICATION_DEFAULT_COUNTRY_CODE: z
+    .string()
+    .regex(/^\+?[0-9]{1,4}$/u, 'Debe ser un código de país, p. ej. +591.')
+    .default('+591'),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
-  SENDGRID_API_KEY: z.string().optional(),
-  SENDGRID_FROM_EMAIL: z.string().optional(),
   GMAIL_CLIENT_ID: z.string().optional(),
   GMAIL_CLIENT_SECRET: z.string().optional(),
   GMAIL_REFRESH_TOKEN: z.string().optional(),
   GMAIL_FROM_EMAIL: z.string().optional(),
-  FCM_PROJECT_ID: z.string().optional(),
-  FCM_CLIENT_EMAIL: z.string().optional(),
-  FCM_PRIVATE_KEY: z.string().optional(),
-  TWILIO_ACCOUNT_SID: z.string().optional(),
-  TWILIO_AUTH_TOKEN: z.string().optional(),
-  TWILIO_SMS_FROM: z.string().optional(),
-  TWILIO_WHATSAPP_FROM: z.string().optional(),
-  META_WHATSAPP_TOKEN: z.string().optional(),
-  META_WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
-  META_WHATSAPP_DEFAULT_TEMPLATE_NAME: z.string().optional(),
-  META_WHATSAPP_DEFAULT_TEMPLATE_LANGUAGE: z.string().default('es'),
+  /**
+   * El nombre que ve el cliente como remitente.
+   *
+   * Sin el, el correo del codigo de verificacion llega firmado por la direccion a pelo —en local,
+   * una cuenta personal— y eso es exactamente lo que un cliente aprende a reconocer como intento de
+   * suplantacion. La identidad de quien escribe no es un detalle cosmetico en un correo que pide
+   * que se teclee un codigo: es la mitad de la comprobacion que hace la persona antes de fiarse.
+   *
+   * La direccion sigue siendo la del buzon configurado; esto solo pone el nombre delante.
+   */
+  GMAIL_FROM_NAME: z.string().trim().max(80).default('ATLAS'),
+  ...pushProviderEnvShape,
+  ...twilioProviderEnvShape,
+  ...brevoProviderEnvShape,
+  ...metaWhatsAppProviderEnvShape,
   NOTIFICATION_TOKEN_ENCRYPTION_KEY: z.string().min(32).default(DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY),
+  IDEMPOTENCY_FINGERPRINT_SECRET: z.string().min(32).optional().or(z.literal('')), // huella de idempotencia (AT-010); vacío = derivado
 
   // Opcionales a propósito. Si AMBOS están presentes, `main.ts` ACTIVA `KmsKeyProvider` como
   // proveedor de cifrado de envelope encryption (Fase 3.3 del plan 10/10): a partir de ahí las
@@ -219,8 +266,8 @@ export const envBaseSchema = z.object({
   // proveedor activo. Los valores previos cifrados con `local` se siguen descifrando. Requiere
   // que `@aws-sdk/client-kms` esté instalado en la imagen. Dejar esto sin configurar es válido y
   // deja el proveedor activo en `local`, el default seguro para dev/test.
-  KMS_KEY_ID: z.string().min(1).optional(),
-  AWS_REGION: z.string().min(1).optional(),
+  KMS_KEY_ID: optionalNonEmptyStringEnvSchema,
+  AWS_REGION: optionalNonEmptyStringEnvSchema,
 
   MONGO_DB_URL_CONNECTION: optionalMongoUrlEnvSchema,
   MONGO_LOGS_DB_NAME: z.string().min(1).default('atlas_logs'),
@@ -246,27 +293,11 @@ export const envBaseSchema = z.object({
   APP_COMMIT_SHA: optionalNonEmptyStringEnvSchema,
   APP_BUILT_AT: optionalNonEmptyStringEnvSchema,
 
-  // Formato de la salida por CONSOLA (stdout). `json` emite una línea JSON por evento, con
-  // correlationId/traceId y la MISMA redacción de PII que ya se aplicaba al archivo; `pretty`
-  // mantiene el formato humano de ConsoleLogger. Sin valor explícito, producción usa `json` (stdout
-  // es el pipeline de logs real en contenedores) y el resto `pretty`. Ver hallazgo A-04 de
-  // docs/audit/auditoria-integral-2026-07-30.md.
-  LOG_FORMAT: z.enum(['json', 'pretty']).optional(),
-  LOG_SYNC_FILE_PATH: z.string().min(1).default('Archivo.log'),
-  LOG_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(5_000),
-  LOG_SYNC_MAX_CHUNK_BYTES: z.coerce.number().int().positive().max(10_000_000).default(1_000_000),
-  LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT: booleanEnvSchema,
-  LOG_SYNC_MONGO_SERVER_SELECTION_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(5_000),
-  LOG_SYNC_FAILURES_BEFORE_PAUSE: z.coerce.number().int().positive().max(20).default(3),
-  LOG_SYNC_FAILURE_PAUSE_MS: z.coerce.number().int().positive().max(3_600_000).default(60_000),
-
-  // Monitor de salud de herramientas críticas (systems-ops): chequea periódicamente
-  // SystemsHealthService.getToolsHealth() y notifica a los usuarios internos (in-app) cuando
-  // una herramienta marcada `isCritical` pasa de saludable a no-saludable (y cuando se
-  // recupera). Activado por defecto; se puede apagar en un entorno donde no tenga sentido
-  // (p. ej. un ambiente de pruebas efímero) sin tocar código.
-  SYSTEM_HEALTH_MONITOR_ENABLED: optionalBooleanEnvSchema.default(true),
-  SYSTEM_HEALTH_MONITOR_INTERVAL_MS: z.coerce.number().int().positive().max(3_600_000).default(60_000),
+  ...observabilityEnvShape,
+  // ATLAS-SEC-011. Sin KMS, la master key de TODA la PII se deriva de una variable de entorno: quien
+  // la obtenga descifra el histórico completo. Es un despliegue legítimo en la etapa actual, pero
+  // tiene que ser una decisión ESCRITA, no un `console.warn` que nadie lee en el arranque.
+  PII_ENCRYPTION_ALLOW_ENV_MASTER_KEY: optionalBooleanEnvSchema,
 });
 
 /** Forma cruda del entorno tal como sale del esquema, antes de los defaults derivados. */

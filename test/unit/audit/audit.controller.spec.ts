@@ -9,8 +9,8 @@ import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.
 describe('AuditController', () => {
   function build() {
     const service = {
-      getCustomerAudit: jest.fn(async () => ({ events: [], meta: {} })),
-      getCustomerAuditFeed: jest.fn(async () => ({ events: [], nextCursor: null })),
+      getCustomerAudit: jest.fn(async (..._args: unknown[]) => ({ events: [], meta: {} })),
+      getCustomerAuditFeed: jest.fn(async (..._args: unknown[]) => ({ events: [], nextCursor: null })),
     };
     return { controller: new AuditController(service as never), service };
   }

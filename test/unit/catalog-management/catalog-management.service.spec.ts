@@ -8,22 +8,31 @@ import { CatalogManagementService } from '../../../src/modules/catalog-managemen
  */
 describe('CatalogManagementService (fachada)', () => {
   function build() {
-    const queryService = { listCatalogs: jest.fn(async () => 'lc'), getCatalogVersion: jest.fn(async () => 'gcv') };
-    const versionWorkflowService = {
-      createCatalogVersion: jest.fn(async () => 'ccv'),
-      submitCatalogVersion: jest.fn(async () => 'scv'),
-      decideCatalogVersion: jest.fn(async () => 'dcv'),
+    const queryService = {
+      listCatalogs: jest.fn(async (..._args: unknown[]) => 'lc'),
+      getCatalogVersion: jest.fn(async (..._args: unknown[]) => 'gcv'),
     };
-    const ingestionService = { ingestCatalog: jest.fn(async () => 'ic'), decideStagingItems: jest.fn(async () => 'dsi') };
-    const definitionsService = { listDefinitions: jest.fn(async () => 'ld'), upsertDefinitionsPackage: jest.fn(async () => 'udp') };
+    const versionWorkflowService = {
+      createCatalogVersion: jest.fn(async (..._args: unknown[]) => 'ccv'),
+      submitCatalogVersion: jest.fn(async (..._args: unknown[]) => 'scv'),
+      decideCatalogVersion: jest.fn(async (..._args: unknown[]) => 'dcv'),
+    };
+    const ingestionService = {
+      ingestCatalog: jest.fn(async (..._args: unknown[]) => 'ic'),
+      decideStagingItems: jest.fn(async (..._args: unknown[]) => 'dsi'),
+    };
+    const definitionsService = {
+      listDefinitions: jest.fn(async (..._args: unknown[]) => 'ld'),
+      upsertDefinitionsPackage: jest.fn(async (..._args: unknown[]) => 'udp'),
+    };
     const riskPolicyService = {
-      getCurrentRiskPolicy: jest.fn(async () => 'gcrp'),
-      createRiskRulesetVersion: jest.fn(async () => 'crrv'),
-      activateRiskRulesetVersion: jest.fn(async () => 'arrv'),
+      getCurrentRiskPolicy: jest.fn(async (..._args: unknown[]) => 'gcrp'),
+      createRiskRulesetVersion: jest.fn(async (..._args: unknown[]) => 'crrv'),
+      activateRiskRulesetVersion: jest.fn(async (..._args: unknown[]) => 'arrv'),
     };
     const dataGovernanceService = {
-      getDataGovernancePolicies: jest.fn(async () => 'gdgp'),
-      upsertDataGovernancePackage: jest.fn(async () => 'udgp'),
+      getDataGovernancePolicies: jest.fn(async (..._args: unknown[]) => 'gdgp'),
+      upsertDataGovernancePackage: jest.fn(async (..._args: unknown[]) => 'udgp'),
     };
     const service = new CatalogManagementService(
       queryService as never,

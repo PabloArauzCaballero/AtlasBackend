@@ -9,8 +9,8 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                 | Responsabilidad                                  |
+| -------------------------------------------------- | ------------------------------------------------ |
 | [`infocenter.adapter.ts`](./infocenter.adapter.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento

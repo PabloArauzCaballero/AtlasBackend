@@ -95,6 +95,20 @@ export class SchemaTablesListResponseDto {
   limit!: number;
   offset!: number;
   versionId!: string;
+  /** Presente solo cuando la consulta se acotó a un esquema. */
+  schemaName?: string;
+}
+
+/** Un esquema de datos dentro de una versión, con lo que contiene. */
+export class SchemaNameSummaryDto {
+  schemaName!: string;
+  tablesCount!: number;
+  columnsCount!: number;
+}
+
+export class SchemaNamesListResponseDto {
+  schemas!: SchemaNameSummaryDto[];
+  versionId!: string;
 }
 
 export class SchemaChangeLogListResponseDto {

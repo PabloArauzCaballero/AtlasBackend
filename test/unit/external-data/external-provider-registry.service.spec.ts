@@ -34,16 +34,19 @@ describe('ExternalProviderRegistryService', () => {
     const whatsappAdapter = buildAdapter('WHATSAPP');
     const digitalTrustGenericAdapter = buildAdapter('DIGITAL_TRUST_GENERIC');
 
+    // AT-042: el registro recibe la colección de adaptadores y los alias; no importa clases concretas.
     const service = new ExternalProviderRegistryService(
       repository as never,
-      segipAdapter as never,
-      infoCenterAdapter as never,
-      qrGenericAdapter as never,
-      bankingGenericAdapter as never,
-      telcoGenericAdapter as never,
-      facebookMetaAdapter as never,
-      whatsappAdapter as never,
-      digitalTrustGenericAdapter as never,
+      [
+        segipAdapter,
+        infoCenterAdapter,
+        qrGenericAdapter,
+        bankingGenericAdapter,
+        telcoGenericAdapter,
+        facebookMetaAdapter,
+        whatsappAdapter,
+        digitalTrustGenericAdapter,
+      ] as never,
     );
 
     return { service, repository, adapters: { segipAdapter, infoCenterAdapter, qrGenericAdapter } };

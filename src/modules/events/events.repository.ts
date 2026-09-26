@@ -4,6 +4,7 @@
  * @system registra definiciones, outbox y procesamiento idempotente de eventos de dominio.
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Transaction } from 'sequelize';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Op, QueryTypes, WhereOptions } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
@@ -25,7 +26,7 @@ export class EventsRepository {
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
-  async createEvent(input: PublishEventInput): Promise<OutboxEventModel> {
+  async createEvent(input: PublishEventInput, options: { transaction?: Transaction } = {}): Promise<OutboxEventModel> {
     const definition = getEventDefinition(input.eventCode);
     const now = new Date();
 
@@ -37,34 +38,37 @@ export class EventsRepository {
     }
 
     try {
-      return await this.outboxModel.create({
-        tenantId: input.tenantId,
-        aggregateType: input.aggregateType,
-        aggregateId: input.aggregateId ?? null,
-        eventCode: input.eventCode,
-        eventPayloadJson: redactSensitiveObject(input.payload ?? {}) as Record<string, unknown>,
-        eventFamily: definition?.family ?? 'uncatalogued',
-        eventVersion: definition?.version ?? 1,
-        metadataJson: redactSensitiveObject(input.metadata ?? {}) as Record<string, unknown>,
-        status: 'pending',
-        priority: input.priority ?? definition?.defaultPriority ?? 0,
-        attempts: 0,
-        maxAttempts: input.maxAttempts ?? 3,
-        lockedAt: null,
-        lockedBy: null,
-        availableAt: input.availableAt ?? now,
-        processedAt: null,
-        failedAt: null,
-        errorCode: null,
-        lastError: null,
-        idempotencyKey: input.idempotencyKey ?? null,
-        correlationId: input.correlationId ?? null,
-        causationId: input.causationId ?? null,
-        sourceModule: input.sourceModule ?? null,
-        sourceAction: input.sourceAction ?? null,
-        createdAtValue: now,
-        updatedAtValue: now,
-      });
+      return await this.outboxModel.create(
+        {
+          tenantId: input.tenantId,
+          aggregateType: input.aggregateType,
+          aggregateId: input.aggregateId ?? null,
+          eventCode: input.eventCode,
+          eventPayloadJson: redactSensitiveObject(input.payload ?? {}) as Record<string, unknown>,
+          eventFamily: definition?.family ?? 'uncatalogued',
+          eventVersion: definition?.version ?? 1,
+          metadataJson: redactSensitiveObject(input.metadata ?? {}) as Record<string, unknown>,
+          status: 'pending',
+          priority: input.priority ?? definition?.defaultPriority ?? 0,
+          attempts: 0,
+          maxAttempts: input.maxAttempts ?? 3,
+          lockedAt: null,
+          lockedBy: null,
+          availableAt: input.availableAt ?? now,
+          processedAt: null,
+          failedAt: null,
+          errorCode: null,
+          lastError: null,
+          idempotencyKey: input.idempotencyKey ?? null,
+          correlationId: input.correlationId ?? null,
+          causationId: input.causationId ?? null,
+          sourceModule: input.sourceModule ?? null,
+          sourceAction: input.sourceAction ?? null,
+          createdAtValue: now,
+          updatedAtValue: now,
+        },
+        { transaction: options.transaction },
+      );
     } catch (error) {
       if (!input.idempotencyKey) throw error;
       const existing = await this.outboxModel.findOne({

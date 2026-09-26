@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Query, Row } from './application/portal-format.util.js';
+import { PortalScope } from './application/portal-scope.util.js';
 import { PortalDataQualityService } from './application/portal-data-quality.service.js';
 import { PortalGlossaryService } from './application/portal-glossary.service.js';
 import { PortalGovernanceService } from './application/portal-governance.service.js';
@@ -67,25 +68,17 @@ export class InternalPortalService {
   }
 
   // --- Calidad de datos ------------------------------------------------------
-  listDataQualityRules(query: Query) {
-    return this.dataQuality.listDataQualityRules(query);
+  listDataQualityRules(scope: PortalScope, query: Query) {
+    return this.dataQuality.listDataQualityRules(scope, query);
   }
 
-  getDataQualityRule(ruleId: string) {
-    return this.dataQuality.getDataQualityRule(ruleId);
-  }
-
-  runDataQualityRule(ruleId: string) {
-    return this.dataQuality.runDataQualityRule(ruleId);
+  getDataQualityRule(scope: PortalScope, ruleId: string) {
+    return this.dataQuality.getDataQualityRule(scope, ruleId);
   }
 
   // --- Gobierno --------------------------------------------------------------
   getGovernancePolicy(policyIdValue: string) {
     return this.governance.getGovernancePolicy(policyIdValue);
-  }
-
-  updateGovernancePolicy(policyIdValue: string, body: Row) {
-    return this.governance.updateGovernancePolicy(policyIdValue, body);
   }
 
   // --- Linaje ----------------------------------------------------------------
@@ -102,34 +95,26 @@ export class InternalPortalService {
   }
 
   // --- Alertas ---------------------------------------------------------------
-  listAlerts(query: Query) {
-    return this.operations.listAlerts(query);
+  listAlerts(scope: PortalScope, query: Query) {
+    return this.operations.listAlerts(scope, query);
   }
 
-  acknowledgeAlert(alertId: string) {
-    return this.operations.acknowledgeAlert(alertId);
+  acknowledgeAlert(scope: PortalScope, alertId: string) {
+    return this.operations.acknowledgeAlert(scope, alertId);
   }
 
   // --- Jobs ------------------------------------------------------------------
-  listJobs(query: Query) {
-    return this.operations.listJobs(query);
+  listJobs(scope: PortalScope, query: Query) {
+    return this.operations.listJobs(scope, query);
   }
 
-  getJob(jobRunId: string) {
-    return this.operations.getJob(jobRunId);
-  }
-
-  retryJob(jobRunId: string) {
-    return this.operations.retryJob(jobRunId);
-  }
-
-  cancelJob(jobRunId: string) {
-    return this.operations.cancelJob(jobRunId);
+  getJob(scope: PortalScope, jobRunId: string) {
+    return this.operations.getJob(scope, jobRunId);
   }
 
   // --- Release readiness -----------------------------------------------------
-  getReleaseReadiness() {
-    return this.reports.getReleaseReadiness();
+  getReleaseReadiness(scope: PortalScope) {
+    return this.reports.getReleaseReadiness(scope);
   }
 
   // --- Reportes --------------------------------------------------------------
@@ -141,12 +126,8 @@ export class InternalPortalService {
     return this.reports.getReport(reportId);
   }
 
-  runReport(reportId: string, body: Row) {
-    return this.reports.runReport(reportId, body);
-  }
-
-  listReportSnapshots(reportId: string, query: Query) {
-    return this.reports.listReportSnapshots(reportId, query);
+  runReport(scope: PortalScope, reportId: string, body: Row) {
+    return this.reports.runReport(scope, reportId, body);
   }
 
   // --- Búsqueda --------------------------------------------------------------

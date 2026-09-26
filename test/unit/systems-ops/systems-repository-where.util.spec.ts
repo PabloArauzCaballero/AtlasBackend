@@ -41,13 +41,19 @@ describe('systems-repository-where.util', () => {
     expect(Reflect.ownKeys(buildToolWhere({} as never) as object)).toHaveLength(0);
   });
 
-  it('buildDataEntityWhere: con module/status/reviewStatus + q, y vacío sin nada', () => {
-    const full = buildDataEntityWhere({ module: 'core', status: 'active', reviewStatus: 'done', q: 'customers' } as never) as Record<
-      string,
-      unknown
-    >;
-    expect(full).toMatchObject({ module: 'core', status: 'active', reviewStatus: 'done' });
-    expect((full as Record<symbol, unknown>)[Op.or as unknown as symbol]).toHaveLength(3);
+  it('buildDataEntityWhere: con block/module/status/reviewStatus + q, y vacío sin nada', () => {
+    const full = buildDataEntityWhere({
+      block: 'ERP_BACKEND',
+      module: 'core',
+      status: 'active',
+      reviewStatus: 'done',
+      q: 'customers',
+    } as never) as Record<string, unknown>;
+    expect(full).toMatchObject({ systemCode: 'ERP_BACKEND', module: 'core', status: 'active', reviewStatus: 'done' });
+    // CUATRO ramas y no tres: el esquema entró en la búsqueda cuando el catálogo pasó a contener
+    // tres bloques. Con tablas de tres bases distintas, el esquema es justo lo que distingue
+    // `atlas_accounting.invoice` de una tabla homónima de otro producto.
+    expect((full as Record<symbol, unknown>)[Op.or as unknown as symbol]).toHaveLength(4);
     expect(Reflect.ownKeys(buildDataEntityWhere({} as never) as object)).toHaveLength(0);
   });
 

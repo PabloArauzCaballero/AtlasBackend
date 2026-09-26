@@ -4,6 +4,7 @@
  * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
  */
 import {
+  DEVICE_PERMISSION_PURPOSE_CODES,
   ELIGIBILITY_RULE_VERSION,
   EligibilityBlockerCode,
   IDENTITY_VERIFIED_RESULT,
@@ -19,6 +20,7 @@ import {
 } from '../customer-eligibility.constants.js';
 import { CREDIT_ELIGIBLE_STATUS, CustomerLifecycleStatus } from '../customer-lifecycle.constants.js';
 import type { EligibilityFacts } from '../repositories/customer-eligibility.facts.js';
+import { CODIGOS_DE_PREGUNTA } from '../consumer-survey.catalog.js';
 
 export type EligibilityBlocker = {
   code: EligibilityBlockerCode;
@@ -70,9 +72,32 @@ function missingProfileFields(facts: EligibilityFacts, now: Date): string[] {
   return missing.filter((field) => (REQUIRED_PROFILE_FIELDS as readonly string[]).includes(field));
 }
 
+/**
+ * Situaciones laborales en las que la ANTIGÜEDAD tiene respuesta posible.
+ *
+ * Fuera de estas dos, preguntar «cuánto tiempo llevas en tu trabajo» no tiene sentido: quien declara
+ * que no trabaja, que estudia o que está jubilado no tiene una antigüedad que contar, y quien trabaja
+ * por su cuenta no la tiene contra ningún empleador. La app dejó de pedirla en esos casos, y esta
+ * regla tenía que aprender lo mismo: si no, el expediente se queda en «en curso» para siempre
+ * esperando un dato que ya nadie va a introducir — y la única salida era inventárselo.
+ */
+const EMPLOYMENT_STATUSES_WITH_SENIORITY: readonly string[] = ['employee', 'business_owner'];
+
 function missingFinancialFields(facts: EligibilityFacts): string[] {
   const present = new Set(facts.presentFinancialAttributeCodes);
-  return REQUIRED_FINANCIAL_ATTRIBUTE_CODES.filter((code) => !present.has(code));
+  // Lectura defensiva: hay bancos de prueba que arman los hechos sin este mapa.
+  const employmentStatus = facts.financialAttributeTexts?.['employment_status'];
+  /*
+   * Mientras no se haya declarado la situación laboral, la antigüedad se sigue exigiendo: el hueco
+   * existe hasta que se sepa si aplica, y quitarlo antes daría por completa una sección a la que
+   * todavía le falta el dato que decide.
+   */
+  const senioritySkipped = employmentStatus !== undefined && !EMPLOYMENT_STATUSES_WITH_SENIORITY.includes(employmentStatus);
+
+  return REQUIRED_FINANCIAL_ATTRIBUTE_CODES.filter((code) => {
+    if (code === 'employment_seniority_months' && senioritySkipped) return false;
+    return !present.has(code);
+  });
 }
 
 function missingConsentDocumentIds(facts: EligibilityFacts): string[] {
@@ -113,7 +138,16 @@ export function buildSections(facts: EligibilityFacts, now: Date): OnboardingSec
   else if (isDocumentExpired(facts.identityDocument.expiresAt, now)) identityMissing.push('documentExpiry');
 
   const referenceMissing = facts.referenceContactCount >= REQUIRED_REFERENCE_CONTACTS ? [] : ['referenceContacts'];
+  // Lectura defensiva de los dos hechos nuevos: hay bancos de prueba que arman los hechos sin ellos.
+  const decidedPurposes = new Set(facts.decidedDevicePermissionPurposes ?? []);
+  const permissionsMissing = DEVICE_PERMISSION_PURPOSE_CODES.filter((purpose) => !decidedPurposes.has(purpose));
+  const answered = new Set(facts.answeredSurveyQuestionCodes ?? []);
+  const surveyMissing = CODIGOS_DE_PREGUNTA.filter((code) => !answered.has(code));
 
+  /*
+   * En el ORDEN de `ONBOARDING_SECTION_CODES`: el `nextStep` es la primera sección sin completar, y
+   * ese orden es el de las cuatro fases del alta. El carnet va antes que los datos personales.
+   */
   return [
     {
       code: 'contact_verification',
@@ -121,14 +155,14 @@ export function buildSections(facts: EligibilityFacts, now: Date): OnboardingSec
       missingFields: facts.verifiedContactCount > 0 ? [] : ['verifiedContact'],
     },
     {
+      code: 'identity_documents',
+      status: sectionStatus(identityMissing, facts.identityDocument !== null),
+      missingFields: identityMissing,
+    },
+    {
       code: 'personal_data',
       status: sectionStatus(profileMissing, facts.profile !== null),
       missingFields: profileMissing,
-    },
-    {
-      code: 'financial_profile',
-      status: sectionStatus(financialMissing, facts.presentFinancialAttributeCodes.length > 0),
-      missingFields: financialMissing,
     },
     {
       code: 'address',
@@ -136,19 +170,39 @@ export function buildSections(facts: EligibilityFacts, now: Date): OnboardingSec
       missingFields: facts.hasCurrentAddress ? [] : ['address'],
     },
     {
-      code: 'identity_documents',
-      status: sectionStatus(identityMissing, facts.identityDocument !== null),
-      missingFields: identityMissing,
+      code: 'financial_profile',
+      status: sectionStatus(financialMissing, facts.presentFinancialAttributeCodes.length > 0),
+      missingFields: financialMissing,
     },
     {
       code: 'reference_contacts',
       status: sectionStatus(referenceMissing, facts.referenceContactCount > 0),
       missingFields: referenceMissing,
     },
+    {
+      // Una decisión —también «no»— cierra la sección. Lo que se exige es haber decidido.
+      code: 'device_permissions',
+      status: sectionStatus(permissionsMissing, decidedPurposes.size > 0),
+      missingFields: permissionsMissing,
+    },
+    {
+      code: 'consumer_survey',
+      status: sectionStatus(surveyMissing, answered.size > 0),
+      missingFields: surveyMissing,
+    },
   ];
 }
 
 /** Bloqueadores de la habilitación. Lista completa: nunca corta en el primero encontrado. */
+/**
+ * En minúsculas a propósito. El camino del Motor (`mobile-identity`) escribe `VERIFIED` y el del
+ * operador y el proveedor escriben `verified`; comparar en estricto dejaba a todo cliente verificado
+ * por el Motor con `IDENTITY_NOT_VERIFIED` hasta que una persona lo firmara otra vez.
+ */
+export function isIdentityVerified(result: string | null | undefined): boolean {
+  return (result ?? '').toLowerCase() === IDENTITY_VERIFIED_RESULT;
+}
+
 export function buildBlockers(facts: EligibilityFacts, lifecycleStatus: CustomerLifecycleStatus, now: Date): EligibilityBlocker[] {
   const blockers: EligibilityBlocker[] = [];
 
@@ -170,7 +224,7 @@ export function buildBlockers(facts: EligibilityFacts, lifecycleStatus: Customer
   if (!facts.identityDocument) blockers.push({ code: 'IDENTITY_DOCUMENT_MISSING' });
   else if (isDocumentExpired(facts.identityDocument.expiresAt, now)) blockers.push({ code: 'IDENTITY_DOCUMENT_EXPIRED' });
 
-  if (facts.identityVerificationResult !== IDENTITY_VERIFIED_RESULT) {
+  if (!isIdentityVerified(facts.identityVerificationResult)) {
     blockers.push({ code: 'IDENTITY_NOT_VERIFIED', detail: facts.identityVerificationResult ?? 'not_started' });
   }
   if (facts.pendingEvidenceReviewCount > 0) blockers.push({ code: 'EVIDENCE_PENDING_REVIEW' });

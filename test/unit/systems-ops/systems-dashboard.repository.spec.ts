@@ -8,7 +8,7 @@ import { SystemsDashboardRepository } from '../../../src/modules/systems-ops/sys
  */
 describe('SystemsDashboardRepository', () => {
   function buildRepo() {
-    const make = (n: number) => ({ count: jest.fn(async () => n) });
+    const make = (n: number) => ({ count: jest.fn(async (..._args: unknown[]) => n) });
     const endpointModel = make(3);
     const toolModel = make(4);
     const dataEntityModel = make(5);
