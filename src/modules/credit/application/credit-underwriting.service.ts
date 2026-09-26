@@ -9,10 +9,12 @@ import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { CreditDecisionEngineService } from '../../decision-engine/credit-decision-engine.service.js';
 import { DecisionOutcome, DecisionResponse } from '../../decision-engine/decision-engine.types.js';
+import { EventsService } from '../../events/events.service.js';
 import { CreditRepository } from '../credit.repository.js';
 import { CreditReviewCaseRepository } from '../credit-review-case.repository.js';
 import { REVIEW_CASE_SOURCE } from '../credit-review-case.constants.js';
 import { decisionColumns, decisionEventPayload, type PlacedReviewCase } from './credit-decision-mapping.js';
+import { publishCreditDecisionRecorded } from './credit-decision-event-publisher.js';
 
 /** Motivo con el que queda una solicitud que fue a revisión porque el motor no llegó a decidirla. */
 export const ENGINE_UNAVAILABLE_REASON = 'engine_unavailable';
@@ -36,6 +38,7 @@ export class CreditUnderwritingService {
     private readonly credit: CreditRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly reviewCases: CreditReviewCaseRepository,
+    private readonly events: EventsService,
   ) {}
 
   /**
@@ -92,6 +95,21 @@ export class CreditUnderwritingService {
         decisionReasonCode: applied.reasonCodes[0] ?? application.decisionReasonCode,
       });
       await application.save({ transaction });
+
+      // T-11 (2026-09-26): el ERP necesita la banda de riesgo para que su regla de MDR por banda
+      // (§1.2 del plan) case en el registro de la compra. Sólo se avisa una aprobación CON banda
+      // real: una revisión o un rechazo no fijan tarifa, y sin banda el ERP no tiene con qué casar.
+      if (applied.status === 'approved' && applied.response?.riskBand) {
+        await publishCreditDecisionRecorded({
+          sequelize: this.sequelize,
+          events: this.events,
+          input,
+          applicationId: application.id,
+          riskBand: applied.response.riskBand,
+          now,
+          transaction,
+        });
+      }
 
       await this.credit.createApplicationEvent(
         {

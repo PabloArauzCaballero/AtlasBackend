@@ -200,7 +200,13 @@ describe('P-09 · una solicitud diferida se decide sola cuando la base llega (Po
     ];
     let call = 0;
     const decider = { decide: async () => ({ outcome: outcomes[call++], subjectReference: 'subj-1', excludedFeatures: [] }) };
-    const underwriting = new CreditUnderwritingService(decider as never, harness.creditRepository, harness.sequelize as never, {} as never);
+    const underwriting = new CreditUnderwritingService(
+      decider as never,
+      harness.creditRepository,
+      harness.sequelize as never,
+      {} as never,
+      {} as never,
+    );
     const input = {
       tenantId: harness.tenantId,
       applicationId: String(created.id),

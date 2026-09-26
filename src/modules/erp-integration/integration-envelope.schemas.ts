@@ -13,6 +13,8 @@ const isoDateTime = z.string().regex(/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]
 const decimalAmount = z.string().regex(/^[0-9]{1,16}(\.[0-9]{1,2})?$/u);
 const positiveDecimalAmount = decimalAmount.refine((value) => /[1-9]/u.test(value), 'El importe debe ser mayor que cero.');
 const currency = z.string().regex(/^[A-Z]{3}$/u);
+/** Tasa en por ciento, hasta dos decimales, 0-100 (columna `NUMERIC(5,2)` de `partner_profiles`). */
+const percentRate = z.string().regex(/^(?:100(?:\.0{1,2})?|[0-9]{1,2}(?:\.[0-9]{1,2})?)$/u);
 
 export const ENVELOPE_SPECS = ['atlas.erp.outbox/1', 'atlas.core.outbox/1'] as const;
 
@@ -81,11 +83,27 @@ export const recoveryMovementPayloadSchema = z.strictObject({
 });
 export type RecoveryMovementPayload = z.infer<typeof recoveryMovementPayloadSchema>;
 
+/**
+ * T-10: el MDR efectivo que el ERP acaba de aplicar (contrato activado o regla cambiada). `coreRef`
+ * no aplica aquí — `partnerProfileId` YA es la referencia directa a `partner_profiles._id` de Core,
+ * a diferencia de `coverageSettledPayloadSchema`/`recoveryMovementPayloadSchema`, que resuelven un
+ * préstamo/cuota que el ERP no conoce por su propio id.
+ */
+export const mdrUpdatedPayloadSchema = z.strictObject({
+  partnerProfileId: coreId,
+  mdrRatePercent: percentRate,
+  effectiveAt: isoDateTime,
+});
+export type MdrUpdatedPayload = z.infer<typeof mdrUpdatedPayloadSchema>;
+
 /** Tópicos del ERP que Core consume con efecto, con su esquema de payload y la versión que entiende. */
 export const CONSUMED_ERP_TOPICS = {
   'b2b.coverage.settled': { schemaVersion: 1, payload: coverageSettledPayloadSchema },
   'b2b.recovery.payment_applied': { schemaVersion: 1, payload: recoveryMovementPayloadSchema },
   'b2b.recovery.payment_reversed': { schemaVersion: 1, payload: recoveryMovementPayloadSchema },
+  // T-10 (2026-09-26): el ERP es la autoridad del MDR pactado (§1.2 del plan); esto es lo que hace
+  // que `partner_profiles.mdr_rate_percent` deje de ser el 3.00 fijo de la migración 20260825210000.
+  'merchant.mdr.updated': { schemaVersion: 1, payload: mdrUpdatedPayloadSchema },
 } as const;
 export type ConsumedErpTopic = keyof typeof CONSUMED_ERP_TOPICS;
 

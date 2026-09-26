@@ -81,6 +81,13 @@ export class PartnerProfileModel extends Model {
   @Column({ field: 'mdr_rate_percent', type: DataType.DECIMAL(5, 2), allowNull: false, defaultValue: '3.00' })
   declare mdrRatePercent: string;
 
+  /**
+   * Vigencia del ÚLTIMO `mdr_rate_percent` aplicado desde `merchant.mdr.updated` del ERP (T-10).
+   * `null` = nunca llegó un aviso del ERP: el valor de arriba sigue siendo el 3.00 por defecto.
+   */
+  @Column({ field: 'mdr_rate_effective_at', type: DataType.DATE })
+  declare mdrRateEffectiveAt: Date | null;
+
   @Column({ field: 'onboarding_status', type: DataType.STRING(30), allowNull: false })
   declare onboardingStatus: string;
 

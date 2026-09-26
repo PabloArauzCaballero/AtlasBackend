@@ -37,9 +37,14 @@ describe('CreditUnderwritingService', () => {
     };
     // El caso PROPIO de Atlas (C-1): sólo se abre cuando el Motor no abrió el suyo.
     const reviewCases = { open: jest.fn(async (..._args: unknown[]) => ({ caseCode: 'CR-CRA-1' })) };
-    const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-    const service = new CreditUnderwritingService(engine as never, credit as never, sequelize as never, reviewCases as never);
-    return { service, application, credit, engine, reviewCases };
+    const sequelize = {
+      transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})),
+      // `nextCreditApplicationVersion` (T-11): sin outbox previo, el máximo es null -> versión 1.
+      query: jest.fn(async (..._args: unknown[]) => [{ version: null }]),
+    };
+    const events = { publish: jest.fn(async (..._args: unknown[]) => undefined) };
+    const service = new CreditUnderwritingService(engine as never, credit as never, sequelize as never, reviewCases as never, events as never);
+    return { service, application, credit, engine, reviewCases, events, sequelize };
   }
 
   const input = {
@@ -63,6 +68,36 @@ describe('CreditUnderwritingService', () => {
     expect(application.decisionExecutionId).toBe('88001');
     expect(application.decisionArtifactVersionId).toBe('4001');
     expect(application.decisionSubjectReference).toBe('hash-del-sujeto');
+  });
+
+  it('T-11: aprobada CON banda de riesgo publica credit.decision.recorded para el ERP', async () => {
+    const { service, events } = build({ kind: 'approved', response: response({ riskBand: 'B' }) });
+    await service.underwrite(input);
+
+    expect(events.publish).toHaveBeenCalledTimes(1);
+    const [envelope] = (events.publish as jest.Mock).mock.calls[0] as [Record<string, unknown>];
+    expect(envelope).toMatchObject({
+      eventCode: 'credit.decision.recorded',
+      aggregateType: 'credit_application',
+      aggregateId: 'app-1',
+      aggregateVersion: 1,
+      payload: { customerId: 'c1', riskBand: 'B', applicationCode: 'CRA-1' },
+    });
+  });
+
+  it('T-11: aprobada SIN banda de riesgo no publica nada (nunca inventa una banda)', async () => {
+    const { service, events } = build({ kind: 'approved', response: response({ riskBand: null }) });
+    await service.underwrite(input);
+
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('T-11: rechazada no publica credit.decision.recorded (sólo una aprobación fija tarifa)', async () => {
+    const declined = response({ outcome: 'DECLINE', reasonCodes: [{ code: 'INSUFFICIENT_INCOME', adverseAction: true }] });
+    const { service, events } = build({ kind: 'declined', response: declined });
+    await service.underwrite(input);
+
+    expect(events.publish).not.toHaveBeenCalled();
   });
 
   it('rechaza cuando la política rechaza, conservando sus motivos', async () => {

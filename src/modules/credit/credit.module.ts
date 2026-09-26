@@ -23,6 +23,7 @@ import {
 import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { CustomersModule } from '../customers/customers.module.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
+import { EventsModule } from '../events/events.module.js';
 import { CreditApplicationService } from './application/credit-application.service.js';
 import { CreditBusinessAcceptanceService } from './application/credit-business-acceptance.service.js';
 import { ExposureReservationService } from './application/exposure-reservation.service.js';
@@ -91,6 +92,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     DecisionEngineModule,
     // El expediente del comercio: de él sale la categoría del gasto y quién debe aceptar la operación.
     PartnerOnboardingModule,
+    // T-11: `CreditUnderwritingService` publica `credit.decision.recorded` hacia el ERP.
+    EventsModule,
   ],
   controllers: [CreditController, CreditOperationsController, MerchantCreditController, CreditReviewCallbackController],
   providers: [

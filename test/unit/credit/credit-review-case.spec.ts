@@ -284,7 +284,7 @@ describe('C-1 de punta a punta · el Motor dice review sin caso → hay caso pro
         excludedFeatures: [],
       })),
     };
-    const underwriting = new CreditUnderwritingService(engine as never, credit as never, sequelize as never, reviewCases as never);
+    const underwriting = new CreditUnderwritingService(engine as never, credit as never, sequelize as never, reviewCases as never, {} as never);
     const decisions = new CreditDecisionService(credit as never, sequelize as never, reviewCases as never);
 
     const underwritten = await underwriting.underwrite({

@@ -13,11 +13,13 @@ import { QueryTypes, type Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { InstallmentCoverageProjection } from './installment-coverage.projection.js';
+import { PartnerMdrProjection } from './partner-mdr.projection.js';
 import {
   CONSUMED_ERP_TOPICS,
   isConsumedErpTopic,
   type CoverageSettledPayload,
   type IntegrationEnvelope,
+  type MdrUpdatedPayload,
   type RecoveryMovementPayload,
 } from './integration-envelope.schemas.js';
 
@@ -29,14 +31,17 @@ const VERSIONS = `${atlasSchemaFor('external_aggregate_versions')}.external_aggr
 type ParsedEvent =
   | { kind: 'ignored' }
   | { kind: 'coverage-settled'; payload: CoverageSettledPayload }
-  | { kind: 'recovery-movement'; payload: RecoveryMovementPayload };
+  | { kind: 'recovery-movement'; payload: RecoveryMovementPayload }
+  | { kind: 'mdr-updated'; payload: MdrUpdatedPayload };
 
 @Injectable()
 export class ErpEventInboxService {
   private readonly projection: InstallmentCoverageProjection;
+  private readonly mdrProjection: PartnerMdrProjection;
 
   constructor(@InjectConnection() private readonly sequelize: Sequelize) {
     this.projection = new InstallmentCoverageProjection(sequelize);
+    this.mdrProjection = new PartnerMdrProjection(sequelize);
   }
 
   async receive(envelope: IntegrationEnvelope): Promise<{ outcome: InboxOutcome }> {
@@ -45,7 +50,15 @@ export class ErpEventInboxService {
     }
     // Antes de abrir la transacción: un payload que no cumple el contrato es un 422 definitivo.
     const parsed = parseEvent(envelope);
-    const tenantId = parsed.kind === 'ignored' ? null : (parsed.payload.coreRef?.tenantId ?? null);
+    // `mdr-updated` no lleva `coreRef` (T-10): su tenant sale del sobre, no del payload. Sin él no
+    // hay con qué escoger tenant al proyectar, así que la fila queda auditada con `_tenant_id` nulo y
+    // el efecto (abajo) la trata como UNLINKED — nunca escribe a ciegas en el tenant equivocado.
+    const tenantId =
+      parsed.kind === 'ignored'
+        ? null
+        : parsed.kind === 'mdr-updated'
+          ? (envelope.tenantId ?? null)
+          : (parsed.payload.coreRef?.tenantId ?? null);
 
     return this.sequelize.transaction(async (transaction) => {
       const recorded = await this.sequelize.query<{ id: string }>(
@@ -78,12 +91,21 @@ export class ErpEventInboxService {
       if (parsed.kind === 'ignored') return this.settle(envelope, 'IGNORED', transaction);
       if (!(await this.advanceVersion(envelope, transaction))) return this.settle(envelope, 'STALE', transaction);
 
-      const linked =
-        parsed.kind === 'coverage-settled'
-          ? await this.projection.applySettlement(envelope.eventKey, parsed.payload, transaction)
-          : await this.projection.applyRecoveryMovement(parsed.payload, envelope.aggregate.version, transaction);
+      const linked = await this.applyEffect(parsed, envelope, tenantId, transaction);
       return linked ? { outcome: 'APPLIED' as const } : this.settle(envelope, 'UNLINKED', transaction);
     });
+  }
+
+  /** El efecto de cada tipo de evento YA parseado. Devuelve si quedó ligado a algo que existe en Core. */
+  private applyEffect(
+    parsed: Exclude<ParsedEvent, { kind: 'ignored' }>,
+    envelope: IntegrationEnvelope,
+    tenantId: string | null,
+    transaction: Transaction,
+  ): Promise<boolean> {
+    if (parsed.kind === 'coverage-settled') return this.projection.applySettlement(envelope.eventKey, parsed.payload, transaction);
+    if (parsed.kind === 'mdr-updated') return this.mdrProjection.applyMdrUpdate(parsed.payload, tenantId, transaction);
+    return this.projection.applyRecoveryMovement(parsed.payload, envelope.aggregate.version, transaction);
   }
 
   /** Avanza la última versión del agregado sólo si la entrante es MAYOR. Devuelve si avanzó. */
@@ -139,7 +161,15 @@ function parseEvent(envelope: IntegrationEnvelope): ParsedEvent {
       issues: result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).slice(0, 10),
     });
   }
-  return envelope.topic === 'b2b.coverage.settled'
-    ? { kind: 'coverage-settled', payload: result.data as CoverageSettledPayload }
-    : { kind: 'recovery-movement', payload: result.data as RecoveryMovementPayload };
+  // Despacho explícito por tópico y no un binario: con sólo dos ramas, un tópico nuevo caía por
+  // omisión en la rama equivocada sin que el tipo lo avisara (T-10 lo habría clasificado como
+  // `recovery-movement` y `applyRecoveryMovement` habría leído campos que su payload no tiene).
+  switch (envelope.topic) {
+    case 'b2b.coverage.settled':
+      return { kind: 'coverage-settled', payload: result.data as CoverageSettledPayload };
+    case 'merchant.mdr.updated':
+      return { kind: 'mdr-updated', payload: result.data as MdrUpdatedPayload };
+    default:
+      return { kind: 'recovery-movement', payload: result.data as RecoveryMovementPayload };
+  }
 }

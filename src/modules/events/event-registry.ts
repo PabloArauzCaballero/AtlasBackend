@@ -59,9 +59,11 @@ const eventGroups: Array<{ family: string; events: string[]; aggregateTypes: str
   },
   {
     // AT-033: hecho de dominio escrito por el caso de uso de solicitud, en la transacción del agregado.
+    // T-11 (2026-09-26): `credit.decision.recorded` se une aquí porque describe al MISMO agregado
+    // (`credit_application`) en otro punto de su ciclo de vida, no un dominio nuevo.
     family: 'credit_admission',
     aggregateTypes: ['credit_application', 'customer'],
-    events: ['credit.application.submitted'],
+    events: ['credit.application.submitted', 'credit.decision.recorded'],
   },
   {
     family: 'credit_line',

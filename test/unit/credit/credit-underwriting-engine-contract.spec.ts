@@ -51,7 +51,7 @@ function build(outcomes: DecisionOutcome[], application: Record<string, unknown>
     })),
   };
   return {
-    service: new CreditUnderwritingService(engine as never, credit as never, sequelize as never, reviewCases as never),
+    service: new CreditUnderwritingService(engine as never, credit as never, sequelize as never, reviewCases as never, {} as never),
     row,
     credit,
     engine,
