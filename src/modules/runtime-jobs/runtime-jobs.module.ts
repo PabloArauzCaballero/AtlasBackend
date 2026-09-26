@@ -15,6 +15,7 @@ import {
   IdempotencyKeyModel,
   OutboxEventModel,
   RetentionPolicyModel,
+  SystemActionLogModel,
   SystemJobRunModel,
   TenantModel,
 } from '../../database/models/index.js';
@@ -88,6 +89,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
     SupportModule,
     SequelizeModule.forFeature([
       SystemJobRunModel,
+      SystemActionLogModel,
       OutboxEventModel,
       CustomerSessionModel,
       RetentionPolicyModel,

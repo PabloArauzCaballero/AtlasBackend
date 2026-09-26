@@ -17,9 +17,12 @@ import {
   FormFieldInteractionEventModel,
   OutboxEventModel,
   RetentionPolicyModel,
+  SystemActionLogModel,
+  SystemJobRunModel,
 } from '../../database/models/index.js';
 import { JobRunRecorderService } from './job-run-recorder.service.js';
-import { RETENTION_POLICIES_PENDING_DECISION, RETENTION_TARGETS } from './retention-targets.js';
+import { RETENTION_POLICIES_PENDING_DECISION } from './retention-targets.js';
+import { executeRetentionTarget as executeRetentionTargetImpl, type RetentionOutcome } from './retention-execution.js';
 import { listEventDefinitions } from '../events/event-registry.js';
 import { EventsService } from '../events/events.service.js';
 import {
@@ -38,8 +41,6 @@ function registeredEventCodesOrSentinel(): string[] {
   return codes.length > 0 ? codes : ['__no_registered_events__'];
 }
 
-type RetentionOutcome = { table: string; action: 'delete' | 'anonymize'; affected: number };
-
 @Injectable()
 export class RuntimeJobsService {
   private readonly logger = new Logger(RuntimeJobsService.name);
@@ -52,6 +53,8 @@ export class RuntimeJobsService {
     @InjectModel(AddressGpsObservationModel) private readonly gpsObservationModel: typeof AddressGpsObservationModel,
     @InjectModel(DeviceSnapshotModel) private readonly deviceSnapshotModel: typeof DeviceSnapshotModel,
     @InjectModel(FormFieldInteractionEventModel) private readonly formInteractionModel: typeof FormFieldInteractionEventModel,
+    @InjectModel(SystemJobRunModel) private readonly systemJobRunModel: typeof SystemJobRunModel,
+    @InjectModel(SystemActionLogModel) private readonly systemActionLogModel: typeof SystemActionLogModel,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly eventsService: EventsService,
     private readonly jobRuns: JobRunRecorderService,
@@ -60,48 +63,20 @@ export class RuntimeJobsService {
     @Optional() private readonly metrics?: MetricsService,
   ) {}
 
-  private async executeRetentionTarget(policyCode: string, cutoffDate: Date, dryRun: boolean): Promise<RetentionOutcome | null> {
-    const target = RETENTION_TARGETS[policyCode];
-    if (!target) {
-      return null;
-    }
-
-    if (policyCode === 'gps_observations_90d') {
-      const where = { createdAtValue: { [Op.lt]: cutoffDate } } as never;
-      const affected = dryRun ? await this.gpsObservationModel.count({ where }) : await this.gpsObservationModel.destroy({ where });
-      return { table: target.table, action: 'delete', affected };
-    }
-
-    if (policyCode === 'device_snapshots_90d') {
-      const where = { createdAtValue: { [Op.lt]: cutoffDate } } as never;
-      if (dryRun) {
-        const affected = await this.deviceSnapshotModel.count({ where });
-        return { table: target.table, action: 'anonymize', affected };
-      }
-      const [affected] = await this.deviceSnapshotModel.update(
-        {
-          brand: null,
-          model: null,
-          osVersion: null,
-          appVersion: null,
-          // Se conservan deliberadamente: isRooted, isEmulator, vpnDetected, osFamily,
-          // deviceTierSnapshot — señales de riesgo agregadas sin valor identificatorio directo.
-        } as never,
-        { where },
-      );
-      return { table: target.table, action: 'anonymize', affected };
-    }
-
-    if (policyCode === 'form_interaction_events_60d') {
-      const where = { createdAtValue: { [Op.lt]: cutoffDate } } as never;
-      const affected = dryRun ? await this.formInteractionModel.count({ where }) : await this.formInteractionModel.destroy({ where });
-      return { table: target.table, action: 'delete', affected };
-    }
-
-    // No debería alcanzarse: todo policyCode presente en RETENTION_TARGETS debe tener una rama
-    // arriba. Se deja como red de seguridad explícita en vez de un `else` silencioso.
-    this.logger.warn(`RETENTION_TARGETS tiene "${policyCode}" registrado pero sin lógica de ejecución implementada.`);
-    return null;
+  private executeRetentionTarget(policyCode: string, cutoffDate: Date, dryRun: boolean): Promise<RetentionOutcome | null> {
+    return executeRetentionTargetImpl(
+      policyCode,
+      cutoffDate,
+      dryRun,
+      {
+        gpsObservationModel: this.gpsObservationModel,
+        deviceSnapshotModel: this.deviceSnapshotModel,
+        formInteractionModel: this.formInteractionModel,
+        systemJobRunModel: this.systemJobRunModel,
+        systemActionLogModel: this.systemActionLogModel,
+      },
+      this.logger,
+    );
   }
 
   /**
