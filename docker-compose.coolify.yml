@@ -151,6 +151,9 @@ x-build: &build
 # ---------------------------------------------------------------------------------------------
 x-atlas-env: &atlas-env # --- Aplicación --------------------------------------------------------------------------
   NODE_ENV: '${NODE_ENV:-development}'
+  # Coolify define SOURCE_COMMIT para cada despliegue Git; el health público identifica
+  # así la imagen realmente activa, sin hornear el SHA ni invalidar la caché del build.
+  APP_COMMIT_SHA: '${SOURCE_COMMIT:-}'
   API_PREFIX: '${API_PREFIX:-api/v1}'
   API_JSON_BODY_LIMIT: '${API_JSON_BODY_LIMIT:-2mb}'
   API_DOCS_ENABLED: '${API_DOCS_ENABLED:-true}'
