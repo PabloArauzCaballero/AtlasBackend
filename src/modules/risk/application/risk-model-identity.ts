@@ -21,7 +21,10 @@ export function resolveModelIdentity(policy: Pick<PolicyDecision, 'decisionSourc
   modelCode: string;
   modelVersion: string;
 } {
-  if (policy.decisionSource === 'decision_engine') {
+  // `engine_no_decision` (C-5) también es el Motor: respondió, sólo que sin veredicto. Publicar
+  // `risk_heuristic_v0` aquí repetiría la misma mentira de procedencia que este archivo existe
+  // para evitar, sólo que sobre una ejecución real del artefacto en vez de sobre una avería.
+  if (policy.decisionSource === 'decision_engine' || policy.decisionSource === 'engine_no_decision') {
     return { modelCode: DECISION_ENGINE_MODEL_CODE, modelVersion: policy.rulesetVersionCode };
   }
   return { modelCode: RISK_MODEL_CODE, modelVersion: RISK_MODEL_VERSION };

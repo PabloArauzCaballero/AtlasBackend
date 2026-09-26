@@ -20,6 +20,11 @@ import {
   type RelationshipInput,
   type StatementCapacityInput,
 } from '../domain/payment-capacity.js';
+import {
+  IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
+  isIdentityVerified,
+  pickCurrentIdentityAttempt,
+} from '../../../common/utils/identity/identity-result.util.js';
 
 /**
  * La propuesta de límite, armada con el expediente real.
@@ -117,12 +122,19 @@ export class PaymentCapacityService {
 
   /** Antigüedad, historial de pago y fidelización, leídos del expediente. */
   private async relationship(tenantId: string, customerId: string, now: Date): Promise<RelationshipInput> {
-    const [customer, loans, summary, identity] = await Promise.all([
+    const [customer, loans, summary, identityAttempts] = await Promise.all([
       this.customers.findOne({ where: { tenantId, id: customerId } } as FindOptions),
       this.loans.findAll({ where: { tenantId, customerId } } as FindOptions),
       this.activity.findOne({ where: { tenantId, customerId } } as FindOptions),
-      this.identity.findOne({ where: { tenantId, customerId }, order: [['_id', 'DESC']] } as FindOptions),
+      // Todos los recientes, no sólo el último: un intento posterior sin resolver no puede tapar un
+      // `verified` anterior (I-2). Ver `pickCurrentIdentityAttempt`.
+      this.identity.findAll({
+        where: { tenantId, customerId },
+        order: [['_id', 'DESC']],
+        limit: IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
+      } as FindOptions),
     ]);
+    const identity = pickCurrentIdentityAttempt(identityAttempts);
 
     const tenureMonths = customer?.createdAtValue
       ? Math.max(0, Math.floor((now.getTime() - new Date(customer.createdAtValue).getTime()) / (30.44 * 86_400_000)))
@@ -140,7 +152,7 @@ export class PaymentCapacityService {
         chargeOffCount: 0,
         delinquencyCount12m: 0,
         monthsSinceLastLoan: null,
-        kycComplete: identity?.finalResult === 'verified',
+        kycComplete: isIdentityVerified(identity?.finalResult),
         fraudFlags: fraudFlagsOf(summary),
       };
     }
@@ -179,7 +191,7 @@ export class PaymentCapacityService {
       chargeOffCount: loans.filter((loan) => String(loan.status) === 'written_off').length,
       delinquencyCount12m: overdueInLastYear,
       monthsSinceLastLoan: lastDisbursement > 0 ? Math.max(0, Math.floor((now.getTime() - lastDisbursement) / (30.44 * 86_400_000))) : null,
-      kycComplete: identity?.finalResult === 'verified',
+      kycComplete: isIdentityVerified(identity?.finalResult),
       fraudFlags: fraudFlagsOf(summary),
     };
   }

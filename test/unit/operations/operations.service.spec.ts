@@ -340,6 +340,26 @@ describe('OperationsService', () => {
       await expect(service.decideManualReviewCase(baseInput())).rejects.toThrow(/MANUAL_REVIEW_DELEGADA_AL_MOTOR/);
     });
 
+    /**
+     * C-1: el caso PROPIO que abre el crédito cuando el Motor manda una solicitud a revisión sin abrir
+     * el suyo aparece en esta misma cola. Cerrarlo aquí, con el formulario de riesgo, dejaría la
+     * solicitud `under_review` con su caso ya cerrado y sin nadie que la resuelva: se decide sobre la
+     * SOLICITUD, que además cierra el caso.
+     */
+    it('rechaza decidir aquí el caso de una solicitud de crédito: se decide sobre la solicitud', async () => {
+      const { service, operationsRepository } = await buildService();
+      (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({
+        closedAt: null,
+        status: 'open',
+        customerId: '10',
+        decisionExecutionId: null,
+        caseType: 'credit_application_review',
+      } as never);
+
+      await expect(service.decideManualReviewCase(baseInput())).rejects.toThrow(/MANUAL_REVIEW_ES_DE_CREDITO/);
+      expect(operationsRepository.closeManualReviewCase).not.toHaveBeenCalled();
+    });
+
     it('sí deja decidir cuando la decisión salió de la política local (sin ejecución del Motor)', async () => {
       const { service, operationsRepository } = await buildService();
       (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({
