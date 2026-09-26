@@ -43,7 +43,20 @@ function build(outcomes: DecisionOutcome[], application: Record<string, unknown>
     findProductById: jest.fn(async (..._args: unknown[]) => ({ productCode: 'BNPL' })),
   };
   const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-  return { service: new CreditUnderwritingService(engine as never, credit as never, sequelize as never), row, credit, engine };
+  const reviewCases = {
+    open: jest.fn(async (values: Record<string, unknown>, _options?: unknown) => ({
+      caseCode: `CR-${String(values.applicationCode)}`,
+      customerId: values.customerId,
+      status: 'open',
+    })),
+  };
+  return {
+    service: new CreditUnderwritingService(engine as never, credit as never, sequelize as never, reviewCases as never),
+    row,
+    credit,
+    engine,
+    reviewCases,
+  };
 }
 
 const input = {

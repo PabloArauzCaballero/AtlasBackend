@@ -43,7 +43,9 @@ import { CreditLineRefreshService } from '../credit/application/credit-line-refr
 import { CreditUnderwritingService } from '../credit/application/credit-underwriting.service.js';
 import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
 import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
+import { CreditSubmittedReconciliationService } from '../credit/application/credit-submitted-reconciliation.service.js';
 import { buildScheduledJobs, SCHEDULED_JOBS, SCHEDULER_ACTOR } from './scheduled-jobs.catalog.js';
+import { buildCreditScheduledJobs } from './scheduled-jobs.credit.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import { SystemsOpsModule } from '../systems-ops/systems-ops.module.js';
@@ -123,8 +125,9 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         creditUnderwriting: CreditUnderwritingService,
         erpDelivery: ErpEventDeliveryService,
         qaConsumer: QaJourneyConsumerService,
-      ) =>
-        buildScheduledJobs({
+        creditReconciliation: CreditSubmittedReconciliationService,
+      ) => [
+        ...buildScheduledJobs({
           runtimeJobs,
           maintenance,
           onboardingAbandonment,
@@ -163,6 +166,9 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
           },
           qaRuns: { drain: () => qaConsumer.drain() },
         }),
+        // El barrido de solicitudes de crédito atascadas va aparte del catálogo general (ver el archivo).
+        ...buildCreditScheduledJobs({ creditReconciliation }),
+      ],
       inject: [
         RuntimeJobsService,
         RuntimeMaintenanceJobsService,
@@ -180,6 +186,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         CreditUnderwritingService,
         ErpEventDeliveryService,
         QaJourneyConsumerService,
+        CreditSubmittedReconciliationService,
       ],
     },
   ],

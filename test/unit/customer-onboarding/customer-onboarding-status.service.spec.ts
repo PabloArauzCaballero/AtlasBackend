@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
 import { CustomerOnboardingStatusService } from '../../../src/modules/customer-onboarding/application/customer-onboarding-status.service.js';
+import { OnboardingRiskTriggerService } from '../../../src/modules/customer-onboarding/application/onboarding-risk-trigger.service.js';
 
 /**
  * Estado, envío y observaciones del onboarding.
@@ -65,6 +66,12 @@ describe('CustomerOnboardingStatusService', () => {
     // podía ocurrir nunca, porque la regla exige `RISK_NOT_APPROVED` resuelto y nada en el
     // onboarding la pedía.
     const riskService = { createRiskAssessment: jest.fn(async (..._args: unknown[]) => ({ id: 'risk-1' })) };
+    // La evaluación de riesgo del envío vive en su propio servicio (resuelve el dispositivo del cliente);
+    // aquí se ejercita el REAL, con un cliente sin dispositivo vinculado.
+    const riskTrigger = new OnboardingRiskTriggerService(
+      riskService as never,
+      { findOne: jest.fn(async (..._args: unknown[]) => null) } as never,
+    );
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 
     const service = new CustomerOnboardingStatusService(
@@ -75,7 +82,7 @@ describe('CustomerOnboardingStatusService', () => {
       eligibilityRepository as never,
       eligibilityRiskRepository as never,
       lifecycleService as never,
-      riskService as never,
+      riskTrigger,
       // Ídem: congelar el expediente ocurre después del commit y no puede tumbar el envío.
       { alEnviarOnboarding: jest.fn() } as never,
       // El resumen de comportamiento tras el envío: best-effort, nunca lanza.

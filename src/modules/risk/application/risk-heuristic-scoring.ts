@@ -40,7 +40,12 @@ export function computeHeuristicScores(inputs: HeuristicRiskInputs): HeuristicRi
 
   const identityScore = hasIdentity ? 70 : 30;
   const contactScore = hasVerifiedContact ? 90 : 45;
+  // `hasDevice` viene del dispositivo con el que el cliente hizo el alta (C-6): el envío lo resuelve
+  // en el servidor (`OnboardingRiskTriggerService`). Antes nadie lo mandaba y valía 55 para todos.
   const deviceScore = hasDevice ? 70 : 55;
+  // Neutro A PROPÓSITO: al enviar no hay señal de comportamiento que medir —el resumen de
+  // comportamiento (`OnboardingBehaviorSummaryService`) se calcula DESPUÉS del envío—. Sigue siendo
+  // el mismo 50 para todos y así debe leerse: no es una medición.
   const behaviorScore = 50;
   const consistencyScore = hasIdentity && hasVerifiedContact ? 75 : 45;
   const fraudScore = hasIdentity && hasVerifiedContact ? 20 : 55;

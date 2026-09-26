@@ -79,6 +79,41 @@ describe('CustomerVerificationRepository', () => {
       expect(ultima(attempts.findOne).order).toEqual([['id', 'DESC']]);
     });
 
+    it('un intento concreto se busca por id y siempre acotado al tenant', async () => {
+      await repo.findAttemptById('t1', '21', { transaction: tx });
+
+      expect(ultima(attempts.findOne).where).toEqual({ tenantId: 't1', id: '21' });
+      expect(ultima(attempts.findOne).transaction).toBe(tx);
+    });
+
+    it('el intento que espera decisión es el más reciente sin veredicto, aunque haya uno posterior ya verificado', async () => {
+      // `id DESC`, como lo devuelve la base: el del móvil `VERIFIED` es el último, pero no es el que se revisa.
+      attempts.findAll.mockResolvedValueOnce([
+        { id: '22', finalResult: 'VERIFIED' },
+        { id: '21', finalResult: 'pending_review' },
+      ] as never);
+
+      const esperando = await repo.findAttemptAwaitingReview('t1', 'c1', { transaction: tx });
+
+      expect(esperando).toEqual({ id: '21', finalResult: 'pending_review' });
+      expect(ultima(attempts.findAll).where).toEqual({ tenantId: 't1', customerId: 'c1' });
+      expect(ultima(attempts.findAll).order).toEqual([['id', 'DESC']]);
+      expect(ultima(attempts.findAll).transaction).toBe(tx);
+    });
+
+    it('si todos los intentos ya tienen veredicto, el que espera decisión es el más reciente', async () => {
+      attempts.findAll.mockResolvedValueOnce([
+        { id: '22', finalResult: 'rejected' },
+        { id: '21', finalResult: 'verified' },
+      ] as never);
+
+      await expect(repo.findAttemptAwaitingReview('t1', 'c1')).resolves.toEqual({ id: '22', finalResult: 'rejected' });
+    });
+
+    it('un cliente sin intentos no tiene ninguno esperando', async () => {
+      await expect(repo.findAttemptAwaitingReview('t1', 'c1')).resolves.toBeNull();
+    });
+
     it('resolverlo escribe el resultado, quién revisó y cuándo, dentro de la transacción', async () => {
       const save = jest.fn(async (_opciones?: unknown) => undefined);
       const intento = { save } as unknown as IdentityVerificationAttemptModel;

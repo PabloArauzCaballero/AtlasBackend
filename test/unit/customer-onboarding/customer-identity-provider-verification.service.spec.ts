@@ -116,6 +116,19 @@ describe('CustomerIdentityProviderVerificationService', () => {
       expect(externalDataService.executeSegip).not.toHaveBeenCalled();
     });
 
+    it('FALLA sin el fix: un VERIFIED en mayúsculas del canal móvil tampoco se vuelve a verificar contra el proveedor (I-1)', async () => {
+      // Antes, `attempt.finalResult === 'verified'` en estricto no reconocía lo que escribe el móvil:
+      // la guarda dejaba pasar y se pagaba (y se pisaba) una segunda consulta al registro estatal.
+      const { service, verificationRepository, externalDataService } = build();
+      (verificationRepository.findLatestAttempt as jest.Mock).mockResolvedValueOnce({
+        id: 'attempt-1',
+        finalResult: 'VERIFIED',
+      } as never);
+      await expect(service.verifyWithProvider(baseInput)).rejects.toThrow(/IDENTITY_ALREADY_VERIFIED/);
+      expect(externalDataService.executeSegip).not.toHaveBeenCalled();
+      expect(verificationRepository.resolveAttempt).not.toHaveBeenCalled();
+    });
+
     /**
      * Sin esta comprobación se podría verificar la identidad de OTRA persona y adjuntarla al
      * expediente del cliente: el proveedor confirmaría un documento real que no es el declarado.
