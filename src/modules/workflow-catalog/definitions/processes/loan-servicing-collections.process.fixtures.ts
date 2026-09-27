@@ -174,6 +174,7 @@ export const LOAN_SERVICING_COLLECTIONS: WorkflowDefinitionFixture = {
       module: 'loans',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/loans/[loanId]',
       optional: true,
       roles: PAYMENT_ROLES,
       steps: [
@@ -238,6 +239,7 @@ export const LOAN_SERVICING_COLLECTIONS: WorkflowDefinitionFixture = {
       module: 'loans',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/runtime-jobs',
       optional: true,
       roles: ['internal_operator', 'risk_analyst', 'admin', 'platform_admin'],
       steps: [
@@ -329,6 +331,7 @@ export const LOAN_SERVICING_COLLECTIONS: WorkflowDefinitionFixture = {
       module: 'credit_rating',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/loans/[loanId]',
       optional: true,
       roles: RATING_READ_ROLES,
       steps: [
@@ -521,6 +524,7 @@ export const LOAN_SERVICING_COLLECTIONS: WorkflowDefinitionFixture = {
       module: 'loans',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/loans/[loanId]',
       optional: true,
       terminal: true,
       roles: ['admin', 'platform_admin'],

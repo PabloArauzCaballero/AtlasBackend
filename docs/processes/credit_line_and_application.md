@@ -64,17 +64,17 @@ flowchart LR
 
 | Etapa | Nombre | Actor | Cliente | Pantalla | Pasos |
 |---|---|---|---|---|---|
-| `credit_catalog` | Catálogo de productos crediticios | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 3 |
+| `credit_catalog` | Catálogo de productos crediticios | internal_user | ADMIN_PORTAL | `/internal/operations/credit/products` | 3 |
 | `credit_line_calculation` | Cálculo de la línea de crédito | system | BLOCK | — | 2 |
-| `credit_line_manual_recalculation` | Recálculo manual de la línea | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `credit_line_manual_recalculation` | Recálculo manual de la línea | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 1 |
 | `credit_line_view` | El cliente ve su línea y su porqué | customer | CONSUMER_APP | **sin pantalla declarada** | 2 |
 | `credit_application_request` | Solicitud de crédito del cliente | customer | CONSUMER_APP | **sin pantalla declarada** | 3 |
 | `credit_engine_underwriting` | Decisión del Motor | system | BLOCK | — | 2 |
 | `credit_engine_manual_review` | Revisión humana en el Motor | internal_user | MOTOR_PORTAL | `/manual-reviews/[caseId]` | 2 |
 | `credit_engine_review_callback` | La resolución del Motor vuelve a Atlas | system | BLOCK | — | 1 |
-| `credit_atlas_manual_decision` | Decisión humana en Atlas | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 2 |
+| `credit_atlas_manual_decision` | Decisión humana en Atlas | internal_user | ADMIN_PORTAL | `/internal/operations/credit/applications/[applicationId]` | 2 |
 | `credit_business_acceptance` | Aceptación del comercio | merchant_user | ERP_PORTAL | `/portal-comercio/gestion-pos` | 4 |
-| `credit_business_acceptance_by_operations` | Aceptación del negocio por operaciones | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `credit_business_acceptance_by_operations` | Aceptación del negocio por operaciones | internal_user | ADMIN_PORTAL | `/internal/operations/credit/applications/[applicationId]` | 1 |
 
 ### Catálogo de productos crediticios (`credit_catalog`)
 

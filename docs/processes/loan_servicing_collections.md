@@ -70,17 +70,17 @@ flowchart LR
 |---|---|---|---|---|---|
 | `servicing_customer_view` | El cliente consulta sus créditos | customer | CONSUMER_APP | `/pagos` | 7 |
 | `servicing_customer_payment` | Pago de cuota por el cliente | customer | CONSUMER_APP | `/pagar/[installmentId]` | 1 |
-| `servicing_manual_payment` | Registro y reverso de pagos por operaciones | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 2 |
+| `servicing_manual_payment` | Registro y reverso de pagos por operaciones | internal_user | ADMIN_PORTAL | `/internal/operations/loans/[loanId]` | 2 |
 | `servicing_delinquency` | Barrido de mora | system | BLOCK | — | 1 |
-| `servicing_delinquency_manual` | Barrido de mora a mano | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `servicing_delinquency_manual` | Barrido de mora a mano | internal_user | ADMIN_PORTAL | `/internal/operations/runtime-jobs` | 1 |
 | `servicing_debt_rating` | Calificación de la deuda y del cliente | system | BLOCK | — | 1 |
 | `servicing_rating_review` | Calificación de cartera en el portal | internal_user | ADMIN_PORTAL | `/internal/operations/portfolio` | 4 |
-| `servicing_rating_detail` | Detalle e historia de la calificación | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 5 |
+| `servicing_rating_detail` | Detalle e historia de la calificación | internal_user | ADMIN_PORTAL | `/internal/operations/loans/[loanId]` | 5 |
 | `servicing_outcome_delivery` | Entrega de desenlaces al Motor | system | BLOCK | — | 4 |
 | `servicing_outcome_monitoring` | Vigilancia de la entrega | internal_user | ADMIN_PORTAL | `/internal/operations/portfolio` | 2 |
 | `servicing_jobs_manual` | Adelantar jobs de cartera | internal_user | ADMIN_PORTAL | `/internal/operations/runtime-jobs` | 2 |
 | `servicing_engine_quality` | Medida del acierto en el Motor | internal_user | MOTOR_PORTAL | enlace: `{MOTOR}/decision-quality` | 2 |
-| `servicing_write_off` | Castigo del préstamo | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `servicing_write_off` | Castigo del préstamo | internal_user | ADMIN_PORTAL | `/internal/operations/loans/[loanId]` | 1 |
 
 ### El cliente consulta sus créditos (`servicing_customer_view`)
 

@@ -70,7 +70,7 @@ flowchart LR
 | `purchase_merchant_acceptance` | El comercio acepta o rechaza la venta | merchant_user | ERP_PORTAL | `/portal-comercio/gestion-pos` | 4 |
 | `purchase_customer_waits` | El cliente espera la respuesta del comercio | customer | CONSUMER_APP | **sin pantalla declarada** | 1 |
 | `purchase_initial_payment` | Commitment y pago del inicial | customer | CONSUMER_APP | **sin pantalla declarada** | 2 |
-| `purchase_disbursement` | Desembolso del préstamo | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `purchase_disbursement` | Desembolso del préstamo | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 1 |
 | `purchase_engine_registration` | Alta del crédito en el Motor | system | BLOCK | — | 2 |
 | `purchase_customer_loan` | El cliente ve su préstamo | customer | CONSUMER_APP | **sin pantalla declarada** | 3 |
 | `purchase_merchant_portfolio` | El comercio ve la venta en su cartera | merchant_user | ERP_PORTAL | `/portal-comercio/cartera` | 2 |

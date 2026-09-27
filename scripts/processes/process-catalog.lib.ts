@@ -107,6 +107,14 @@ export function routeRoles(): Map<string, Map<string, Set<string>>> {
   );
 }
 
+/** Pantallas de cada cliente según Flow Intelligence (rutas con `:param`). */
+export function clientScreens(): Map<string, Set<string>> {
+  const doc = JSON.parse(readFileSync(join(ROOT, 'docs/processes/external-endpoints.json'), 'utf8')) as {
+    screens?: Record<string, string[]>;
+  };
+  return new Map(Object.entries(doc.screens ?? {}).map(([client, routes]) => [client, new Set(routes.map((r) => normalizeRoute(r)))]));
+}
+
 /** Códigos de job declarados en el catálogo de jobs programados del Backend. */
 export function backendJobCodes(): Set<string> {
   const source = readFileSync(join(ROOT, 'src/modules/runtime-jobs/scheduled-jobs.catalog.ts'), 'utf8');

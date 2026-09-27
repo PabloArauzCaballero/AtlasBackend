@@ -43,5 +43,15 @@ export const CUSTOMER_PARTNER_COMMERCE: WorkflowDefinitionFixture = {
   failure:
     'El KYB rechaza o bloquea al comercio, sus QR no se aprueban, la solicitud del cliente en la caja se rechaza, o el pago avisado no se verifica.',
   sources: ['src/database/seeders/demo/flujo-cliente-partner.seed-data.ts'],
-  stages: stagesFromTree(FLUJO_CLIENTE_PARTNER),
+  stages: stagesFromTree(FLUJO_CLIENTE_PARTNER, {
+    partner_signup: '/portal-comercio/expediente',
+    partner_identity: '/portal-comercio/expediente',
+    partner_contact: '/portal-comercio/expediente',
+    partner_network: '/portal-comercio/expediente',
+    partner_qr: '/portal-comercio/expediente',
+    partner_submission: '/portal-comercio/expediente',
+    partner_review: '/internal/operations/partners',
+    partner_portfolio: '/portal-comercio/cartera',
+    partner_support: '/portal-comercio/soporte',
+  }),
 };

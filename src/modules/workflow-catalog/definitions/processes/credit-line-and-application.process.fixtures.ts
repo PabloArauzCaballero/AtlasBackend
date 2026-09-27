@@ -79,6 +79,7 @@ export const CREDIT_LINE_AND_APPLICATION: WorkflowDefinitionFixture = {
       module: 'credit',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/credit/products',
       roles: CREDIT_OPERATIONS,
       steps: [
         {
@@ -150,6 +151,7 @@ export const CREDIT_LINE_AND_APPLICATION: WorkflowDefinitionFixture = {
       module: 'credit',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/customers/[customerId]/investigation-summary',
       optional: true,
       roles: CREDIT_OPERATIONS,
       steps: [
@@ -348,6 +350,7 @@ export const CREDIT_LINE_AND_APPLICATION: WorkflowDefinitionFixture = {
       module: 'credit',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/credit/applications/[applicationId]',
       optional: true,
       roles: CREDIT_OPERATIONS,
       requiredStates: ['under_review', 'submitted'],
@@ -441,6 +444,7 @@ export const CREDIT_LINE_AND_APPLICATION: WorkflowDefinitionFixture = {
       module: 'credit',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/credit/applications/[applicationId]',
       optional: true,
       roles: CREDIT_OPERATIONS,
       requiredStates: ['approved'],

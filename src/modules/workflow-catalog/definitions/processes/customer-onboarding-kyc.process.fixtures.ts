@@ -455,6 +455,7 @@ export const CUSTOMER_ONBOARDING_KYC: WorkflowDefinitionFixture = {
       module: 'customer_onboarding',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/customers/[customerId]/investigation-summary',
       optional: true,
       roles: ['compliance_analyst', 'risk_analyst', 'admin', 'platform_admin'],
       steps: [

@@ -45,5 +45,8 @@ export const CUSTOMER_FULL_LIFECYCLE: WorkflowDefinitionFixture = {
   failure:
     'El expediente queda incompleto, la revisión lo rechaza o lo bloquea, el riesgo lo deja fuera de elegibilidad, o la solicitud se rechaza.',
   sources: ['src/database/seeders/demo/flujo-cliente-completo.seed-data.ts'],
-  stages: stagesFromTree(FLUJO_CLIENTE_COMPLETO),
+  stages: stagesFromTree(FLUJO_CLIENTE_COMPLETO, {
+    credit_decision: '/internal/operations/credit/applications/[applicationId]',
+    operator_review: '/internal/operations/work-queue',
+  }),
 };

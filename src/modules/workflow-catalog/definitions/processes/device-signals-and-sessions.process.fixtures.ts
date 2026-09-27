@@ -349,6 +349,7 @@ export const DEVICE_SIGNALS_AND_SESSIONS: WorkflowDefinitionFixture = {
       module: 'operations',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/customers/[customerId]/investigation-summary',
       optional: true,
       roles: INVESTIGATION_ROLES,
       steps: [

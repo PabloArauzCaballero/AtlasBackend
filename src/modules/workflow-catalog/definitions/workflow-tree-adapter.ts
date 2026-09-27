@@ -13,6 +13,11 @@ const CLIENT_BY_ACTOR: Record<string, ProcessClientCode> = {
   system: 'BLOCK',
 };
 
-export function stagesFromTree(tree: FlujoDeclarado): ProcessStageFixture[] {
-  return tree.stages.map((stage) => ({ ...stage, client: CLIENT_BY_ACTOR[stage.actor] ?? 'BLOCK' }));
+/** `screens`: la pantalla del portal donde actúa la persona en cada etapa (el árbol de la siembra no la sabe). */
+export function stagesFromTree(tree: FlujoDeclarado, screens: Record<string, string> = {}): ProcessStageFixture[] {
+  return tree.stages.map((stage) => ({
+    ...stage,
+    client: CLIENT_BY_ACTOR[stage.actor] ?? 'BLOCK',
+    ...(screens[stage.code] ? { screen: screens[stage.code] } : {}),
+  }));
 }

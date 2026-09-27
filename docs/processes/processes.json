@@ -10,7 +10,7 @@
      "code": "credit_catalog",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/credit/products",
      "steps": [
       {
        "code": "ops.credit_products_list",
@@ -132,7 +132,7 @@
      "code": "identity_decision",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/customers/[customerId]/investigation-summary",
      "steps": [
       {
        "code": "ops.identity_decision",
@@ -205,7 +205,7 @@
      "code": "compliance_screening",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/customers/[customerId]/investigation-summary",
      "steps": [
       {
        "code": "ops.compliance_screening",
@@ -257,7 +257,7 @@
      "code": "manual_review",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/manual-review-cases",
      "steps": [
       {
        "code": "ops.manual_cases",
@@ -330,7 +330,7 @@
      "code": "fraud_review",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/fraud-cases",
      "steps": [
       {
        "code": "ops.fraud_cases",
@@ -483,7 +483,7 @@
      "code": "back_office_review",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/work-queue",
      "steps": [
       {
        "code": "ops.work_queue",
@@ -563,7 +563,7 @@
      "code": "credit_decision",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/credit/applications/[applicationId]",
      "steps": [
       {
        "code": "ops.credit_application_detail",
@@ -1083,7 +1083,7 @@
      "code": "operator_review",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/work-queue",
      "steps": [
       {
        "code": "lifecycle.review_queue",
@@ -1206,7 +1206,7 @@
      "code": "credit_decision",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/credit/applications/[applicationId]",
      "steps": [
       {
        "code": "lifecycle.application_detail",
@@ -1401,7 +1401,7 @@
      "code": "partner_signup",
      "actor": "merchant_user",
      "client": "ERP_PORTAL",
-     "screen": null,
+     "screen": "/portal-comercio/expediente",
      "steps": [
       {
        "code": "partner.start",
@@ -1430,7 +1430,7 @@
      "code": "partner_identity",
      "actor": "merchant_user",
      "client": "ERP_PORTAL",
-     "screen": null,
+     "screen": "/portal-comercio/expediente",
      "steps": [
       {
        "code": "partner.documents_upload_url",
@@ -1466,7 +1466,7 @@
      "code": "partner_contact",
      "actor": "merchant_user",
      "client": "ERP_PORTAL",
-     "screen": null,
+     "screen": "/portal-comercio/expediente",
      "steps": [
       {
        "code": "partner.contact_request",
@@ -1488,7 +1488,7 @@
      "code": "partner_network",
      "actor": "merchant_user",
      "client": "ERP_PORTAL",
-     "screen": null,
+     "screen": "/portal-comercio/expediente",
      "steps": [
       {
        "code": "partner.branch_create",
@@ -1538,7 +1538,7 @@
      "code": "partner_qr",
      "actor": "merchant_user",
      "client": "ERP_PORTAL",
-     "screen": null,
+     "screen": "/portal-comercio/expediente",
      "steps": [
       {
        "code": "partner.qr_upload_url",
@@ -1574,7 +1574,7 @@
      "code": "partner_submission",
      "actor": "merchant_user",
      "client": "ERP_PORTAL",
-     "screen": null,
+     "screen": "/portal-comercio/expediente",
      "steps": [
       {
        "code": "partner.submit",
@@ -1589,7 +1589,7 @@
      "code": "partner_review",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/partners",
      "steps": [
       {
        "code": "partner.queue",
@@ -1797,7 +1797,7 @@
      "code": "partner_portfolio",
      "actor": "merchant_user",
      "client": "ERP_PORTAL",
-     "screen": null,
+     "screen": "/portal-comercio/cartera",
      "steps": [
       {
        "code": "portfolio.summary",
@@ -1812,7 +1812,7 @@
      "code": "partner_support",
      "actor": "merchant_user",
      "client": "ERP_PORTAL",
-     "screen": null,
+     "screen": "/portal-comercio/soporte",
      "steps": [
       {
        "code": "support.faq",
@@ -2315,7 +2315,7 @@
      "code": "kyc_compliance_screening",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/customers/[customerId]/investigation-summary",
      "steps": [
       {
        "code": "kyc.ops_compliance_screening",
@@ -2799,7 +2799,7 @@
      "code": "eligibility_admin_decision",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/customers/[customerId]/investigation-summary",
      "steps": [
       {
        "code": "eligibility.ops_decision",
@@ -2836,7 +2836,7 @@
      "code": "credit_catalog",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/credit/products",
      "steps": [
       {
        "code": "credit.ops_products_list",
@@ -2887,7 +2887,7 @@
      "code": "credit_line_manual_recalculation",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/customers/[customerId]/investigation-summary",
      "steps": [
       {
        "code": "credit.ops_line_recalculate",
@@ -3012,7 +3012,7 @@
      "code": "credit_atlas_manual_decision",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/credit/applications/[applicationId]",
      "steps": [
       {
        "code": "credit.ops_application_detail",
@@ -3070,7 +3070,7 @@
      "code": "credit_business_acceptance_by_operations",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/credit/applications/[applicationId]",
      "steps": [
       {
        "code": "credit.ops_business_acceptance",
@@ -3376,7 +3376,7 @@
      "code": "purchase_disbursement",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/customers/[customerId]/investigation-summary",
      "steps": [
       {
        "code": "purchase.disburse",
@@ -3792,7 +3792,7 @@
      "code": "servicing_manual_payment",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/loans/[loanId]",
      "steps": [
       {
        "code": "svc.register_payment",
@@ -3829,7 +3829,7 @@
      "code": "servicing_delinquency_manual",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/runtime-jobs",
      "steps": [
       {
        "code": "svc.delinquency_manual",
@@ -3895,7 +3895,7 @@
      "code": "servicing_rating_detail",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/loans/[loanId]",
      "steps": [
       {
        "code": "svc.rating_scale",
@@ -4040,7 +4040,7 @@
      "code": "servicing_write_off",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/loans/[loanId]",
      "steps": [
       {
        "code": "svc.write_off",
@@ -4424,7 +4424,7 @@
      "code": "support_sla_manual_sweep",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/support",
      "steps": [
       {
        "code": "support.sla_sweep_manual",
@@ -4547,7 +4547,7 @@
      "code": "support_knowledge_admin",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/support/knowledge",
      "steps": [
       {
        "code": "support.knowledge_article_create",
@@ -4590,7 +4590,7 @@
      "code": "support_integrity_check",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/support/cases/[caseId]",
      "steps": [
       {
        "code": "support.channel_integrity",
@@ -5373,7 +5373,7 @@
      "code": "signals_behavior_summary",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/customers/[customerId]/investigation-summary",
      "steps": [
       {
        "code": "sig.behavior_summary",

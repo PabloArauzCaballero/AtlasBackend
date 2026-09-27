@@ -71,7 +71,7 @@ flowchart LR
 | `signals_expiry_manual` | Caducar sesiones a mano | internal_user | ADMIN_PORTAL | `/internal/operations/runtime-jobs` | 1 |
 | `signals_session_investigation` | Investigación de una sesión | internal_user | ADMIN_PORTAL | `/internal/operations/sessions/[sessionId]/investigation-summary` | 1 |
 | `signals_customer_investigation` | Investigación del cliente | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 1 |
-| `signals_behavior_summary` | Resumen de comportamiento | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `signals_behavior_summary` | Resumen de comportamiento | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 1 |
 
 ### Consentimiento de agenda y ubicación (`signals_consent`)
 

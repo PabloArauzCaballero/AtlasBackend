@@ -73,7 +73,7 @@ flowchart LR
 | `kyc_back_office_review` | Revisión del expediente por el equipo interno | internal_user | ADMIN_PORTAL | `/internal/operations/work-queue` | 1 |
 | `kyc_investigation_summary` | Resumen de investigación del cliente | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 4 |
 | `kyc_customer_file` | Expediente de archivos del cliente | internal_user | ADMIN_PORTAL | `/internal/files/cliente/[customerId]` | 1 |
-| `kyc_compliance_screening` | Cribado de listas restrictivas | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 2 |
+| `kyc_compliance_screening` | Cribado de listas restrictivas | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 2 |
 
 ### Centro de registro (`kyc_registration_center`)
 

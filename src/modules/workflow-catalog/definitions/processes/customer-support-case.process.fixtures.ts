@@ -466,6 +466,7 @@ export const CUSTOMER_SUPPORT_CASE: WorkflowDefinitionFixture = {
       module: 'support',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/support',
       optional: true,
       roles: SUPERVISOR_ROLES,
       steps: [
@@ -639,6 +640,7 @@ export const CUSTOMER_SUPPORT_CASE: WorkflowDefinitionFixture = {
       module: 'support',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/support/knowledge',
       optional: true,
       roles: KNOWLEDGE_ROLES,
       steps: [
@@ -693,6 +695,7 @@ export const CUSTOMER_SUPPORT_CASE: WorkflowDefinitionFixture = {
       module: 'support',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/support/cases/[caseId]',
       optional: true,
       roles: DESK_ROLES,
       steps: [

@@ -64,28 +64,28 @@ flowchart LR
 
 | Etapa | Nombre | Actor | Cliente | Pantalla | Pasos |
 |---|---|---|---|---|---|
-| `credit_catalog` | Catálogo de productos crediticios | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 3 |
+| `credit_catalog` | Catálogo de productos crediticios | internal_user | ADMIN_PORTAL | `/internal/operations/credit/products` | 3 |
 | `registration` | Registro y acceso | customer | CONSUMER_APP | **sin pantalla declarada** | 8 |
 | `contact_verification` | Verificación de contacto | customer | CONSUMER_APP | **sin pantalla declarada** | 3 |
-| `identity_decision` | Decisión de identidad | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `identity_decision` | Decisión de identidad | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 1 |
 | `session_bootstrap` | Sesión y telemetría | customer | CONSUMER_APP | **sin pantalla declarada** | 5 |
 | `personal_data` | Datos personales | customer | CONSUMER_APP | **sin pantalla declarada** | 1 |
-| `compliance_screening` | Cribado de cumplimiento | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 2 |
+| `compliance_screening` | Cribado de cumplimiento | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 2 |
 | `data_capture` | Captura de datos y evidencia (KYC) | customer | CONSUMER_APP | **sin pantalla declarada** | 1 |
 | `financial_profile` | Perfil económico | customer | CONSUMER_APP | **sin pantalla declarada** | 1 |
-| `manual_review` | Revisión manual | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 2 |
+| `manual_review` | Revisión manual | internal_user | ADMIN_PORTAL | `/internal/operations/manual-review-cases` | 2 |
 | `address` | Domicilio | customer | CONSUMER_APP | **sin pantalla declarada** | 1 |
 | `external_evidence` | Evidencia externa | system | BLOCK | — | 4 |
-| `fraud_review` | Revisión de fraude | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 2 |
+| `fraud_review` | Revisión de fraude | internal_user | ADMIN_PORTAL | `/internal/operations/fraud-cases` | 2 |
 | `identity_documents` | Documentos de identidad | customer | CONSUMER_APP | **sin pantalla declarada** | 3 |
 | `submission` | Envío a revisión | customer | CONSUMER_APP | **sin pantalla declarada** | 2 |
 | `reference_contacts` | Referencias personales | customer | CONSUMER_APP | **sin pantalla declarada** | 3 |
 | `risk_assessment` | Evaluación de riesgo | system | BLOCK | — | 3 |
 | `privacy_consents` | Consentimientos de privacidad | customer | CONSUMER_APP | **sin pantalla declarada** | 2 |
-| `back_office_review` | Revisión de operaciones | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 2 |
+| `back_office_review` | Revisión de operaciones | internal_user | ADMIN_PORTAL | `/internal/operations/work-queue` | 2 |
 | `eligibility` | Habilitación crediticia | system | BLOCK | — | 3 |
 | `credit_application` | Solicitud de crédito | customer | CONSUMER_APP | **sin pantalla declarada** | 3 |
-| `credit_decision` | Decisión de crédito | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 2 |
+| `credit_decision` | Decisión de crédito | internal_user | ADMIN_PORTAL | `/internal/operations/credit/applications/[applicationId]` | 2 |
 
 ### Catálogo de productos crediticios (`credit_catalog`)
 

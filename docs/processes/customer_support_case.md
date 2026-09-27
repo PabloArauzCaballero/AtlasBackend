@@ -72,12 +72,12 @@ flowchart LR
 | `support_desk_intake` | La mesa recibe el trabajo | internal_user | ADMIN_PORTAL | `/internal/support` | 4 |
 | `support_case_handling` | Atención del caso | internal_user | ADMIN_PORTAL | `/internal/support/cases/[caseId]` | 11 |
 | `support_sla_watch` | Vigilancia de plazos | system | BLOCK | — | 1 |
-| `support_sla_manual_sweep` | Barrido de plazos a mano | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `support_sla_manual_sweep` | Barrido de plazos a mano | internal_user | ADMIN_PORTAL | `/internal/support` | 1 |
 | `support_resolution` | Resolución y cierre | internal_user | ADMIN_PORTAL | `/internal/support/cases/[caseId]` | 3 |
 | `support_customer_followup` | El cliente cierra el ciclo | customer | CONSUMER_APP | **sin pantalla declarada** | 6 |
 | `support_agent_admin` | Alta de agentes de la mesa | internal_user | ADMIN_PORTAL | `/internal/support/agents` | 3 |
-| `support_knowledge_admin` | Gestión de la base de conocimiento | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 5 |
-| `support_integrity_check` | Verificación de la transcripción | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `support_knowledge_admin` | Gestión de la base de conocimiento | internal_user | ADMIN_PORTAL | `/internal/support/knowledge` | 5 |
+| `support_integrity_check` | Verificación de la transcripción | internal_user | ADMIN_PORTAL | `/internal/support/cases/[caseId]` | 1 |
 
 ### Autoayuda en la app (`support_self_service`)
 

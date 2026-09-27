@@ -19,7 +19,7 @@ import {
   PROCESS_SYSTEM_CODES,
   type ProcessNarrative,
 } from '../../src/modules/workflow-catalog/definitions/workflow-definition.types.js';
-import { FIXTURES, finish } from './process-catalog.lib.js';
+import { clientScreens, FIXTURES, finish, normalizeRoute } from './process-catalog.lib.js';
 
 const MIN = 80;
 const QUESTIONS: Array<keyof ProcessNarrative> = ['whyExists', 'whoStartsAndCloses', 'startAndEnd', 'whenItFails', 'healthIndicator'];
@@ -37,6 +37,7 @@ for (const file of readdirSync(join(process.cwd(), 'src/database/models')).filte
   if (table) MODEL_COLUMNS.set(table, new Set([...source.matchAll(/field:\s*'([^']+)'/g)].map((m) => m[1]!)));
 }
 
+const SCREENS = clientScreens();
 const errors: string[] = [];
 const warnings: string[] = [];
 const codes = new Set<string>();
@@ -81,6 +82,13 @@ for (const f of FIXTURES) {
     if (!(PROCESS_ACTOR_TYPES as readonly string[]).includes(s.actor)) errors.push(`${at}/${s.code}: actor ${s.actor}`);
     if (!(PROCESS_CLIENT_CODES as readonly string[]).includes(s.client)) errors.push(`${at}/${s.code}: cliente ${s.client}`);
     if (s.parent && !stageCodes.has(s.parent)) errors.push(`${at}/${s.code}: etapa madre ${s.parent} no existe`);
+    // Una pantalla declarada que su portal no tiene manda a una persona a una ruta vacía. Es aviso y no
+    // error porque una pantalla recién hecha en una rama abierta aún no está en la copia de Flujos.
+    if (s.screen && SCREENS.get(s.client)?.size) {
+      const route = normalizeRoute(s.screen.split('?')[0]!.replace(/\[([^\]]+)\]/g, ':$1'));
+      if (!SCREENS.get(s.client)!.has(route))
+        warnings.push(`${at}/${s.code}: la pantalla ${s.screen} no está entre las de ${s.client} según Flujos`);
+    }
     // Una persona sin pantalla es un hueco de cableado: se avisa (lo mide PROCESS_STEP_UNWIRED), no se bloquea.
     if (PERSON_ACTORS.has(s.actor) && PERSON_CLIENTS.has(s.client) && !s.screen && !s.link)
       warnings.push(`${at}/${s.code}: actúa una persona en ${s.client} y no se declara pantalla`);

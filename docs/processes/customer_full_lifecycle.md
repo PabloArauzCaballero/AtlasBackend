@@ -95,11 +95,11 @@ flowchart LR
 | `consents_and_privacy` | Consentimientos y privacidad | customer | CONSUMER_APP | **sin pantalla declarada** | 2 |
 | `external_evidence` | Evidencia externa | customer | CONSUMER_APP | **sin pantalla declarada** | 4 |
 | `submission` | Envío a revisión | customer | CONSUMER_APP | **sin pantalla declarada** | 4 |
-| `operator_review` | Revisión del operador | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 6 |
+| `operator_review` | Revisión del operador | internal_user | ADMIN_PORTAL | `/internal/operations/work-queue` | 6 |
 | `risk_assessment` | Riesgo y calificación | system | BLOCK | — | 3 |
 | `eligibility` | Elegibilidad y oferta | customer | CONSUMER_APP | **sin pantalla declarada** | 2 |
 | `credit_application` | Solicitud de crédito | customer | CONSUMER_APP | **sin pantalla declarada** | 2 |
-| `credit_decision` | Decisión de crédito | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 2 |
+| `credit_decision` | Decisión de crédito | internal_user | ADMIN_PORTAL | `/internal/operations/credit/applications/[applicationId]` | 2 |
 | `credit_line` | Línea de crédito | customer | CONSUMER_APP | **sin pantalla declarada** | 2 |
 | `loan_servicing` | Préstamos y calendario | customer | CONSUMER_APP | **sin pantalla declarada** | 3 |
 | `payment_claims` | Avisos de pago | customer | CONSUMER_APP | **sin pantalla declarada** | 3 |

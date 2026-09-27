@@ -68,19 +68,19 @@ flowchart LR
 
 | Etapa | Nombre | Actor | Cliente | Pantalla | Pasos |
 |---|---|---|---|---|---|
-| `partner_signup` | Alta del comercio | merchant_user | ERP_PORTAL | **sin pantalla declarada** | 3 |
-| `partner_identity` | Identidad del negocio | merchant_user | ERP_PORTAL | **sin pantalla declarada** | 4 |
-| `partner_contact` | Verificación de contacto del comercio | merchant_user | ERP_PORTAL | **sin pantalla declarada** | 2 |
-| `partner_network` | Sucursales y terminales | merchant_user | ERP_PORTAL | **sin pantalla declarada** | 6 |
-| `partner_qr` | Códigos QR de cobro | merchant_user | ERP_PORTAL | **sin pantalla declarada** | 4 |
-| `partner_submission` | Envío a revisión | merchant_user | ERP_PORTAL | **sin pantalla declarada** | 1 |
-| `partner_review` | KYB y decisión del operador | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 6 |
+| `partner_signup` | Alta del comercio | merchant_user | ERP_PORTAL | `/portal-comercio/expediente` | 3 |
+| `partner_identity` | Identidad del negocio | merchant_user | ERP_PORTAL | `/portal-comercio/expediente` | 4 |
+| `partner_contact` | Verificación de contacto del comercio | merchant_user | ERP_PORTAL | `/portal-comercio/expediente` | 2 |
+| `partner_network` | Sucursales y terminales | merchant_user | ERP_PORTAL | `/portal-comercio/expediente` | 6 |
+| `partner_qr` | Códigos QR de cobro | merchant_user | ERP_PORTAL | `/portal-comercio/expediente` | 4 |
+| `partner_submission` | Envío a revisión | merchant_user | ERP_PORTAL | `/portal-comercio/expediente` | 1 |
+| `partner_review` | KYB y decisión del operador | internal_user | ADMIN_PORTAL | `/internal/operations/partners` | 6 |
 | `merchant_users` | Usuarios del comercio | merchant_user | ERP_PORTAL | **sin pantalla declarada** | 7 |
 | `point_of_sale` | El encuentro en la caja | customer | CONSUMER_APP | **sin pantalla declarada** | 1 |
 | `pos_credit` | Crédito en el punto de venta | customer | CONSUMER_APP | **sin pantalla declarada** | 5 |
 | `payment_settlement` | Aviso de pago y verificación | customer | CONSUMER_APP | **sin pantalla declarada** | 5 |
-| `partner_portfolio` | Cartera del comercio | merchant_user | ERP_PORTAL | **sin pantalla declarada** | 1 |
-| `partner_support` | Soporte del comercio | merchant_user | ERP_PORTAL | **sin pantalla declarada** | 6 |
+| `partner_portfolio` | Cartera del comercio | merchant_user | ERP_PORTAL | `/portal-comercio/cartera` | 1 |
+| `partner_support` | Soporte del comercio | merchant_user | ERP_PORTAL | `/portal-comercio/soporte` | 6 |
 
 ### Alta del comercio (`partner_signup`)
 

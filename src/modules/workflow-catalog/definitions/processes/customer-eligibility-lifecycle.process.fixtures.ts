@@ -175,6 +175,7 @@ export const CUSTOMER_ELIGIBILITY_LIFECYCLE: WorkflowDefinitionFixture = {
       module: 'customers',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/customers/[customerId]/investigation-summary',
       optional: true,
       roles: ELIGIBILITY_DECIDERS,
       requiredStates: ['under_review', 'observed', 'active', 'suspended', 'rejected', 'blocked'],

@@ -55,7 +55,7 @@ flowchart LR
 | `eligibility_evaluation` | Evaluación de la regla de habilitación | system | BLOCK | — | 1 |
 | `eligibility_customer_view` | El cliente consulta su habilitación | customer | CONSUMER_APP | **sin pantalla declarada** | 2 |
 | `eligibility_case_decisions` | Decisiones de casos que mueven el estado | internal_user | ADMIN_PORTAL | `/internal/operations/work-queue` | 3 |
-| `eligibility_admin_decision` | Decisión administrativa de habilitación | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `eligibility_admin_decision` | Decisión administrativa de habilitación | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 1 |
 | `eligibility_lifecycle_event` | Evento de la transición | system | BLOCK | — | 1 |
 
 ### Evaluación de la regla de habilitación (`eligibility_evaluation`)

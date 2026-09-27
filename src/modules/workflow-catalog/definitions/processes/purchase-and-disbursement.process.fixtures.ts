@@ -293,6 +293,7 @@ export const PURCHASE_AND_DISBURSEMENT: WorkflowDefinitionFixture = {
       module: 'loans',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/customers/[customerId]/investigation-summary',
       roles: ['internal_operator', 'admin', 'platform_admin'],
       requiredStates: ['approved'],
       resultingStates: ['active'],
