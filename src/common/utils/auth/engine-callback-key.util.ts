@@ -3,7 +3,7 @@
  * @business Esta pieza es lo que impide que un circuito de decisión se cierre sin credencial.
  * @system comprueba la clave compartida con la que el Motor de Decisión llama de vuelta a Atlas.
  */
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual } from 'node:crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import { env } from '../../../config/env.js';
 
@@ -24,17 +24,22 @@ export function assertEngineCallbackKey(clave: string | undefined): void {
 
 /**
  * Comparación en tiempo constante. Con `!==` el tiempo de respuesta depende de cuántos caracteres
- * iniciales acierta quien llama, y una clave se puede adivinar carácter a carácter midiendo. Las dos
- * pasan por un HMAC con una clave aleatoria de este proceso antes de `timingSafeEqual`: iguala las
- * longitudes (esa función lanza si difieren, y la excepción filtraría la longitud de la clave) sin
- * dejar un hash estable de la credencial que se pueda precalcular.
+ * iniciales acierta quien llama, y una clave se puede adivinar carácter a carácter midiendo.
+ * `timingSafeEqual` lanza si las longitudes difieren (y la excepción filtraría la longitud de la
+ * clave), así que las dos se copian a búferes del mismo tamaño y la longitud se compara aparte, sin
+ * cortocircuito. No se hashea la credencial: un hash rápido de una clave es justo lo que CodeQL
+ * señala como `js/insufficient-password-hash`, y aquí no hace falta.
  */
-const CLAVE_DE_COMPARACION = randomBytes(32);
-
 function sameSecret(recibida: string, esperada: string): boolean {
-  return timingSafeEqual(digest(recibida), digest(esperada));
+  const a = Buffer.from(recibida, 'utf8');
+  const b = Buffer.from(esperada, 'utf8');
+  const largo = Math.max(a.length, b.length);
+  const iguales = timingSafeEqual(rellenar(a, largo), rellenar(b, largo));
+  return iguales && a.length === b.length;
 }
 
-function digest(valor: string): Buffer {
-  return createHmac('sha256', CLAVE_DE_COMPARACION).update(valor).digest();
+function rellenar(valor: Buffer, largo: number): Buffer {
+  const destino = Buffer.alloc(largo);
+  valor.copy(destino);
+  return destino;
 }
