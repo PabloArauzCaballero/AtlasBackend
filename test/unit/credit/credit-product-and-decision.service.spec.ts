@@ -29,6 +29,7 @@ function buildProductService() {
   };
   const creditRepository = {
     findOfferableProducts: jest.fn(async (..._args: unknown[]) => [product]),
+    findAllProducts: jest.fn(async (..._args: unknown[]) => [product, { ...product, id: '23', status: 'draft' }]),
     findProductByCode: jest.fn(async (..._args: unknown[]) => null),
     createProduct: jest.fn(async (values: Record<string, unknown>) => ({ id: '22', ...values })),
     findProductById: jest.fn(async (..._args: unknown[]) => product),
@@ -81,9 +82,13 @@ describe('CreditProductService', () => {
     await expect(service.listForCustomer({ tenantId: '7', customerId: '99', currentUser: customerUser })).rejects.toThrow();
   });
 
-  it('lista para operaciones usando el catálogo vigente del tenant', async () => {
-    const { service, product } = buildProductService();
-    await expect(service.listForOperations('7')).resolves.toEqual({ products: [product] });
+  it('lista para operaciones TODO el catálogo, borradores incluidos (si no, no se pueden activar)', async () => {
+    const { service, product, creditRepository } = buildProductService();
+    const result = await service.listForOperations('7');
+    expect(result.products).toHaveLength(2);
+    expect(result.products).toContainEqual(product);
+    expect(result.products.some((p) => (p as { status: string }).status === 'draft')).toBe(true);
+    expect(creditRepository.findOfferableProducts).not.toHaveBeenCalled();
   });
 
   it('rechaza códigos duplicados antes de crear el producto', async () => {

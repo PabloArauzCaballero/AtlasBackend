@@ -56,6 +56,7 @@ import { SupportChannelService } from './application/support-channel.service.js'
 import { SupportConversationService } from './application/support-conversation.service.js';
 import { SupportRealtimeService } from './application/support-realtime.service.js';
 import { SupportDeskService } from './application/support-desk.service.js';
+import { SupportKnowledgeReadService } from './application/support-knowledge-read.service.js';
 import { SupportKnowledgeService } from './application/support-knowledge.service.js';
 import { SupportMessageService } from './application/support-message.service.js';
 import { SupportSlaService } from './application/support-sla.service.js';
@@ -162,6 +163,7 @@ import { SupportMessageRepository } from './support-message.repository.js';
     SupportChannelService,
     SupportDeskService,
     SupportKnowledgeService,
+    SupportKnowledgeReadService,
   ],
   exports: [SupportCaseService, SupportSlaService, SupportKnowledgeService],
 })

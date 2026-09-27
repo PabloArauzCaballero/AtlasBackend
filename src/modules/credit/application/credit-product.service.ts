@@ -64,7 +64,9 @@ export class CreditProductService {
 
   /** Catálogo completo para operaciones, incluidos borradores y productos retirados. */
   async listForOperations(tenantId: string) {
-    const products = await this.creditRepository.findOfferableProducts(tenantId, new Date());
+    // Antes usaba la consulta de lo OFERTABLE (sólo `active` y vigente), y un producto en borrador o
+    // suspendido desaparecía de la pantalla que sirve precisamente para activarlo o reactivarlo.
+    const products = await this.creditRepository.findAllProducts(tenantId);
     return { products };
   }
 

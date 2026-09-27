@@ -17,6 +17,7 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { RequestWithNetwork, requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
 import { contextFrom } from './catalog-request-context.util.js';
 import { CatalogManagementService } from './catalog-management.service.js';
+import { CatalogStagingReadService } from './application/catalog-staging-read.service.js';
 import {
   catalogDecisionResponseSchema,
   catalogIngestionResponseSchema,
@@ -50,6 +51,7 @@ import {
   stagingDecisionBatchSchema,
   submitCatalogVersionSchema,
 } from './catalog-management.schemas.js';
+import { type ListStagingItemsQueryDto, listStagingItemsQuerySchema } from './catalog-staging.schemas.js';
 
 @ApiTags('catalog-management')
 @ApiBearerAuth('access-token')
@@ -57,7 +59,10 @@ import {
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
 export class CatalogManagementController {
-  constructor(private readonly service: CatalogManagementService) {}
+  constructor(
+    private readonly service: CatalogManagementService,
+    private readonly stagingReads: CatalogStagingReadService,
+  ) {}
 
   @ApiOperation({
     summary: 'Listar catálogos de contexto del motor de decisión',
@@ -194,6 +199,22 @@ export class CatalogManagementController {
   ) {
     requireIdempotencyKey(idempotencyKey);
     return this.service.ingestCatalog({ body, currentUser, context: contextFrom(tenantId, idempotencyKey, request) });
+  }
+
+  @ApiOperation({
+    summary: 'Ítems propuestos por una ingesta, por catálogo y estado de revisión',
+    description: 'Lo que la decisión en lote necesita enseñar: sin los ids de los ítems en staging no hay nada que aprobar ni rechazar.',
+  })
+  @ApiQuery({ name: 'catalogCode', required: false, description: 'Sólo los ítems de este catálogo.' })
+  @ApiQuery({ name: 'ingestionJobId', required: false, description: 'Sólo los ítems que propuso esta ingesta.' })
+  @ApiQuery({ name: 'reviewStatus', required: false, description: 'pending_review, approved o rejected.' })
+  @ApiQuery({ name: 'page', required: false, description: 'Página, desde 1.' })
+  @ApiQuery({ name: 'pageSize', required: false, description: 'Ítems por página (1 a 200; 50 por defecto).' })
+  @ApiResponse({ status: 200, description: 'Ítems de staging paginados.' })
+  @ApiResponse({ status: 404, description: 'CATALOG_NOT_FOUND.' })
+  @Get('catalog-staging-items')
+  listStagingItems(@Query(new ZodValidationPipe(listStagingItemsQuerySchema)) query: ListStagingItemsQueryDto) {
+    return this.stagingReads.list(query);
   }
 
   @ApiOperation({ summary: 'Decidir en lote items en staging de catálogo' })
