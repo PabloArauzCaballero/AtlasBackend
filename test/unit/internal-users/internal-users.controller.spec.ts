@@ -15,7 +15,11 @@ describe('InternalUsersController', () => {
       updateUser: jest.fn(async (..._args: unknown[]) => ({ id: '5' })),
       replaceRoles: jest.fn(async (..._args: unknown[]) => ({ id: '5' })),
     };
-    return { controller: new InternalUsersController(service as never), service };
+    const lockService = {
+      withLockState: jest.fn(async (profile: unknown) => ({ ...(profile as object), lock: { locked: false } })),
+      unlock: jest.fn(async (..._args: unknown[]) => ({ id: '5' })),
+    };
+    return { controller: new InternalUsersController(service as never, lockService as never), service, lockService };
   }
   const user = { role: 'system_admin', tenantId: '1', internalUserId: 'u1' } as never;
   const request = { ip: '1.1.1.1', headers: { 'user-agent': 'jest' } } as never;
@@ -26,6 +30,20 @@ describe('InternalUsersController', () => {
     await controller.get({ internalUserId: '5' } as never, user);
     expect(service.listUsers).toHaveBeenCalledWith(user, { page: 1 });
     expect(service.getUser).toHaveBeenCalledWith(user, '5');
+  });
+
+  it('get añade el estado de bloqueo al perfil', async () => {
+    const { controller, lockService } = build();
+    const result = await controller.get({ internalUserId: '5' } as never, user);
+    expect(lockService.withLockState).toHaveBeenCalledWith({ id: '5' });
+    expect(result).toEqual({ id: '5', lock: { locked: false } });
+  });
+
+  it('unlock delega con el motivo y la metadata de red', async () => {
+    const { controller, lockService } = build();
+    const body = { reason: 'Se equivocó de contraseña' } as never;
+    await controller.unlock({ internalUserId: '5' } as never, body, user, request);
+    expect(lockService.unlock).toHaveBeenCalledWith(user, '5', body, requestMeta(request));
   });
 
   it('update y replaceRoles pasan la metadata de red (requestMeta)', async () => {

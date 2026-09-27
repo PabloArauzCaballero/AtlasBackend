@@ -92,3 +92,10 @@ export const listInternalUsersQuerySchema = z.object({
 });
 
 export type ListInternalUsersQueryDto = z.infer<typeof listInternalUsersQuerySchema>;
+
+/** Desbloquear exige motivo, como el resto de acciones sobre una cuenta interna: queda en la auditoría. */
+export const unlockInternalUserSchema = z.object({
+  reason: z.string().trim().min(8).max(500),
+});
+
+export type UnlockInternalUserDto = z.infer<typeof unlockInternalUserSchema>;

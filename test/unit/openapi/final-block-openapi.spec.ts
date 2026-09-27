@@ -13,6 +13,7 @@ import { InternalAccessCatalogController } from '../../../src/modules/internal-u
 import { InternalAccessCatalogService } from '../../../src/modules/internal-users/internal-access-catalog.service.js';
 import { InternalUsersController } from '../../../src/modules/internal-users/internal-users.controller.js';
 import { InternalUsersService } from '../../../src/modules/internal-users/internal-users.service.js';
+import { InternalUserLockService } from '../../../src/modules/internal-users/internal-user-lock.service.js';
 import { InternalPermissionsGuard } from '../../../src/modules/internal-users/guards/internal-permissions.guard.js';
 import { EventsController } from '../../../src/modules/events/events.controller.js';
 import { EventsService } from '../../../src/modules/events/events.service.js';
@@ -106,6 +107,7 @@ describe('final block — OpenAPI document generation (8 controllers, 7 modules)
             replaceRoles: asyncMock(),
           },
         },
+        { provide: InternalUserLockService, useValue: { withLockState: asyncMock(), unlock: asyncMock() } },
         { provide: InternalPermissionsGuard, useValue: { canActivate: () => true } },
         {
           provide: EventsService,

@@ -20,6 +20,8 @@ import { PaymentInstructionService } from './payment-instruction.service.js';
 import { PaymentClaimsContextService } from './payment-claims.shared.js';
 import { MerchantPaymentClaimsController } from './merchant-payment-claims.controller.js';
 import { MobilePaymentClaimsController } from './mobile-payment-claims.controller.js';
+import { OperationsPaymentClaimsController } from './operations-payment-claims.controller.js';
+import { OperationsPaymentClaimsService } from './operations-payment-claims.service.js';
 
 @Module({
   imports: [
@@ -30,7 +32,7 @@ import { MobilePaymentClaimsController } from './mobile-payment-claims.controlle
     LoansModule,
     PartnerOnboardingModule,
   ],
-  controllers: [MobilePaymentClaimsController, MerchantPaymentClaimsController],
+  controllers: [MobilePaymentClaimsController, MerchantPaymentClaimsController, OperationsPaymentClaimsController],
   /*
    * `DocumentStorageService` se PROVEE aqui, no se importa: `CustomerOnboardingModule` lo declara
    * pero no lo exporta, y es un servicio sin estado —solo firma URLs contra la configuracion—, asi
@@ -42,6 +44,7 @@ import { MobilePaymentClaimsController } from './mobile-payment-claims.controlle
     PartnerPortfolioService,
     PaymentInstructionService,
     PaymentClaimsContextService,
+    OperationsPaymentClaimsService,
     DocumentStorageService,
     MalwareScannerService,
   ],
