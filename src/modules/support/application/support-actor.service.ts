@@ -7,8 +7,8 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { AtlasUserRole, AuthenticatedUser } from '../../../common/types/auth.types.js';
 import type { SupportCaseModel } from '../../../database/models/index.js';
 import { PartnerProfileService } from '../../partner-onboarding/application/partner-profile.service.js';
-import { SupportAgentRepository } from '../support-agent.repository.js';
 import type { SupportActorType } from '../support.constants.js';
+import { SupportAgentEnrollmentService } from './support-agent-enrollment.service.js';
 
 /** Quién está actuando, ya resuelto contra la base y no sólo según el token. */
 export interface SupportActor {
@@ -40,7 +40,7 @@ const INTERNAL_ROLES = [
 @Injectable()
 export class SupportActorService {
   constructor(
-    private readonly agents: SupportAgentRepository,
+    private readonly enrollment: SupportAgentEnrollmentService,
     private readonly partners: PartnerProfileService,
   ) {}
 
@@ -87,7 +87,8 @@ export class SupportActorService {
       };
     }
 
-    const profile = currentUser.internalUserId ? await this.agents.findByInternalUser(tenantId, currentUser.internalUserId) : null;
+    // El rol de soporte o de administración basta: el perfil se crea la primera vez que hace falta.
+    const profile = currentUser.internalUserId ? await this.enrollment.ensureProfile(tenantId, currentUser.internalUserId) : null;
 
     return {
       actorType: isSupervisor ? 'SUPERVISOR' : 'AGENT',

@@ -72,4 +72,17 @@ export const WORKFLOW_CATALOG_NARRATIVES: EntityBusinessNarrative[] = [
     systemsExplanation:
       'Tabla en `platform_ops` con unicidad `(workflow_definition_id, transition_code)`, `CHECK` de tipos de condición legales y `CHECK` que exige al menos un extremo no nulo (una transición sin origen ni destino no describe nada). Índices por origen y destino para recorrer el grafo en ambas direcciones sin escaneo secuencial.',
   },
+  {
+    tableName: 'workflow_definitions_sync',
+    whyExists:
+      'Dice qué versión del código de cada proceso tiene esta base. Los procesos se declaran en código y se vuelcan por migración; sin esta huella no hay forma de saber si la base desplegada quedó atrás de lo que el código describe.',
+    whyNotDelete:
+      'Es lo que evita repetir el incidente de los permisos del 15-09: un cambio que existe en el código y no en la base. Sin la huella, el portal enseñaría un proceso distinto del documentado sin que nadie lo note.',
+    decisionContribution:
+      '`content_hash` se compara con la huella que calcula el código; si difieren, el volcado no corrió en este entorno y la ficha del proceso lo avisa en lugar de mostrar datos viejos como vigentes.',
+    usageExample:
+      'Se añade una etapa al proceso de crédito y su migración de volcado. Tras desplegar en TEST, la fila de `credit_line_and_application` muestra la huella nueva y la hora del volcado: el cambio llegó.',
+    systemsExplanation:
+      'Tabla en `platform_ops` con una fila por `workflow_code` (clave primaria). La escribe `syncWorkflowCatalog` dentro de la misma transacción que el resto del volcado, así que la huella nunca describe un volcado a medias. Sin `_tenant_id`: describe el software desplegado.',
+  },
 ];

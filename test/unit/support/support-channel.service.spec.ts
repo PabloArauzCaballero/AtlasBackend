@@ -68,7 +68,12 @@ describe('SupportChannelService', () => {
   let actors: { assertIsAgent: jest.Mock };
   let audit: { publish: jest.Mock };
   let apertura: { persistRequestedChannel: jest.Mock };
-  let disponibilidad: { reserveAvailableAgent: jest.Mock; countAvailable: jest.Mock; releaseAgentSlot: jest.Mock };
+  let disponibilidad: {
+    reserveAvailableAgent: jest.Mock;
+    reserveSlotOf: jest.Mock;
+    countAvailable: jest.Mock;
+    releaseAgentSlot: jest.Mock;
+  };
   let service: SupportChannelService;
 
   beforeEach(() => {
@@ -93,6 +98,7 @@ describe('SupportChannelService', () => {
     apertura = { persistRequestedChannel: jest.fn(async () => canal()) };
     disponibilidad = {
       reserveAvailableAgent: jest.fn(async () => ({ agentProfileId: 'ag-1' })),
+      reserveSlotOf: jest.fn(async () => true),
       countAvailable: jest.fn(async () => 3),
       releaseAgentSlot: jest.fn(async () => undefined),
     };
@@ -228,24 +234,25 @@ describe('SupportChannelService', () => {
       expect((fallo as ConflictException).getResponse()).toMatchObject({ code: 'SUPPORT_CHANNEL_ALREADY_CLAIMED', status: 'OPEN' });
     });
 
-    it('la capacidad se reserva ANTES de tocar el canal', async () => {
+    it('la capacidad que se reserva es la de QUIEN pulsó, no la del mejor candidato de la cola', async () => {
       await service.claimChannel({ tenantId: 't1', actor: AGENTE, channelId: '5' });
 
-      expect(disponibilidad.reserveAvailableAgent).toHaveBeenCalledWith({ tenantId: 't1', queueId: '11', requiredSkills: [] });
+      expect(disponibilidad.reserveSlotOf).toHaveBeenCalledWith('t1', 'ag-1');
+      expect(disponibilidad.reserveAvailableAgent).not.toHaveBeenCalled();
     });
 
     it('sin capacidad libre no se asigna, y el canal sigue en cola para otro', async () => {
-      disponibilidad.reserveAvailableAgent.mockResolvedValueOnce(null as never);
+      disponibilidad.reserveSlotOf.mockResolvedValueOnce(false as never);
 
       await expect(service.claimChannel({ tenantId: 't1', actor: AGENTE, channelId: '5' })).rejects.toBeInstanceOf(ConflictException);
       expect(channels.update).not.toHaveBeenCalled();
     });
 
-    it('si la reserva cayó en OTRO agente se le devuelve su hueco en vez de quedárselo', async () => {
-      disponibilidad.reserveAvailableAgent.mockResolvedValueOnce({ agentProfileId: 'ag-otro' } as never);
+    it('si otro lo tomó entre la reserva y el bloqueo, el hueco reservado se devuelve', async () => {
+      channels.requireById.mockResolvedValueOnce(canal() as never).mockResolvedValueOnce(canal({ status: 'OPEN' }) as never);
 
       await expect(service.claimChannel({ tenantId: 't1', actor: AGENTE, channelId: '5' })).rejects.toBeInstanceOf(ConflictException);
-      expect(disponibilidad.releaseAgentSlot).toHaveBeenCalledWith('t1', 'ag-otro');
+      expect(disponibilidad.releaseAgentSlot).toHaveBeenCalledWith('t1', 'ag-1');
     });
 
     it('tomarlo lo abre, sube `claimVersion` y registra al agente como participante', async () => {

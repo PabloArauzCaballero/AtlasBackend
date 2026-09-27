@@ -79,7 +79,7 @@ export const FLUJO_CLIENTE_PARTNER: FlujoDeclarado = {
           idempotencyKey: true,
           resultingStates: ['registered'],
           errors: ['409 PARTNER_ALREADY_EXISTS', '422 VALIDATION_ERROR'],
-          events: ['partner.registered'],
+          events: [],
           successStatus: [200, 201],
         },
         {
@@ -246,7 +246,7 @@ export const FLUJO_CLIENTE_PARTNER: FlujoDeclarado = {
           path: '/partner-onboarding/:partnerId/qr-codes',
           repeatable: true,
           resultingStates: ['qr_pending_review'],
-          events: ['partner.qr.submitted'],
+          events: [],
           successStatus: [200, 201],
         },
         {
@@ -282,7 +282,7 @@ export const FLUJO_CLIENTE_PARTNER: FlujoDeclarado = {
           idempotencyKey: true,
           resultingStates: ['under_review'],
           errors: ['409 PARTNER_ONBOARDING_INCOMPLETE'],
-          events: ['partner.onboarding.submitted'],
+          events: [],
           successStatus: [200, 201, 202],
         },
       ],
@@ -325,7 +325,7 @@ export const FLUJO_CLIENTE_PARTNER: FlujoDeclarado = {
           method: 'POST',
           path: '/operations/partners/:partnerId/qr-codes/:qrId/review',
           resultingStates: ['qr_approved', 'qr_rejected'],
-          events: ['partner.qr.reviewed'],
+          events: [],
           successStatus: [200, 201],
         },
         {
@@ -335,7 +335,7 @@ export const FLUJO_CLIENTE_PARTNER: FlujoDeclarado = {
           method: 'POST',
           path: '/operations/partners/:partnerId/decision',
           resultingStates: ['active', 'observed', 'rejected'],
-          events: ['partner.decided'],
+          events: [],
           successStatus: [200, 201],
         },
         {
@@ -461,7 +461,7 @@ export const FLUJO_CLIENTE_PARTNER: FlujoDeclarado = {
           roles: ['customer'],
           idempotencyKey: true,
           errors: ['403 NOT_ELIGIBLE', '409 APPLICATION_ALREADY_OPEN'],
-          events: ['credit.application.created'],
+          events: [],
           successStatus: [200, 201],
         },
         {
@@ -481,7 +481,7 @@ export const FLUJO_CLIENTE_PARTNER: FlujoDeclarado = {
           path: '/merchant/partners/:partnerId/credit-applications/:applicationId/acceptance',
           roles: ['merchant_user'],
           idempotencyKey: true,
-          events: ['credit.application.accepted_by_partner'],
+          events: [],
           successStatus: [200, 201],
         },
         {
@@ -512,7 +512,7 @@ export const FLUJO_CLIENTE_PARTNER: FlujoDeclarado = {
           path: '/mobile/customers/:customerId/payment-claims',
           roles: ['customer'],
           idempotencyKey: true,
-          events: ['payment.claim.created'],
+          events: [],
           successStatus: [200, 201],
         },
         {
@@ -549,7 +549,7 @@ export const FLUJO_CLIENTE_PARTNER: FlujoDeclarado = {
           path: '/merchant/partners/:partnerId/payment-claims/:claimId/verification',
           roles: ['merchant_user'],
           idempotencyKey: true,
-          events: ['payment.claim.verified'],
+          events: [],
           successStatus: [200, 201],
         },
       ],

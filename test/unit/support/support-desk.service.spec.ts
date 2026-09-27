@@ -32,7 +32,7 @@ const ALTA: Record<string, unknown> = {
 };
 
 describe('SupportDeskService', () => {
-  let channels: { listQueuedChannels: jest.Mock };
+  let channels: { listQueuedChannels: jest.Mock; listAssignedChannels: jest.Mock };
   let agents: {
     setPresence: jest.Mock;
     listProfiles: jest.Mock;
@@ -48,7 +48,7 @@ describe('SupportDeskService', () => {
   let service: SupportDeskService;
 
   beforeEach(() => {
-    channels = { listQueuedChannels: jest.fn(async () => []) };
+    channels = { listQueuedChannels: jest.fn(async () => []), listAssignedChannels: jest.fn(async () => []) };
     agents = {
       setPresence: jest.fn(async () => undefined),
       listProfiles: jest.fn(async () => []),
@@ -100,6 +100,25 @@ describe('SupportDeskService', () => {
 
       expect(cola.channels[0]).toMatchObject({ channelId: '5', status: 'QUEUED', hasAgent: false });
       expect(cola.channels[0]).not.toHaveProperty('assignedAgentProfileId');
+    });
+
+    it('mi mesa trae la presencia REAL y las conversaciones que llevo', async () => {
+      agents.findById.mockResolvedValueOnce({ id: 'ag-1', presenceState: 'OFFLINE' } as never);
+      channels.listAssignedChannels.mockResolvedValueOnce([
+        { id: 8, status: 'OPEN', channelType: 'CHAT', lastMessageSequence: 3, assignedAgentProfileId: 'ag-1', caseId: 40 },
+      ] as never);
+
+      const mesa = await service.myDesk({ tenantId: 't1', actor: AGENTE });
+
+      expect(channels.listAssignedChannels).toHaveBeenCalledWith('t1', 'ag-1');
+      expect(mesa).toMatchObject({ agentProfileId: 'ag-1', presenceState: 'OFFLINE' });
+      expect(mesa.channels[0]).toMatchObject({ channelId: '8', caseId: '40', hasAgent: true });
+    });
+
+    it('sin perfil legible, la presencia se da por OFFLINE y no por disponible', async () => {
+      agents.findById.mockResolvedValueOnce(null as never);
+
+      await expect(service.myDesk({ tenantId: 't1', actor: AGENTE })).resolves.toMatchObject({ presenceState: 'OFFLINE' });
     });
 
     it('la presencia se escribe contra el PERFIL del agente, no contra su usuario', async () => {

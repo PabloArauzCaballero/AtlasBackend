@@ -29,12 +29,13 @@ export class SystemFlowsGateService {
   ) {}
 
   async evaluate() {
-    const [criticos, desprotegidas, pendientes, cargas, deriva] = await Promise.all([
+    const [criticos, desprotegidas, pendientes, cargas, deriva, sinCablear] = await Promise.all([
       this.repository.criticalNotCertified(),
       this.repository.openFindingsOfKind('UNPROTECTED_WRITE'),
       this.repository.unresolvedHighReviews(),
       this.repository.importedScopes(),
       this.screens.rbacDrift(),
+      this.repository.unwiredProcessSteps(),
     ]);
     const checks: GateCheck[] = [
       comprobacionCriticos(criticos),
@@ -52,6 +53,7 @@ export class SystemFlowsGateService {
         detail: 'flujos de riesgo alto pendientes de revisión humana o rechazados (un rechazo dice que su análisis está mal)',
       },
       comprobacionArtefactos(cargas),
+      comprobacionProcesos(sinCablear),
     ];
     return { passed: checks.every((check) => check.passed), evaluatedAt: new Date(), checks };
   }
@@ -114,5 +116,18 @@ function comprobacionArtefactos(cargas: Set<string>): GateCheck {
     detail: faltan.length
       ? `falta cargar: ${faltan.join(', ')}`
       : 'endpoints y hallazgos de los cuatro bloques y pantallas de los cinco clientes cargados',
+  };
+}
+
+/** Sexta comprobación (plan de procesos 2026-09-26): ningún paso de persona sin pantalla en procesos P0/P1. */
+function comprobacionProcesos(filas: Array<{ workflowCode: string; count: number }>): GateCheck {
+  const total = filas.reduce((n, f) => n + f.count, 0);
+  return {
+    code: 'PROCESS_STEPS_WIRED',
+    passed: total === 0,
+    count: total,
+    detail: total
+      ? `pasos de personas sin pantalla en procesos P0/P1: ${filas.map((f) => `${f.workflowCode} (${f.count})`).join(', ')}`
+      : 'todos los pasos de personas de los procesos P0/P1 tienen una pantalla que los llama',
   };
 }
