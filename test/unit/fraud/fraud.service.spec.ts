@@ -32,6 +32,12 @@ function buildCustomersRepositoryMock(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function buildLifecycleMock() {
+  return {
+    transition: jest.fn(async (input: { toStatus: string }) => ({ newStatus: input.toStatus, previousStatus: 'active', changed: true })),
+  };
+}
+
 function buildSequelizeMock() {
   return { transaction: jest.fn((callback: (t: unknown) => Promise<unknown>) => callback({})) };
 }
@@ -39,7 +45,12 @@ function buildSequelizeMock() {
 describe('FraudService.decideFraudCase', () => {
   it('requires an idempotency key', async () => {
     const repo = buildFraudRepositoryMock();
-    const service = new FraudService(repo as never, buildCustomersRepositoryMock() as never, buildSequelizeMock() as never);
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      buildLifecycleMock() as never,
+      buildSequelizeMock() as never,
+    );
 
     await expect(
       service.decideFraudCase({
@@ -54,7 +65,12 @@ describe('FraudService.decideFraudCase', () => {
 
   it('requires reasonCode for confirmed_fraud/blocked decisions', async () => {
     const repo = buildFraudRepositoryMock();
-    const service = new FraudService(repo as never, buildCustomersRepositoryMock() as never, buildSequelizeMock() as never);
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      buildLifecycleMock() as never,
+      buildSequelizeMock() as never,
+    );
 
     await expect(
       service.decideFraudCase({
@@ -70,7 +86,12 @@ describe('FraudService.decideFraudCase', () => {
   it('throws NotFoundException when the fraud case does not exist', async () => {
     const repo = buildFraudRepositoryMock();
     repo.findFraudCaseById.mockResolvedValue(null);
-    const service = new FraudService(repo as never, buildCustomersRepositoryMock() as never, buildSequelizeMock() as never);
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      buildLifecycleMock() as never,
+      buildSequelizeMock() as never,
+    );
 
     await expect(
       service.decideFraudCase({
@@ -86,7 +107,12 @@ describe('FraudService.decideFraudCase', () => {
   it('throws ConflictException when the case is already closed', async () => {
     const repo = buildFraudRepositoryMock();
     repo.findFraudCaseById.mockResolvedValue({ id: '1', closedAt: new Date(), caseStatus: 'closed', customerId: '10', severity: 'high' });
-    const service = new FraudService(repo as never, buildCustomersRepositoryMock() as never, buildSequelizeMock() as never);
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      buildLifecycleMock() as never,
+      buildSequelizeMock() as never,
+    );
 
     await expect(
       service.decideFraudCase({
@@ -102,7 +128,12 @@ describe('FraudService.decideFraudCase', () => {
   it('creates a watchlist entry only when applyWatchlist=true, and closes the case', async () => {
     const repo = buildFraudRepositoryMock();
     repo.findFraudCaseById.mockResolvedValue({ id: '1', closedAt: null, caseStatus: 'open', customerId: '10', severity: 'high' });
-    const service = new FraudService(repo as never, buildCustomersRepositoryMock() as never, buildSequelizeMock() as never);
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      buildLifecycleMock() as never,
+      buildSequelizeMock() as never,
+    );
 
     const result = await service.decideFraudCase({
       tenantId: '1',
@@ -132,7 +163,12 @@ describe('FraudService.decideFraudCase', () => {
         primaryEmailHash: 'hash-of-real-email',
       })),
     });
-    const service = new FraudService(repo as never, customersRepository as never, buildSequelizeMock() as never);
+    const service = new FraudService(
+      repo as never,
+      customersRepository as never,
+      buildLifecycleMock() as never,
+      buildSequelizeMock() as never,
+    );
 
     const result = await service.decideFraudCase({
       tenantId: '1',
@@ -162,7 +198,12 @@ describe('FraudService.decideFraudCase', () => {
     const customersRepository = buildCustomersRepositoryMock({
       findById: jest.fn(async (..._args: unknown[]) => ({ id: '10', primaryPhoneHash: null, primaryEmailHash: null })),
     });
-    const service = new FraudService(repo as never, customersRepository as never, buildSequelizeMock() as never);
+    const service = new FraudService(
+      repo as never,
+      customersRepository as never,
+      buildLifecycleMock() as never,
+      buildSequelizeMock() as never,
+    );
 
     const result = await service.decideFraudCase({
       tenantId: '1',
@@ -183,7 +224,12 @@ describe('FraudService.decideFraudCase', () => {
     // el service usa la decisión misma como motivo de respaldo en los logs de auditoría.
     const repo = buildFraudRepositoryMock();
     repo.findFraudCaseById.mockResolvedValue({ id: '1', closedAt: null, caseStatus: 'open', customerId: '10', severity: 'low' });
-    const service = new FraudService(repo as never, buildCustomersRepositoryMock() as never, buildSequelizeMock() as never);
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      buildLifecycleMock() as never,
+      buildSequelizeMock() as never,
+    );
 
     const result = await service.decideFraudCase({
       tenantId: '1',
@@ -200,7 +246,12 @@ describe('FraudService.decideFraudCase', () => {
   it('sets caseStatus to in_progress (not closed) for needs_more_investigation', async () => {
     const repo = buildFraudRepositoryMock();
     repo.findFraudCaseById.mockResolvedValue({ id: '1', closedAt: null, caseStatus: 'open', customerId: '10', severity: 'medium' });
-    const service = new FraudService(repo as never, buildCustomersRepositoryMock() as never, buildSequelizeMock() as never);
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      buildLifecycleMock() as never,
+      buildSequelizeMock() as never,
+    );
 
     const result = await service.decideFraudCase({
       tenantId: '1',
@@ -212,5 +263,61 @@ describe('FraudService.decideFraudCase', () => {
 
     expect(result.caseStatus).toBe('in_progress');
     expect(repo.createWatchlistEntry).not.toHaveBeenCalled();
+  });
+
+  it('aplica la transición real del cliente (no sólo el historial) y devuelve el estado aplicado', async () => {
+    const repo = buildFraudRepositoryMock();
+    repo.findFraudCaseById.mockResolvedValue({ id: '1', closedAt: null, caseStatus: 'open', customerId: '10', severity: 'high' });
+    const lifecycle = buildLifecycleMock();
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      lifecycle as never,
+      buildSequelizeMock() as never,
+    );
+
+    const result = await service.decideFraudCase({
+      tenantId: '1',
+      params: { caseId: '1' },
+      body: { decision: 'blocked', reasonCode: 'stolen_identity', applyWatchlist: false, nextCustomerStatus: 'blocked' },
+      currentUser: { sub: '1', role: 'fraud_analyst', internalUserId: '5' },
+      idempotencyKey: 'idem-fx',
+    });
+
+    expect(lifecycle.transition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: '1',
+        customerId: '10',
+        toStatus: 'blocked',
+        reasonCode: 'stolen_identity',
+        changedByInternalUserId: '5',
+      }),
+    );
+    // El historial ya no se escribe a mano con `previousStatus: null`: lo escribe la transición.
+    expect(repo.createStatusEvent).not.toHaveBeenCalled();
+    expect(result.nextCustomerStatus).toBe('blocked');
+  });
+
+  it('sin siguiente estado no toca el ciclo de vida del cliente', async () => {
+    const repo = buildFraudRepositoryMock();
+    repo.findFraudCaseById.mockResolvedValue({ id: '1', closedAt: null, caseStatus: 'open', customerId: '10', severity: 'low' });
+    const lifecycle = buildLifecycleMock();
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      lifecycle as never,
+      buildSequelizeMock() as never,
+    );
+
+    const result = await service.decideFraudCase({
+      tenantId: '1',
+      params: { caseId: '1' },
+      body: { decision: 'false_positive', applyWatchlist: false },
+      currentUser: { sub: '1', role: 'fraud_analyst' },
+      idempotencyKey: 'idem-fy',
+    });
+
+    expect(lifecycle.transition).not.toHaveBeenCalled();
+    expect(result.nextCustomerStatus).toBeNull();
   });
 });

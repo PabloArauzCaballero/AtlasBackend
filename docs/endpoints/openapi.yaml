@@ -19187,10 +19187,12 @@ paths:
                 nextCustomerStatus:
                   type: string
                   enum:
+                    - active
+                    - observed
+                    - under_review
+                    - rejected
                     - blocked
-                    - pending_fraud_review
-                    - registered
-                    - approved_for_next_step
+                    - suspended
                 notes:
                   type: string
                   maxLength: 2000
