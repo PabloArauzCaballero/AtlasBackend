@@ -3,7 +3,7 @@
  * @business Esta pieza es lo que impide que un circuito de decisión se cierre sin credencial.
  * @system comprueba la clave compartida con la que el Motor de Decisión llama de vuelta a Atlas.
  */
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import { env } from '../../../config/env.js';
 
@@ -24,10 +24,17 @@ export function assertEngineCallbackKey(clave: string | undefined): void {
 
 /**
  * Comparación en tiempo constante. Con `!==` el tiempo de respuesta depende de cuántos caracteres
- * iniciales acierta quien llama, y una clave se puede adivinar carácter a carácter midiendo. Se pasa
- * por SHA-256 antes de `timingSafeEqual` para igualar longitudes: esa función lanza si difieren, y
- * la excepción en sí filtraría la longitud de la clave (mismo criterio que el callback de Brevo).
+ * iniciales acierta quien llama, y una clave se puede adivinar carácter a carácter midiendo. Las dos
+ * pasan por un HMAC con una clave aleatoria de este proceso antes de `timingSafeEqual`: iguala las
+ * longitudes (esa función lanza si difieren, y la excepción filtraría la longitud de la clave) sin
+ * dejar un hash estable de la credencial que se pueda precalcular.
  */
+const CLAVE_DE_COMPARACION = randomBytes(32);
+
 function sameSecret(recibida: string, esperada: string): boolean {
-  return timingSafeEqual(createHash('sha256').update(recibida).digest(), createHash('sha256').update(esperada).digest());
+  return timingSafeEqual(digest(recibida), digest(esperada));
+}
+
+function digest(valor: string): Buffer {
+  return createHmac('sha256', CLAVE_DE_COMPARACION).update(valor).digest();
 }
