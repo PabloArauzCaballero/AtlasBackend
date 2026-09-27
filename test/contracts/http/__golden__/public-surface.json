@@ -11440,5 +11440,126 @@
       "access-token"
     ],
     "body": false
+  },
+  "GET /admin/support/knowledge/articles": {
+    "operationId": "SupportKnowledgeAdminController_listArticles",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /admin/support/knowledge/articles/{articleId}": {
+    "operationId": "SupportKnowledgeAdminController_getArticle",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "articleId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /admin/support/knowledge/versions": {
+    "operationId": "SupportKnowledgeAdminController_listVersions",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /admin/support/knowledge/versions/{versionId}": {
+    "operationId": "SupportKnowledgeAdminController_getVersion",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "versionId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /operations/catalog-staging-items": {
+    "operationId": "CatalogManagementController_listStagingItems",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [
+      "catalogCode",
+      "ingestionJobId",
+      "page",
+      "pageSize",
+      "reviewStatus"
+    ],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /operations/loans": {
+    "operationId": "LoansOperationsController_list",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
   }
 }
