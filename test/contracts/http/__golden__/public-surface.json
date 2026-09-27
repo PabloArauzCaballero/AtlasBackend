@@ -11332,5 +11332,113 @@
       "access-token"
     ],
     "body": false
+  },
+  "GET /internal/processes": {
+    "operationId": "ProcessCatalogController_list",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /internal/processes/{code}": {
+    "operationId": "ProcessCatalogController_detail",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "code"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /internal/processes/{code}/instances": {
+    "operationId": "ProcessCatalogController_instances",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [
+      "page",
+      "pageSize",
+      "search",
+      "status"
+    ],
+    "path": [
+      "code"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /internal/processes/{code}/instances/{instanceId}/progress": {
+    "operationId": "ProcessCatalogController_instanceProgress",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "code",
+      "instanceId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /internal/processes/{code}/wiring": {
+    "operationId": "ProcessCatalogController_wiring",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "code"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
   }
 }

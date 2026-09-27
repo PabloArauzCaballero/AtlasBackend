@@ -73,6 +73,17 @@ jobs:
       - name: Check curated business narrative for every ORM table
         run: yarn check:entity-narratives
 
+      # Catálogo de procesos (plan 2026-09-26): los procesos se declaran en código y llegan a la base
+      # por migración. Estos gates exigen que cada uno conteste sus cinco preguntas, que cada paso
+      # apunte a algo que existe, que la base reciba lo mismo que dice el código (y los permisos
+      # también: el incidente del 15-09) y que docs/processes esté al día.
+      - name: Check process catalog (narratives, steps, sync lock, generated docs)
+        run: |
+          yarn check:process-narratives
+          yarn check:process-steps
+          yarn check:process-sync
+          yarn check:process-docs
+
       # ATLAS-TECH-001 (regresión, hallazgo A-01 de docs/audit/auditoria-integral-2026-07-30.md):
       # una migración monolítica duplicaba las 86 tablas del split `schema-part-*` y, por el orden
       # alfabético de Umzug, corría primero y rompía `db:migration:up` desde cero. Este gate estático
