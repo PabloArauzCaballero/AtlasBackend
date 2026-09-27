@@ -7,8 +7,10 @@
  * Contrato confirmado contra `AtlasExternalProvidersMock@origin/dev` (`src/control/routes.mjs`):
  * `POST /mock/control/runs` → 201 `{ runToken, epoch, … }`; `GET …/runs/:runId/journal?after&limit`
  * con cursor (`nextCursor`, `hasMore`, `totalAppended`, `droppedByRetention`), `limit` ≤ 1000;
- * `DELETE …/runs/:runId`; `GET /mock/providers` con la matriz proveedor × escenario.
+ * `DELETE …/runs/:runId`; `GET /mock/providers` con la matriz proveedor × escenario;
+ * `POST /mock/qa/identity-images` → `{ version, images: { identity_front|identity_back|selfie } }`.
  */
+import { createHash } from 'node:crypto';
 
 export type MockJournalEntry = {
   sequence: number;
@@ -28,6 +30,25 @@ type JsonObject = Record<string, unknown>;
 const obj = (value: unknown): JsonObject => (value !== null && typeof value === 'object' ? (value as JsonObject) : {});
 const str = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 
+/** Lo que el mock necesita para dibujar el carnet y la selfie de UNA persona sintética. */
+export type MockIdentityPersona = {
+  personaKey: string;
+  firstName: string;
+  lastName: string;
+  documentNumber: string;
+  birthDate: string;
+  sex?: 'M' | 'F';
+  city?: string;
+};
+
+export const MOCK_IDENTITY_IMAGE_KINDS = ['identity_front', 'identity_back', 'selfie'] as const;
+export type MockIdentityImageKind = (typeof MOCK_IDENTITY_IMAGE_KINDS)[number];
+export type MockIdentityImage = { contentType: string; bytes: Uint8Array; sha256: string };
+
+/** `ok: false` lleva un motivo corto (`HTTP_404`, `SHA256_MISMATCH:selfie`, `UNREACHABLE`…) para la evidencia. */
+export type MockIdentityImages =
+  { ok: true; version: string; images: Record<MockIdentityImageKind, MockIdentityImage> } | { ok: false; reason: string };
+
 export type MockJournal = { entries: MockJournalEntry[]; totalAppended: number; droppedByRetention: number; complete: boolean };
 
 export class MockControlClient {
@@ -37,9 +58,15 @@ export class MockControlClient {
     return Boolean(this.options.controlUrl && this.options.controlToken);
   }
 
-  private async call(method: string, path: string, tenantId: string | null, body?: unknown): Promise<{ status: number; body: JsonObject }> {
+  private async call(
+    method: string,
+    path: string,
+    tenantId: string | null,
+    body?: unknown,
+    timeoutMs?: number,
+  ): Promise<{ status: number; body: JsonObject }> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 5_000);
+    const timer = setTimeout(() => controller.abort(), timeoutMs ?? this.options.timeoutMs ?? 5_000);
     try {
       const response = await fetch(`${String(this.options.controlUrl).replace(/\/+$/, '')}${path}`, {
         method,
@@ -153,6 +180,36 @@ export class MockControlClient {
       if (code) return code;
     }
     return null;
+  }
+
+  /**
+   * Anverso, reverso y selfie sintéticos de UNA persona, dibujados por el mock con sus datos. Cada
+   * imagen se comprueba: el base64 decodificado debe medir `bytes` y dar `sha256`; una que no cuadra
+   * no se sube (la URL firmada exige el tamaño exacto y el backend recalcula el hash).
+   */
+  async identityImages(tenantId: string, persona: MockIdentityPersona): Promise<MockIdentityImages> {
+    if (!this.configured) return { ok: false, reason: 'MOCK_NOT_CONFIGURED' };
+    let response: { status: number; body: JsonObject };
+    try {
+      response = await this.call('POST', '/mock/qa/identity-images', tenantId, persona, 15_000);
+    } catch {
+      return { ok: false, reason: 'UNREACHABLE' };
+    }
+    if (response.status !== 200 && response.status !== 201) return { ok: false, reason: `HTTP_${response.status}` };
+    const images = {} as Record<MockIdentityImageKind, MockIdentityImage>;
+    for (const kind of MOCK_IDENTITY_IMAGE_KINDS) {
+      const entry = obj(obj(response.body.images)[kind]);
+      const base64 = str(entry.base64);
+      if (!base64) return { ok: false, reason: `IMAGE_MISSING:${kind}` };
+      const bytes = new Uint8Array(Buffer.from(base64, 'base64'));
+      const sha256 = createHash('sha256').update(bytes).digest('hex');
+      if (bytes.length === 0 || (typeof entry.bytes === 'number' && entry.bytes !== bytes.length))
+        return { ok: false, reason: `SIZE_MISMATCH:${kind}` };
+      if (typeof entry.sha256 === 'string' && entry.sha256.toLowerCase() !== sha256)
+        return { ok: false, reason: `SHA256_MISMATCH:${kind}` };
+      images[kind] = { contentType: str(entry.contentType) ?? 'image/jpeg', bytes, sha256 };
+    }
+    return { ok: true, version: str(response.body.version) ?? 'desconocida', images };
   }
 
   async closeRun(tenantId: string, runId: string): Promise<void> {

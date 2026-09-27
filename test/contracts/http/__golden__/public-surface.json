@@ -3900,6 +3900,29 @@
     ],
     "body": false
   },
+  "GET /systems/qa/runs/{runId}/timeline": {
+    "operationId": "QaRunsController_timeline",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [
+      "bucketSeconds"
+    ],
+    "path": [
+      "runId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
   "GET /systems/qa/runs/{runId}/events": {
     "operationId": "QaRunsController_events",
     "responses": [
