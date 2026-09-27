@@ -108,6 +108,34 @@ describe('ProcessCatalogService: cableado', () => {
   });
 });
 
+describe('ProcessCatalogService: el ERP-front llega a Core por su pasarela', () => {
+  it('un paso del ERP-front sobre una ruta de Core cuenta como cableado si el ERP la llama', async () => {
+    const found = WORKFLOW_DEFINITIONS.flatMap((f) =>
+      f.stages
+        .filter((s) => s.client === 'ERP_PORTAL' && (s.actor === 'merchant_user' || s.actor === 'internal_user'))
+        .flatMap((s) =>
+          s.steps.filter((p) => (p.kind ?? 'http') === 'http' && (p.system ?? 'ATLAS_BACKEND') === 'ATLAS_BACKEND').map((p) => ({ f, p })),
+        ),
+    )[0];
+    if (!found) return;
+    const path = found.p.path!.replace(/^\//, '').replace(/:[A-Za-z0-9_]+/g, ':p');
+    const { service } = build({
+      flowsFor: jest.fn(async () => [
+        {
+          systemCode: 'ATLAS_BACKEND',
+          method: found.p.method!,
+          path,
+          flowId: 'F',
+          callers: ['ERP_BACKEND'],
+          verification: 'X',
+          risk: 'LOW',
+        },
+      ]),
+    });
+    expect((await service.wiring(found.f.code)).steps.find((s) => s.stepCode === found.p.code)!.wiring).toBe('wired');
+  });
+});
+
 describe('ProcessCatalogService: instancias', () => {
   it('cuenta por estado y marca como abiertas las que el proceso declara abiertas', async () => {
     const { service, repository } = build();

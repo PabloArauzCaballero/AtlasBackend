@@ -101,7 +101,7 @@ export class SystemFlowsGateRepository {
             SELECT 1 FROM ${flows}.system_flow_catalog f
              WHERE f.system_code = st.system_code AND f.http_method = st.http_method
                AND f.path = regexp_replace(regexp_replace(ltrim(st.route_path, '/'), ':[A-Za-z0-9_]+', ':p', 'g'), '/$', '')
-               AND f.callers ? sg.client_code)
+               AND f.callers ? (CASE WHEN sg.client_code = 'ERP_PORTAL' AND st.system_code = 'ATLAS_BACKEND' THEN 'ERP_BACKEND' ELSE sg.client_code END))
         GROUP BY d.workflow_code ORDER BY 2 DESC`,
       { type: QueryTypes.SELECT },
     );

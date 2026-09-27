@@ -31,7 +31,9 @@ function stepWiring(
   if (kind !== 'http' || !PERSON_ACTORS.has(stage.actor) || !PORTALS.has(stage.client)) return { wiring: 'not_applicable' };
   const flow = flows.get(flowKey(step.system ?? 'ATLAS_BACKEND', step.method ?? 'GET', step.path ?? '/'));
   if (!flow) return { wiring: 'unknown' };
-  return { wiring: flow.callers.includes(stage.client) ? 'wired' : 'unwired', flow };
+  // El ERP-front llega a Core por la pasarela del ERP: para él, cableado es que el ERP llame a la ruta.
+  const via = stage.client === 'ERP_PORTAL' && (step.system ?? 'ATLAS_BACKEND') === 'ATLAS_BACKEND' ? 'ERP_BACKEND' : stage.client;
+  return { wiring: flow.callers.includes(via) ? 'wired' : 'unwired', flow };
 }
 
 function docStatus(f: WorkflowDefinitionFixture, sync: SyncRow | undefined) {
