@@ -44,6 +44,7 @@ import { CatalogDataGovernanceRepository } from './catalog-data-governance.repos
 import { CatalogDefinitionsRepository } from './catalog-definitions.repository.js';
 import { CatalogRiskPolicyRepository } from './catalog-risk-policy.repository.js';
 import { CatalogManagementRepository } from './catalog-management.repository.js';
+import { CatalogStagingReadService } from './application/catalog-staging-read.service.js';
 import { CatalogManagementService } from './catalog-management.service.js';
 
 @Module({
@@ -78,6 +79,7 @@ import { CatalogManagementService } from './catalog-management.service.js';
   ],
   controllers: [CatalogManagementController, CatalogGovernanceController],
   providers: [
+    CatalogStagingReadService,
     CatalogManagementService,
     CatalogQueryService,
     CatalogVersionWorkflowService,

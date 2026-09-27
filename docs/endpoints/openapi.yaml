@@ -1402,6 +1402,41 @@ paths:
       tags:
         - external-data-admin
   /admin/support/knowledge/articles:
+    get:
+      operationId: SupportKnowledgeAdminController_listArticles
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Artículos con su estado y su versión vigente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: 'Artículos para el personal: cualquier estado y audiencia, paginados'
+      tags:
+        - Admin · Conocimiento de soporte
     post:
       operationId: SupportKnowledgeAdminController_createArticle
       parameters:
@@ -1437,6 +1472,52 @@ paths:
       security:
         - access-token: []
       summary: Crear un artículo (identidad y gobierno; el texto va en su versión)
+      tags:
+        - Admin · Conocimiento de soporte
+  /admin/support/knowledge/articles/{articleId}:
+    get:
+      operationId: SupportKnowledgeAdminController_getArticle
+      parameters:
+        - name: articleId
+          required: true
+          in: path
+          schema:
+            type: string
+          description: >-
+            Identificador de ruta `articleId` del recurso direccionado por la
+            operación.
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Artículo y versiones, de la más nueva a la más vieja.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: KNOWLEDGE_ARTICLE_NOT_FOUND.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Un artículo con todas sus versiones
       tags:
         - Admin · Conocimiento de soporte
   /admin/support/knowledge/articles/{articleId}/versions:
@@ -1485,6 +1566,88 @@ paths:
       security:
         - access-token: []
       summary: Crear una versión nueva del artículo
+      tags:
+        - Admin · Conocimiento de soporte
+  /admin/support/knowledge/versions:
+    get:
+      operationId: SupportKnowledgeAdminController_listVersions
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Versiones paginadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: >-
+        Versiones por estado: la cola de revisión y publicación de la base de
+        conocimiento
+      tags:
+        - Admin · Conocimiento de soporte
+  /admin/support/knowledge/versions/{versionId}:
+    get:
+      operationId: SupportKnowledgeAdminController_getVersion
+      parameters:
+        - name: versionId
+          required: true
+          in: path
+          schema:
+            type: string
+          description: Identificador de la versión del catálogo.
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Versión con cuerpo, etiquetas y regla de escalado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: KNOWLEDGE_VERSION_NOT_FOUND.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Una versión con su texto completo, para revisarla antes de aprobar
       tags:
         - Admin · Conocimiento de soporte
   /admin/support/knowledge/versions/{versionId}/approve:
@@ -15213,6 +15376,62 @@ paths:
       summary: Ingerir un catálogo (staging)
       tags:
         - catalog-management
+  /operations/catalog-staging-items:
+    get:
+      description: >-
+        Lo que la decisión en lote necesita enseñar: sin los ids de los ítems en
+        staging no hay nada que aprobar ni rechazar.
+      operationId: CatalogManagementController_listStagingItems
+      parameters:
+        - name: pageSize
+          required: false
+          in: query
+          schema: {}
+        - name: page
+          required: false
+          in: query
+          schema: {}
+          description: Página solicitada, empezando en 1.
+        - name: reviewStatus
+          required: false
+          in: query
+          schema: {}
+          description: >-
+            Estado de revisión humana de la ficha del catálogo técnico
+            (`AUTO_DETECTED`, `APPROVED`, …).
+        - name: ingestionJobId
+          required: false
+          in: query
+          schema: {}
+        - name: catalogCode
+          required: false
+          in: query
+          schema: {}
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Ítems de staging paginados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: CATALOG_NOT_FOUND.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Ítems propuestos por una ingesta, por catálogo y estado de revisión
+      tags:
+        - catalog-management
   /operations/catalog-staging-items/decision-batch:
     post:
       operationId: CatalogManagementController_decideStagingItems
@@ -19881,6 +20100,38 @@ paths:
       summary: Recalificar la cartera con la política vigente (job sweep_debt_ratings)
       tags:
         - runtime-jobs
+  /operations/loans:
+    get:
+      description: >-
+        Préstamos del tenant por estado, tramo de mora, cliente, solicitud o
+        código, paginados. Sin esto el portal sólo podía abrir un préstamo por
+        número o desde la ficha del cliente.
+      operationId: LoansOperationsController_list
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Préstamos con su comercio, paginados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Cartera de préstamos para el personal
+      tags:
+        - loans-operations
   /operations/loans/delinquency-sweep:
     post:
       description: >-

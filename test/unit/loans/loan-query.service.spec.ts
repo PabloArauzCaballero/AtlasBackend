@@ -44,6 +44,7 @@ function prestamo(overrides: Record<string, unknown> = {}): LoanModel {
 describe('LoanQueryService', () => {
   let loans: {
     findLoansByCustomer: jest.Mock;
+    findLoansPage: jest.Mock;
     findLoanById: jest.Mock;
     findInstallments: jest.Mock;
     findPaymentsByLoan: jest.Mock;
@@ -57,6 +58,7 @@ describe('LoanQueryService', () => {
     comercios = new Map([['pp-1', { displayName: 'Ferretería Sur', businessCategory: 'hardware' }]]);
     loans = {
       findLoansByCustomer: jest.fn(async () => []),
+      findLoansPage: jest.fn(async () => ({ rows: [prestamo({ partnerProfileId: 'pp-1' })], count: 31 })),
       findLoanById: jest.fn(async () => prestamo()),
       findInstallments: jest.fn(async () => []),
       findPaymentsByLoan: jest.fn(async () => []),
@@ -227,6 +229,16 @@ describe('LoanQueryService', () => {
 
       expect(partnerDirectory.describeMany).toHaveBeenCalledWith('t1', ['pp-1']);
       expect(ficha.merchant).toMatchObject({ displayName: 'Ferretería Sur' });
+    });
+  });
+
+  describe('la cartera para el personal', () => {
+    it('pasa sólo los filtros pedidos, pagina y trae el comercio y el cliente de cada préstamo', async () => {
+      const page = await service.listForStaff('7', { status: 'active', page: 2, pageSize: 10 });
+      expect(loans.findLoansPage).toHaveBeenCalledWith('7', { status: 'active' }, { limit: 10, offset: 10 });
+      expect(page).toMatchObject({ total: 31, page: 2, pageSize: 10 });
+      expect(page.items[0]).toMatchObject({ customerId: 'c1', merchant: { displayName: 'Ferretería Sur' } });
+      expect(partnerDirectory.describeMany).toHaveBeenCalledTimes(1);
     });
   });
 });

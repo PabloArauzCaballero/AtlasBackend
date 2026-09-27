@@ -21,6 +21,11 @@ export class CreditRepository {
   ) {}
 
   /** Productos ofrecibles hoy: activos y dentro de su ventana de vigencia. */
+  /** Todo el catálogo (borradores, suspendidos y retirados incluidos): lo que el personal gobierna. */
+  findAllProducts(tenantId: string): Promise<CreditProductModel[]> {
+    return this.productModel.findAll({ where: { tenantId, deleted: false }, order: [['productCode', 'ASC']] } as FindOptions);
+  }
+
   findOfferableProducts(tenantId: string, now: Date): Promise<CreditProductModel[]> {
     return this.productModel.findAll({
       where: {

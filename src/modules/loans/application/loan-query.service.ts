@@ -7,6 +7,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { LoanModel } from '../../../database/models/index.js';
 import { PartnerDirectoryService } from '../../partner-onboarding/application/partner-directory.service.js';
 import { LoansRepository } from '../loans.repository.js';
+import type { ListLoansQueryDto } from '../loans.schemas.js';
 
 type MerchantView = { partnerProfileId: string; displayName: string; businessCategory: string | null } | null;
 
@@ -27,6 +28,23 @@ export class LoanQueryService {
     const loans = await this.loans.findLoansByCustomer(tenantId, customerId);
     const merchants = await this.merchantsFor(tenantId, loans);
     return { items: loans.map((loan) => ({ ...this.summary(loan), merchant: this.merchantOf(loan, merchants) })) };
+  }
+
+  /** La cartera para el personal: por estado, tramo de mora, cliente, solicitud o código. */
+  async listForStaff(tenantId: string, query: ListLoansQueryDto) {
+    const { page, pageSize, ...filter } = query;
+    const { rows, count } = await this.loans.findLoansPage(tenantId, filter, { limit: pageSize, offset: (page - 1) * pageSize });
+    const merchants = await this.merchantsFor(tenantId, rows);
+    return {
+      items: rows.map((loan) => ({
+        ...this.summary(loan),
+        customerId: String(loan.customerId),
+        merchant: this.merchantOf(loan, merchants),
+      })),
+      total: count,
+      page,
+      pageSize,
+    };
   }
 
   private merchantsFor(tenantId: string, loans: readonly LoanModel[]) {
