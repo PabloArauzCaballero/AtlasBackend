@@ -39,6 +39,21 @@ export class SupportDeskService {
     return { channels: rows.map(toChannelDto) };
   }
 
+  /**
+   * Mi mesa: mi presencia real y las conversaciones que llevo.
+   *
+   * La presencia viaja aquí porque el selector de la consola no tenía de dónde leerla y enseñaba
+   * «Disponible» a un agente que la base tenía en `OFFLINE`, y el enrutado no le mandaba nada.
+   */
+  async myDesk(input: { tenantId: string; actor: SupportActor }) {
+    const agentProfileId = this.actors.assertIsAgent(input.actor);
+    const [profile, rows] = await Promise.all([
+      this.agents.findById(input.tenantId, agentProfileId),
+      this.channels.listAssignedChannels(input.tenantId, agentProfileId),
+    ]);
+    return { agentProfileId, presenceState: profile?.presenceState ?? 'OFFLINE', channels: rows.map(toChannelDto) };
+  }
+
   /** Presencia del agente. Es efímera: si Redis o el proceso caen, el peor caso es no recibir chats. */
   async setPresence(input: { tenantId: string; actor: SupportActor; presenceState: string }) {
     const agentProfileId = this.actors.assertIsAgent(input.actor);

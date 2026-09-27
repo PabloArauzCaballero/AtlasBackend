@@ -35,6 +35,7 @@ import { MalwareScannerService } from '../../common/storage/malware-scanner.serv
 import { EventsModule } from '../events/events.module.js';
 import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { SupportActorService } from './application/support-actor.service.js';
+import { SupportAgentEnrollmentService } from './application/support-agent-enrollment.service.js';
 import { SupportAttachmentService } from './application/support-attachment.service.js';
 import { SupportAuditService } from './application/support-audit.service.js';
 import { SupportCaseClosureService } from './application/support-case-closure.service.js';
@@ -135,6 +136,7 @@ import { SupportMessageRepository } from './support-message.repository.js';
     SupportMessageRepository,
     SupportKnowledgeRepository,
     SupportActorService,
+    SupportAgentEnrollmentService,
     SupportAttachmentService,
     DocumentStorageService,
     MalwareScannerService,

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ForbiddenException } from '@nestjs/common';
 import { SupportActorService, type SupportActor } from '../../../src/modules/support/application/support-actor.service.js';
-import type { SupportAgentRepository } from '../../../src/modules/support/support-agent.repository.js';
+import type { SupportAgentEnrollmentService } from '../../../src/modules/support/application/support-agent-enrollment.service.js';
 import type { PartnerProfileService } from '../../../src/modules/partner-onboarding/application/partner-profile.service.js';
 import type { AuthenticatedUser } from '../../../src/common/types/auth.types.js';
 import type { SupportCaseModel } from '../../../src/database/models/index.js';
@@ -64,14 +64,14 @@ function caso(overrides: Record<string, unknown> = {}): SupportCaseModel {
 }
 
 describe('SupportActorService', () => {
-  let agents: { findByInternalUser: jest.Mock };
+  let agents: { ensureProfile: jest.Mock };
   let partners: { requireProfile: jest.Mock };
   let service: SupportActorService;
 
   beforeEach(() => {
-    agents = { findByInternalUser: jest.fn(async () => null) };
+    agents = { ensureProfile: jest.fn(async () => null) };
     partners = { requireProfile: jest.fn(async () => ({ ownerMerchantUserId: 'u-1' })) };
-    service = new SupportActorService(agents as unknown as SupportAgentRepository, partners as unknown as PartnerProfileService);
+    service = new SupportActorService(agents as unknown as SupportAgentEnrollmentService, partners as unknown as PartnerProfileService);
   });
 
   describe('resolver el actor', () => {
@@ -79,7 +79,7 @@ describe('SupportActorService', () => {
       const resuelto = await service.resolve(usuario({ role: 'customer', customerId: '42' }), 't1');
 
       expect(resuelto).toMatchObject({ actorType: 'CUSTOMER', actorId: '42', customerId: '42', isInternal: false, isSupervisor: false });
-      expect(agents.findByInternalUser).not.toHaveBeenCalled();
+      expect(agents.ensureProfile).not.toHaveBeenCalled();
     });
 
     it('un cliente sin `customerId` en el token cae a su `sub`, no a una cadena vacía', async () => {
@@ -93,7 +93,7 @@ describe('SupportActorService', () => {
       const resuelto = await service.resolve(usuario({ role: 'merchant', merchantUserId: 'u-9' }), 't1');
 
       expect(resuelto).toMatchObject({ actorType: 'PARTNER_USER', actorId: 'u-9', merchantUserId: 'u-9', isInternal: false });
-      expect(agents.findByInternalUser).not.toHaveBeenCalled();
+      expect(agents.ensureProfile).not.toHaveBeenCalled();
     });
 
     it('el rol interno NO da perfil de agente: son cosas distintas a propósito', async () => {
@@ -105,7 +105,7 @@ describe('SupportActorService', () => {
     });
 
     it('con perfil habilitado llegan su identificador y su nivel', async () => {
-      agents.findByInternalUser.mockResolvedValueOnce({ id: 55, supportLevel: 'L2' } as never);
+      agents.ensureProfile.mockResolvedValueOnce({ id: 55, supportLevel: 'L2' } as never);
 
       const resuelto = await service.resolve(usuario({ role: 'internal_operator', internalUserId: '7' }), 't1');
 

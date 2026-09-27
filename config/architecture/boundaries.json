@@ -219,7 +219,7 @@
     },
     "workflow-catalog": {
       "context": "platform",
-      "allowedDependencies": []
+      "allowedDependencies": ["internal-users"]
     },
     "internal-portal": {
       "context": "platform",
