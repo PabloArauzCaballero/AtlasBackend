@@ -128,7 +128,7 @@ export const FLUJO_CLIENTE_COMPLETO: FlujoDeclarado = {
             tokens: '{ accessToken, refreshToken }',
           },
           errors: ['409 CUSTOMER_ALREADY_EXISTS', '422 VALIDATION_ERROR', '429 RATE_LIMIT_EXCEEDED (10/min por IP)'],
-          events: ['customer.registered'],
+          events: [],
           successStatus: [200, 201],
         },
         {
@@ -440,7 +440,7 @@ export const FLUJO_CLIENTE_COMPLETO: FlujoDeclarado = {
           path: '/external-data/requests',
           idempotencyKey: true,
           errors: ['403 CONSENT_REQUIRED', '402 BLOCKED_BY_COST_POLICY', '503 PROVIDER_UNAVAILABLE'],
-          events: ['external.request.completed'],
+          events: [],
           successStatus: [200, 201, 202],
         },
         {
@@ -477,7 +477,7 @@ export const FLUJO_CLIENTE_COMPLETO: FlujoDeclarado = {
           idempotencyKey: true,
           resultingStates: ['under_review'],
           errors: ['409 ONBOARDING_INCOMPLETE'],
-          events: ['onboarding.submitted'],
+          events: [],
           successStatus: [200, 201, 202],
         },
         {
@@ -559,7 +559,7 @@ export const FLUJO_CLIENTE_COMPLETO: FlujoDeclarado = {
           method: 'POST',
           path: '/operations/customers/:customerId/eligibility/decision',
           resultingStates: ['active', 'observed', 'rejected'],
-          events: ['customer.eligibility.decided'],
+          events: [],
           successStatus: [200, 201],
         },
       ],
@@ -577,7 +577,7 @@ export const FLUJO_CLIENTE_COMPLETO: FlujoDeclarado = {
           description: 'Corre las reglas sobre las features disponibles. El resultado es del backend, no del proveedor.',
           method: 'POST',
           path: '/customers/:customerId/risk-assessments',
-          events: ['risk.assessed'],
+          events: [],
           successStatus: [200, 201, 202],
         },
         {
@@ -645,7 +645,7 @@ export const FLUJO_CLIENTE_COMPLETO: FlujoDeclarado = {
             purposeCode: 'string',
           },
           errors: ['403 NOT_ELIGIBLE', '409 APPLICATION_ALREADY_OPEN', '422 VALIDATION_ERROR'],
-          events: ['credit.application.created'],
+          events: [],
           successStatus: [200, 201],
         },
         {
@@ -680,7 +680,7 @@ export const FLUJO_CLIENTE_COMPLETO: FlujoDeclarado = {
           method: 'POST',
           path: '/operations/credit/applications/:applicationId/decision',
           input: { decision: 'approve | reject | request_more_information', notes: 'obligatorio salvo en approve' },
-          events: ['credit.application.decided'],
+          events: [],
           successStatus: [200, 201],
         },
       ],
@@ -769,7 +769,7 @@ export const FLUJO_CLIENTE_COMPLETO: FlujoDeclarado = {
           path: '/mobile/customers/:customerId/payment-claims',
           optional: true,
           idempotencyKey: true,
-          events: ['payment.claim.created'],
+          events: [],
           successStatus: [200, 201],
         },
         {
@@ -870,7 +870,7 @@ export const FLUJO_CLIENTE_COMPLETO: FlujoDeclarado = {
           method: 'POST',
           path: '/customers/:customerId/privacy/data-subject-requests',
           optional: true,
-          events: ['privacy.data_subject_request.created'],
+          events: [],
           successStatus: [200, 201, 202],
         },
         {

@@ -31,6 +31,8 @@ const NON_ORM_OBJECTS = new Set([
   // modelo Sequelize. Apareció en el catálogo al introspeccionar el esquema y era la última ficha
   // propia sin narrativa: sin declararla aquí, escribirle una hacía fallar al gate por el otro lado.
   'decision_artifact_bindings',
+  // Huella del volcado del catálogo de procesos: la escribe `syncWorkflowCatalog` por SQL, sin modelo.
+  'workflow_definitions_sync',
   'context_seed_import_checkpoints',
   'schema_change_log',
   'schema_columns',

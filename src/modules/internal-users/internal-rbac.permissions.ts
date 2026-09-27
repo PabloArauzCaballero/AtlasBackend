@@ -26,6 +26,7 @@ const systemsAdminPermissions = [
   ...codeStartsWith('dataQuality.'),
   ...codeStartsWith('reporting.'),
   ...codeStartsWith('notifications.'),
+  'workflows.read',
   'lineage.read',
   'audit.events.read',
   'audit.events.detail',
@@ -46,6 +47,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   OPERATIONS_MANAGER: [
     'auth.internal.me.read',
+    // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
+    'workflows.read',
     'expedientes.leer',
     'expedientes.escribir',
     'expedientes.compartir',
@@ -73,6 +76,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   OPERATIONS_ANALYST: [
     'auth.internal.me.read',
+    // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
+    'workflows.read',
     'expedientes.leer',
     'expedientes.escribir',
     'operations.catalogs.read',
@@ -81,6 +86,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   RISK_MANAGER: [
     'auth.internal.me.read',
+    // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
+    'workflows.read',
     'expedientes.leer',
     'expedientes.escribir',
     'expedientes.compartir',
@@ -89,9 +96,18 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'reporting.read',
     'audit.events.read',
   ],
-  RISK_ANALYST: ['auth.internal.me.read', 'expedientes.leer', 'expedientes.escribir', 'operations.riskPolicy.read', 'catalog.data.read'],
+  RISK_ANALYST: [
+    'auth.internal.me.read',
+    'workflows.read',
+    'expedientes.leer',
+    'expedientes.escribir',
+    'operations.riskPolicy.read',
+    'catalog.data.read',
+  ],
   FRAUD_ANALYST: [
     'auth.internal.me.read',
+    // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
+    'workflows.read',
     'expedientes.leer',
     'expedientes.escribir',
     'expedientes.pii.revelar',
@@ -101,6 +117,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   COMPLIANCE_MANAGER: [
     'auth.internal.me.read',
+    // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
+    'workflows.read',
     'expedientes.leer',
     'expedientes.compartir',
     'expedientes.pii.revelar',
@@ -112,6 +130,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   COMPLIANCE_ANALYST: [
     'auth.internal.me.read',
+    // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
+    'workflows.read',
     'expedientes.leer',
     'governance.data.read',
     'governance.policies.read',
@@ -119,15 +139,19 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   COLLECTIONS_MANAGER: [
     'auth.internal.me.read',
+    // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
+    'workflows.read',
     'expedientes.leer',
     'operations.catalogs.read',
     'operations.definitions.read',
     'reporting.read',
   ],
-  COLLECTIONS_AGENT: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read'],
-  FINANCE_MANAGER: ['auth.internal.me.read', 'reporting.read', 'reporting.execute', 'audit.events.read'],
+  COLLECTIONS_AGENT: ['auth.internal.me.read', 'workflows.read', 'operations.catalogs.read', 'operations.definitions.read'],
+  FINANCE_MANAGER: ['auth.internal.me.read', 'workflows.read', 'reporting.read', 'reporting.execute', 'audit.events.read'],
   MERCHANT_OPERATIONS: [
     'auth.internal.me.read',
+    // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
+    'workflows.read',
     'operations.catalogs.read',
     'operations.definitions.read',
     // Alta y ciclo de vida de las identidades del comercio: es la contraparte de identidad del
@@ -142,6 +166,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   DATA_GOVERNANCE_MANAGER: [
     'auth.internal.me.read',
+    // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
+    'workflows.read',
     ...codeStartsWith('catalog.'),
     ...codeStartsWith('businessMetadata.'),
     ...codeStartsWith('governance.'),
@@ -156,6 +182,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   DATA_QUALITY_ANALYST: [
     'auth.internal.me.read',
+    // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
+    'workflows.read',
     'catalog.data.read',
     'dataQuality.issues.read',
     'dataQuality.issues.resolve',
@@ -164,6 +192,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   QA_ENGINEER: [
     'auth.internal.me.read',
+    // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
+    'workflows.read',
     'systems.endpoints.read',
     'systems.endpoints.execute',
     'systems.qa.read',
@@ -174,5 +204,5 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   AUDITOR_READONLY: ['auth.internal.me.read', ...allReadPermissions],
   SUPPORT_AGENT: ['auth.internal.me.read', 'operations.catalogs.read', 'operations.definitions.read'],
-  EXECUTIVE_READONLY: ['auth.internal.me.read', 'systems.dashboard.read', 'reporting.read', 'catalog.data.read'],
+  EXECUTIVE_READONLY: ['auth.internal.me.read', 'workflows.read', 'systems.dashboard.read', 'reporting.read', 'catalog.data.read'],
 };

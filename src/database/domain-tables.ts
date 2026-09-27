@@ -5,6 +5,7 @@
  */
 import { ATLAS_SCHEMAS, type AtlasSchema } from './atlas-schemas.js';
 import { QA_ORCHESTRATION_TABLES } from './qa-orchestration-tables.js';
+import { WORKFLOW_CATALOG_TABLES } from './workflow-catalog-tables.js';
 
 /**
  * Sale de `domain-schemas.ts` porque es una LISTA que crece con cada dominio y no tiene techo
@@ -251,11 +252,7 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     'system_operational_rule_catalog',
     'system_catalog_review_events',
     'system_block_federation_state',
-    'workflow_definitions',
-    'workflow_stages',
-    'workflow_steps',
-    'workflow_step_dependencies',
-    'workflow_transitions',
+    ...WORKFLOW_CATALOG_TABLES,
     'schema_versions',
     'schema_tables',
     'schema_columns',
