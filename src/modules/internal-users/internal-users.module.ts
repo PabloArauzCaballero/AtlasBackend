@@ -25,6 +25,7 @@ import { InternalRbacRepository } from './internal-rbac.repository.js';
 import { InternalPermissionHoldersRepository } from './internal-permission-holders.repository.js';
 import { InternalUsersController } from './internal-users.controller.js';
 import { InternalUsersService } from './internal-users.service.js';
+import { InternalUserLockService } from './internal-user-lock.service.js';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { InternalUsersService } from './internal-users.service.js';
   providers: [
     InternalAuthService,
     InternalUsersService,
+    InternalUserLockService,
     InternalAccessCatalogService,
     InternalRbacRepository,
     InternalPermissionHoldersRepository,

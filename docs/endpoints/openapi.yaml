@@ -11940,7 +11940,9 @@ paths:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Detalle del usuario interno (con roles).
+          description: >-
+            Detalle del usuario interno (con roles y estado de bloqueo por
+            intentos fallidos).
           content:
             application/json:
               schema:
@@ -12126,6 +12128,65 @@ paths:
       security:
         - access-token: []
       summary: Reemplazar roles de usuario interno
+      tags:
+        - internal-users
+  /internal/users/{internalUserId}/unlock:
+    post:
+      description: >-
+        Levanta el bloqueo automático por intentos fallidos (locked_until) y
+        pone el contador a cero. Exige motivo y queda auditado como
+        internal_users.unlock. No cambia el estado del usuario ni revoca
+        sesiones.
+      operationId: InternalUsersController_unlock
+      parameters:
+        - name: internalUserId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del usuario interno (operador, analista o
+            administrador).
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 8
+                  maxLength: 500
+              required:
+                - reason
+              additionalProperties: false
+      responses:
+        '200':
+          description: Cuenta desbloqueada; devuelve el perfil con su estado de bloqueo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: INTERNAL_USER_NOT_FOUND.
+        '409':
+          description: INTERNAL_USER_NOT_LOCKED.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Desbloquear usuario interno
       tags:
         - internal-users
   /internal/views/audit-events:
@@ -22677,6 +22738,91 @@ paths:
       summary: Aprobar o rechazar un QR de cobro
       tags:
         - partner-onboarding
+  /operations/payment-claims:
+    get:
+      description: >-
+        Lista paginada de los avisos de pago (pending_verification, verified,
+        rejected) con su comercio, cliente, préstamo y cuota, y las horas que
+        llevan esperando. Los pendientes salen primero, el más antiguo arriba;
+        `stale` marca los que superan 48 h. Sólo lectura: la verificación la
+        hace el comercio desde el ERP.
+      operationId: OperationsPaymentClaimsController_list
+      parameters:
+        - name: pageSize
+          required: false
+          in: query
+          schema:
+            default: 25
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+        - name: page
+          required: false
+          in: query
+          schema:
+            default: 1
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 9007199254740991
+          description: Página solicitada, empezando en 1.
+        - name: olderThanHours
+          required: false
+          in: query
+          schema:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 8760
+        - name: customerId
+          required: false
+          in: query
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Filtra por cliente. No sustituye a la comprobación de pertenencia:
+            un `customer` sigue viendo solo lo suyo.
+        - name: partnerId
+          required: false
+          in: query
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending_verification
+              - verified
+              - rejected
+          description: >-
+            Filtra por estado del recurso. Los valores admitidos son los del
+            dominio de ese recurso.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Página de avisos, metadatos de paginación y resumen de la cola.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Avisos de pago del tenant, para supervisar su verificación
+      tags:
+        - loans-operations
   /operations/rating-scale:
     get:
       description: >-

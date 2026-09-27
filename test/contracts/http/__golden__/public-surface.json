@@ -11332,5 +11332,52 @@
       "access-token"
     ],
     "body": false
+  },
+  "POST /internal/users/{internalUserId}/unlock": {
+    "operationId": "InternalUsersController_unlock",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "internalUserId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
+  "GET /operations/payment-claims": {
+    "operationId": "OperationsPaymentClaimsController_list",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [
+      "customerId",
+      "olderThanHours",
+      "page",
+      "pageSize",
+      "partnerId",
+      "status"
+    ],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
   }
 }
