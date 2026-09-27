@@ -39,12 +39,17 @@ export class OperationsPaymentClaimsController {
       'superan 48 h. Sólo lectura: la verificación la hace el comercio desde el ERP.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiQuery({ name: 'status', required: false, schema: propiedades.status })
-  @ApiQuery({ name: 'partnerId', required: false, schema: propiedades.partnerId })
-  @ApiQuery({ name: 'customerId', required: false, schema: propiedades.customerId })
-  @ApiQuery({ name: 'olderThanHours', required: false, schema: propiedades.olderThanHours })
-  @ApiQuery({ name: 'page', required: false, schema: propiedades.page })
-  @ApiQuery({ name: 'pageSize', required: false, schema: propiedades.pageSize })
+  @ApiQuery({ name: 'status', required: false, schema: propiedades.status, description: 'pending_verification, verified o rejected.' })
+  @ApiQuery({ name: 'partnerId', required: false, schema: propiedades.partnerId, description: 'Sólo los avisos de este comercio.' })
+  @ApiQuery({ name: 'customerId', required: false, schema: propiedades.customerId, description: 'Sólo los avisos de este cliente.' })
+  @ApiQuery({
+    name: 'olderThanHours',
+    required: false,
+    schema: propiedades.olderThanHours,
+    description: 'Sólo los avisos con más de estas horas desde que se reportaron.',
+  })
+  @ApiQuery({ name: 'page', required: false, schema: propiedades.page, description: 'Página, desde 1.' })
+  @ApiQuery({ name: 'pageSize', required: false, schema: propiedades.pageSize, description: 'Avisos por página.' })
   @ApiResponse({ status: 200, description: 'Página de avisos, metadatos de paginación y resumen de la cola.' })
   @Get()
   list(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(operationsClaimsQuerySchema)) query: OperationsClaimsQueryDto) {

@@ -22756,6 +22756,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
+          description: Avisos por página.
         - name: page
           required: false
           in: query
@@ -22764,7 +22765,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
-          description: Página solicitada, empezando en 1.
+          description: Página, desde 1.
         - name: olderThanHours
           required: false
           in: query
@@ -22772,21 +22773,21 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 8760
+          description: Sólo los avisos con más de estas horas desde que se reportaron.
         - name: customerId
           required: false
           in: query
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-          description: >-
-            Filtra por cliente. No sustituye a la comprobación de pertenencia:
-            un `customer` sigue viendo solo lo suyo.
+          description: Sólo los avisos de este cliente.
         - name: partnerId
           required: false
           in: query
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
+          description: Sólo los avisos de este comercio.
         - name: status
           required: false
           in: query
@@ -22796,9 +22797,7 @@ paths:
               - pending_verification
               - verified
               - rejected
-          description: >-
-            Filtra por estado del recurso. Los valores admitidos son los del
-            dominio de ese recurso.
+          description: pending_verification, verified o rejected.
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
