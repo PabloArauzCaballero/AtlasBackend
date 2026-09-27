@@ -10759,23 +10759,25 @@ paths:
         - name: pageSize
           required: false
           in: query
+          description: Instancias por página (1 a 100; 25 por defecto).
           schema: {}
         - name: page
           required: false
           in: query
+          description: Página, desde 1.
           schema: {}
-          description: Página solicitada, empezando en 1.
         - name: search
           required: false
           in: query
+          description: Id exacto o parte del nombre legible de la instancia.
           schema: {}
         - name: status
           required: false
           in: query
-          schema: {}
           description: >-
-            Filtra por estado del recurso. Los valores admitidos son los del
-            dominio de ese recurso.
+            Sólo las instancias en este estado (el valor tal cual lo guarda la
+            tabla de la instancia).
+          schema: {}
         - name: code
           required: true
           in: path

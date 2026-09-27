@@ -91,10 +91,14 @@ export class ProcessCatalogController {
     description: 'Sólo para procesos cuya entidad vive en este bloque; si no, dice dónde consultarlas.',
   })
   @ApiParam({ name: 'code', schema: zodToApiSchema(processCodeParamsSchema.shape.code) })
-  @ApiQuery({ name: 'status', required: false })
-  @ApiQuery({ name: 'search', required: false })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'pageSize', required: false })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Sólo las instancias en este estado (el valor tal cual lo guarda la tabla de la instancia).',
+  })
+  @ApiQuery({ name: 'search', required: false, description: 'Id exacto o parte del nombre legible de la instancia.' })
+  @ApiQuery({ name: 'page', required: false, description: 'Página, desde 1.' })
+  @ApiQuery({ name: 'pageSize', required: false, description: 'Instancias por página (1 a 100; 25 por defecto).' })
   @ApiResponse({ status: 200, description: 'Recuento por estado y página de instancias.' })
   @Get(':code/instances')
   instances(
