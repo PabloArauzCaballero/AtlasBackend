@@ -14,7 +14,8 @@ import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { OutcomeDispatchService } from '../decision-engine/outcome-dispatch.service.js';
 import { LoanDelinquencyService } from './application/loan-delinquency.service.js';
-import { LoanSweepDto, loanSweepSchema } from './loans.schemas.js';
+import { LoanQueryService } from './application/loan-query.service.js';
+import { type ListLoansQueryDto, listLoansQuerySchema, LoanSweepDto, loanSweepSchema } from './loans.schemas.js';
 
 /**
  * Operación del libro: recalcular mora y entregar desenlaces al motor.
@@ -35,6 +36,7 @@ export class LoansOperationsController {
   constructor(
     private readonly delinquency: LoanDelinquencyService,
     private readonly outcomes: OutcomeDispatchService,
+    private readonly loansQuery: LoanQueryService,
   ) {}
 
   @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
@@ -61,6 +63,20 @@ export class LoansOperationsController {
    * /runtime-jobs/dispatch-loan-outcomes`. Lo que sí sigue siendo de esta pantalla es SABER si la
    * entrega va al día (`outcome-backlog`).
    */
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
+  @ApiOperation({
+    summary: 'Cartera de préstamos para el personal',
+    description:
+      'Préstamos del tenant por estado, tramo de mora, cliente, solicitud o código, paginados. Sin esto el portal sólo ' +
+      'podía abrir un préstamo por número o desde la ficha del cliente.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'Préstamos con su comercio, paginados.' })
+  @Get()
+  list(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listLoansQuerySchema)) query: ListLoansQueryDto) {
+    return this.loansQuery.listForStaff(tenantId, query);
+  }
+
   @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
   @ApiOperation({
     summary: 'Estado de la entrega de desenlaces al Motor',

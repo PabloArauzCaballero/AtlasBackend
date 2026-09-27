@@ -12,6 +12,7 @@ import { TokenRevocationService } from '../../../src/common/services/token-revoc
 import { env } from '../../../src/config/env.js';
 import { CatalogManagementController } from '../../../src/modules/catalog-management/catalog-management.controller.js';
 import { CatalogManagementService } from '../../../src/modules/catalog-management/catalog-management.service.js';
+import { CatalogStagingReadService } from '../../../src/modules/catalog-management/application/catalog-staging-read.service.js';
 
 describe('CatalogManagementController ingestion (e2e/supertest)', () => {
   let app: INestApplication;
@@ -28,6 +29,8 @@ describe('CatalogManagementController ingestion (e2e/supertest)', () => {
         RolesGuard,
         { provide: TokenRevocationService, useValue: { getCurrentTokenVersion: jest.fn() } },
         { provide: CatalogManagementService, useValue: service },
+        // La ingesta no lee staging; el controlador lo pide en el constructor.
+        { provide: CatalogStagingReadService, useValue: {} },
       ],
     }).compile();
     const expressApp = moduleRef.createNestApplication<NestExpressApplication>({ bodyParser: false });

@@ -100,3 +100,24 @@ export const loanSweepSchema = z
   .strict();
 
 export type LoanSweepDto = z.infer<typeof loanSweepSchema>;
+
+/** Cartera para el personal (`GET /operations/loans`). */
+export const listLoansQuerySchema = z.object({
+  status: z.enum(['pending_disbursement', 'active', 'paid_off', 'written_off', 'cancelled']).optional(),
+  delinquencyBucket: z
+    .string()
+    .regex(/^[a-z0-9_]{1,30}$/)
+    .optional(),
+  customerId: z
+    .string()
+    .regex(/^[1-9][0-9]*$/)
+    .optional(),
+  creditApplicationId: z
+    .string()
+    .regex(/^[1-9][0-9]*$/)
+    .optional(),
+  loanCode: z.string().trim().min(1).max(40).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+export type ListLoansQueryDto = z.infer<typeof listLoansQuerySchema>;

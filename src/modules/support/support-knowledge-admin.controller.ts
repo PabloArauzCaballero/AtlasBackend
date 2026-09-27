@@ -3,7 +3,7 @@
  * @business Redactar, revisar, aprobar y publicar las respuestas oficiales de Atlas.
  * @system flujo DRAFT → IN_REVIEW → APPROVED → PUBLISHED; publicado no se edita, se versiona.
  */
-import { Body, Controller, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -13,10 +13,16 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { SupportActorService } from './application/support-actor.service.js';
+import { SupportKnowledgeReadService } from './application/support-knowledge-read.service.js';
 import { SupportKnowledgeService } from './application/support-knowledge.service.js';
 import {
   type CreateArticleDto,
   createArticleSchema,
+  knowledgeIdParamSchema,
+  type ListKnowledgeArticlesQueryDto,
+  listKnowledgeArticlesQuerySchema,
+  type ListKnowledgeVersionsQueryDto,
+  listKnowledgeVersionsQuerySchema,
   type CreateArticleVersionDto,
   createArticleVersionSchema,
   type PublishVersionDto,
@@ -42,7 +48,48 @@ export class SupportKnowledgeAdminController {
   constructor(
     private readonly actors: SupportActorService,
     private readonly knowledge: SupportKnowledgeService,
+    private readonly reads: SupportKnowledgeReadService,
   ) {}
+
+  @ApiOperation({ summary: 'Artículos para el personal: cualquier estado y audiencia, paginados' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Artículos con su estado y su versión vigente.' })
+  @Get('articles')
+  listArticles(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(listKnowledgeArticlesQuerySchema)) query: ListKnowledgeArticlesQueryDto,
+  ) {
+    return this.reads.listArticles(tenantId, query);
+  }
+
+  @ApiOperation({ summary: 'Un artículo con todas sus versiones' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 404, description: 'KNOWLEDGE_ARTICLE_NOT_FOUND.' })
+  @ApiResponse({ status: 200, description: 'Artículo y versiones, de la más nueva a la más vieja.' })
+  @Get('articles/:articleId')
+  getArticle(@CurrentTenant() tenantId: string, @Param('articleId', new ZodValidationPipe(knowledgeIdParamSchema)) articleId: string) {
+    return this.reads.getArticle(tenantId, articleId);
+  }
+
+  @ApiOperation({ summary: 'Versiones por estado: la cola de revisión y publicación de la base de conocimiento' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Versiones paginadas.' })
+  @Get('versions')
+  listVersions(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(listKnowledgeVersionsQuerySchema)) query: ListKnowledgeVersionsQueryDto,
+  ) {
+    return this.reads.listVersions(tenantId, query);
+  }
+
+  @ApiOperation({ summary: 'Una versión con su texto completo, para revisarla antes de aprobar' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 404, description: 'KNOWLEDGE_VERSION_NOT_FOUND.' })
+  @ApiResponse({ status: 200, description: 'Versión con cuerpo, etiquetas y regla de escalado.' })
+  @Get('versions/:versionId')
+  getVersion(@CurrentTenant() tenantId: string, @Param('versionId', new ZodValidationPipe(knowledgeIdParamSchema)) versionId: string) {
+    return this.reads.getVersion(tenantId, versionId);
+  }
 
   @ApiOperation({ summary: 'Crear un artículo (identidad y gobierno; el texto va en su versión)' })
   @ApiHeader({ name: 'x-tenant-id', required: false })

@@ -19,9 +19,11 @@ describe('CatalogManagementController', () => {
       createCatalogVersion: jest.fn(async (..._args: unknown[]) => ({ versionId: 'v1' })),
       decideCatalogVersion: jest.fn(async (..._args: unknown[]) => ({ decided: true })),
     };
+    const stagingReads = { list: jest.fn(async (..._args: unknown[]) => ({ items: [], total: 0 })) };
     // El gobierno de reglas y políticas salió a su propio controller; comparten servicio.
     return {
-      controller: new CatalogManagementController(service as never),
+      controller: new CatalogManagementController(service as never, stagingReads as never),
+      stagingReads,
       governance: new CatalogGovernanceController(service as never),
       service,
     };
@@ -68,5 +70,11 @@ describe('CatalogManagementController', () => {
       currentUser: user,
       context: expectedContext,
     });
+  });
+
+  it('la lista de ítems de staging delega en su servicio de lectura con la consulta validada', async () => {
+    const { controller, stagingReads } = build();
+    await controller.listStagingItems({ catalogCode: 'bancos', page: 1, pageSize: 50 });
+    expect(stagingReads.list).toHaveBeenCalledWith({ catalogCode: 'bancos', page: 1, pageSize: 50 });
   });
 });
