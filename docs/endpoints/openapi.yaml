@@ -19072,6 +19072,80 @@ paths:
       summary: Los bytes de un documento del ERP, para verlo
       tags:
         - partner-onboarding
+  /operations/erp-documents/merchant-expediente:
+    post:
+      description: >-
+        Busca la ficha del comercio por la cuenta del ERP o por NIT; si no
+        existe la abre (sin dueño). La enlaza a la cuenta y asegura su
+        expediente con las carpetas qr, documentos y otros. Idempotente.
+      operationId: ErpDocumentsController_merchantExpedienteDeCuenta
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                erpAccountId:
+                  type: string
+                  format: uuid
+                  pattern: >-
+                    ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                legalName:
+                  type: string
+                  minLength: 1
+                  maxLength: 220
+                tradeName:
+                  anyOf:
+                    - type: string
+                      maxLength: 220
+                    - type: 'null'
+                taxId:
+                  anyOf:
+                    - type: string
+                      maxLength: 60
+                    - type: 'null'
+                contactEmail:
+                  anyOf:
+                    - type: string
+                      maxLength: 180
+                    - type: 'null'
+                contactPhone:
+                  anyOf:
+                    - type: string
+                      maxLength: 40
+                    - type: 'null'
+              required:
+                - erpAccountId
+                - legalName
+              additionalProperties: false
+      responses:
+        '200':
+          description: '{ partnerId, expedienteId, created, reason }.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Asegurar la carpeta del comercio de una cuenta del ERP
+      tags:
+        - partner-onboarding
   /operations/erp-documents/upload-url:
     post:
       description: >-

@@ -10,8 +10,18 @@ describe('ErpDocumentsController', () => {
       verify: jest.fn(async (..._args: unknown[]) => ({ sizeBytes: 12, sha256Hex: 'abc', contentType: 'application/pdf' })),
       read: jest.fn(async (..._args: unknown[]) => ({ contentType: 'application/pdf', bytes: Buffer.from('%PDF') })),
     };
-    return { documents, controller: new ErpDocumentsController(documents as never) };
+    const merchantExpediente = {
+      asegurar: jest.fn(async (..._args: unknown[]) => ({ partnerId: 'p1', expedienteId: 'e1', created: false, reason: null })),
+    };
+    return { documents, merchantExpediente, controller: new ErpDocumentsController(documents as never, merchantExpediente as never) };
   }
+
+  it('asegurar la carpeta de una cuenta del ERP usa el tenant de la cabecera', async () => {
+    const { controller, merchantExpediente } = build();
+    const body = { erpAccountId: '8b8f0f5e-3f55-4a47-9c3a-1b6f0b0e2a11', legalName: 'Dismac S.A.' };
+    await expect(controller.merchantExpedienteDeCuenta('1', body as never)).resolves.toMatchObject({ expedienteId: 'e1' });
+    expect(merchantExpediente.asegurar).toHaveBeenCalledWith('1', body);
+  });
 
   it('el ticket lleva el tenant de la cabecera, no del cuerpo', async () => {
     const { controller, documents } = build();

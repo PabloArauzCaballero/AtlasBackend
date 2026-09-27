@@ -102,6 +102,13 @@ export class ErpDocumentsService {
       const { rows } = await this.profiles.findProfilesByExternalKeys(tenantId, { erpAccountId: dueno.ownerId }, { limit: 1, offset: 0 });
       const profile = rows[0];
       if (!profile) return;
+      // Un comercio anterior al 2026-09-17 no tiene carpeta, y sin ella el archivo no se anotaba en
+      // ningún sitio. Abrir es idempotente: con carpeta, no hace nada.
+      await this.expedienteHooks.alCrearComercio({
+        tenantId,
+        partnerId: profile.id,
+        customerCode: profile.tradeName?.trim() || `NIT ${profile.taxId}`,
+      });
       await this.expedienteHooks.alRegistrarArchivoDelComercio({
         tenantId,
         partnerId: profile.id,
