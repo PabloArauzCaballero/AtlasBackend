@@ -801,8 +801,13 @@ services:
   # intactas: root funcionaba, el backend no, y nadie se enteraba hasta que un cliente intentaba
   # subir su carnet. Ahora el despliegue no sale si la llave que usa el backend no puede escribir.
   minio-bucket:
-    # Mismo motivo que `minio`: el Hub ya no sirve este repositorio (ver el comentario de arriba).
-    image: quay.io/minio/mc:RELEASE.2024-09-16T17-43-14Z
+    # La MISMA imagen que el servidor `minio`, que ya trae `mc` (/usr/bin/mc). Antes era
+    # `quay.io/minio/mc:RELEASE.2024-09-16T17-43-14Z`, y rompió TEST el 2026-09-27: este servicio
+    # corre una vez y sale, así que la limpieza de Coolify borraba su imagen por «sin usar», y
+    # quay.io ya no la sirve sin credenciales (401 incluso para `latest`). Con `pull_policy: never`
+    # el despliegue moría en `No such image` DESPUÉS de retirar los contenedores viejos: servicio
+    # caído. La imagen de `minio` la mantiene en uso su propio contenedor, así que no se borra.
+    image: quay.io/minio/minio:RELEASE.2024-09-13T20-26-02Z
     pull_policy: never
     environment:
       MINIO_ROOT_USER: '${MINIO_ROOT_USER:?}'
