@@ -126,7 +126,7 @@
     },
     "fraud": {
       "context": "cases-fraud",
-      "allowedDependencies": []
+      "allowedDependencies": ["customers"]
     },
     "operations": {
       "context": "cases-fraud",
@@ -219,7 +219,7 @@
     },
     "workflow-catalog": {
       "context": "platform",
-      "allowedDependencies": []
+      "allowedDependencies": ["internal-users"]
     },
     "internal-portal": {
       "context": "platform",

@@ -5,7 +5,8 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, Transaction, literal } from 'sequelize';
+import { Op, QueryTypes, Transaction, literal } from 'sequelize';
+import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { SystemFlowCatalogModel } from '../../database/models/system-flow-catalog.model.js';
 import { SystemFlowFindingModel } from '../../database/models/system-flow-findings.model.js';
 import { SystemFlowImportModel } from '../../database/models/system-flow-imports.model.js';
@@ -77,5 +78,32 @@ export class SystemFlowsGateRepository {
   async importedScopes(): Promise<Set<string>> {
     const rows = await this.imports.findAll({ attributes: ['scope', 'systemCode'], group: ['scope', 'system_code'], raw: true });
     return new Set((rows as unknown as Array<{ scope: string; systemCode: string }>).map((row) => `${row.scope}:${row.systemCode}`));
+  }
+
+  /**
+   * Pasos de procesos P0/P1 que una persona ejecuta desde un portal y ese portal no llama
+   * (PROCESS_STEP_UNWIRED). Un paso sin fila en Flujos cuenta como no cableado: la compuerta falla
+   * sobre lo que no se ha podido mirar, igual que las demás comprobaciones.
+   */
+  async unwiredProcessSteps(): Promise<Array<{ workflowCode: string; count: number }>> {
+    const ops = atlasSchemaFor('workflow_steps');
+    const flows = atlasSchemaFor('system_flow_catalog');
+    const sequelize = this.flows.sequelize!;
+    return sequelize.query<{ workflowCode: string; count: number }>(
+      `SELECT d.workflow_code AS "workflowCode", count(*)::int AS count
+         FROM ${ops}.workflow_steps st
+         JOIN ${ops}.workflow_stages sg ON sg._id = st.workflow_stage_id AND NOT sg._deleted
+         JOIN ${ops}.workflow_definitions d ON d._id = st.workflow_definition_id AND NOT d._deleted AND d.is_default
+        WHERE NOT st._deleted AND st.step_kind = 'http' AND d.priority IN ('P0', 'P1')
+          AND sg.actor_type IN ('internal_user', 'merchant_user', 'platform_user')
+          AND sg.client_code IN ('ADMIN_PORTAL', 'ERP_PORTAL', 'MOTOR_PORTAL', 'DASHBOARDS_PORTAL')
+          AND NOT EXISTS (
+            SELECT 1 FROM ${flows}.system_flow_catalog f
+             WHERE f.system_code = st.system_code AND f.http_method = st.http_method
+               AND f.path = regexp_replace(regexp_replace(ltrim(st.route_path, '/'), ':[A-Za-z0-9_]+', ':p', 'g'), '/$', '')
+               AND f.callers ? (CASE WHEN sg.client_code = 'ERP_PORTAL' AND st.system_code = 'ATLAS_BACKEND' THEN 'ERP_BACKEND' ELSE sg.client_code END))
+        GROUP BY d.workflow_code ORDER BY 2 DESC`,
+      { type: QueryTypes.SELECT },
+    );
   }
 }

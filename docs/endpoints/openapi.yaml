@@ -10677,6 +10677,229 @@ paths:
       summary: Listar permisos internos
       tags:
         - internal-access-catalog
+  /internal/processes:
+    get:
+      description: >-
+        Una fila por proceso declarado en código: prioridad, dueño, bloques,
+        clientes, las cinco comprobaciones de documentación (narrativa, dueño,
+        entidad de instancia, pantallas, volcado en esta base) y los pasos de
+        personas con y sin pantalla.
+      operationId: ProcessCatalogController_list
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Totales y procesos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Sin sesión interna o sin workflows.read.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Procesos de Atlas con su estado de documentación y de cableado
+      tags:
+        - workflow-catalog
+  /internal/processes/{code}:
+    get:
+      operationId: ProcessCatalogController_detail
+      parameters:
+        - name: code
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{2,79}$
+          description: >-
+            Identificador de ruta `code` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Proceso completo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: PROCESS_NOT_FOUND.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: >-
+        Ficha de un proceso: narrativa, etapas y pasos con su flujo y su
+        cableado
+      tags:
+        - workflow-catalog
+  /internal/processes/{code}/instances:
+    get:
+      description: >-
+        Sólo para procesos cuya entidad vive en este bloque; si no, dice dónde
+        consultarlas.
+      operationId: ProcessCatalogController_instances
+      parameters:
+        - name: pageSize
+          required: false
+          in: query
+          description: Instancias por página (1 a 100; 25 por defecto).
+          schema: {}
+        - name: page
+          required: false
+          in: query
+          description: Página, desde 1.
+          schema: {}
+        - name: search
+          required: false
+          in: query
+          description: Id exacto o parte del nombre legible de la instancia.
+          schema: {}
+        - name: status
+          required: false
+          in: query
+          description: >-
+            Sólo las instancias en este estado (el valor tal cual lo guarda la
+            tabla de la instancia).
+          schema: {}
+        - name: code
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{2,79}$
+          description: >-
+            Identificador de ruta `code` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Recuento por estado y página de instancias.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Instancias en curso de un proceso, por estado
+      tags:
+        - workflow-catalog
+  /internal/processes/{code}/instances/{instanceId}/progress:
+    get:
+      operationId: ProcessCatalogController_instanceProgress
+      parameters:
+        - name: instanceId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{1,64}$
+          description: >-
+            Identificador de ruta `instanceId` del recurso direccionado por la
+            operación.
+        - name: code
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{2,79}$
+          description: >-
+            Identificador de ruta `code` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: La instancia y el estado de cada etapa.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: PROCESS_INSTANCE_NOT_FOUND o PROCESS_INSTANCES_NOT_HERE.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Dónde va una instancia dentro del proceso
+      tags:
+        - workflow-catalog
+  /internal/processes/{code}/wiring:
+    get:
+      description: >-
+        `unwired` es un paso que una persona tiene que hacer desde un portal que
+        no llama a su ruta (PROCESS_STEP_UNWIRED).
+      operationId: ProcessCatalogController_wiring
+      parameters:
+        - name: code
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{2,79}$
+          description: >-
+            Identificador de ruta `code` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Pasos de personas con su estado de cableado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: 'Cableado de un proceso: cada paso de una persona y si su portal lo llama'
+      tags:
+        - workflow-catalog
   /internal/release-readiness:
     get:
       operationId: InternalPortalController_getReleaseReadiness
@@ -11725,6 +11948,44 @@ paths:
       security:
         - access-token: []
       summary: Verificar la cadena de integridad de una conversación
+      tags:
+        - Interno · Mesa de soporte
+  /internal/support/desk/mine:
+    get:
+      operationId: InternalSupportDeskController_mine
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: >-
+            Presencia real del agente y sus conversaciones vivas, la más
+            reciente primero.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Mi presencia y las conversaciones que llevo
       tags:
         - Interno · Mesa de soporte
   /internal/support/desk/presence:
@@ -19200,10 +19461,12 @@ paths:
                 nextCustomerStatus:
                   type: string
                   enum:
+                    - active
+                    - observed
+                    - under_review
+                    - rejected
                     - blocked
-                    - pending_fraud_review
-                    - registered
-                    - approved_for_next_step
+                    - suspended
                 notes:
                   type: string
                   maxLength: 2000
