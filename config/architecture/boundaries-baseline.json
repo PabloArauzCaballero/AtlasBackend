@@ -1,10 +1,10 @@
 {
   "$comment": "Deuda heredada de fronteras (AT-012). Generada por yarn check:architecture --update-baseline; sólo puede encoger.",
   "updatedOn": "2026-09-26",
-  "count": 87,
+  "count": 86,
   "byRule": {
     "domain-purity": 3,
-    "cross-module": 84
+    "cross-module": 83
   },
   "violations": [
     "domain-external:src/modules/support/domain/case-state-machine.ts->@nestjs/common",
@@ -30,7 +30,6 @@
     "import:src/modules/expedientes/application/actor.service.ts->src/modules/internal-users/internal-rbac.repository.ts",
     "import:src/modules/expedientes/application/contactos.service.ts->src/modules/customers/repositories/customer-contacts.repository.ts",
     "import:src/modules/expedientes/application/visibilidad.service.ts->src/modules/internal-users/internal-permission-holders.repository.ts",
-    "import:src/modules/fraud/fraud.service.ts->src/modules/customers/customers.repository.ts",
     "import:src/modules/loan-payment-claims/loan-payment-claims.service.ts->src/modules/events/events.service.ts",
     "import:src/modules/loan-payment-claims/loan-payment-claims.service.ts->src/modules/expedientes/application/expediente-hooks.service.ts",
     "import:src/modules/loan-payment-claims/partner-payment-claims.service.ts->src/modules/events/events.service.ts",

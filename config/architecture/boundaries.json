@@ -126,7 +126,7 @@
     },
     "fraud": {
       "context": "cases-fraud",
-      "allowedDependencies": []
+      "allowedDependencies": ["customers"]
     },
     "operations": {
       "context": "cases-fraud",
