@@ -148,6 +148,27 @@ export class SupportAgentAvailabilityRepository {
   }
 
   /**
+   * Reserva un hueco de ESTE agente, el que pulsó «Atender».
+   *
+   * `reserveAvailableAgent` elige al mejor candidato de la cola, que es lo correcto para repartir
+   * pero no para tomar: con dos agentes libres devolvía al otro y el que pulsó recibía un 409, y con
+   * presencia `OFFLINE` —la inicial de todo perfil— no devolvía a nadie. Tomar a mano ya es declarar
+   * que se está atendiendo, así que aquí no se mira la presencia; la capacidad sí.
+   */
+  async reserveSlotOf(tenantId: string, agentProfileId: string): Promise<boolean> {
+    const rows = await this.sequelize.query<{ _id: string }>(
+      `UPDATE ${AGENTS}
+          SET active_channel_count = active_channel_count + 1, _updated_at = NOW()
+        WHERE _tenant_id = :tenantId AND _id = :agentProfileId
+          AND _deleted = FALSE AND is_active = TRUE
+          AND active_channel_count < max_concurrent_channels
+      RETURNING _id;`,
+      { replacements: { tenantId, agentProfileId }, type: QueryTypes.SELECT },
+    );
+    return rows.length > 0;
+  }
+
+  /**
    * Devuelve el hueco al cerrar o transferir el canal.
    *
    * `GREATEST(..., 0)` no es paranoia decorativa: un reinicio a medio camino podría intentar

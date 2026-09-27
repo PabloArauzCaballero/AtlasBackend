@@ -12,6 +12,8 @@ import { atlasSchemaFor } from '../../database/domain-schemas.js';
 
 const AGENTS = `${atlasSchemaFor('support_agent_profiles')}.support_agent_profiles`;
 const INTERNAL_USERS = `${atlasSchemaFor('internal_users')}.internal_users`;
+const USER_ROLES = `${atlasSchemaFor('internal_user_roles')}.internal_user_roles`;
+const ROLES = `${atlasSchemaFor('internal_roles')}.internal_roles`;
 
 export type RepositoryOptions = { transaction?: Transaction };
 
@@ -122,6 +124,19 @@ export class SupportAgentRepository {
       { replacements: { tenantId, internalUserId }, type: QueryTypes.SELECT },
     );
     return Number(rows[0]?.total ?? 0) > 0;
+  }
+
+  /** Los roles RBAC vigentes de la persona. El token sólo trae el rol heredado, que no los distingue. */
+  async activeRoleCodes(tenantId: string, internalUserId: string): Promise<string[]> {
+    const rows = await this.sequelize.query<{ role_code: string }>(
+      `SELECT DISTINCT role.role_code
+         FROM ${USER_ROLES} AS assigned
+         JOIN ${ROLES} AS role ON role._id = assigned.role_id
+        WHERE assigned._tenant_id = :tenantId AND assigned.internal_user_id = :internalUserId
+          AND assigned.revoked_at IS NULL AND COALESCE(role._deleted, FALSE) = FALSE;`,
+      { replacements: { tenantId, internalUserId }, type: QueryTypes.SELECT },
+    );
+    return rows.map((row) => row.role_code);
   }
 
   /** El perfil de esa persona exista o no esté dado de baja: lo que decide si un alta choca. */

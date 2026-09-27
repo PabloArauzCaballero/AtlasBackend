@@ -123,48 +123,48 @@ export class SupportChannelService {
       throw new ConflictException({ code: 'SUPPORT_CHANNEL_ALREADY_CLAIMED', status: channel.status });
     }
 
-    const reserved = await this.disponibilidad.reserveAvailableAgent({
-      tenantId: input.tenantId,
-      queueId: channel.queueId ? String(channel.queueId) : null,
-      requiredSkills: [],
-    });
-    if (!reserved || reserved.agentProfileId !== agentProfileId) {
-      // Se reservó a otro (o a nadie): se devuelve el hueco y se pide reintentar sin adivinar.
-      if (reserved) await this.disponibilidad.releaseAgentSlot(input.tenantId, reserved.agentProfileId);
+    if (!(await this.disponibilidad.reserveSlotOf(input.tenantId, agentProfileId))) {
       throw new ConflictException({ code: 'SUPPORT_AGENT_AT_CAPACITY', message: 'No tienes capacidad libre para otra conversación.' });
     }
 
-    const updated = await this.sequelize.transaction(async (transaction) => {
-      const locked = await this.channels.requireById(input.tenantId, input.channelId, { transaction });
-      if (!['REQUESTED', 'QUEUED'].includes(locked.status)) {
-        throw new ConflictException({ code: 'SUPPORT_CHANNEL_ALREADY_CLAIMED', status: locked.status });
-      }
-      await this.channels.update(
-        input.tenantId,
-        input.channelId,
-        {
-          status: 'OPEN',
-          assignedAgentProfileId: agentProfileId,
-          openedAt: new Date(),
-          claimVersion: locked.claimVersion + 1,
-        },
-        { transaction },
-      );
-      await this.channels.addParticipant(
-        {
-          tenantId: input.tenantId,
-          channelId: input.channelId,
-          actorType: 'AGENT',
-          actorId: input.actor.actorId,
-          agentProfileId,
-          roleInChannel: 'AGENT',
-          joinedAt: new Date(),
-          joinReason: 'agent_claim',
-        },
-        { transaction },
-      );
-      return this.channels.requireById(input.tenantId, input.channelId, { transaction });
-    });
+    // Si otro lo tomó entre la reserva y el bloqueo, el hueco se devuelve: si no, el contador sube
+    // para siempre y el agente acaba «lleno» sin ninguna conversación.
+    const updated = await this.sequelize
+      .transaction(async (transaction) => {
+        const locked = await this.channels.requireById(input.tenantId, input.channelId, { transaction });
+        if (!['REQUESTED', 'QUEUED'].includes(locked.status)) {
+          throw new ConflictException({ code: 'SUPPORT_CHANNEL_ALREADY_CLAIMED', status: locked.status });
+        }
+        await this.channels.update(
+          input.tenantId,
+          input.channelId,
+          {
+            status: 'OPEN',
+            assignedAgentProfileId: agentProfileId,
+            openedAt: new Date(),
+            claimVersion: locked.claimVersion + 1,
+          },
+          { transaction },
+        );
+        await this.channels.addParticipant(
+          {
+            tenantId: input.tenantId,
+            channelId: input.channelId,
+            actorType: 'AGENT',
+            actorId: input.actor.actorId,
+            agentProfileId,
+            roleInChannel: 'AGENT',
+            joinedAt: new Date(),
+            joinReason: 'agent_claim',
+          },
+          { transaction },
+        );
+        return this.channels.requireById(input.tenantId, input.channelId, { transaction });
+      })
+      .catch(async (error: unknown) => {
+        await this.disponibilidad.releaseAgentSlot(input.tenantId, agentProfileId);
+        throw error;
+      });
 
     return toChannelDto(updated);
   }

@@ -11440,5 +11440,23 @@
       "access-token"
     ],
     "body": false
+  },
+  "GET /internal/support/desk/mine": {
+    "operationId": "InternalSupportDeskController_mine",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
   }
 }
