@@ -46,6 +46,15 @@ export class InternalSupportDeskController {
     return this.desk.listQueuedChannels({ tenantId, actor, queueId: queueId ?? null });
   }
 
+  @ApiOperation({ summary: 'Mi presencia y las conversaciones que llevo' })
+  @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiResponse({ status: 200, description: 'Presencia real del agente y sus conversaciones vivas, la más reciente primero.' })
+  @Get('mine')
+  async mine(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
+    const actor = await this.actors.resolve(currentUser, tenantId);
+    return this.desk.myDesk({ tenantId, actor });
+  }
+
   /**
    * Declararse disponible.
    *

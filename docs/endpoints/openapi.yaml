@@ -12113,6 +12113,44 @@ paths:
       summary: Verificar la cadena de integridad de una conversación
       tags:
         - Interno · Mesa de soporte
+  /internal/support/desk/mine:
+    get:
+      operationId: InternalSupportDeskController_mine
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: >-
+            Presencia real del agente y sus conversaciones vivas, la más
+            reciente primero.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Mi presencia y las conversaciones que llevo
+      tags:
+        - Interno · Mesa de soporte
   /internal/support/desk/presence:
     post:
       operationId: InternalSupportDeskController_presence
