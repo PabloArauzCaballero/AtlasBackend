@@ -67,6 +67,22 @@ export class LoansRepository {
     } as FindOptions);
   }
 
+  /** Cartera para el personal: filtros exactos y paginación. Sin filtro, lo más reciente primero. */
+  findLoansPage(
+    tenantId: string,
+    filter: { status?: string; delinquencyBucket?: string; customerId?: string; creditApplicationId?: string; loanCode?: string },
+    page: { limit: number; offset: number },
+  ): Promise<{ rows: LoanModel[]; count: number }> {
+    const where: Record<string, unknown> = { tenantId, deleted: false };
+    for (const [key, value] of Object.entries(filter)) if (value) where[key] = value;
+    return this.loanModel.findAndCountAll({
+      where,
+      order: [['createdAtValue', 'DESC']],
+      limit: page.limit,
+      offset: page.offset,
+    } as FindOptions);
+  }
+
   createLoan(values: Record<string, unknown>, options: RepositoryOptions = {}): Promise<LoanModel> {
     return this.loanModel.create(values as never, { transaction: options.transaction });
   }

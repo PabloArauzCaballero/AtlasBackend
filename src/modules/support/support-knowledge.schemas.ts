@@ -81,3 +81,32 @@ export const publishVersionSchema = z.object({
 export type PublishVersionDto = z.infer<typeof publishVersionSchema>;
 
 export const articleIdParamSchema = z.object({ articleId: positiveId });
+
+const KNOWLEDGE_STATUSES = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'PUBLISHED', 'RETIRED'] as const;
+const KNOWLEDGE_AUDIENCES = ['PUBLIC_CONSUMER', 'AUTHENTICATED_CONSUMER', 'PARTNER', 'INTERNAL_SUPPORT'] as const;
+const page = {
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+};
+
+/** Lista de artículos para el personal: cualquier estado y cualquier audiencia. */
+export const listKnowledgeArticlesQuerySchema = z.object({
+  status: z.enum(KNOWLEDGE_STATUSES).optional(),
+  audience: z.enum(KNOWLEDGE_AUDIENCES).optional(),
+  search: z.string().trim().min(1).max(80).optional(),
+  ...page,
+});
+export type ListKnowledgeArticlesQueryDto = z.infer<typeof listKnowledgeArticlesQuerySchema>;
+
+/** Cola de versiones por estado (p. ej. las que esperan revisión o publicación). */
+export const listKnowledgeVersionsQuerySchema = z.object({
+  status: z.enum(KNOWLEDGE_STATUSES).optional(),
+  articleId: z
+    .string()
+    .regex(/^[1-9][0-9]*$/)
+    .optional(),
+  ...page,
+});
+export type ListKnowledgeVersionsQueryDto = z.infer<typeof listKnowledgeVersionsQuerySchema>;
+
+export const knowledgeIdParamSchema = z.string().regex(/^[1-9][0-9]*$/, 'Identificador inválido.');

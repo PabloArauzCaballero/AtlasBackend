@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../../../src/common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../../src/common/guards/roles.guard.js';
 import { TenantGuard } from '../../../src/common/guards/tenant.guard.js';
 import { CatalogManagementController } from '../../../src/modules/catalog-management/catalog-management.controller.js';
+import { CatalogStagingReadService } from '../../../src/modules/catalog-management/application/catalog-staging-read.service.js';
 import { CatalogManagementService } from '../../../src/modules/catalog-management/catalog-management.service.js';
 
 describe('catalog-management — OpenAPI del contexto de decisión', () => {
@@ -14,7 +15,10 @@ describe('catalog-management — OpenAPI del contexto de decisión', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [CatalogManagementController],
-      providers: [{ provide: CatalogManagementService, useValue: {} }],
+      providers: [
+        { provide: CatalogManagementService, useValue: {} },
+        { provide: CatalogStagingReadService, useValue: {} },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: jest.fn((..._args: unknown[]) => true) })
