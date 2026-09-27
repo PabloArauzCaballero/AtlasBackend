@@ -15386,26 +15386,27 @@ paths:
         - name: pageSize
           required: false
           in: query
+          description: Ítems por página (1 a 200; 50 por defecto).
           schema: {}
         - name: page
           required: false
           in: query
+          description: Página, desde 1.
           schema: {}
-          description: Página solicitada, empezando en 1.
         - name: reviewStatus
           required: false
           in: query
+          description: pending_review, approved o rejected.
           schema: {}
-          description: >-
-            Estado de revisión humana de la ficha del catálogo técnico
-            (`AUTO_DETECTED`, `APPROVED`, …).
         - name: ingestionJobId
           required: false
           in: query
+          description: Sólo los ítems que propuso esta ingesta.
           schema: {}
         - name: catalogCode
           required: false
           in: query
+          description: Sólo los ítems de este catálogo.
           schema: {}
         - $ref: '#/components/parameters/CorrelationId'
       responses:

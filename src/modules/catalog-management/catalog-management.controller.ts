@@ -205,11 +205,11 @@ export class CatalogManagementController {
     summary: 'Ítems propuestos por una ingesta, por catálogo y estado de revisión',
     description: 'Lo que la decisión en lote necesita enseñar: sin los ids de los ítems en staging no hay nada que aprobar ni rechazar.',
   })
-  @ApiQuery({ name: 'catalogCode', required: false })
-  @ApiQuery({ name: 'ingestionJobId', required: false })
-  @ApiQuery({ name: 'reviewStatus', required: false })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'pageSize', required: false })
+  @ApiQuery({ name: 'catalogCode', required: false, description: 'Sólo los ítems de este catálogo.' })
+  @ApiQuery({ name: 'ingestionJobId', required: false, description: 'Sólo los ítems que propuso esta ingesta.' })
+  @ApiQuery({ name: 'reviewStatus', required: false, description: 'pending_review, approved o rejected.' })
+  @ApiQuery({ name: 'page', required: false, description: 'Página, desde 1.' })
+  @ApiQuery({ name: 'pageSize', required: false, description: 'Ítems por página (1 a 200; 50 por defecto).' })
   @ApiResponse({ status: 200, description: 'Ítems de staging paginados.' })
   @ApiResponse({ status: 404, description: 'CATALOG_NOT_FOUND.' })
   @Get('catalog-staging-items')
