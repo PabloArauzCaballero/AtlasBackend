@@ -11,7 +11,14 @@ const todasLasCargas = new Set([
 ]);
 
 function servicio(
-  over: { criticos?: unknown[]; desprotegidas?: number; pendientes?: number; cargas?: Set<string>; deriva?: Record<string, unknown> } = {},
+  over: {
+    criticos?: unknown[];
+    desprotegidas?: number;
+    pendientes?: number;
+    cargas?: Set<string>;
+    deriva?: Record<string, unknown>;
+    sinCablear?: Array<{ workflowCode: string; count: number }>;
+  } = {},
 ) {
   return new SystemFlowsGateService(
     {
@@ -19,6 +26,7 @@ function servicio(
       openFindingsOfKind: async () => over.desprotegidas ?? 0,
       unresolvedHighReviews: async () => over.pendientes ?? 0,
       importedScopes: async () => over.cargas ?? todasLasCargas,
+      unwiredProcessSteps: async () => over.sinCablear ?? [],
     } as never,
     { rbacDrift: async () => ({ screensWithObservedEdges: 5, truncated: false, notMeasured: [], screens: [], ...over.deriva }) } as never,
   );
@@ -98,5 +106,13 @@ describe('SystemFlowsGateService', () => {
       passed: false,
       detail: expect.stringContaining('hallazgos de ERP_BACKEND'),
     });
+  });
+
+  it('un paso de persona sin pantalla en un proceso P0/P1 bloquea, con el proceso y la cifra', async () => {
+    const resultado = await servicio({ sinCablear: [{ workflowCode: 'credit_line_and_application', count: 4 }] }).evaluate();
+    expect(resultado.passed).toBe(false);
+    const procesos = check(resultado, 'PROCESS_STEPS_WIRED')!;
+    expect(procesos).toMatchObject({ passed: false, count: 4 });
+    expect(procesos.detail).toContain('credit_line_and_application (4)');
   });
 });

@@ -42,6 +42,13 @@ export const PLATFORM_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
     requiresReason: true,
   }),
   permission({
+    code: 'workflows.read',
+    module: 'workflows',
+    resource: 'process_catalog',
+    action: 'read',
+    description: 'Consultar Procesos: la ficha de cada proceso de negocio, sus etapas, su cableado y sus instancias en curso.',
+  }),
+  permission({
     code: 'systems.flows.read',
     module: 'systems',
     resource: 'flow_catalog',

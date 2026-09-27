@@ -16,7 +16,11 @@ import { booleanEnvSchema, optionalLongSecretEnvSchema, optionalNonEmptyStringEn
 export const qaEnvShape = {
   // LOCAL | TEST | STAGING | PROD. Sin valor, se deduce de NODE_ENV como antes (production ⇒ PROD),
   // así que un despliegue que no lo declara conserva el comportamiento más restrictivo.
-  ATLAS_DEPLOYMENT_ENVIRONMENT: z.enum(['LOCAL', 'TEST', 'STAGING', 'PROD']).optional(),
+  // `""` cuenta como no declarado: el compose de Coolify la pasa vacía cuando el panel no la define.
+  ATLAS_DEPLOYMENT_ENVIRONMENT: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.enum(['LOCAL', 'TEST', 'STAGING', 'PROD']).optional(),
+  ),
   // Interruptor de las rutas de ejecución QA. En PROD se ignora: allí nunca se ejecuta.
   QA_EXECUTION_ENABLED: booleanEnvSchema,
   // Firma HS256 de la credencial QA de vida corta que el worker añade a cada petición. Sin secreto

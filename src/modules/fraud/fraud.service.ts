@@ -7,6 +7,8 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException, 
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { CustomerLifecycleService } from '../customers/application/customer-lifecycle.service.js';
+import { CustomerLifecycleStatus } from '../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { FraudRepository } from './fraud.repository.js';
 import { FraudDecisionDto, FraudDecisionParamsDto } from './fraud.schemas.js';
@@ -22,6 +24,7 @@ export class FraudService {
   constructor(
     private readonly fraudRepository: FraudRepository,
     private readonly customersRepository: CustomersRepository,
+    private readonly lifecycleService: CustomerLifecycleService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -102,21 +105,23 @@ export class FraudService {
         }
         watchlistApplied = identifiers.length > 0;
       }
+      // Mismo defecto que H1 en la revisión manual: aquí sólo se escribía el evento de historial (con
+      // `previousStatus: null`) y NUNCA se actualizaba `customers.lifecycle_status`. Un cliente
+      // «bloqueado» por fraude seguía operando. La transición la aplica ahora `CustomerLifecycleService`,
+      // que valida contra la máquina de estados y escribe estado + evento con el estado anterior real.
+      let appliedStatus: CustomerLifecycleStatus | null = null;
       if (fraudCase.customerId && input.body.nextCustomerStatus) {
-        await this.fraudRepository.createStatusEvent(
-          {
-            tenantId: input.tenantId,
-            customerId: String(fraudCase.customerId),
-            previousStatus: null,
-            newStatus: input.body.nextCustomerStatus,
-            reasonCode: auditReasonCode,
-            actorType: input.currentUser.role,
-            actorInternalUserId: input.currentUser.internalUserId ?? null,
-            happenedAt: now,
-            notes: input.body.notes ?? null,
-          },
-          { transaction },
-        );
+        const transition = await this.lifecycleService.transition({
+          tenantId: input.tenantId,
+          customerId: String(fraudCase.customerId),
+          toStatus: input.body.nextCustomerStatus,
+          reasonCode: auditReasonCode,
+          changedByType: input.currentUser.role,
+          changedByInternalUserId: input.currentUser.internalUserId ?? null,
+          notes: input.body.notes ?? null,
+          transaction,
+        });
+        appliedStatus = transition.newStatus;
         await this.fraudRepository.createCustomerObservation(
           {
             tenantId: input.tenantId,
@@ -160,7 +165,7 @@ export class FraudService {
         decision: input.body.decision,
         caseStatus,
         watchlistApplied,
-        nextCustomerStatus: input.body.nextCustomerStatus ?? null,
+        nextCustomerStatus: appliedStatus,
       };
     });
   }
