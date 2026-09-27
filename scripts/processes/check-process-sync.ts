@@ -12,7 +12,7 @@
  *   yarn check:process-sync --update-rbac <migración-rbac>   → reescribe el candado de permisos
  */
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { INTERNAL_PERMISSION_SEEDS, ROLE_PERMISSION_CODES } from '../../src/modules/internal-users/internal-rbac.permissions.js';
 import { definitionHash } from '../../src/modules/workflow-catalog/definitions/workflow-catalog.sync.js';
@@ -42,9 +42,16 @@ const latest = (pattern: RegExp): string | undefined =>
     ?.replace(/\.ts$/, '');
 
 const args = process.argv.slice(2);
-const lock: Lock = existsSync(LOCK)
-  ? (JSON.parse(readFileSync(LOCK, 'utf8')) as Lock)
-  : { processes: { migration: '', hashes: {} }, rbac: { migration: '', hash: '' } };
+const EMPTY_LOCK: Lock = { processes: { migration: '', hashes: {} }, rbac: { migration: '', hash: '' } };
+/** Se lee de una vez (sin comprobar antes si existe): no hay ventana entre mirar y leer. */
+function readLock(): Lock {
+  try {
+    return JSON.parse(readFileSync(LOCK, 'utf8')) as Lock;
+  } catch {
+    return EMPTY_LOCK;
+  }
+}
+const lock: Lock = readLock();
 const upd = args.indexOf('--update');
 const updRbac = args.indexOf('--update-rbac');
 if (upd >= 0 || updRbac >= 0) {

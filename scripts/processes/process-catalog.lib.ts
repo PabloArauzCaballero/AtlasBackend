@@ -3,7 +3,7 @@
  * @business Esta pieza hace que «documentado» sea una comprobación y no una opinión: todos los gates miran las mismas fixtures con las mismas reglas.
  * @system inventario de rutas del Backend por decoradores, endpoints de los otros bloques (copia de Flow Intelligence), eventos y jobs.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { WORKFLOW_DEFINITIONS } from '../../src/modules/workflow-catalog/definitions/workflow-definitions.registry.js';
@@ -41,10 +41,10 @@ export function normalizeRoute(route: string): string {
 
 function controllerFiles(dir: string): string[] {
   const found: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) found.push(...controllerFiles(path));
-    else if (entry.endsWith('.controller.ts')) found.push(path);
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) found.push(...controllerFiles(path));
+    else if (entry.name.endsWith('.controller.ts')) found.push(path);
   }
   return found;
 }
@@ -136,11 +136,11 @@ export function backendEmittedEvents(): { literals: Set<string>; prefixes: strin
   const literals = new Set<string>();
   const prefixes: string[] = [];
   const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      const path = join(dir, entry);
-      if (statSync(path).isDirectory()) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
         if (!/workflow-catalog[\\/]definitions|seeders/.test(path)) walk(path);
-      } else if (entry.endsWith('.ts')) {
+      } else if (entry.name.endsWith('.ts')) {
         const source = readFileSync(path, 'utf8');
         for (const m of source.matchAll(/'([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+)'/g)) literals.add(m[1]!);
         for (const m of source.matchAll(/`([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*\.)\$\{/g)) prefixes.push(m[1]!);

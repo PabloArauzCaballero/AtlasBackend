@@ -25,7 +25,7 @@ const QUESTIONS: Array<[keyof WorkflowDefinitionFixture['narrative'], string]> =
   ['whenItFails', 'Qué pasa cuando falla'],
   ['healthIndicator', 'Qué indicador dice que va bien'],
 ];
-const cell = (v: string | undefined): string => (v ?? '—').replace(/\|/g, '\\|').replace(/\n/g, ' ');
+const cell = (v: string | undefined): string => (v ?? '—').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
 function stageRow(s: ProcessStageFixture): string {
   return `| \`${s.code}\` | ${cell(s.name)} | ${s.actor} | ${s.client} | ${s.screen ? `\`${s.screen}\`` : s.link ? `enlace: \`${s.link}\`` : s.client === 'BLOCK' ? '—' : '**sin pantalla declarada**'} | ${s.steps.length} |`;
