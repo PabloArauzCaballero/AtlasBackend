@@ -41,3 +41,19 @@ export type ErpDocumentVerifyDto = z.infer<typeof erpDocumentVerifySchema>;
 
 export const erpDocumentContentQuerySchema = z.object({ storageKey: z.string().trim().min(1).max(500) });
 export type ErpDocumentContentQueryDto = z.infer<typeof erpDocumentContentQuerySchema>;
+
+/**
+ * La cuenta del ERP cuyo comercio tiene que tener carpeta. Lleva lo necesario para abrir la ficha
+ * si todavía no existe (razón social, NIT y un correo de contacto de la cuenta).
+ */
+export const erpMerchantExpedienteSchema = z
+  .object({
+    erpAccountId: z.string().uuid(),
+    legalName: z.string().trim().min(1).max(220),
+    tradeName: z.string().trim().max(220).nullish(),
+    taxId: z.string().trim().max(60).nullish(),
+    contactEmail: z.string().trim().max(180).nullish(),
+    contactPhone: z.string().trim().max(40).nullish(),
+  })
+  .strict();
+export type ErpMerchantExpedienteDto = z.infer<typeof erpMerchantExpedienteSchema>;

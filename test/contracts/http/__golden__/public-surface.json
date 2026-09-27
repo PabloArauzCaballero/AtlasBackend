@@ -11579,5 +11579,24 @@
       "access-token"
     ],
     "body": false
+  },
+  "POST /operations/erp-documents/merchant-expediente": {
+    "operationId": "ErpDocumentsController_merchantExpedienteDeCuenta",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": true
   }
 }

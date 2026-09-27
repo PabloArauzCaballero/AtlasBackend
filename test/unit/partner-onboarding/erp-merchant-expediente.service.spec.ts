@@ -1,0 +1,98 @@
+import { describe, expect, it, jest } from '@jest/globals';
+import { ErpMerchantExpedienteService } from '../../../src/modules/partner-onboarding/application/erp-merchant-expediente.service.js';
+
+const CUENTA = '8b8f0f5e-3f55-4a47-9c3a-1b6f0b0e2a11';
+
+type Perfil = { id: string; erpAccountId: string | null; tradeName: string | null; taxId: string };
+
+function build(opts: { porCuenta?: Perfil | null; porNit?: Perfil | null } = {}) {
+  const profiles = {
+    findProfilesByExternalKeys: jest.fn(async (..._args: unknown[]) => ({ rows: opts.porCuenta ? [opts.porCuenta] : [], count: 0 })),
+    findProfileByTaxId: jest.fn(async (..._args: unknown[]) => opts.porNit ?? null),
+    updateProfile: jest.fn(async (perfil: unknown, values: unknown) => ({ ...(perfil as Perfil), ...(values as object) })),
+  };
+  const profileService = {
+    start: jest.fn(async (...args: unknown[]) => {
+      const dto = args[1] as { tradeName?: string; taxId: string };
+      return { id: 'nuevo', erpAccountId: null, tradeName: dto.tradeName ?? null, taxId: dto.taxId };
+    }),
+  };
+  const hooks = { alCrearComercio: jest.fn(async (..._args: unknown[]) => undefined) };
+  const expedientes = { findExpedientePorSujeto: jest.fn(async (..._args: unknown[]) => ({ id: 'exp-1' })) };
+  const service = new ErpMerchantExpedienteService(profiles as never, profileService as never, hooks as never, expedientes as never);
+  return { service, profiles, profileService, hooks, expedientes };
+}
+
+/**
+ * La carpeta del comercio tiene que existir desde que el ERP crea el onboarding (Pablo,
+ * 2026-09-26): si la ficha no existe se abre, si existe se enlaza, y en los dos casos se asegura el
+ * expediente.
+ */
+describe('ErpMerchantExpedienteService', () => {
+  const entrada = {
+    erpAccountId: CUENTA,
+    legalName: 'Dismac S.A.',
+    tradeName: 'Dismac',
+    taxId: '1023456029',
+    contactEmail: 'ventas@dismac.bo',
+  };
+
+  it('una cuenta sin ficha en Atlas abre la ficha SIN dueño, la enlaza y asegura la carpeta', async () => {
+    const { service, profileService, profiles, hooks } = build();
+
+    await expect(service.asegurar('1', entrada)).resolves.toEqual({
+      partnerId: 'nuevo',
+      expedienteId: 'exp-1',
+      created: true,
+      reason: null,
+    });
+
+    expect(profileService.start).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({ taxId: '1023456029', contactEmail: 'ventas@dismac.bo' }),
+      undefined,
+    );
+    expect(profiles.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ id: 'nuevo' }), { erpAccountId: CUENTA });
+    expect(hooks.alCrearComercio).toHaveBeenCalledWith({ tenantId: '1', partnerId: 'nuevo', customerCode: 'Dismac' });
+  });
+
+  it('una ficha ya enlazada no se vuelve a abrir ni a enlazar; sólo se asegura su carpeta', async () => {
+    const { service, profileService, profiles, hooks } = build({
+      porCuenta: { id: 'p1', erpAccountId: CUENTA, tradeName: null, taxId: '1023456029' },
+    });
+
+    await expect(service.asegurar('1', entrada)).resolves.toMatchObject({ partnerId: 'p1', created: false, reason: null });
+
+    expect(profileService.start).not.toHaveBeenCalled();
+    expect(profiles.updateProfile).not.toHaveBeenCalled();
+    expect(hooks.alCrearComercio).toHaveBeenCalledWith({ tenantId: '1', partnerId: 'p1', customerCode: 'NIT 1023456029' });
+  });
+
+  it('una ficha encontrada por NIT sin cuenta se enlaza a esta cuenta', async () => {
+    const { service, profiles } = build({ porNit: { id: 'p2', erpAccountId: null, tradeName: 'Dismac', taxId: '1023456029' } });
+    await service.asegurar('1', entrada);
+    expect(profiles.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ id: 'p2' }), { erpAccountId: CUENTA });
+  });
+
+  it('una ficha enlazada a OTRA cuenta no se pisa ni recibe carpeta', async () => {
+    const { service, profiles, hooks } = build({ porNit: { id: 'p3', erpAccountId: 'otra', tradeName: null, taxId: '1023456029' } });
+    await expect(service.asegurar('1', entrada)).resolves.toMatchObject({ partnerId: 'p3', reason: 'CUENTA_ENLAZADA_A_OTRA_FICHA' });
+    expect(profiles.updateProfile).not.toHaveBeenCalled();
+    expect(hooks.alCrearComercio).not.toHaveBeenCalled();
+  });
+
+  it('sin correo de contacto o con un NIT inválido no inventa la ficha: lo dice', async () => {
+    const sinCorreo = build();
+    await expect(sinCorreo.service.asegurar('1', { ...entrada, contactEmail: null })).resolves.toMatchObject({
+      partnerId: null,
+      reason: 'SIN_CORREO_DE_CONTACTO',
+    });
+    expect(sinCorreo.profileService.start).not.toHaveBeenCalled();
+
+    const nitMalo = build();
+    await expect(nitMalo.service.asegurar('1', { ...entrada, taxId: 'NIT-12' })).resolves.toMatchObject({
+      reason: 'DATOS_DE_LA_CUENTA_INVALIDOS',
+    });
+    expect(nitMalo.profileService.start).not.toHaveBeenCalled();
+  });
+});

@@ -14,6 +14,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { ErpDocumentsService } from './application/erp-documents.service.js';
+import { ErpMerchantExpedienteService } from './application/erp-merchant-expediente.service.js';
 import {
   ErpDocumentContentQueryDto,
   erpDocumentContentQuerySchema,
@@ -21,6 +22,8 @@ import {
   erpDocumentUploadUrlSchema,
   ErpDocumentVerifyDto,
   erpDocumentVerifySchema,
+  ErpMerchantExpedienteDto,
+  erpMerchantExpedienteSchema,
 } from './erp-documents.schemas.js';
 
 /**
@@ -34,7 +37,27 @@ import {
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
 export class ErpDocumentsController {
-  constructor(private readonly documents: ErpDocumentsService) {}
+  constructor(
+    private readonly documents: ErpDocumentsService,
+    private readonly merchantExpediente: ErpMerchantExpedienteService,
+  ) {}
+
+  @ApiOperation({
+    summary: 'Asegurar la carpeta del comercio de una cuenta del ERP',
+    description:
+      'Busca la ficha del comercio por la cuenta del ERP o por NIT; si no existe la abre (sin dueño). La enlaza a la cuenta y asegura su expediente con las carpetas qr, documentos y otros. Idempotente.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiBody({ schema: zodToApiSchema(erpMerchantExpedienteSchema) })
+  @ApiResponse({ status: 200, description: '{ partnerId, expedienteId, created, reason }.' })
+  @Post('merchant-expediente')
+  @HttpCode(HttpStatus.OK)
+  merchantExpedienteDeCuenta(
+    @CurrentTenant() tenantId: string,
+    @Body(new ZodValidationPipe(erpMerchantExpedienteSchema)) body: ErpMerchantExpedienteDto,
+  ) {
+    return this.merchantExpediente.asegurar(tenantId, body);
+  }
 
   @ApiOperation({
     summary: 'Permiso de subida para un documento del ERP',
