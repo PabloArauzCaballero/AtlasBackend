@@ -5,6 +5,11 @@
  */
 import { z } from 'zod';
 
+const LEGACY_NEXT_STATUS: Record<string, string> = {
+  approved_for_next_step: 'active',
+  pending_fraud_review: 'under_review',
+};
+
 /**
  * Schemas de decisión de fraude; la ruta HTTP compatible delega en `FraudService`.
  */
@@ -21,7 +26,13 @@ export const fraudDecisionSchema = z.object({
   // `false_positive`, que no debería necesitarlo.
   reasonCode: z.string().trim().min(1).max(120).optional(),
   applyWatchlist: z.boolean().default(false),
-  nextCustomerStatus: z.enum(['blocked', 'pending_fraud_review', 'registered', 'approved_for_next_step']).optional(),
+  // Estados CANÓNICOS de la máquina de estados, como la revisión manual desde H1. Los nombres viejos
+  // que enviaba el portal se traducen para no romper a quien aún los mande; `registered` no tiene
+  // equivalente (volver al inicio no es una transición legal) y se rechaza.
+  nextCustomerStatus: z.preprocess(
+    (value) => (typeof value === 'string' && value in LEGACY_NEXT_STATUS ? LEGACY_NEXT_STATUS[value] : value),
+    z.enum(['active', 'observed', 'under_review', 'rejected', 'blocked', 'suspended']).optional(),
+  ),
   notes: z.string().trim().max(2000).optional(),
 });
 
