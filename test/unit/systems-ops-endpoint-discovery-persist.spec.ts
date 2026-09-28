@@ -15,7 +15,7 @@ function buildService(repository: { upsertEndpoint: jest.Mock; markDeprecatedCan
   const classifier = { riskLevelForEndpoint: () => 'LOW', containsPiiForEndpoint: () => false };
   // El tercer colaborador (catálogo por contrato) no participa en el escaneo de código: sólo
   // interviene al elegir estrategia en `discover`.
-  return new EndpointDiscoveryService(repository as never, classifier as never, {} as never);
+  return new EndpointDiscoveryService(repository as never, classifier as never, {} as never, {} as never);
 }
 
 describe('EndpointDiscoveryService.discoverAndMaybePersist', () => {
