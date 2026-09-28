@@ -175,7 +175,7 @@ describe('AdminExternalProvidersController (administración)', () => {
     expect(svc.previewExternalDataRequest).toHaveBeenCalledWith({ tenantId, body, requestedByUserId: actorId(user) });
   });
 
-  it('testProvider rellena defaults sensatos cuando el body viene vacío', async () => {
+  it('testProvider rellena defaults sensatos cuando el body viene vacío, sin inventar cliente', async () => {
     const svc = service();
     const c = new AdminExternalProvidersController(svc as never);
     await c.testProvider('1', { providerCode: 'SEGIP' } as never, {}, user);
@@ -183,15 +183,17 @@ describe('AdminExternalProvidersController (administración)', () => {
       tenantId,
       body: {
         providerCode: 'SEGIP',
-        customerId: '1',
+        customerId: undefined,
         queryType: 'IDENTITY_VERIFICATION',
         purpose: 'MANUAL_REVIEW',
         decisionStage: 'MANUAL_REVIEW',
         input: {},
         scenario: undefined,
         approvedByAdminId: actorId(user),
+        forceRefresh: true,
       },
       requestedByUserId: actorId(user),
+      syntheticProbe: true,
     });
   });
 
@@ -209,8 +211,9 @@ describe('AdminExternalProvidersController (administración)', () => {
     await c.testProvider('1', { providerCode: 'INFOCENTER' } as never, body, user);
     expect(svc.executeExternalDataRequest).toHaveBeenCalledWith({
       tenantId,
-      body: { providerCode: 'INFOCENTER', ...body, approvedByAdminId: actorId(user) },
+      body: { providerCode: 'INFOCENTER', ...body, approvedByAdminId: actorId(user), forceRefresh: true },
       requestedByUserId: actorId(user),
+      syntheticProbe: true,
     });
   });
 

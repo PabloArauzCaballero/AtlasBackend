@@ -14,7 +14,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { actorId, assertCustomerAccess, customerScopeForConsentMutation } from './external-data-controller.util.js';
+import { actorId, assertCustomerAccess, customerScopeForConsentMutation, providerProbeRequest } from './external-data-controller.util.js';
 import { ExternalDataService } from './external-data.service.js';
 import {
   approveProviderRequestSchema,
@@ -525,20 +525,7 @@ export class AdminExternalProvidersController {
     @Body() body: Record<string, unknown> = {},
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.externalDataService.executeExternalDataRequest({
-      tenantId: tenantId,
-      body: {
-        providerCode: params.providerCode,
-        customerId: typeof body.customerId === 'string' ? body.customerId : '1',
-        queryType: typeof body.queryType === 'string' ? body.queryType : 'IDENTITY_VERIFICATION',
-        purpose: typeof body.purpose === 'string' ? body.purpose : 'MANUAL_REVIEW',
-        decisionStage: typeof body.decisionStage === 'string' ? body.decisionStage : 'MANUAL_REVIEW',
-        input: typeof body.input === 'object' && body.input !== null ? (body.input as Record<string, unknown>) : {},
-        scenario: typeof body.scenario === 'string' ? body.scenario : undefined,
-        approvedByAdminId: actorId(currentUser),
-      },
-      requestedByUserId: actorId(currentUser),
-    });
+    return this.externalDataService.executeExternalDataRequest(providerProbeRequest(tenantId, params.providerCode, body, currentUser));
   }
 
   // Restringido a admin/platform_admin (ver docs/audit/external-data.md, hallazgo 2): aprueba

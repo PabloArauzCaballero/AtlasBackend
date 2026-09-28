@@ -43,6 +43,8 @@ export class ExternalDataExecutionService {
     idempotencyKey?: string;
     requestedByUserId?: string;
     retryOfRequestId?: string;
+    /** Prueba del portal interno con datos sintéticos; ver `validateConsent`. */
+    syntheticProbe?: boolean;
   }): Promise<ExternalDataRequestResult> {
     const providerCode = toProviderCode(input.body.providerCode);
     const provider = await this.registry.requireProvider(providerCode);
@@ -74,6 +76,8 @@ export class ExternalDataExecutionService {
         providerCode,
         providerRequiresConsent: provider.requiresConsent !== false,
         purpose: input.body.purpose,
+        syntheticProbe: input.syntheticProbe === true,
+        mode,
       });
     } catch (error) {
       if (!isConsentRequiredError(error)) throw error;
@@ -406,8 +410,16 @@ export class ExternalDataExecutionService {
     providerCode: string;
     providerRequiresConsent: boolean;
     purpose: string;
+    syntheticProbe?: boolean;
+    mode?: ExternalProviderExecutionInput['mode'];
   }) {
     if (!input.providerRequiresConsent) return null;
+    // El consentimiento lo da una persona sobre SUS datos. Una prueba sin cliente contra el emulador
+    // no consulta a nadie, así que no hay consentimiento que pedir. Contra un proveedor real
+    // (`sandbox`/`production`) se sigue exigiendo: el `input` es libre y podría llevar un carnet real.
+    if (input.syntheticProbe && !input.customerId && (input.mode === 'mock_local' || input.mode === 'mock_server')) {
+      return null;
+    }
     if (!input.customerId) throw new ForbiddenException('CONSENT_REQUIRED');
     const consent = await this.repository.findCustomerConsent(
       input.tenantId,
