@@ -90,7 +90,7 @@
     },
     "consents": {
       "context": "consent-privacy",
-      "allowedDependencies": []
+      "allowedDependencies": ["internal-users"]
     },
     "customer-privacy": {
       "context": "consent-privacy",
@@ -175,7 +175,7 @@
     },
     "catalog-management": {
       "context": "data-governance",
-      "allowedDependencies": []
+      "allowedDependencies": ["internal-users"]
     },
     "data-quality": {
       "context": "data-governance",

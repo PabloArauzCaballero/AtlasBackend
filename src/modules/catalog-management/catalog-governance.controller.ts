@@ -15,6 +15,8 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { RequestWithNetwork, requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
+import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
+import { InternalPermissions } from '../internal-users/internal-permissions.decorator.js';
 import { contextFrom } from './catalog-request-context.util.js';
 import { CatalogManagementService } from './catalog-management.service.js';
 import {
@@ -41,7 +43,7 @@ import {
 @ApiTags('catalog-management')
 @ApiBearerAuth('access-token')
 @Controller('operations')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, InternalPermissionsGuard)
 export class CatalogGovernanceController {
   constructor(private readonly service: CatalogManagementService) {}
 
@@ -99,20 +101,35 @@ export class CatalogGovernanceController {
     });
   }
 
-  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
+  /*
+   * Las políticas de gobierno las lee quien tiene `governance.policies.read`, que es lo que el menú del
+   * portal pide para enseñarlas. El auditor lo tiene y su rol de sesión (`readonly_auditor`) no estaba
+   * en la lista: veía la entrada y recibía 403. Al abrir el rol se exige el permiso, para que abrirlo
+   * no se lo dé a todo `internal_operator` (soporte, cobranza) sin más.
+   */
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'readonly_auditor', 'admin', 'platform_admin')
+  @InternalPermissions('governance.policies.read')
   @ApiOperation({ summary: 'Obtener las políticas de gobernanza de datos activas' })
   @ApiResponse({ status: 200, description: 'Políticas de gobernanza (propósitos, clasificaciones, retenciones).' })
+  @ApiResponse({ status: 403, description: 'Sin el permiso governance.policies.read.' })
   @Get('data-governance/policies')
   getDataGovernancePolicies(@CurrentUser() currentUser: AuthenticatedUser) {
     return this.service.getDataGovernancePolicies({ currentUser });
   }
 
-  @Roles('admin', 'platform_admin')
+  /*
+   * Publicar el paquete es `governance.policies.manage`. `DATA_GOVERNANCE_MANAGER` lo tiene, pero su
+   * rol de sesión es `internal_operator`, que no estaba admitido: justo quien gobierna los datos no
+   * podía publicar sus políticas. Se admite el rol y se exige el permiso.
+   */
+  @Roles('internal_operator', 'admin', 'platform_admin')
+  @InternalPermissions('governance.policies.manage')
   @ApiOperation({ summary: 'Publicar un paquete de políticas de gobernanza de datos' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiBody({ schema: zodToApiSchema(dataGovernancePolicyPackageSchema) })
   @ApiResponse({ status: 200, description: 'Paquete de gobernanza de datos aplicado.' })
+  @ApiResponse({ status: 403, description: 'Sin el permiso governance.policies.manage.' })
   @Post('data-governance/policy-package')
   @HttpCode(HttpStatus.OK)
   upsertDataGovernancePackage(

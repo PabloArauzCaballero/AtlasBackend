@@ -66,3 +66,12 @@ export const updateConsentDocumentSchema = z
   .strict()
   .refine((value) => Object.keys(value).length > 0, { message: 'No hay nada que cambiar.' });
 export type UpdateConsentDocumentDto = z.infer<typeof updateConsentDocumentSchema>;
+
+/**
+ * El id de un documento es el BIGINT de la tabla. Sin validarlo, un id que no es número llegaba a
+ * PostgreSQL y volvía como 500 en vez de como el 400 que es.
+ */
+export const consentDocumentParamsSchema = z.object({
+  documentId: z.string().regex(/^[1-9][0-9]{0,18}$/u, 'documentId debe ser un entero positivo.'),
+});
+export type ConsentDocumentParamsDto = z.infer<typeof consentDocumentParamsSchema>;

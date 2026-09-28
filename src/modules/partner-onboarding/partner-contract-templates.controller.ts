@@ -4,7 +4,7 @@
  * @system tres rutas de operaciones; la consulta del predeterminado la usa además el ERP.
  */
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -18,7 +18,12 @@ import { InternalPermissions } from '../internal-users/internal-permissions.deco
 import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
 import { PartnerContractTemplateService } from './application/partner-contract-template.service.js';
 import { toContractTemplateDto } from './partner-onboarding.mapper.js';
-import { PublishContractTemplateDto, publishContractTemplateSchema } from './partner-operations.schemas.js';
+import {
+  ContractTemplateParamsDto,
+  PublishContractTemplateDto,
+  contractTemplateParamsSchema,
+  publishContractTemplateSchema,
+} from './partner-operations.schemas.js';
 
 /**
  * El contrato bajo el que se afilia un comercio.
@@ -28,7 +33,10 @@ import { PublishContractTemplateDto, publishContractTemplateSchema } from './par
  * a un comercio con el que no se había pactado por escrito ni la comisión, ni los plazos de
  * liquidación, ni qué pasa con una devolución.
  *
- * Publicar es de operaciones. **Consultar el predeterminado lo puede hacer también el ERP**, con el
+ * Publicar o cambiar el predeterminado exige `governance.policies.manage`: es el texto legal que
+ * firma el comercio, igual que el consentimiento es el que acepta el cliente, y los dos se gobiernan
+ * con el mismo permiso. Antes bastaba el rol de sesión, que `internal_operator` comparte con soporte
+ * y cobranza. **Consultar el predeterminado lo puede hacer también el ERP**, con el
  * mismo permiso con el que pide la verificación (`partner.kyb.request`): necesita saber qué texto
  * enseñarle al comercio al afiliarlo, y no tiene por qué guardar una copia que se desincronice.
  */
@@ -76,6 +84,8 @@ export class PartnerContractTemplatesController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiBody({ schema: zodToApiSchema(publishContractTemplateSchema) })
   @ApiResponse({ status: 201, description: 'Versión publicada.' })
+  @ApiResponse({ status: 403, description: 'Sin el permiso governance.policies.manage.' })
+  @InternalPermissions('governance.policies.manage')
   @Post()
   async publish(
     @CurrentTenant() tenantId: string,
@@ -97,9 +107,19 @@ export class PartnerContractTemplatesController {
   @ApiResponse({ status: 200, description: 'Plantilla marcada como predeterminada.' })
   @ApiResponse({ status: 404, description: 'PARTNER_CONTRACT_TEMPLATE_NOT_FOUND.' })
   @ApiResponse({ status: 409, description: 'PARTNER_CONTRACT_TEMPLATE_ARCHIVED.' })
+  @ApiParam({
+    name: 'templateId',
+    schema: zodToApiSchema(contractTemplateParamsSchema.shape.templateId),
+    description: 'Id de la plantilla.',
+  })
+  @ApiResponse({ status: 403, description: 'Sin el permiso governance.policies.manage.' })
+  @InternalPermissions('governance.policies.manage')
   @Patch(':templateId/default')
   @HttpCode(HttpStatus.OK)
-  async setDefault(@CurrentTenant() tenantId: string, @Param('templateId') templateId: string) {
-    return toContractTemplateDto(await this.templates.setDefault(tenantId, templateId));
+  async setDefault(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(contractTemplateParamsSchema)) params: ContractTemplateParamsDto,
+  ) {
+    return toContractTemplateDto(await this.templates.setDefault(tenantId, params.templateId));
   }
 }
