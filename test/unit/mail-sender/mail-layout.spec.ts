@@ -1,3 +1,4 @@
+import { mailCode } from '../../../src/modules/mail-sender/mail-layout.js';
 import { renderMailTemplate } from '../../../src/modules/mail-sender/mail-template-render.js';
 import { MAIL_TEMPLATE_DEFINITIONS, type MailTemplateName } from '../../../src/modules/mail-sender/mail-sender.templates.js';
 
@@ -93,5 +94,24 @@ describe('armazón de marca de los correos', () => {
 
     expect(resumenes.every((resumen) => resumen.length > 10)).toBe(true);
     expect(new Set(resumenes).size).toBe(NOMBRES.length);
+  });
+});
+
+/**
+ * El bloque del código. Lo que se fija no es el estilo por el estilo: es que el código se pueda
+ * seleccionar entero de un gesto, que es lo más parecido a un botón de copiar que admite un correo
+ * —copiar al portapapeles necesita JavaScript, y ningún cliente de correo lo ejecuta—.
+ */
+describe('mailCode', () => {
+  it('declara user-select:all con prefijo y sin él, para que un gesto seleccione los seis dígitos', () => {
+    const html = mailCode('482913');
+    expect(html).toContain('user-select:all');
+    // Apple Mail —el de la mayoría de quienes reciben esto en un iPhone— atiende al prefijado.
+    expect(html).toContain('-webkit-user-select:all');
+    expect(html).toContain('482913');
+  });
+
+  it('el estilo va EN LÍNEA: Gmail descarta el <style> del head y el bloque tiene que verse igual', () => {
+    expect(mailCode('482913')).toMatch(/<div style="[^"]*font-family/u);
   });
 });
