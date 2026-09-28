@@ -14,11 +14,10 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import ts from 'typescript';
 
 const ROOT = process.cwd();
 const SRC_ROOT = resolve(ROOT, 'src');
-// Tolera espacios y saltos de línea entre los eslabones (`z.coerce\n  .boolean()`).
-const PATTERN = /\bcoerce\s*\.\s*boolean\s*\(/g;
 
 function tsFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
@@ -28,17 +27,35 @@ function tsFiles(dir: string): string[] {
   });
 }
 
-function findCoerceBoolean(source: string): number[] {
+/** `<algo>.coerce.boolean(...)`, mirado en el árbol sintáctico y no en el texto. */
+function isCoerceBooleanCall(node: ts.Node): boolean {
+  if (!ts.isCallExpression(node) || !ts.isPropertyAccessExpression(node.expression)) return false;
+  const callee = node.expression;
+  return callee.name.text === 'boolean' && ts.isPropertyAccessExpression(callee.expression) && callee.expression.name.text === 'coerce';
+}
+
+/**
+ * Líneas (desde 1) donde se LLAMA a la coerción. Se recorre el AST en vez de buscar el texto porque
+ * los comentarios que explican por qué no se usa —«`booleanEnvSchema` y no `z.coerce.boolean()`»—
+ * nombran la llamada sin hacerla, y con una búsqueda de texto el gate castigaba justo esa explicación.
+ * El AST también cubre los eslabones partidos en varias líneas (`z.coerce\n  .boolean()`).
+ */
+function findCoerceBoolean(file: string, source: string): number[] {
+  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
   const lines: number[] = [];
-  for (const match of source.matchAll(PATTERN)) {
-    lines.push(source.slice(0, match.index).split('\n').length);
-  }
+  const visit = (node: ts.Node): void => {
+    if (isCoerceBooleanCall(node)) {
+      lines.push(sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
   return lines;
 }
 
 function main(): void {
   const offenders = tsFiles(SRC_ROOT).flatMap((file) =>
-    findCoerceBoolean(readFileSync(file, 'utf-8')).map((line) => `${relative(ROOT, file)}:${line}`),
+    findCoerceBoolean(file, readFileSync(file, 'utf-8')).map((line) => `${relative(ROOT, file)}:${line}`),
   );
 
   if (offenders.length > 0) {
