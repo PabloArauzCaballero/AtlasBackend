@@ -18,11 +18,11 @@ Fuente: `src/modules/workflow-catalog/definitions/`. Cada proceso llega a la bas
 | P-06 | [Línea de crédito, solicitud y decisión de crédito por el Motor](credit_line_and_application.md) | P0 | `RISK_MANAGER` | ATLAS_BACKEND, DECISION_ENGINE, ERP_BACKEND | 11 | 23 |
 | P-07 | [Extracto bancario → capacidad de pago → recálculo de línea](bank_statement_capacity.md) | P1 | `RISK_ANALYST` | ATLAS_BACKEND, DECISION_ENGINE | 6 | 16 |
 | P-08 | [Compra con QR del comercio y desembolso del préstamo](purchase_and_disbursement.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, DECISION_ENGINE, ERP_BACKEND | 11 | 22 |
-| P-09 | [Pago de cuota con QR del comercio, comprobante y verificación](installment_payment_claims.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, ERP_BACKEND | 10 | 21 |
+| P-09 | [Pago de cuota con QR del comercio, comprobante y verificación](installment_payment_claims.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, ERP_BACKEND | 10 | 22 |
 | P-10 | [Cartera: pagos, reversos, castigo, mora y calificación](loan_servicing_collections.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, DECISION_ENGINE | 13 | 33 |
 | P-11 | [Derechos del titular (ARCO), retención y supresión](customer_privacy_dsr.md) | P0 | `COMPLIANCE_MANAGER` | ATLAS_BACKEND, DECISION_ENGINE | 6 | 10 |
 | P-12 | [Soporte: casos, chat, mesa de ayuda, SLA y base de conocimiento](customer_support_case.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, ERP_BACKEND | 12 | 49 |
-| P-13 | [Notificaciones transaccionales y campañas masivas](notifications_and_campaigns.md) | P1 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, ERP_BACKEND | 12 | 57 |
+| P-13 | [Notificaciones transaccionales y campañas masivas](notifications_and_campaigns.md) | P1 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, ERP_BACKEND | 12 | 61 |
 | P-14 | [Atlas Assist: ayuda contextual y chat en la app](atlas_assist_help.md) | P2 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, AI_SERVICE | 5 | 6 |
 | P-15 | [Señales del dispositivo: agenda, ubicación, sesiones y telemetría](device_signals_and_sessions.md) | P1 | `FRAUD_ANALYST` | ATLAS_BACKEND | 10 | 15 |
 | P-16 | [Alta de comercio: ERP pide → Motor decide (KYB) → Portal concede → ERP acusa y opera](merchant_onboarding_chain.md) | P0 | `OPERATIONS_MANAGER` | ERP_BACKEND, ATLAS_BACKEND, DECISION_ENGINE | 12 | 43 |

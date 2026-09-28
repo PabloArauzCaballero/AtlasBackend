@@ -20,7 +20,7 @@ Empieza con el alta (contraseña de al menos 10 caracteres, entre 1 y 8 roles y 
 
 ## Qué pasa cuando falla
 
-Un login fallido repetido bloquea la cuenta hasta locked_until (401 ACCOUNT_LOCKED con la hora de vuelta) aunque el usuario figure activo, y no hay pantalla ni ruta que la desbloquee antes: se hace a mano en la base. Un permiso sin migración responde 403 en todos los entornos (pasó con partner.qr.review). Sin correo real el PIN no llega y nadie entra.
+Un login fallido repetido bloquea la cuenta hasta locked_until (401 ACCOUNT_LOCKED con la hora de vuelta) aunque el usuario figure activo; un administrador la desbloquea antes desde la ficha del usuario, con motivo. Un permiso sin migración responde 403 en todos los entornos (pasó con partner.qr.review). Sin correo real el PIN no llega y nadie entra.
 
 ## Qué indicador dice que va bien
 
@@ -58,7 +58,7 @@ flowchart LR
 | `internal_role_assignment` | Roles y estado | internal_user | ADMIN_PORTAL | `/internal/settings/users/[internalUserId]` | 4 |
 | `internal_access_catalog` | Consulta de roles y permisos | internal_user | ADMIN_PORTAL | `/internal/settings/roles` | 3 |
 | `internal_login_with_pin` | Acceso con contraseña y PIN | internal_user | ADMIN_PORTAL | `/internal/login` | 5 |
-| `internal_account_unlock` | Desbloqueo de una cuenta | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `internal_account_unlock` | Desbloqueo de una cuenta | internal_user | ADMIN_PORTAL | `/internal/settings/users/[internalUserId]` | 1 |
 | `rbac_catalog_sync` | Sincronización del catálogo RBAC | system | BLOCK | — | 1 |
 
 ### Alta del usuario interno (`internal_user_creation`)
@@ -105,11 +105,11 @@ La persona entra al portal: la contraseña responde 200 con pinChallengeRequired
 
 ### Desbloqueo de una cuenta (`internal_account_unlock`)
 
-Un «no me deja entrar» casi siempre es locked_until en iam.auth_credentials; el bloqueo expira solo, pero no hay pantalla ni ruta que lo limpie antes.
+Un «no me deja entrar» casi siempre es locked_until en iam.auth_credentials; el bloqueo expira solo, y un administrador lo levanta antes desde la ficha del usuario.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Desbloquear a mano | manual | ATLAS_BACKEND | No existe ruta que limpie locked_until: se hace con SQL sobre iam.auth_credentials (hash en base64 si se cambia la contraseña). | — | — |
+| Desbloquear la cuenta | http | ATLAS_BACKEND | `POST /internal/users/:internalUserId/unlock` | SUPER_ADMIN, SYSTEMS_ADMIN, INTERNAL_IDENTITY_ADMIN | — |
 
 ### Sincronización del catálogo RBAC (`rbac_catalog_sync`)
 

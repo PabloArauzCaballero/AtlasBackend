@@ -3720,8 +3720,15 @@
      "code": "pay_internal_oversight",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/operations/payment-claims",
      "steps": [
+      {
+       "code": "pay.internal_tenant_queue",
+       "kind": "http",
+       "system": "ATLAS_BACKEND",
+       "method": "GET",
+       "path": "/operations/payment-claims"
+      },
       {
        "code": "pay.internal_list_claims",
        "kind": "http",
@@ -5121,7 +5128,7 @@
      "code": "campaign_admin_observation",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/notifications/campaigns",
      "steps": [
       {
        "code": "campaign.list",
@@ -5143,6 +5150,34 @@
        "system": "ATLAS_BACKEND",
        "method": "GET",
        "path": "/operations/notifications/campaigns/:campaignId/messages"
+      },
+      {
+       "code": "campaign.admin_segments",
+       "kind": "http",
+       "system": "ATLAS_BACKEND",
+       "method": "GET",
+       "path": "/operations/notifications/audience-segments"
+      },
+      {
+       "code": "campaign.admin_pause",
+       "kind": "http",
+       "system": "ATLAS_BACKEND",
+       "method": "POST",
+       "path": "/operations/notifications/campaigns/:campaignId/pause"
+      },
+      {
+       "code": "campaign.admin_resume",
+       "kind": "http",
+       "system": "ATLAS_BACKEND",
+       "method": "POST",
+       "path": "/operations/notifications/campaigns/:campaignId/resume"
+      },
+      {
+       "code": "campaign.admin_cancel",
+       "kind": "http",
+       "system": "ATLAS_BACKEND",
+       "method": "POST",
+       "path": "/operations/notifications/campaigns/:campaignId/cancel"
       }
      ]
     }
@@ -9485,14 +9520,14 @@
      "code": "internal_account_unlock",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/settings/users/[internalUserId]",
      "steps": [
       {
-       "code": "iam.unlock_by_sql",
-       "kind": "manual",
+       "code": "iam.unlock",
+       "kind": "http",
        "system": "ATLAS_BACKEND",
-       "method": null,
-       "path": null
+       "method": "POST",
+       "path": "/internal/users/:internalUserId/unlock"
       }
      ]
     },

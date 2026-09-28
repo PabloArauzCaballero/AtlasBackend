@@ -69,7 +69,7 @@ flowchart LR
 | `pay_merchant_portfolio` | Cartera del comercio | merchant_user | ERP_PORTAL | `/portal-comercio/cartera` | 2 |
 | `pay_decision_delivery` | La decisión llega al cliente y al ERP | system | BLOCK | — | 3 |
 | `pay_customer_result` | El cliente ve su cuota al día | customer | CONSUMER_APP | `/pagos` | 1 |
-| `pay_internal_oversight` | Seguimiento interno de avisos | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `pay_internal_oversight` | Seguimiento interno de avisos | internal_user | ADMIN_PORTAL | `/internal/operations/payment-claims` | 2 |
 
 ### Instrucción de pago de la cuota (`pay_instruction`)
 
@@ -156,10 +156,11 @@ En «Pagos» la cuota aparece pagada, o el aviso rechazado con el motivo del com
 
 ### Seguimiento interno de avisos (`pay_internal_oversight`)
 
-Operaciones podría consultar la cola de avisos de un comercio (la ruta admite roles internos), pero el portal interno no tiene ninguna pantalla que lo haga: los avisos atascados o sin comercio no se ven.
+Operaciones ve en «Avisos de pago» la cola de todo el tenant, con comercio, cliente, préstamo, cuota y horas de espera, para llamar al comercio que deja avisos sin mirar. Es sólo lectura: verificar lo hace el comercio desde el ERP. Un aviso pendiente sigue sin plazo ni alerta automática.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
+| Ver la cola de avisos del tenant | http | ATLAS_BACKEND | `GET /operations/payment-claims` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | — |
 | Consultar la cola de un comercio | http | ATLAS_BACKEND | `GET /merchant/partners/:partnerId/payment-claims` | merchant, internal_operator, admin, platform_admin | — |
 
 ## Fuentes
