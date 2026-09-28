@@ -38,6 +38,60 @@ export type AssistChatView = {
   turnId: string | null;
 };
 
+/**
+ * Los portales en los que vive el asistente, una «superficie» por audiencia. Es el MISMO
+ * vocabulario que `PORTAL_SURFACES` en AtlasAIService: cada superficie tiene allí su propio
+ * catálogo de hechos y su propio historial. La app del cliente no está en la lista a propósito:
+ * es `consumer-app` y llega por `/mobile/assist/*` sin cabecera de superficie.
+ */
+export const PORTAL_ASSIST_SURFACES = ['admin-portal', 'erp-staff', 'merchant-portal', 'risk-portal', 'dashboards'] as const;
+export type PortalAssistSurface = (typeof PORTAL_ASSIST_SURFACES)[number];
+
+/** La única superficie de un usuario de comercio. Las demás son del personal interno. */
+export const MERCHANT_ASSIST_SURFACE: PortalAssistSurface = 'merchant-portal';
+
+/**
+ * En qué sección del portal está la persona: «Solicitudes», «Contabilidad › Cierres».
+ *
+ * A diferencia del móvil no es un catálogo cerrado —los portales tienen cientos de pantallas y
+ * cambian más rápido que este contrato—, así que se acota por FORMA: corto y sólo con lo que
+ * aparece en un título de menú. Así no se cuela un párrafo, una URL con parámetros ni un dato de
+ * la cuenta por el campo que el asistente lee como «aquí».
+ */
+// `\p{M}`: una tilde puede llegar como letra + acento combinado (NFD) y sigue siendo una tilde.
+const SECCION_DE_PORTAL = /^[\p{L}\p{M}\p{N} ›/·_().,-]+$/u;
+
+export const portalAssistScreenSchema = z
+  .string()
+  .trim()
+  .min(1, 'screen no puede estar vacía.')
+  .max(80, 'screen admite hasta 80 caracteres.')
+  .regex(SECCION_DE_PORTAL, 'screen sólo admite letras, números, espacios y › / · _ - ( ) . ,');
+
+const portalAssistSurfaceSchema = z.enum(PORTAL_ASSIST_SURFACES, {
+  error: `surface debe ser una de: ${PORTAL_ASSIST_SURFACES.join(', ')}.`,
+});
+
+/**
+ * Lo que un portal manda al preguntar: el contrato del móvil con la superficie delante y la
+ * sección en texto libre acotado. Los topes de `prompt` y la idempotencia por `clientMessageId`
+ * son los mismos, porque el servicio de IA de detrás es el mismo.
+ */
+export const portalAssistChatSchema = assistChatSchema.omit({ screen: true }).extend({
+  surface: portalAssistSurfaceSchema,
+  screen: portalAssistScreenSchema.optional(),
+});
+export type PortalAssistChatDto = z.infer<typeof portalAssistChatSchema>;
+
+export const portalAssistConversationQuerySchema = z.object({ surface: portalAssistSurfaceSchema });
+export type PortalAssistConversationQueryDto = z.infer<typeof portalAssistConversationQuerySchema>;
+
+/**
+ * La respuesta en un portal: la del móvil y, si el servicio contestó sin modelo (proveedor caído o
+ * tope diario agotado), `mode: 'sin-ia'` para que el portal lo diga en vez de fingir que pensó.
+ */
+export type PortalAssistChatView = AssistChatView & { mode?: 'sin-ia' };
+
 /** Un turno ya guardado, para rehidratar la hoja al abrirla. */
 export type AssistTurnView = {
   turnId: string;

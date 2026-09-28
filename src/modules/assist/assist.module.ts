@@ -1,12 +1,13 @@
 /**
  * @file Módulo NestJS: declara el límite de inyección y sus dependencias.
  * @business Esta pieza responde dudas de uso de la app sin hacer esperar a una persona del equipo.
- * @system declara el límite de inyección del asistente de IA del canal móvil.
+ * @system declara el límite de inyección del asistente de IA del móvil y de los portales.
  */
 import { Module } from '@nestjs/common';
 import { AiAssistClient } from './ai-assist.client.js';
 import { AssistController } from './assist.controller.js';
 import { AssistService } from './assist.service.js';
+import { PortalAssistController } from './portal-assist.controller.js';
 
 /**
  * Módulo propio y no una ruta dentro de `support`.
@@ -19,9 +20,12 @@ import { AssistService } from './assist.service.js';
  *
  * No importa nada: el cliente y el servicio leen su configuración de `env` y la identidad del
  * cliente llega resuelta por los guards.
+ *
+ * Los portales entran por su propio controlador (`/internal/assist/*`) y comparten servicio y
+ * cliente con el móvil: un solo interruptor, una sola traducción de errores y una sola credencial.
  */
 @Module({
-  controllers: [AssistController],
+  controllers: [AssistController, PortalAssistController],
   providers: [AiAssistClient, AssistService],
 })
 export class AssistModule {}
