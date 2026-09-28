@@ -85,7 +85,19 @@ describe('SupportMessageService', () => {
     attachments = { verify: jest.fn(async () => ({ sha256: 'h1' })), persist: jest.fn(async () => ({ id: 3, sizeBytes: '10' })) };
     audit = { publish: jest.fn(async () => undefined) };
 
-    const sequelize = { transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})) } as unknown as Sequelize;
+    const sequelize = {
+      transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
+        const afterCommit: Array<() => void | Promise<void>> = [];
+        const transaction = {
+          afterCommit(callback: () => void | Promise<void>) {
+            afterCommit.push(callback);
+          },
+        };
+        const result = await fn(transaction);
+        for (const callback of afterCommit) await callback();
+        return result;
+      }),
+    } as unknown as Sequelize;
     service = new SupportMessageService(
       sequelize,
       messages as unknown as SupportMessageRepository,
@@ -171,6 +183,22 @@ describe('SupportMessageService', () => {
       expect(channels.update).not.toHaveBeenCalled();
     });
 
+    it('no anuncia un mensaje hasta confirmar la transacción que lo escribió', async () => {
+      let publishAfterCommit: (() => void) | undefined;
+      const transaction = {
+        afterCommit(callback: () => void) {
+          publishAfterCommit = callback;
+        },
+      };
+
+      await service.append(COMANDO, transaction as never);
+
+      expect(realtime.emit).not.toHaveBeenCalled();
+      expect(publishAfterCommit).toBeDefined();
+      publishAfterCommit?.();
+      expect(realtime.emit).toHaveBeenCalledTimes(1);
+    });
+
     it('el aviso en vivo lleva el cuerpo REDACTADO y nunca el original cifrado', async () => {
       messages.append.mockResolvedValueOnce({
         message: mensaje({ bodyText: 'mi tarjeta es [redactado]', redactedAt: new Date() }),
@@ -186,7 +214,7 @@ describe('SupportMessageService', () => {
     });
 
     it('reutiliza la transacción de quien llama en vez de abrir otra anidada', async () => {
-      const tx = {} as never;
+      const tx = { afterCommit: () => undefined } as never;
 
       await service.append(COMANDO, tx);
 
