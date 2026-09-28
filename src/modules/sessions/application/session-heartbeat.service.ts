@@ -12,6 +12,7 @@ import { CustomersRepository } from '../../customers/customers.repository.js';
 import { HeartbeatResponseDto } from '../sessions.dtos.js';
 import { SessionHeartbeatDto } from '../sessions.schemas.js';
 import { SessionsRepository } from '../sessions.repository.js';
+import { SessionsLifecycleRepository } from '../repositories/sessions-lifecycle.repository.js';
 import { SessionGpsWriterService } from './session-gps-writer.service.js';
 import { decimal, hasLocationPermission, RequestContext, riskFlagsFromSnapshot, toDate } from './sessions.shared.js';
 
@@ -22,6 +23,7 @@ export class SessionHeartbeatService {
     private readonly customersRepository: CustomersRepository,
     private readonly gpsWriter: SessionGpsWriterService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly sessionLifecycle: SessionsLifecycleRepository,
   ) {}
 
   async heartbeat(input: {
@@ -54,6 +56,8 @@ export class SessionHeartbeatService {
       });
       if (!link && input.currentUser.role === 'customer') throw new ForbiddenException('El dispositivo no está vinculado al cliente.');
 
+      // Hora del SERVIDOR, no `capturedAt`: un reloj del cliente adelantado no puede aplazar la caducidad.
+      await this.sessionLifecycle.touchActivity(session, new Date(), { transaction });
       await this.sessionsRepository.touchDevice(device, capturedAt, { transaction });
       if (link) await this.sessionsRepository.touchCustomerDeviceLink(link, input.sessionId, capturedAt, { transaction });
 

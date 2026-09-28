@@ -39,13 +39,15 @@ describe('SessionHeartbeatService.heartbeat', () => {
       })),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
+    const sessionLifecycle = { touchActivity: jest.fn(async (..._args: unknown[]) => undefined) };
     const service = new SessionHeartbeatService(
       sessionsRepository as never,
       customersRepository as never,
       gpsWriter as never,
       sequelize as never,
+      sessionLifecycle as never,
     );
-    return { service, sessionsRepository, customersRepository, gpsWriter };
+    return { service, sessionsRepository, customersRepository, gpsWriter, sessionLifecycle };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null, platformUserId: null } as never;
@@ -161,6 +163,46 @@ describe('SessionHeartbeatService.heartbeat', () => {
     });
 
     expect(result.status).toBe('accepted');
+  });
+
+  it('B6: deja la última actividad en la sesión con la hora del SERVIDOR, no con el capturedAt del cliente', async () => {
+    const { service, customersRepository, sessionsRepository, sessionLifecycle } = buildService();
+    const session = { id: 's1', sessionStatus: 'active', deviceId: 'device-1' };
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
+    (sessionsRepository.findSessionById as jest.Mock).mockResolvedValueOnce(session as never);
+    (sessionsRepository.findDeviceById as jest.Mock).mockResolvedValueOnce({ id: 'device-1' } as never);
+    (sessionsRepository.findCustomerDeviceLink as jest.Mock).mockResolvedValueOnce({ id: 'link-1' } as never);
+    (sessionsRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
+    const antes = Date.now();
+
+    await service.heartbeat({
+      customerId: 'c1',
+      sessionId: 's1',
+      // Un reloj del cliente adelantado un año no puede aplazar la caducidad.
+      body: baseBody({ capturedAt: '2099-01-01T00:00:00.000Z' }) as never,
+      currentUser: customerUser,
+      context,
+    });
+
+    expect(sessionLifecycle.touchActivity).toHaveBeenCalledTimes(1);
+    const [tocada, at] = (sessionLifecycle.touchActivity as jest.Mock).mock.calls[0] as [unknown, Date];
+    expect(tocada).toBe(session);
+    expect(at.getTime()).toBeGreaterThanOrEqual(antes);
+    expect(at.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('B6: un latido sobre una sesión no activa no toca su última actividad', async () => {
+    const { service, customersRepository, sessionsRepository, sessionLifecycle } = buildService();
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
+    (sessionsRepository.findSessionById as jest.Mock).mockResolvedValueOnce({
+      id: 's1',
+      sessionStatus: 'expired',
+      deviceId: 'device-1',
+    } as never);
+    await expect(
+      service.heartbeat({ customerId: 'c1', sessionId: 's1', body: baseBody() as never, currentUser: customerUser, context }),
+    ).rejects.toThrow(/SESSION_NOT_ACTIVE/);
+    expect(sessionLifecycle.touchActivity).not.toHaveBeenCalled();
   });
 
   it('never increments the session count in the activity summary — a heartbeat is not a new session', async () => {

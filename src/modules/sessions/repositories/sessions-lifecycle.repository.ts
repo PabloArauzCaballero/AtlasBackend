@@ -86,6 +86,15 @@ export class SessionsLifecycleRepository {
     } as FindOptions);
   }
 
+  /**
+   * El latido deja constancia en la sesión misma. Sin esto `expire_stale_sessions` sólo podía comparar
+   * contra `started_at` y cerraba sesiones en uso (hallazgo B6).
+   */
+  async touchActivity(session: CustomerSessionModel, at: Date, options: RepositoryOptions): Promise<void> {
+    session.lastActivityAt = at;
+    await session.save({ transaction: options.transaction });
+  }
+
   async endSession(session: CustomerSessionModel, endedAt: Date, options: RepositoryOptions): Promise<CustomerSessionModel> {
     session.endedAt = endedAt;
     session.sessionStatus = 'ended';

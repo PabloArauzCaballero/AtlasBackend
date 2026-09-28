@@ -98,8 +98,8 @@ export class MerchantUsersService {
         phone: input.phone ?? null,
         userCode: input.userCode ?? null,
         roleCode: 'merchant',
-        // Nace `invited`: existe y puede iniciar sesión sólo cuando alguien lo activa
-        // explícitamente. El alta y la habilitación son dos decisiones distintas.
+        // Por omisión `invited` (existe pero no entra). Hoy el único llamador —la concesión de una
+        // petición del ERP— pasa `active`: conceder ES activar, y la contraseña va por correo.
         status: input.status ?? 'invited',
         mustChangePassword: true,
         createdByInternalUserId: actor.internalUserId,

@@ -82,5 +82,14 @@ describe('MetricsService', () => {
       const output = await service.render();
       expect(output).toMatch(/atlas_outbox_pending_events\{[^}]*tenant_id="1"[^}]*\}\s+42/);
     });
+
+    it('B12: recordOutboxUnregisteredEvents suma por código lo que process_outbox tragaba en silencio', async () => {
+      const service = new MetricsService();
+      service.recordOutboxUnregisteredEvents({ eventCode: 'algo.sin.registrar', count: 2 });
+      service.recordOutboxUnregisteredEvents({ eventCode: 'algo.sin.registrar', count: 3 });
+
+      const output = await service.render();
+      expect(output).toMatch(/atlas_outbox_unregistered_events_total\{[^}]*event_code="algo.sin.registrar"[^}]*\}\s+5/);
+    });
   });
 });

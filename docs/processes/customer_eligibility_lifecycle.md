@@ -20,7 +20,7 @@ Empieza con un cliente en under_review que ya envió su alta. Termina cuando lif
 
 ## Qué pasa cuando falla
 
-Una transición ilegal responde 422 INVALID_STATUS_TRANSITION y no se fuerza. Si falta cualquier condición el cliente sigue en under_review con sus bloqueadores a la vista en la app. El cliente no se entera del cambio: los eventos customer.lifecycle.* se escriben en el outbox pero no están registrados ni tienen canal de aviso.
+Una transición ilegal responde 422 INVALID_STATUS_TRANSITION y no se fuerza. Si falta cualquier condición el cliente sigue en under_review con sus bloqueadores a la vista en la app. El cliente no se entera del cambio: los eventos customer.lifecycle.* se escriben en el outbox y están registrados (los consume process_events), pero no tienen canal de aviso.
 
 ## Qué indicador dice que va bien
 
@@ -95,7 +95,7 @@ Aprobar, rechazar, observar, suspender o reincorporar. Toda decisión negativa e
 
 ### Evento de la transición (`eligibility_lifecycle_event`)
 
-Cada transición escribe customer.lifecycle.<estado> en el outbox en la misma transacción. No está en el registro de eventos: se marca procesado sin avisar a nadie.
+Cada transición escribe customer.lifecycle.<estado> en el outbox en la misma transacción. Está registrado (familia customer_lifecycle) y lo consume process_events, pero sin canal de notificación: se procesa sin avisar a nadie.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
