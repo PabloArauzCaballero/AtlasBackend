@@ -9,6 +9,12 @@ import { QueryTypes, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import type { CreateChangeLogEntryInput, ResolveChangeLogEntryInput, SchemaChangeLogRow } from './schema-management.repository.js';
 
+/** Columnas que se devuelven de cada fila: una sola lista para las cinco consultas. */
+const CHANGE_LOG_COLUMNS = `_id, schema_version_id, change_type, affected_entity_id, affected_entity_type,
+  change_payload, requester_platform_user_id, requester_internal_user_id, approval_status,
+  approved_by_platform_user_id, approved_by_internal_user_id, approved_at, approval_notes,
+  rolled_back, change_result, error_message, applied_by_migration, applied_at, created_at`;
+
 interface CountRow {
   count: string;
 }
@@ -30,16 +36,13 @@ export class SchemaChangeLogRepository {
     const rows = await this.sequelize.query<SchemaChangeLogRow>(
       `INSERT INTO schema_change_log
          (change_type, affected_entity_type, change_payload,
-          requester_platform_user_id, approval_status, change_result,
+          requester_platform_user_id, requester_internal_user_id, approval_status, change_result,
           rolled_back, created_at)
        VALUES
          (:changeType, :affectedEntityType, CAST(:changePayload AS JSONB),
-          :requesterPlatformUserId, 'pending', 'pending',
+          :requesterPlatformUserId, :requesterInternalUserId, 'pending', 'pending',
           false, NOW())
-       RETURNING _id, schema_version_id, change_type, affected_entity_id, affected_entity_type,
-                 change_payload, requester_platform_user_id, approval_status,
-                 approved_by_platform_user_id, approved_at, approval_notes,
-                 rolled_back, change_result, error_message, created_at`,
+       RETURNING ${CHANGE_LOG_COLUMNS}`,
       {
         type: QueryTypes.SELECT,
         transaction,
@@ -48,6 +51,7 @@ export class SchemaChangeLogRepository {
           affectedEntityType: input.affectedEntityType,
           changePayload: JSON.stringify(input.changePayload),
           requesterPlatformUserId: input.requesterPlatformUserId,
+          requesterInternalUserId: input.requesterInternalUserId,
         },
       },
     );
@@ -60,10 +64,7 @@ export class SchemaChangeLogRepository {
 
   async getChangeLogEntry(changeId: string): Promise<SchemaChangeLogRow | null> {
     const rows = await this.sequelize.query<SchemaChangeLogRow>(
-      `SELECT _id, schema_version_id, change_type, affected_entity_id, affected_entity_type,
-              change_payload, requester_platform_user_id, approval_status,
-              approved_by_platform_user_id, approved_at, approval_notes,
-              rolled_back, change_result, error_message, created_at
+      `SELECT ${CHANGE_LOG_COLUMNS}
        FROM schema_change_log
        WHERE _id = :changeId`,
       { type: QueryTypes.SELECT, replacements: { changeId } },
@@ -77,10 +78,7 @@ export class SchemaChangeLogRepository {
    */
   async getChangeLogEntryForUpdate(changeId: string, transaction: Transaction): Promise<SchemaChangeLogRow | null> {
     const rows = await this.sequelize.query<SchemaChangeLogRow>(
-      `SELECT _id, schema_version_id, change_type, affected_entity_id, affected_entity_type,
-              change_payload, requester_platform_user_id, approval_status,
-              approved_by_platform_user_id, approved_at, approval_notes,
-              rolled_back, change_result, error_message, created_at
+      `SELECT ${CHANGE_LOG_COLUMNS}
        FROM schema_change_log
        WHERE _id = :changeId
        FOR UPDATE`,
@@ -99,16 +97,14 @@ export class SchemaChangeLogRepository {
     const filters: string[] = [];
     if (approvalStatus) filters.push('approval_status = :approvalStatus');
     if (changeType) filters.push('change_type = :changeType');
-    if (requesterUserId) filters.push('requester_platform_user_id = :requesterUserId');
+    // El filtro no sabe de qué población es el id: casa con el proponente interno o con el de plataforma.
+    if (requesterUserId) filters.push('(requester_platform_user_id = :requesterUserId OR requester_internal_user_id = :requesterUserId)');
     const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
 
     const replacements = { approvalStatus, changeType, requesterUserId, limit, offset };
 
     const rows = await this.sequelize.query<SchemaChangeLogRow>(
-      `SELECT _id, schema_version_id, change_type, affected_entity_id, affected_entity_type,
-              change_payload, requester_platform_user_id, approval_status,
-              approved_by_platform_user_id, approved_at, approval_notes,
-              rolled_back, change_result, error_message, created_at
+      `SELECT ${CHANGE_LOG_COLUMNS}
        FROM schema_change_log
        ${whereClause}
        ORDER BY created_at DESC, _id DESC
@@ -137,15 +133,13 @@ export class SchemaChangeLogRepository {
       `UPDATE schema_change_log
        SET approval_status = :approvalStatus,
            approved_by_platform_user_id = :approvedByPlatformUserId,
+           approved_by_internal_user_id = :approvedByInternalUserId,
            approved_at = NOW(),
            approval_notes = :approvalNotes,
            change_result = :changeResult,
            error_message = :errorMessage
        WHERE _id = :changeId
-       RETURNING _id, schema_version_id, change_type, affected_entity_id, affected_entity_type,
-                 change_payload, requester_platform_user_id, approval_status,
-                 approved_by_platform_user_id, approved_at, approval_notes,
-                 rolled_back, change_result, error_message, created_at`,
+       RETURNING ${CHANGE_LOG_COLUMNS}`,
       {
         type: QueryTypes.SELECT,
         transaction,
@@ -153,6 +147,7 @@ export class SchemaChangeLogRepository {
           changeId,
           approvalStatus: input.approvalStatus,
           approvedByPlatformUserId: input.approvedByPlatformUserId,
+          approvedByInternalUserId: input.approvedByInternalUserId,
           approvalNotes: input.approvalNotes,
           changeResult: input.changeResult,
           errorMessage: input.errorMessage,

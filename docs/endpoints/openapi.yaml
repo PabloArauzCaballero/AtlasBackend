@@ -23928,8 +23928,9 @@ paths:
   /operations/schema/change-log/{changeId}/approve:
     patch:
       description: >-
-        Exclusivo de platform_admin (segundo par de ojos). Rechazar requiere
-        approvalNotes.
+        Segundo par de ojos: quien propuso no puede aprobar. Sesión interna:
+        exige el permiso governance.schema.approve; sesión de plataforma: rol
+        platform_admin. Rechazar requiere approvalNotes.
       operationId: SchemaManagementController_approveChange
       parameters:
         - name: changeId
@@ -24063,8 +24064,10 @@ paths:
         - schema-management
     post:
       description: >-
-        Registra una propuesta de cambio de esquema pendiente de aprobación (4
-        ojos) por platform_admin.
+        Registra una propuesta de cambio de esquema pendiente de aprobación por
+        otra persona (4 ojos). Sesión interna: exige el permiso
+        governance.schema.propose; sesión de plataforma: rol internal_operator,
+        admin o platform_admin.
       operationId: SchemaManagementController_proposeTable
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
