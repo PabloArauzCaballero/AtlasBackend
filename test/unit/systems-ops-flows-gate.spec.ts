@@ -115,4 +115,41 @@ describe('SystemFlowsGateService', () => {
     expect(procesos).toMatchObject({ passed: false, count: 4 });
     expect(procesos.detail).toContain('credit_line_and_application (4)');
   });
+
+  it('en un entorno recién desplegado (nada cargado) ninguna comprobación pasa: todas dicen «sin medir»', async () => {
+    const resultado = await servicio({ cargas: new Set(), deriva: { screensWithObservedEdges: 0 } }).evaluate();
+    expect(resultado.passed).toBe(false);
+    expect(resultado.artifactsLoaded).toBe(false);
+    for (const code of [
+      'CRITICAL_VERIFIED',
+      'UNPROTECTED_WRITE_OPEN',
+      'RBAC_DRIFT_SIN_GUARDA',
+      'REVIEW_PENDING_HIGH',
+      'PROCESS_STEPS_WIRED',
+    ]) {
+      expect(check(resultado, code)).toMatchObject({ passed: false, measured: false });
+    }
+    expect(check(resultado, 'CRITICAL_VERIFIED')?.detail).toMatch(/^sin medir: falta cargar endpoints de ATLAS_BACKEND/);
+    // La única que sí se mide es la que dice qué falta cargar.
+    expect(check(resultado, 'ARTIFACTS_PRESENT')).toMatchObject({ passed: false, measured: true, count: 13 });
+  });
+
+  it('0 escrituras desprotegidas NO pasa si falta cargar los hallazgos de un bloque, y avisa de que la cifra es parcial', async () => {
+    const cargas = new Set([...todasLasCargas].filter((c) => c !== 'findings:DASHBOARDS'));
+    const desprotegidas = check(await servicio({ cargas }).evaluate(), 'UNPROTECTED_WRITE_OPEN');
+    expect(desprotegidas).toMatchObject({ passed: false, measured: false, count: 0 });
+    expect(desprotegidas?.detail).toContain('hallazgos de DASHBOARDS (la cifra cubre sólo lo cargado)');
+  });
+
+  it('pasos sin pantalla no acusan a los procesos si faltan los endpoints: queda sin medir', async () => {
+    const cargas = new Set([...todasLasCargas].filter((c) => !c.startsWith('endpoints:')));
+    const procesos = check(await servicio({ cargas, sinCablear: [{ workflowCode: 'x', count: 87 }] }).evaluate(), 'PROCESS_STEPS_WIRED');
+    expect(procesos).toMatchObject({ passed: false, measured: false });
+  });
+
+  it('con todo cargado, cada comprobación se declara medida', async () => {
+    const resultado = await servicio().evaluate();
+    expect(resultado.artifactsLoaded).toBe(true);
+    expect(resultado.checks.every((c) => (c as { measured?: boolean }).measured)).toBe(true);
+  });
 });

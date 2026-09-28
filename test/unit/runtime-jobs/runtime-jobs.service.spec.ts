@@ -580,8 +580,11 @@ describe('RuntimeJobsService', () => {
         currentUser: internalUser,
       });
 
-      const result = response.result as { issuesCreated: number };
+      const result = response.result as { issuesCreated: number; rulesEvaluated: number; note: string };
       expect(result.issuesCreated).toBe(0);
+      // Termina en SUCCESS: su resultado tiene que decir que no evaluó ninguna regla, o se lee como una pasada de calidad.
+      expect(result.rulesEvaluated).toBe(0);
+      expect(result.note).toContain('no evalúa ninguna regla');
     });
   });
 });

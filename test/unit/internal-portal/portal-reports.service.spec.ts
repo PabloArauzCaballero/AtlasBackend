@@ -133,6 +133,13 @@ describe('PortalReportsService', () => {
       expect(readiness.checks).toHaveLength(6);
     });
 
+    it('«0 issues abiertos» avisa de que las reglas no se evalúan solas', async () => {
+      const readiness = await service.getReleaseReadiness(ALCANCE_TENANT);
+
+      const issues = readiness.checks.find((c) => c.key === 'open_quality_issues');
+      expect(issues?.detail).toContain('las reglas de calidad no se evalúan solas');
+    });
+
     it('un catálogo vacío BLOQUEA; un incidente abierto sólo avisa', async () => {
       cuentas.system_endpoint_catalog = 0;
       cuentas.data_quality_issues = 2;
