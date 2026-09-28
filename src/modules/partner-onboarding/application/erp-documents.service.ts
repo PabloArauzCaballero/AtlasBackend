@@ -24,6 +24,9 @@ const ERP_SUBJECT_PREFIX = 'erp-';
  */
 const ERP_OWNER_B2B_ACCOUNT = 'b2b_account';
 
+/** La clase con la que el ERP guarda el documento de un contrato (`contrato-<número>`, saneada). */
+const CLASE_CONTRATO = 'contrato-';
+
 /**
  * Documentos del ERP en el almacén de evidencia de Atlas.
  *
@@ -92,7 +95,7 @@ export class ErpDocumentsService {
    * La clave dice quién es el dueño (`<tenant>/erp-<tipo>-<id>/<clase>/<uuid>`), porque el ERP no
    * manda otra cosa al verificar. Si el dueño es una cuenta B2B enlazada a un `partner_profiles`,
    * el archivo se anota en la carpeta «documentos» de ese comercio con el nombre de su clase (`kyb`,
-   * `adjunto`…). Nada de esto puede hacer fallar la verificación: el ERP ya tiene el objeto y lo
+   * `adjunto`…), salvo el contrato (`contrato-<número>`), que va a «contratos». Nada de esto puede hacer fallar la verificación: el ERP ya tiene el objeto y lo
    * registra por su cuenta, y el expediente es una vista.
    */
   private async anotarEnExpedienteDelComercio(tenantId: string, storageKey: string, metadata: StoredObjectMetadata): Promise<void> {
@@ -112,7 +115,7 @@ export class ErpDocumentsService {
       await this.expedienteHooks.alRegistrarArchivoDelComercio({
         tenantId,
         partnerId: profile.id,
-        documentType: 'partner_document',
+        documentType: dueno.documentKind.startsWith(CLASE_CONTRATO) ? 'partner_contract' : 'partner_document',
         nombreBase: dueno.documentKind,
         origen: 'portal',
         storageKey,

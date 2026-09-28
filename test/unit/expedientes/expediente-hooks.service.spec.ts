@@ -253,6 +253,8 @@ describe('ExpedienteHooksService', () => {
         sessionId: null,
         customerCode: 'Tienda Andina',
         actor: ACTOR,
+        // Un comercio abierto antes de `contratos/` y `transacciones/` las gana al volver a pasar.
+        completarCarpetasBase: true,
       });
       expect(materializador.asegurarNodoDeContactos).not.toHaveBeenCalled();
     });
@@ -297,6 +299,20 @@ describe('ExpedienteHooksService', () => {
 
       expect(nodos.registrarArchivo).toHaveBeenLastCalledWith(
         expect.objectContaining({ carpeta: 'documentos', nombre: 'kyb.pdf', clase: 'partner_document', origen: 'portal' }),
+      );
+    });
+
+    it('el contrato del comercio va a «contratos» con el número que puso el ERP', async () => {
+      await service.alRegistrarArchivoDelComercio({
+        ...base,
+        documentType: 'partner_contract',
+        nombreBase: 'contrato-ctr-7',
+        origen: 'portal',
+        objeto: { ...base.objeto, contentType: 'application/pdf' },
+      });
+
+      expect(nodos.registrarArchivo).toHaveBeenLastCalledWith(
+        expect.objectContaining({ carpeta: 'contratos', nombre: 'contrato-ctr-7.pdf', clase: 'partner_document' }),
       );
     });
 
