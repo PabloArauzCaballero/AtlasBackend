@@ -114,7 +114,7 @@ Camino del proveedor: consulta el registro estatal con los datos declarados. FOU
 
 ### Revisión humana en la cola IDENTIDAD del Motor (`identity_motor_human_review`)
 
-Un analista abre el caso, mira las imágenes guardadas y resuelve. Sólo la resolución de esta cola avisa a Atlas; la bandeja de revisiones del worker etiqueta el corpus pero no cierra el intento.
+Un analista abre el caso, mira las imágenes guardadas y resuelve. Sólo la resolución de esta cola avisa a Atlas, y así debe ser: la bandeja de revisiones del worker (`/v1/workers/identity-verification/reviews`) sólo contiene ejecuciones pedidas por HTTP desde el Motor (portal, pruebas, corpus) —Atlas no crea ninguna: su verificación entra por la decisión y su duda abre caso en esta cola—, así que etiquetar allí no corresponde a ningún intento de Atlas.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|

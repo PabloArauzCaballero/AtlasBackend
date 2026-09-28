@@ -57,9 +57,18 @@ function montar(
   const statements = { applyReview: jest.fn(async (..._a: unknown[]) => undefined) };
   const storage = { readObject: jest.fn(async () => (opciones.archivo === undefined ? Buffer.from('%PDF') : opciones.archivo)) };
   const engine = { analyze: jest.fn(async () => opciones.analisis ?? { kind: 'completed', run: corrida() }) };
+  const humanReviews = {
+    syncParked: jest.fn(async (..._a: unknown[]) => ({ applied: 1, rejected: 0, waiting: 2, engineUnavailable: 0 })),
+  };
 
-  const worker = new BankStatementReviewWorker(reviews as never, statements as never, storage as never, engine as never);
-  return { worker, reviews, statements, storage, engine };
+  const worker = new BankStatementReviewWorker(
+    reviews as never,
+    statements as never,
+    storage as never,
+    engine as never,
+    humanReviews as never,
+  );
+  return { worker, reviews, statements, storage, engine, humanReviews };
 }
 
 const correr = (w: BankStatementReviewWorker) => w.processPending({ tenantId: '1', limit: 10, now: AHORA });
@@ -126,30 +135,67 @@ describe('BankStatementReviewWorker', () => {
 
   /*
    * Un análisis aceptado pero con capacidad inelegible NO se aplica: escribiría ceros en la línea
-   * del cliente, y «un ingreso reconocido de cero» se lee como «no gana nada». Se aparca.
+   * del cliente, y «un ingreso reconocido de cero» se lee como «no gana nada».
+   *
+   * Tampoco se aparca (A6): el motor lo dio por analizado, su bandeja de revisión no lo tiene y
+   * nadie lo iba a mirar nunca. Aparcado, bloqueaba al cliente para siempre con
+   * `409 BANK_STATEMENT_REVIEW_ALREADY_OPEN`. Se cierra con el motivo que puede resolver.
    */
-  it('aparca en revisión el análisis cuya capacidad no es utilizable', async () => {
+  it('cierra, sin aplicarlo, el análisis cuya capacidad no es utilizable', async () => {
     const fila = revision();
     const { worker, statements } = montar({
       pendientes: [fila],
-      analisis: { kind: 'completed', run: corrida({ result: { ...corrida().result, affordability: { eligible: false } } }) },
+      analisis: {
+        kind: 'completed',
+        run: corrida({
+          result: { ...corrida().result, affordability: { eligible: false, coverage: { monthsComplete: 2, minimumMonthsRequired: 3 } } },
+        }),
+      },
     });
 
     const resultado = await correr(worker);
 
-    expect(resultado).toMatchObject({ inReview: 1, applied: 0 });
-    expect(fila.status).toBe('processing');
+    expect(resultado).toMatchObject({ unreadable: 1, applied: 0, inReview: 0 });
+    expect(fila.status).toBe('rejected');
+    expect(fila.rejectionCategory).toBe('PERIODO_INSUFICIENTE');
     expect(statements.applyReview).not.toHaveBeenCalled();
   });
 
-  it('aparca igual si el motor no devolvió capacidad alguna', async () => {
+  it('lo cierra igual si el motor no devolvió capacidad alguna', async () => {
     const fila = revision();
     const { worker } = montar({
       pendientes: [fila],
       analisis: { kind: 'completed', run: corrida({ result: { institution: { id: 'BNB' } } }) },
     });
 
-    expect(await correr(worker)).toMatchObject({ inReview: 1, applied: 0 });
+    expect(await correr(worker)).toMatchObject({ unreadable: 1, applied: 0 });
+    expect(fila.status).toBe('rejected');
+  });
+
+  it('la duda del motor sí se aparca: la mira una persona en su bandeja', async () => {
+    const fila = revision();
+    const { worker, statements } = montar({
+      pendientes: [fila],
+      analisis: { kind: 'review', run: corrida({ status: 'PENDING_REVIEW', reviewReason: 'UNKNOWN_BANK' }) },
+    });
+
+    expect(await correr(worker)).toMatchObject({ inReview: 1 });
+    expect(fila.status).toBe('processing');
+    expect(fila.engineRequestId).toBe('req-1');
+    expect(statements.applyReview).not.toHaveBeenCalled();
+  });
+
+  /*
+   * La red del aviso del motor: cada pasada relee las revisiones que esperaban a una persona, con el
+   * mismo límite de lote, y lo cuenta.
+   */
+  it('en cada pasada relee las revisiones que esperan a una persona del motor', async () => {
+    const { worker, humanReviews } = montar({ pendientes: [] });
+
+    const resultado = await worker.processPending({ tenantId: '1', limit: 7, now: AHORA });
+
+    expect(humanReviews.syncParked).toHaveBeenCalledWith({ tenantId: '1', limit: 7, now: AHORA });
+    expect(resultado.humanReviews).toEqual({ applied: 1, rejected: 0, waiting: 2, engineUnavailable: 0 });
   });
 
   /*

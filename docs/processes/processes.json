@@ -3183,6 +3183,28 @@
      ]
     },
     {
+     "code": "statement_human_review_return",
+     "actor": "system",
+     "client": "BLOCK",
+     "screen": null,
+     "steps": [
+      {
+       "code": "statement.review_callback",
+       "kind": "http",
+       "system": "ATLAS_BACKEND",
+       "method": "POST",
+       "path": "/internal/credit/bank-statement-review-callback"
+      },
+      {
+       "code": "statement.review_reread",
+       "kind": "http",
+       "system": "DECISION_ENGINE",
+       "method": "GET",
+       "path": "/v1/workers/bank-statement/runs/:requestId"
+      }
+     ]
+    },
+    {
      "code": "statement_apply_capacity",
      "actor": "system",
      "client": "BLOCK",

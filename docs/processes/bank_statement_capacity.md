@@ -12,7 +12,7 @@ La línea calculada sólo con lo declarado en el alta no refleja lo que la perso
 
 ## Quién lo inicia y quién lo cierra
 
-Lo inicia el cliente desde la pantalla «extracto bancario» de la app al subir el PDF. Lo cierra el job `process_bank_statement_reviews` con el veredicto del Motor; cuando el Motor duda, una persona analista lo mira en la pantalla de extractos del portal del Motor.
+Lo inicia el cliente desde la pantalla «extracto bancario» de la app al subir el PDF. Lo cierra el job `process_bank_statement_reviews` con el veredicto del Motor; cuando el Motor duda, una persona analista lo resuelve en la pantalla de extractos del portal del Motor, que avisa a Atlas para que cierre la revisión.
 
 ## Cuándo empieza y cuándo termina
 
@@ -20,11 +20,11 @@ Empieza con la revisión creada en `received` y un plazo comprometido (`promised
 
 ## Qué pasa cuando falla
 
-Motor caído o archivo ilegible del almacén: la revisión NO se rechaza, se queda en `received` y el siguiente barrido reintenta. Si el Motor la deriva a revisión, queda en `processing` con su motivo; hoy nada vuelve a leer esa resolución del Motor, así que la revisión sigue abierta y bloquea subir otro extracto. Los plazos por vencer sólo se anotan en el registro del job.
+Motor caído o archivo ilegible del almacén: la revisión NO se rechaza, se queda en `received` y el siguiente barrido reintenta. Si el Motor la deriva a revisión, queda en `processing` con su motivo hasta que la persona del Motor la resuelve: el Motor avisa (`/internal/credit/bank-statement-review-callback`, con reintentos por su outbox) y, si el aviso se pierde, el mismo job relee en cada pasada las revisiones `processing` en el Motor. Un análisis aceptado sin capacidad utilizable se cierra como rechazado (normalmente por faltar meses), no se aparca. Los plazos por vencer sólo se anotan en el registro del job.
 
 ## Qué indicador dice que va bien
 
-Revisiones abiertas (`received`/`processing`) con `promised_by` vencido o por vencer, proporción `applied` frente a `rejected` por `rejection_category`, y revisiones que se quedan en `processing` con `review_reason` sin cerrarse.
+Revisiones abiertas (`received`/`processing`) con `promised_by` vencido o por vencer, proporción `applied` frente a `rejected` por `rejection_category`, y revisiones en `processing` más antiguas que una pasada del job (el aviso del Motor no llegó y la relectura tampoco pudo cerrarlas).
 
 ## Resultado
 
@@ -42,11 +42,13 @@ flowchart LR
   statement_upload["El cliente sube su extracto"]
   statement_engine_analysis["El Motor lee el extracto"]
   statement_motor_human_review["Revisión humana en el Motor"]
+  statement_human_review_return["Vuelta de la revisión humana a Atlas"]
   statement_apply_capacity["Aplicar la capacidad y recalcular la línea"]
   statement_customer_status["El cliente ve el resultado"]
   statement_upload --> statement_engine_analysis
   statement_engine_analysis --> statement_motor_human_review
-  statement_motor_human_review --> statement_apply_capacity
+  statement_motor_human_review --> statement_human_review_return
+  statement_human_review_return --> statement_apply_capacity
   statement_apply_capacity --> statement_customer_status
 ```
 
@@ -55,6 +57,7 @@ flowchart LR
 | `statement_upload` | El cliente sube su extracto | customer | CONSUMER_APP | **sin pantalla declarada** | 3 |
 | `statement_engine_analysis` | El Motor lee el extracto | system | BLOCK | — | 3 |
 | `statement_motor_human_review` | Revisión humana en el Motor | internal_user | MOTOR_PORTAL | `/workers/bank-statement` | 4 |
+| `statement_human_review_return` | Vuelta de la revisión humana a Atlas | system | BLOCK | — | 2 |
 | `statement_apply_capacity` | Aplicar la capacidad y recalcular la línea | system | BLOCK | — | 1 |
 | `statement_customer_status` | El cliente ve el resultado | customer | CONSUMER_APP | **sin pantalla declarada** | 3 |
 
@@ -80,7 +83,7 @@ Cada pasada del job toma las revisiones `received` más antiguas, descarga el PD
 
 ### Revisión humana en el Motor (`statement_motor_human_review`)
 
-Cuando el Motor duda, o el análisis sale sin capacidad utilizable, la revisión queda `processing` con `review_reason`. Una persona la toma y la resuelve en la pantalla de extractos del Motor. Atlas no vuelve a leer esa resolución.
+Cuando el Motor duda, la revisión queda `processing` con `review_reason`. Una persona la toma y la resuelve en la pantalla de extractos del Motor, que encola un aviso de vuelta a Atlas.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
@@ -88,6 +91,15 @@ Cuando el Motor duda, o el análisis sale sin capacidad utilizable, la revisión
 | Tomar una revisión | http | DECISION_ENGINE | `POST /v1/workers/bank-statement/reviews/:requestId/claim` | — | — |
 | Resolver la revisión | http | DECISION_ENGINE | `POST /v1/workers/bank-statement/reviews/:requestId/resolve` | — | — |
 | Reprocesar el extracto | http | DECISION_ENGINE | `POST /v1/workers/bank-statement/reviews/:requestId/reprocess` | — | — |
+
+### Vuelta de la revisión humana a Atlas (`statement_human_review_return`)
+
+Atlas relee la ejecución en el Motor con su propia llave y cierra la revisión: `applied` si hay capacidad utilizable, `rejected` con un motivo accionable si la persona la marcó no válida, la cerró sin resultado o faltan meses. Mientras el Motor siga con el caso no toca nada.
+
+| Paso | Tipo | Bloque | Operación | Roles | Eventos |
+|---|---|---|---|---|---|
+| Recibir el aviso del Motor | http | ATLAS_BACKEND | `POST /internal/credit/bank-statement-review-callback` | — | — |
+| Releer la ejecución en el Motor | http | DECISION_ENGINE | `GET /v1/workers/bank-statement/runs/:requestId` | — | — |
 
 ### Aplicar la capacidad y recalcular la línea (`statement_apply_capacity`)
 
@@ -112,6 +124,8 @@ La app enseña «lo estamos revisando» con la hora comprometida, el motivo del 
 - `src/modules/credit/credit.controller.ts`
 - `src/modules/credit/application/bank-statement.service.ts`
 - `src/modules/credit/application/bank-statement-review.worker.ts`
+- `src/modules/credit/application/bank-statement-human-review.sync.ts`
+- `src/modules/credit/bank-statement-review-callback.controller.ts`
 - `src/modules/credit/bank-statement.mapper.ts`
 - `src/modules/credit/domain/statement-rejection.ts`
 - `src/modules/decision-engine/bank-statement-engine.client.ts`

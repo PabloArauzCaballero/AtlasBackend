@@ -260,4 +260,34 @@ describe('BankStatementEngineClient', () => {
       }
     });
   });
+
+  /* A6 · Releer una ejecución que ya existe, para cerrar la revisión que resolvió una persona. */
+  describe('relectura', () => {
+    it('consulta la ejecución por su id, sin subir nada', async () => {
+      fetchMock.mockResolvedValue(respuesta({ requestId: 'bs 1', status: 'PDF_INVALID', rejectionReason: 'NOT_BANK_STATEMENT' }) as never);
+
+      const lectura = await client.readRun('bs 1');
+
+      expect(fetchMock.mock.calls[0]?.[0]).toBe('http://motor:4000/v1/workers/bank-statement/runs/bs%201');
+      expect((fetchMock.mock.calls[0]?.[1] as { method: string }).method).toBe('GET');
+      expect(lectura).toEqual({
+        kind: 'run',
+        run: expect.objectContaining({ requestId: 'bs 1', status: 'PDF_INVALID', rejectionReason: 'NOT_BANK_STATEMENT' }),
+      });
+    });
+
+    it('un fallo de red o un 5xx es «no disponible», no un desenlace', async () => {
+      fetchMock.mockRejectedValueOnce(new Error('ECONNREFUSED') as never);
+      expect((await client.readRun('r1')).kind).toBe('engineUnavailable');
+
+      fetchMock.mockResolvedValueOnce(respuesta({ error: 'x' }, 503) as never);
+      expect((await client.readRun('r1')).kind).toBe('engineUnavailable');
+    });
+
+    it('sin configurar no llama', async () => {
+      poner({ DECISION_ENGINE_BASE_URL: undefined });
+      expect((await client.readRun('r1')).kind).toBe('engineUnavailable');
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
 });

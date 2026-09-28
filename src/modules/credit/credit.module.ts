@@ -32,6 +32,8 @@ import { CreditDecisionService } from './application/credit-decision.service.js'
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
 import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
 import { BankStatementReviewWorker } from './application/bank-statement-review.worker.js';
+import { BankStatementHumanReviewSync } from './application/bank-statement-human-review.sync.js';
+import { BankStatementReviewCallbackController } from './bank-statement-review-callback.controller.js';
 import { BankStatementService } from './application/bank-statement.service.js';
 import { CreditLineRefreshService } from './application/credit-line-refresh.service.js';
 import { CreditLineService } from './application/credit-line.service.js';
@@ -96,7 +98,14 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     // T-11: `CreditUnderwritingService` publica `credit.decision.recorded` hacia el ERP.
     EventsModule,
   ],
-  controllers: [CreditController, CreditOperationsController, MerchantCreditController, CreditReviewCallbackController],
+  controllers: [
+    CreditController,
+    CreditOperationsController,
+    MerchantCreditController,
+    CreditReviewCallbackController,
+    // A6: la vuelta de la revisión humana de extractos hecha en el Motor.
+    BankStatementReviewCallbackController,
+  ],
   providers: [
     // AT-015: unidad de trabajo local; la admisión migra a ella en AT-026.
     SequelizeCreditUnitOfWork,
@@ -117,6 +126,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     PaymentCapacityService,
     BankStatementService,
     BankStatementReviewWorker,
+    // A6: cierra el extracto que el Motor mandó a revisión humana (aviso del Motor y barrido del job).
+    BankStatementHumanReviewSync,
     // El trabajo que lee el extracto necesita bajarlo del almacén cifrado. `MalwareScannerService`
     // va con él porque su constructor lo exige: la evidencia se analiza antes de darse por buena.
     DocumentStorageService,

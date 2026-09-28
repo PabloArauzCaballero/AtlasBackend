@@ -10,7 +10,9 @@ import { DocumentStorageService } from '../../../common/storage/document-storage
 import { env } from '../../../config/env.js';
 import { BankStatementReviewModel } from '../../../database/models/index.js';
 import { BankStatementEngineClient, type StatementRun } from '../../decision-engine/bank-statement-engine.client.js';
-import { rejectionCopyFor } from '../domain/statement-rejection.js';
+import { ineligibleCopyFor, rejectionCopyForRun, type RejectionCopy } from '../domain/statement-rejection.js';
+import { BankStatementHumanReviewSync, type HumanReviewSyncOutcome } from './bank-statement-human-review.sync.js';
+import { closeAsRejected, parkForHumanReview } from './bank-statement-review.outcomes.js';
 import { BankStatementService } from './bank-statement.service.js';
 
 /**
@@ -35,7 +37,9 @@ import { BankStatementService } from './bank-statement.service.js';
  * - **Rechazado**: el motor demostró que el documento no sirve, y sabe POR QUÉ. Se le dice a la
  *   persona con una frase que puede resolver: no es lo mismo subir otro documento, subir el mismo
  *   sin editar, o subir el mismo con más meses.
- * - **En revisión**: hay duda real y la mira una persona. Ni se aplica ni se rechaza.
+ * - **En revisión**: hay duda real y la mira una persona en el motor. Ni se aplica ni se rechaza
+ *   aquí: lo cierra {@link BankStatementHumanReviewSync} cuando la persona decide (por el aviso del
+ *   motor o, si se pierde, en la pasada siguiente de este mismo trabajo).
  * - **Motor no disponible**: NO se toca la revisión. Un motor caído no es un extracto inválido, y
  *   convertirlo en rechazo le diría al cliente que su documento no sirve por una avería que es
  *   nuestra. Se queda en `received` y el siguiente barrido lo reintenta —el motor deduplica por
@@ -56,6 +60,7 @@ export class BankStatementReviewWorker {
     private readonly statements: BankStatementService,
     private readonly storage: DocumentStorageService,
     private readonly engine: BankStatementEngineClient,
+    private readonly humanReviews: BankStatementHumanReviewSync,
   ) {}
 
   async processPending(input: { tenantId: string; limit: number; now?: Date }): Promise<{
@@ -65,6 +70,8 @@ export class BankStatementReviewWorker {
     inReview: number;
     failed: number;
     breachingSoon: number;
+    /** Revisiones que esperaban a una persona del motor, releídas en esta pasada. */
+    humanReviews: Record<HumanReviewSyncOutcome, number>;
   }> {
     const now = input.now ?? new Date();
 
@@ -94,13 +101,16 @@ export class BankStatementReviewWorker {
       }
     }
 
+    // Después de las nuevas: las que llevan horas esperando a una persona no le quitan el turno a
+    // un extracto recién subido, y el aviso del motor ya cierra la mayoría antes de esta pasada.
+    const humanReviews = await this.humanReviews.syncParked({ tenantId: input.tenantId, limit: input.limit, now });
     const breachingSoon = await this.warnAboutImminentBreaches(input.tenantId, now);
-    return { picked: pending.length, applied, unreadable, inReview, failed, breachingSoon };
+    return { picked: pending.length, applied, unreadable, inReview, failed, breachingSoon, humanReviews };
   }
 
   private async processOne(review: BankStatementReviewModel, now: Date): Promise<'applied' | 'unreadable' | 'review' | 'failed'> {
     if (!review.storageKey) {
-      await this.reject(review, null, now);
+      await this.reject(review, null, rejectionCopyForRun(null, null), now);
       return 'unreadable';
     }
 
@@ -124,25 +134,28 @@ export class BankStatementReviewWorker {
       return 'failed';
     }
     if (outcome.kind === 'rejected') {
-      await this.reject(review, outcome.run, now);
+      await this.reject(review, outcome.run, rejectionCopyForRun(outcome.run.errorCode, outcome.run.rejectionReason), now);
       return 'unreadable';
     }
     if (outcome.kind === 'review') {
-      await this.park(review, outcome.run, now);
+      await parkForHumanReview(review, outcome.run, now);
+      this.logger.log(`Extracto ${review.id} derivado a revisión humana: ${outcome.run.reviewReason ?? outcome.run.status}.`);
       return 'review';
     }
 
     const affordability = outcome.run.result?.affordability ?? null;
     /*
-     * Un análisis SIN capacidad utilizable no se aplica: se aparca en revisión.
+     * Un análisis SIN capacidad utilizable no se aplica: aplicarlo escribiría ceros en la línea del
+     * cliente —un ingreso reconocido de cero se lee como «no gana nada»—.
      *
-     * Puede pasar si el motor acepta el documento y su evaluación sale inelegible por una razón que
-     * no llegó a rechazarlo. Aplicarlo escribiría ceros en la línea del cliente —un ingreso
-     * reconocido de cero se lee como «no gana nada»— y eso es peor que no aplicar nada.
+     * Y tampoco se aparca, que es lo que hacía antes: el motor lo dio por ANALIZADO, así que su
+     * bandeja de revisión no lo tiene y ninguna persona lo iba a mirar nunca. La revisión quedaba
+     * `processing` para siempre y el cliente no podía subir otro extracto. Se cierra con el motivo
+     * que sí puede resolver (casi siempre: faltan meses completos).
      */
     if (!affordability?.eligible) {
-      await this.park(review, outcome.run, now);
-      return 'review';
+      await this.reject(review, outcome.run, ineligibleCopyFor(affordability), now);
+      return 'unreadable';
     }
 
     await this.statements.applyReview({
@@ -158,66 +171,10 @@ export class BankStatementReviewWorker {
     return 'applied';
   }
 
-  /**
-   * Cierra la revisión con el motivo del motor, traducido a algo que la persona pueda resolver.
-   *
-   * Guarda las tres cosas: el código técnico con el que se busca el caso, la categoría con la que se
-   * mide cuál pesa, y la frase que el cliente lee. Antes había una sola cadena y con ella la app
-   * decía lo mismo tanto si el documento era una factura de la luz como si cubría un mes en vez de
-   * tres.
-   */
-  private async reject(review: BankStatementReviewModel, run: StatementRun | null, now: Date): Promise<void> {
-    const copy = rejectionCopyFor(run?.errorCode ?? null);
-    review.status = 'rejected';
-    review.rejectionReason = copy.category;
-    review.rejectionCategory = copy.category;
-    review.rejectionMessage = copy.message;
-    review.engineRequestId = run?.requestId ?? null;
-    review.engineStatus = run?.status ?? null;
-    review.engineErrorCode = run?.errorCode ?? null;
-    review.reviewedAt = now;
-    review.updatedAtValue = now;
-    this.recordEngineFacts(review, run);
-    await review.save();
-    this.logger.log(`Extracto ${review.id} rechazado: ${copy.category} (${run?.errorCode ?? 'sin código'}).`);
-  }
-
-  /** Deja el caso esperando a una persona, con el motivo que dio el motor. */
-  private async park(review: BankStatementReviewModel, run: StatementRun, now: Date): Promise<void> {
-    review.status = 'processing';
-    review.engineRequestId = run.requestId;
-    review.engineStatus = run.status;
-    review.engineErrorCode = run.errorCode;
-    review.reviewReason = run.reviewReason;
-    review.reviewedAt = now;
-    review.updatedAtValue = now;
-    this.recordEngineFacts(review, run);
-    await review.save();
-    this.logger.log(`Extracto ${review.id} derivado a revisión humana: ${run.reviewReason ?? run.status}.`);
-  }
-
-  /**
-   * Lo que el motor observó del documento, se aplique o no.
-   *
-   * Se guarda también en el rechazo y en la revisión a propósito: saber que un extracto rechazado
-   * venía del BNB y que su contenedor estaba limpio es lo que permite después preguntar «¿de qué
-   * bancos llegan los documentos que no sabemos leer?», que es la pregunta con la que se decide qué
-   * analizador escribir a continuación.
-   */
-  private recordEngineFacts(review: BankStatementReviewModel, run: StatementRun | null): void {
-    const result = run?.result;
-    if (!result) return;
-    review.institutionCode = result.institution?.id ?? null;
-    review.institutionName = result.institution?.name ?? null;
-    review.authenticityVerdict = result.authenticity?.verdict ?? null;
-    review.authenticityScore = result.authenticity?.suspicionScore ?? null;
-    review.periodFrom = result.period?.from ?? null;
-    review.periodTo = result.period?.to ?? null;
-    const affordability = result.affordability;
-    if (!affordability) return;
-    review.affordabilityJson = affordability as unknown as Record<string, unknown>;
-    review.affordabilityEligible = affordability.eligible ?? false;
-    review.monthsComplete = affordability.coverage?.monthsComplete ?? null;
+  /** Cierra la revisión con el motivo del motor, traducido a algo que la persona pueda resolver. */
+  private async reject(review: BankStatementReviewModel, run: StatementRun | null, copy: RejectionCopy, now: Date): Promise<void> {
+    await closeAsRejected(review, run, copy, now);
+    this.logger.log(`Extracto ${review.id} rechazado: ${copy.category} (${run?.errorCode ?? run?.rejectionReason ?? 'sin código'}).`);
   }
 
   /**

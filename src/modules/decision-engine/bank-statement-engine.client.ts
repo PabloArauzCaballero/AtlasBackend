@@ -156,6 +156,25 @@ export class BankStatementEngineClient {
   }
 
   /**
+   * Vuelve a leer una ejecución que ya existe, sin subir nada.
+   *
+   * Es lo que cierra el caso que el motor mandó a revisión humana: la persona lo resuelve en el
+   * portal del motor y aquí la revisión seguía `processing` para siempre. Se relee con la llave
+   * propia de Atlas, así que lo que se aplica es lo que dice el motor al consultarlo, no lo que
+   * diga quien avisa.
+   */
+  async readRun(requestId: string): Promise<{ kind: 'run'; run: StatementRun } | { kind: 'engineUnavailable'; reason: string }> {
+    if (!this.isConfigured) {
+      return { kind: 'engineUnavailable', reason: 'El motor de extractos no está configurado.' };
+    }
+    try {
+      return { kind: 'run', run: await this.fetchRun(requestId) };
+    } catch (error) {
+      return { kind: 'engineUnavailable', reason: `No se pudo consultar el extracto: ${message(error)}` };
+    }
+  }
+
+  /**
    * Sube el archivo como `multipart/form-data`, que es lo que el worker acepta.
    *
    * Se arma con `FormData` y `Blob` nativos —Node 18+ los trae— en vez de con una dependencia de
