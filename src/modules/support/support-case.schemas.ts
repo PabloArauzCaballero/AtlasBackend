@@ -4,6 +4,7 @@
  * @system esquemas Zod del expediente, el canal y los mensajes de soporte.
  */
 import { z } from 'zod';
+import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 import {
   SUPPORT_AGENT_LEVELS,
   SUPPORT_CASE_LINK_TYPES,
@@ -90,16 +91,15 @@ export type OpenCaseDto = z.infer<typeof openCaseSchema>;
 /**
  * Los filtros de la cola.
  *
- * `categoryCode`, `caseType`, `resolutionCode` y `rootCauseCode` no son comodidad de la pantalla:
- * sin ellos no hay forma de sacar la lista de casos cerrados con causa `UNKNOWN`, que es la revisión
- * semanal que convierte los códigos en gestión de problemas en vez de en columnas que nadie mira.
- * Se validan contra el catálogo cerrado —no como texto libre— porque viajan a una subconsulta.
+ * `categoryCode`, `caseType`, `resolutionCode` y `rootCauseCode` no son comodidad de la pantalla: sin ellos no hay forma de sacar la lista
+ * de casos cerrados con causa `UNKNOWN`, que es la revisión semanal que convierte los códigos en gestión de problemas en vez de en columnas
+ * que nadie mira. Se validan contra el catálogo cerrado —no como texto libre— porque viajan a una subconsulta.
  */
 export const listCasesQuerySchema = z.object({
   status: z.string().trim().max(200).optional(),
   priority: z.string().trim().max(20).optional(),
   queueId: positiveId.optional(),
-  assignedToMe: z.coerce.boolean().optional(),
+  assignedToMe: queryBooleanSchema.optional(),
   categoryCode: z.string().trim().min(2).max(80).optional(),
   caseType: z.enum(SUPPORT_CASE_TYPES).optional(),
   resolutionCode: z.enum(SUPPORT_RESOLUTION_CODES).optional(),

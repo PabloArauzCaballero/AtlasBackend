@@ -11,6 +11,7 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`query-boolean.schema.ts`](./query-boolean.schema.ts) | Booleano estricto para parámetros de query: sólo `true`, `false`, `1` y `0`. |
 | [`zod-validation.pipe.ts`](./zod-validation.pipe.ts) | Pipe: valida o transforma datos antes de invocar el controlador. |
 
 ## Reglas de mantenimiento

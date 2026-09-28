@@ -4,6 +4,7 @@
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
 import { z } from 'zod';
+import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 
 export const notificationChannelSchema = z.enum(['in_app', 'push', 'email', 'sms', 'whatsapp', 'phone']);
 export const notificationStatusSchema = z.enum([
@@ -73,7 +74,7 @@ export const updateTemplateSchema = createTemplateSchema.partial();
 export const listTemplatesQuerySchema = z.object({
   code: z.string().trim().min(1).max(160).optional(),
   channel: notificationChannelSchema.optional(),
-  active: z.coerce.boolean().optional(),
+  active: queryBooleanSchema.optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
