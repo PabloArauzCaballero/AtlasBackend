@@ -110,6 +110,16 @@ describe('ErpDocumentsService', () => {
     );
   });
 
+  it('el documento de un contrato cae en «contratos», no en «documentos»', async () => {
+    const { service, hooks } = build({}, { id: '31' });
+
+    await service.verify({ ...VERIFICACION, storageKey: '1/erp-b2b_account-acc-77/contrato-ctr-2026-001/a.pdf' });
+
+    expect(hooks.alRegistrarArchivoDelComercio).toHaveBeenCalledWith(
+      expect.objectContaining({ documentType: 'partner_contract', nombreBase: 'contrato-ctr-2026-001' }),
+    );
+  });
+
   it('sin cuenta enlazada, o con un dueño que Atlas no conoce, se verifica igual y no se anota nada', async () => {
     const sinEnlace = build();
     await expect(sinEnlace.service.verify({ ...VERIFICACION, storageKey: '1/erp-b2b_account-acc-77/kyb/a.pdf' })).resolves.toBeDefined();

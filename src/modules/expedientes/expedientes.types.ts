@@ -86,10 +86,17 @@ export const CARPETAS_BASE = [
  * operador una carpeta «Identidad (auth)» vacía en la ficha de una tienda diría que falta algo que
  * nunca se pidió. Lo que un comercio sube son sus QR de cobro (`partner_qr_codes`) y los
  * documentos que lo acreditan —el poder notarial, lo que el ERP guarda como KYB de su cuenta—.
+ *
+ * `contratos` y `transacciones` existen vacías desde el primer día (Pablo, 2026-09-28: «no veo la
+ * estructura de carpetas de contratos construida aunque vacía, tampoco lo de transacción y su
+ * respaldo»). Una carpeta que sólo aparece con su primer archivo no distingue «no hay contrato»
+ * de «aquí no se guardan contratos». El contrato firmado que sube el ERP cae en `contratos/`.
  */
 export const CARPETAS_BASE_PARTNER = [
   { nombre: 'qr', etiqueta: 'QR de cobro' },
   { nombre: 'documentos', etiqueta: 'Documentos del comercio' },
+  { nombre: 'contratos', etiqueta: 'Contratos' },
+  { nombre: 'transacciones', etiqueta: 'Transacciones y respaldos' },
   { nombre: 'otros', etiqueta: 'Otros' },
 ] as const;
 
@@ -118,6 +125,7 @@ export const CARPETA_POR_TIPO: Readonly<Record<string, { carpeta: string; clase:
   partner_qr_business: { carpeta: 'qr', clase: 'partner_qr_business', nombre: 'qr del negocio' },
   partner_power_of_attorney: { carpeta: 'documentos', clase: 'partner_document', nombre: 'poder notarial' },
   partner_document: { carpeta: 'documentos', clase: 'partner_document', nombre: 'documento' },
+  partner_contract: { carpeta: 'contratos', clase: 'partner_document', nombre: 'contrato' },
   other: { carpeta: 'otros', clase: 'otro', nombre: 'documento' },
 };
 

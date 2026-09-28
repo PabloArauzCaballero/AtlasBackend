@@ -139,7 +139,36 @@ describe('ExpedienteService', () => {
       await service.abrir({ tenantId: 't1', subjectType: 'partner', subjectId: 'p9', sessionId: null, customerCode: 'Tienda', actor });
 
       const rutas = nodos.asegurarCarpeta.mock.calls.map((llamada) => (llamada[0] as { ruta: string }).ruta);
-      expect(rutas).toEqual(['/qr', '/documentos', '/otros']);
+      expect(rutas).toEqual(['/qr', '/documentos', '/contratos', '/transacciones', '/otros']);
+    });
+
+    /*
+     * Pablo (2026-09-28): «no veo la estructura de carpetas de contratos construida aunque vacía».
+     * Las carpetas del comercio crecieron y los expedientes abiertos antes no las tenían: el gancho
+     * del comercio pide completarlas y un expediente existente gana las que le falten, sin duplicar
+     * el expediente ni dejar un «crear» nuevo en la bitácora.
+     */
+    it('con completarCarpetasBase, un expediente de comercio ya abierto gana las carpetas que le faltan', async () => {
+      const { service, repository, nodos } = construir();
+      const yaExiste = expediente({ id: 'exp-comercio' } as Partial<ExpedienteModel>);
+      repository.findExpedientePorSujeto.mockResolvedValueOnce(yaExiste);
+
+      const resultado = await service.abrir({
+        tenantId: 't1',
+        subjectType: 'partner',
+        subjectId: 'p9',
+        sessionId: null,
+        customerCode: 'Tienda',
+        actor,
+        completarCarpetasBase: true,
+      });
+
+      expect(resultado).toBe(yaExiste);
+      expect(repository.crearExpediente).not.toHaveBeenCalled();
+      expect(repository.registrar).not.toHaveBeenCalled();
+      const llamadas = nodos.asegurarCarpeta.mock.calls.map((llamada) => llamada[0] as { ruta: string; expedienteId: string });
+      expect(llamadas.map((l) => l.ruta)).toEqual(['/qr', '/documentos', '/contratos', '/transacciones', '/otros']);
+      expect(new Set(llamadas.map((l) => l.expedienteId))).toEqual(new Set(['exp-comercio']));
     });
 
     it('deja rastro de la creación con el sujeto y la sesión', async () => {

@@ -125,6 +125,7 @@ export class ExpedienteHooksService {
         sessionId: null,
         customerCode: input.customerCode,
         actor: this.actores.sistema(),
+        completarCarpetasBase: true,
       });
     });
   }

@@ -49,9 +49,18 @@ export class ExpedienteService {
     sessionId: string | null;
     customerCode: string | null;
     actor: ActorExpediente;
+    /**
+     * Con un expediente ya abierto, crea las carpetas base que le falten. Lo pide el comercio: sus
+     * carpetas crecieron (`contratos`, `transacciones`) y los abiertos antes no las tenían.
+     */
+    completarCarpetasBase?: boolean;
   }): Promise<ExpedienteModel> {
     const existente = await this.repository.findExpedientePorSujeto(input.tenantId, input.subjectType, input.subjectId, input.sessionId);
-    if (existente) return existente;
+    if (existente && !input.completarCarpetasBase) return existente;
+    if (existente) {
+      await this.asegurarCarpetasBase(input.tenantId, existente.id, input.subjectType, input.actor);
+      return existente;
+    }
 
     const expediente = await this.repository.crearExpediente({
       tenantId: input.tenantId,
@@ -63,14 +72,7 @@ export class ExpedienteService {
       creadoPorId: input.actor.id,
     });
 
-    for (const carpeta of carpetasBaseDe(input.subjectType)) {
-      await this.nodos.asegurarCarpeta({
-        tenantId: input.tenantId,
-        expedienteId: expediente.id,
-        ruta: `/${carpeta.nombre}`,
-        actor: input.actor,
-      });
-    }
+    await this.asegurarCarpetasBase(input.tenantId, expediente.id, input.subjectType, input.actor);
 
     await this.repository.registrar({
       tenantId: input.tenantId,
@@ -82,6 +84,18 @@ export class ExpedienteService {
       detalle: { subjectType: input.subjectType, subjectId: input.subjectId, sessionId: input.sessionId },
     });
     return expediente;
+  }
+
+  /** Las carpetas base del sujeto; `asegurarCarpeta` no toca las que ya existen. */
+  private async asegurarCarpetasBase(
+    tenantId: string,
+    expedienteId: string,
+    subjectType: SujetoExpediente,
+    actor: ActorExpediente,
+  ): Promise<void> {
+    for (const carpeta of carpetasBaseDe(subjectType)) {
+      await this.nodos.asegurarCarpeta({ tenantId, expedienteId, ruta: `/${carpeta.nombre}`, actor });
+    }
   }
 
   async obtener(tenantId: string, expedienteId: string): Promise<ExpedienteModel> {
