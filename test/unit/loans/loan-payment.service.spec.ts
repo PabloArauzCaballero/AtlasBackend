@@ -78,7 +78,15 @@ describe('LoanPaymentService', () => {
     /** La pasarela reintenta; el cobro no puede aplicarse dos veces por eso. */
     it('devuelve el cobro ya registrado sin volver a aplicarlo', async () => {
       const { service, loans } = build();
-      (loans.findPaymentByIdempotency as jest.Mock).mockResolvedValueOnce({ id: 'pay-0', paymentCode: 'PAY-0' } as never);
+      (loans.findPaymentByIdempotency as jest.Mock).mockResolvedValueOnce({
+        id: 'pay-0',
+        paymentCode: 'PAY-0',
+        loanId: 'loan-1',
+        amount: '110.00',
+        currencyCode: 'BOB',
+        paymentMethod: 'transfer',
+        externalReference: null,
+      } as never);
 
       await expect(service.registerPayment(paymentInput() as never)).resolves.toEqual({
         paymentId: 'pay-0',
@@ -87,6 +95,25 @@ describe('LoanPaymentService', () => {
       });
       expect(loans.createPayment).not.toHaveBeenCalled();
       expect(loans.findLoanForUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rechaza la misma clave con otro importe o préstamo antes de tocar el cronograma', async () => {
+      for (const input of [paymentInput({ amount: '20.00' }), { ...paymentInput(), loanId: 'loan-2' }]) {
+        const { service, loans } = build();
+        (loans.findPaymentByIdempotency as jest.Mock).mockResolvedValueOnce({
+          id: 'pay-0',
+          paymentCode: 'PAY-0',
+          loanId: 'loan-1',
+          amount: '110.00',
+          currencyCode: 'BOB',
+          paymentMethod: 'transfer',
+          externalReference: null,
+        } as never);
+
+        await expect(service.registerPayment(input as never)).rejects.toThrow(ConflictException);
+        expect(loans.findLoanForUpdate).not.toHaveBeenCalled();
+        expect(loans.createPayment).not.toHaveBeenCalled();
+      }
     });
 
     it('exige que el préstamo exista, esté vivo y sea de la misma moneda', async () => {
@@ -240,6 +267,70 @@ describe('LoanPaymentService', () => {
         eventType: 'payment_reversed',
         reasonCode: 'chargeback',
       });
+    });
+
+    /**
+     * ATL-09: el evento se escribía DESPUÉS de recalcular los acumulados, así que `previousStatus`
+     * leía el estado ya reabierto y el libro de eventos contaba `active → active` para un préstamo
+     * que en realidad salía de `paid_off`. La auditoría del reverso perdía justo el dato que importa.
+     */
+    it('el evento del reverso registra el estado real antes y después (paid_off → active)', async () => {
+      const pagada = installment({ paidPrincipal: '100.00', paidInterest: '10.00', status: 'paid', settledAt: new Date() });
+      const { service, loans } = build({ loan: { status: 'paid_off', closedAt: new Date() }, installments: [pagada] });
+      (loans.findPaymentForUpdate as jest.Mock).mockResolvedValueOnce({
+        id: 'pay-1',
+        loanId: 'loan-1',
+        status: 'applied',
+        paymentCode: 'PAY-1',
+        amount: '110.00',
+        save: jest.fn(async () => undefined),
+      } as never);
+      (loans.findAllocationsByPayment as jest.Mock).mockResolvedValueOnce([
+        {
+          loanInstallmentId: 'i1',
+          principalApplied: '100.00',
+          interestApplied: '10.00',
+          lateFeeApplied: '0.00',
+          reversed: false,
+          save: jest.fn(async () => undefined),
+        },
+      ] as never);
+
+      const result = await service.reversePayment(reverseInput as never);
+
+      expect((loans.createEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
+        eventType: 'payment_reversed',
+        previousStatus: 'paid_off',
+        newStatus: 'active',
+      });
+      expect(result).toMatchObject({ loanStatus: 'active' });
+    });
+
+    it('un reverso que no reabre el préstamo registra el mismo estado antes y después', async () => {
+      const parcial = installment({ paidPrincipal: '50.00', status: 'partially_paid' });
+      const { service, loans } = build({ installments: [parcial] });
+      (loans.findPaymentForUpdate as jest.Mock).mockResolvedValueOnce({
+        id: 'pay-1',
+        loanId: 'loan-1',
+        status: 'applied',
+        paymentCode: 'PAY-1',
+        amount: '20.00',
+        save: jest.fn(async () => undefined),
+      } as never);
+      (loans.findAllocationsByPayment as jest.Mock).mockResolvedValueOnce([
+        {
+          loanInstallmentId: 'i1',
+          principalApplied: '20.00',
+          interestApplied: '0.00',
+          lateFeeApplied: '0.00',
+          reversed: false,
+          save: jest.fn(async () => undefined),
+        },
+      ] as never);
+
+      await service.reversePayment(reverseInput as never);
+
+      expect((loans.createEvent as jest.Mock).mock.calls[0][0]).toMatchObject({ previousStatus: 'active', newStatus: 'active' });
     });
   });
 });

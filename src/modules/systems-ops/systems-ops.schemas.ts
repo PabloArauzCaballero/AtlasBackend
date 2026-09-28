@@ -4,6 +4,7 @@
  * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
  */
 import { z } from 'zod';
+import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 
 const positiveId = z.string().regex(/^[1-9][0-9]*$/);
 const optionalCsv = z.string().trim().min(1).max(200).optional();
@@ -54,10 +55,10 @@ export const createTestSuiteSchema = z.object({
   module: z.string().trim().min(2).max(120),
   suiteType: suiteTypeSchema.default('INTEGRATION'),
   environmentScope: z.array(environmentSchema).min(1).max(3).default(['LOCAL', 'STAGING']),
-  isEnabled: z.coerce.boolean().default(true),
-  requiresSeedData: z.coerce.boolean().default(true),
-  isSafeForProduction: z.coerce.boolean().default(false),
-  requiresDestructivePermission: z.coerce.boolean().optional(),
+  isEnabled: z.boolean().default(true),
+  requiresSeedData: z.boolean().default(true),
+  isSafeForProduction: z.boolean().default(false),
+  requiresDestructivePermission: z.boolean().optional(),
 });
 
 // No se construye como `createTestSuiteSchema.partial()`: Zod re-aplica `.default()` de cada
@@ -81,10 +82,10 @@ export const updateTestSuiteSchema = z
     module: z.string().trim().min(2).max(120).optional(),
     suiteType: suiteTypeSchema.optional(),
     environmentScope: z.array(environmentSchema).min(1).max(3).optional(),
-    isEnabled: z.coerce.boolean().optional(),
-    requiresSeedData: z.coerce.boolean().optional(),
-    isSafeForProduction: z.coerce.boolean().optional(),
-    requiresDestructivePermission: z.coerce.boolean().optional(),
+    isEnabled: z.boolean().optional(),
+    requiresSeedData: z.boolean().optional(),
+    isSafeForProduction: z.boolean().optional(),
+    requiresDestructivePermission: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'Debe enviar al menos un campo para actualizar.',
@@ -102,8 +103,8 @@ export const createTestStepSchema = z.object({
   configSchema: jsonObjectSchema.default({}),
   extractors: jsonObjectSchema.default({}),
   assertions: jsonObjectSchema.default({ expectedStatusCodes: [200, 201] }),
-  continueOnFailure: z.coerce.boolean().default(false),
-  cleanupRequired: z.coerce.boolean().default(false),
+  continueOnFailure: z.boolean().default(false),
+  cleanupRequired: z.boolean().default(false),
 });
 
 // Mismo problema y mismo fix que `updateTestSuiteSchema` (ver comentario arriba): campos
@@ -123,8 +124,8 @@ export const updateTestStepSchema = z
     configSchema: jsonObjectSchema.optional(),
     extractors: jsonObjectSchema.optional(),
     assertions: jsonObjectSchema.optional(),
-    continueOnFailure: z.coerce.boolean().optional(),
-    cleanupRequired: z.coerce.boolean().optional(),
+    continueOnFailure: z.boolean().optional(),
+    cleanupRequired: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'Debe enviar al menos un campo para actualizar.',
@@ -143,12 +144,12 @@ export const reorderTestStepsSchema = z.object({
 });
 
 export const inferToolRequirementsSchema = z.object({
-  persist: z.coerce.boolean().default(true),
+  persist: z.boolean().default(true),
 });
 
 export const queueStressRunSchema = z.object({
   environment: environmentSchema.default('LOCAL'),
-  dryRun: z.coerce.boolean().default(true),
+  dryRun: z.boolean().default(true),
   baseUrl: z.string().url().optional(),
   approvalTicket: z.string().trim().min(3).max(160).optional(),
   config: jsonObjectSchema.default({}),
@@ -164,7 +165,7 @@ export const systemsActionLogQuerySchema = z.object({
   actorType: z.string().trim().min(1).max(80).optional(),
   module: z.string().trim().min(1).max(120).optional(),
   riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
-  containsPii: z.coerce.boolean().optional(),
+  containsPii: queryBooleanSchema.optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -210,7 +211,7 @@ export const systemsReviewQueueSchema = z.object({
 export const systemsStressProfileQuerySchema = z.object({
   endpointId: positiveId.optional(),
   status: z.string().trim().min(1).max(40).optional(),
-  enabled: z.coerce.boolean().optional(),
+  enabled: queryBooleanSchema.optional(),
   q: z.string().trim().min(1).max(200).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
@@ -236,15 +237,15 @@ export const upsertStressProfileSchema = z.object({
     .default(['LOCAL', 'STAGING']),
   maxErrorRate: z.coerce.number().min(0).max(1).default(0.01),
   maxP95Ms: z.coerce.number().int().min(1).max(300000).default(1000),
-  isEnabled: z.coerce.boolean().default(true),
-  requiresApproval: z.coerce.boolean().default(true),
+  isEnabled: z.boolean().default(true),
+  requiresApproval: z.boolean().default(true),
   status: z.enum(['ACTIVE', 'DISABLED', 'NEEDS_REVIEW', 'DEPRECATED']).default('ACTIVE'),
   notes: z.string().trim().max(2000).optional(),
 });
 
 export const runTestSuiteSchema = z.object({
   environment: z.enum(['LOCAL', 'STAGING', 'PRODUCTION_READONLY']).default('LOCAL'),
-  dryRun: z.coerce.boolean().default(true),
+  dryRun: z.boolean().default(true),
   baseUrl: z.string().url().optional(),
   config: z.record(z.string(), z.unknown()).default({}),
   headers: z.record(z.string(), z.string()).default({}),
@@ -261,13 +262,13 @@ export const runTestSuiteSchema = z.object({
  */
 export const discoverEndpointsSchema = z.object({
   mode: z.enum(['OPENAPI_CONTRACT', 'SOURCE_SCAN']).default('OPENAPI_CONTRACT'),
-  persist: z.coerce.boolean().default(true),
+  persist: z.boolean().default(true),
 });
 
 export const catalogSeedRefreshSchema = z.object({
-  includeTools: z.coerce.boolean().default(true),
-  includeDataEntities: z.coerce.boolean().default(true),
-  includeEndpointSeeds: z.coerce.boolean().default(true),
+  includeTools: z.boolean().default(true),
+  includeDataEntities: z.boolean().default(true),
+  includeEndpointSeeds: z.boolean().default(true),
 });
 
 export const updateDataEntityMetadataSchema = z
@@ -299,7 +300,7 @@ export const systemsRunsQuerySchema = z.object({
 export const systemsSuiteQuerySchema = z.object({
   module: z.string().trim().min(1).max(120).optional(),
   suiteType: optionalCsv,
-  enabled: z.coerce.boolean().optional(),
+  enabled: queryBooleanSchema.optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 });

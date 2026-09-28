@@ -4,6 +4,7 @@
  * @system expone el catálogo versionado de flujos, etapas, pasos, dependencias y transiciones.
  */
 import { z } from 'zod';
+import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 import { WORKFLOW_PROCESS_TYPES, WORKFLOW_STATUSES } from './workflow-catalog.constants.js';
 
 /**
@@ -39,7 +40,7 @@ export const listWorkflowsQuerySchema = z.object({
   moduleCode: z.string().trim().min(1).max(80).optional(),
   /** Devuelve solo los flujos con al menos un paso autorizado para este rol. */
   role: z.string().trim().min(1).max(60).optional(),
-  includeDeprecated: z.coerce.boolean().default(false),
+  includeDeprecated: queryBooleanSchema.default(false),
 });
 export type ListWorkflowsQueryDto = z.infer<typeof listWorkflowsQuerySchema>;
 
