@@ -303,7 +303,7 @@ export const CUSTOMER_CREDIT_JOURNEY: WorkflowDefinitionFixture = {
           roles: ['internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin'],
           requiredStates: ['under_review', 'observed'],
           errors: ['404 CUSTOMER_NOT_FOUND', '422 INVALID_DECISION'],
-          events: [],
+          events: ['kyc.approved', 'kyc.rejected'],
         },
       ],
     },
@@ -878,7 +878,7 @@ export const CUSTOMER_CREDIT_JOURNEY: WorkflowDefinitionFixture = {
             lifecycleStatus: 'string',
           },
           errors: ['422 ONBOARDING_INCOMPLETE', '422 ONBOARDING_ALREADY_SUBMITTED'],
-          events: ['customer_onboarding.submitted'],
+          events: ['customer.lifecycle.under_review'],
         },
         {
           code: 'onboarding.observations',

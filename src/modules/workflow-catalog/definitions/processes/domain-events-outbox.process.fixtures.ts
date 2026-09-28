@@ -28,7 +28,7 @@ export const DOMAIN_EVENTS_OUTBOX: WorkflowDefinitionFixture = {
     startAndEnd:
       'Empieza con la fila en pending dentro de la transacción del servicio y termina en processed (con recibo en inbox_receipts por consumidor), en failed tras agotar max_attempts, o en cancelled por un operador; la purga borra lo procesado pasado su período de retención.',
     whenItFails:
-      'Un fallo reintenta con espera de attempts² minutos (tope 60) y al agotar intentos pasa a failed, que es la cola de muertos; si el proceso muere a mitad, reclaim_stuck_events rescata lo que quedó en processing. Un evento sin registro lo marca procesado process_outbox sin avisar a nadie: esa es la trampa conocida.',
+      'Un fallo reintenta con espera de attempts² minutos (tope 60) y al agotar intentos pasa a failed, que es la cola de muertos; si el proceso muere a mitad, reclaim_stuck_events rescata lo que quedó en processing. Un evento de dominio sin registro lo sigue marcando procesado process_outbox, pero ya no en silencio: deja el aviso OUTBOX_UNREGISTERED_EVENT, la serie atlas_outbox_unregistered_events_total y el recuento por código en el resultado de la corrida.',
     healthIndicator:
       'Filas en pending y processing más viejas que el intervalo del job, filas en failed, y para los avisos la prueba real: notification_messages.outbox_event_id con una entrega sent o delivered; «Trabajo pendiente» de Flujos lo da por código de evento.',
   },
@@ -107,7 +107,8 @@ export const DOMAIN_EVENTS_OUTBOX: WorkflowDefinitionFixture = {
         {
           code: 'outbox.process_outbox',
           name: 'Drenar el resto del outbox',
-          description: 'Job de compatibilidad para los códigos que no están en EVENT_REGISTRY: los marca procesados sin aviso.',
+          description:
+            'Job de compatibilidad para los códigos que no están en EVENT_REGISTRY: los marca procesados. La telemetría HTTP pasa callada; un evento de dominio sin registrar deja aviso OUTBOX_UNREGISTERED_EVENT y métrica.',
           kind: 'job',
           job: 'process_outbox',
         },
@@ -216,7 +217,6 @@ export const DOMAIN_EVENTS_OUTBOX: WorkflowDefinitionFixture = {
     gaps: [
       'El inventario dice PENDING/PROCESSING/DISPATCHED/FAILED/DEAD; el código usa pending/processing/processed/failed/cancelled (failed es la cola de muertos).',
       '108 eventos en event-registry.ts sin esquema de payload; catalog.event_definitions sembrado con 10 códigos que no coinciden.',
-      'Un evento sin registro lo traga process_outbox sin avisar a nadie.',
     ],
   },
 };

@@ -128,7 +128,7 @@ Un analista acepta o rechaza la verificación de identidad y su evidencia.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Decidir la verificación de identidad | http | ATLAS_BACKEND | `POST /operations/customers/:customerId/identity-verification/decision` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | — |
+| Decidir la verificación de identidad | http | ATLAS_BACKEND | `POST /operations/customers/:customerId/identity-verification/decision` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | kyc.approved, kyc.rejected |
 
 ### Sesión y telemetría (`session_bootstrap`)
 
@@ -228,7 +228,7 @@ Verifica la completitud del paquete y mueve al cliente a `under_review` con su e
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Enviar el paquete a revisión | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/submit` | customer, internal_operator, risk_analyst, admin, platform_admin | customer_onboarding.submitted |
+| Enviar el paquete a revisión | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/submit` | customer, internal_operator, risk_analyst, admin, platform_admin | customer.lifecycle.under_review |
 | Consultar las observaciones abiertas | http | ATLAS_BACKEND | `GET /customer-onboarding/:customerId/observations` | customer, internal_operator, risk_analyst, admin, platform_admin | — |
 
 ### Referencias personales (`reference_contacts`)

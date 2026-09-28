@@ -21,29 +21,33 @@ y el ERP deja de inventarla.
 
 ## Frontera con el ERP
 
-| Pregunta                                   | Quién responde                                          |
-| ------------------------------------------ | ------------------------------------------------------- |
-| ¿Quién es esta persona? ¿Puede autenticarse? | **AtlasBackend** — `iam.merchant_users` (este módulo)   |
-| ¿De qué comercio es? ¿Qué puede tocar?      | **ERP** — `atlas_sales.merchant_users.user_id`          |
+| Pregunta                                     | Quién responde                                        |
+| -------------------------------------------- | ----------------------------------------------------- |
+| ¿Quién es esta persona? ¿Puede autenticarse? | **AtlasBackend** — `iam.merchant_users` (este módulo) |
+| ¿De qué comercio es? ¿Qué puede tocar?       | **ERP** — `atlas_sales.merchant_users.user_id`        |
 
-Las dos tablas se llaman igual y están en bases distintas a propósito: aquí es *identidad*, allá es
-*membresía*. El enlace es el `sub` del token, que el ERP guarda en `user_id`.
+Las dos tablas se llaman igual y están en bases distintas a propósito: aquí es _identidad_, allá es
+_membresía_. El enlace es el `sub` del token, que el ERP guarda en `user_id`.
 
 Este módulo **no** sabe a qué comercio pertenece cada persona, y no debe saberlo: la relación
 comercial la concede el ERP, y duplicarla aquí crearía dos verdades que envejecen distinto.
 
 ## Endpoints
 
-| Método | Ruta                                    | Quién                        |
-| ------ | --------------------------------------- | ---------------------------- |
-| POST   | `/merchant/auth/login`                  | Comercio (público)           |
-| POST   | `/merchant/auth/refresh`                | Comercio (público)           |
-| POST   | `/merchant/auth/logout`                 | Comercio (público)           |
-| GET    | `/merchant/auth/me`                     | Comercio autenticado         |
-| POST   | `/merchant/users`                       | Interno — `merchant.users.manage` |
-| GET    | `/merchant/users`                       | Interno — `merchant.users.read`   |
-| GET    | `/merchant/users/:merchantUserId`       | Interno — `merchant.users.read`   |
-| PATCH  | `/merchant/users/:merchantUserId/status`| Interno — `merchant.users.manage` |
+| Método | Ruta                                                       | Quién                                                          |
+| ------ | ---------------------------------------------------------- | -------------------------------------------------------------- |
+| POST   | `/merchant/auth/login`                                     | Comercio (público)                                             |
+| POST   | `/merchant/auth/refresh`                                   | Comercio (público)                                             |
+| POST   | `/merchant/auth/logout`                                    | Comercio (público)                                             |
+| GET    | `/merchant/auth/me`                                        | Comercio autenticado                                           |
+| POST   | `/merchant/users/provisioning-requests`                    | ERP — `merchant.users.request` (encola la petición)            |
+| GET    | `/merchant/users/provisioning-requests`                    | Interno — `merchant.users.read`                                |
+| GET    | `/merchant/users/provisioning-requests/:requestId`         | Interno — `merchant.users.read`                                |
+| POST   | `/merchant/users/provisioning-requests/:requestId/approve` | Interno — `merchant.users.manage` (crea la identidad `active`) |
+| POST   | `/merchant/users/provisioning-requests/:requestId/reject`  | Interno — `merchant.users.manage`                              |
+| GET    | `/merchant/users`                                          | Interno — `merchant.users.read`                                |
+| GET    | `/merchant/users/:merchantUserId`                          | Interno — `merchant.users.read`                                |
+| PATCH  | `/merchant/users/:merchantUserId/status`                   | Interno — `merchant.users.manage`                              |
 
 Los tokens viajan en cookies `HttpOnly`, igual que el panel interno; el body es el fallback para
 clientes que no son navegador, que es como los consume el gateway del ERP.
@@ -53,7 +57,11 @@ clientes que no son navegador, que es como los consume el gateway del ERP.
 1. **Un comercio no se auto-registra.** El alta la hace personal interno con
    `merchant.users.manage` (hoy, el rol `MERCHANT_OPERATIONS`, que ya hace onboarding y soporte de
    comercios).
-2. **Nace `invited`, no `active`.** Existir y poder entrar son dos decisiones distintas.
+2. **Conceder es activar.** La única vía de alta es aprobar una petición encolada por el ERP
+   (`POST /merchant/users/provisioning-requests/:requestId/approve`), y esa aprobación crea la
+   identidad ya en `active`, con `mustChangePassword`, y manda la contraseña provisional por correo
+   en el mismo paso. Nacer `invited` la dejaba sin poder entrar y nadie la activaba (medido en TEST
+   el 2026-09-15). `invited` sigue existiendo en el vocabulario, pero hoy ningún camino lo escribe.
 3. **Sólo `active` inicia sesión.** `invited`, `suspended` y `disabled` fallan igual que unas
    credenciales inválidas: el mensaje es genérico para no facilitar enumeración de cuentas.
 4. **El refresh vuelve a leer el estado.** Suspender a alguien corta su sesión en la siguiente
