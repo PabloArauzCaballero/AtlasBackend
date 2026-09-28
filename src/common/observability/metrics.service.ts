@@ -34,6 +34,7 @@ export class MetricsService {
   private readonly scheduledJobRuns: Counter<'job' | 'outcome'>;
   private readonly authAttemptsTotal: Counter<'actor_type' | 'outcome'>;
   private readonly outboxRelayEvents: Counter<'outcome' | 'transport'>;
+  private readonly outboxUnregisteredEvents: Counter<'event_code'>;
 
   constructor() {
     this.registry = new Registry();
@@ -116,6 +117,14 @@ export class MetricsService {
       labelNames: ['outcome', 'transport'],
       registers: [this.registry],
     });
+    // B12: evento de dominio sin registrar que `process_outbox` marca procesado sin consumidor. La
+    // etiqueta es el código, que sale del código fuente (cardinalidad acotada). Alerta: `increase(...) > 0`.
+    this.outboxUnregisteredEvents = new Counter({
+      name: 'atlas_outbox_unregistered_events_total',
+      help: 'Eventos de dominio sin entrada en event-registry.ts que process_outbox marcó procesados sin consumidor, por código.',
+      labelNames: ['event_code'],
+      registers: [this.registry],
+    });
     this.authAttemptsTotal = new Counter({
       name: 'atlas_auth_attempts_total',
       help: 'Intentos de login por tipo de actor y resultado (success o código de fallo).',
@@ -147,6 +156,10 @@ export class MetricsService {
    */
   recordOutboxRelay(input: { outcome: 'published' | 'retried' | 'dead_lettered' | 'quarantined'; transport: string }): void {
     this.outboxRelayEvents.inc({ outcome: input.outcome, transport: input.transport });
+  }
+
+  recordOutboxUnregisteredEvents(input: { eventCode: string; count: number }): void {
+    this.outboxUnregisteredEvents.inc({ event_code: input.eventCode }, input.count);
   }
 
   recordScheduledJob(input: { job: string; outcome: 'success' | 'failure' | 'skipped' | 'stalled' }): void {

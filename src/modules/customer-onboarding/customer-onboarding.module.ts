@@ -38,6 +38,7 @@ import {
   OnDeviceComputationRunModel,
   OnDeviceMetricValueModel,
   OnboardingFlowModel,
+  OutboxEventModel,
   OnboardingStepEventModel,
   OperationalAuditLogModel,
   PermissionEventModel,
@@ -99,11 +100,14 @@ import { CustomerOnboardingFlowRepository } from './repositories/customer-onboar
 import { CustomerOnboardingRepository } from './customer-onboarding.repository.js';
 import { CustomerOnboardingService } from './customer-onboarding.service.js';
 import { IdentityReviewCallbackController } from './identity-review-callback.controller.js';
+import { IdentityVerdictEventPublisher } from './application/identity-verdict-event.publisher.js';
 
 @Module({
   imports: [
     ExpedientesModule,
     SequelizeModule.forFeature([
+      // A8: `kyc.approved`/`kyc.rejected` salen por el outbox al resolverse la identidad.
+      OutboxEventModel,
       OnboardingFlowModel,
       OnboardingStepEventModel,
       PermissionEventModel,
@@ -164,6 +168,7 @@ import { IdentityReviewCallbackController } from './identity-review-callback.con
     CustomerSupportingEvidenceController,
   ],
   providers: [
+    IdentityVerdictEventPublisher,
     // AT-015: el grupo atómico del alta tiene nombre, dueño y alcance declarados.
     LegacyOnboardingAtomicBridge,
     // AT-040: el puerto de entrega de OTP se compone aquí, donde conviven MailSender y los canales (Mensajería no

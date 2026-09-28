@@ -10,12 +10,16 @@ import { syncWorkflowCatalog } from '../../modules/workflow-catalog/definitions/
 type MigrationContext = { context: QueryInterface };
 
 /**
- * Mismo volcado que `20260926170500-sync-workflow-catalog-1`, vuelto a correr porque cambió la
- * fixture P-11 (`customer_privacy_dsr`): la etapa de atención interna ya no es un paso manual sin
- * ruta, sino las tres rutas de la cola de solicitudes del titular y su pantalla del portal (A5).
+ * Mismo patrón que `sync-internal-rbac-catalog-N`: el catálogo se declara en código y cada cambio
+ * trae su migración que lo vuelve a volcar. Hasta hoy los procesos vivían en la siembra demo, que es
+ * opt-in desde `0009e4b`: una base sin `db:seed:demo` —producción— no tenía ninguno.
+ *
+ * Vuelve a volcar tras A8/B6/A13/B12 (2026-09-27): eventos `kyc.*` y `customer.lifecycle.*` en los
+ * pasos de P-03/P-05/C-01, caducidad de sesiones por última actividad en P-15 y huecos resueltos en
+ * P-18 y P-32.
  */
 export async function up({ context: queryInterface }: MigrationContext): Promise<void> {
-  await syncWorkflowCatalog(queryInterface, WORKFLOW_DEFINITIONS, 'migration:20260927120500-sync-workflow-catalog-2');
+  await syncWorkflowCatalog(queryInterface, WORKFLOW_DEFINITIONS, 'migration:20260927091000-sync-workflow-catalog-2');
 }
 
 /**

@@ -38,7 +38,7 @@ export const DEVICE_SIGNALS_AND_SESSIONS: WorkflowDefinitionFixture = {
     startAndEnd:
       'Empieza con las decisiones de consentimiento `device_address_book` y `location_tracking` y el inicio de sesión (`active`). Termina con la sesión `ended` por la app o `expired` por el job, y con los datos guardados: agenda cifrada, rastro de ubicación, telemetría y resumen agregado de contactos.',
     whenItFails:
-      'Sin consentimiento vigente la agenda y la ubicación responden 422 CONSENT_NOT_GRANTED; un dispositivo o sesión ajenos, 403. Si la app no cierra la sesión queda abierta hasta el job, que caduca por hora de INICIO y no por último latido (la app no envía latidos). Fraude se entera sólo mirando las pantallas de investigación: el resumen de comportamiento no tiene pantalla.',
+      'Sin consentimiento vigente la agenda y la ubicación responden 422 CONSENT_NOT_GRANTED; un dispositivo o sesión ajenos, 403. Si la app no cierra la sesión queda abierta hasta el job, que caduca por la última actividad (el último latido o, sin latidos, la hora de inicio); como la app todavía no envía latidos, en la práctica sigue contando desde el inicio. Fraude se entera sólo mirando las pantallas de investigación: el resumen de comportamiento no tiene pantalla.',
     healthIndicator:
       'Sesiones `active` con más antigüedad que el máximo de inactividad (120 minutos por defecto) deberían ser cero tras cada pasada del job; además, proporción de clientes con consentimiento de ubicación que tienen puntos recientes en `telemetry.customer_location_pings`.',
   },
@@ -76,7 +76,6 @@ export const DEVICE_SIGNALS_AND_SESSIONS: WorkflowDefinitionFixture = {
   metadata: {
     inventoryStatesMismatch:
       'El inventario da active/expired/revoked; el código escribe active, ended (la app cierra) y expired (el job). Ningún código escribe revoked.',
-    expiryByStart: 'expire_stale_sessions filtra por started_at < ahora − maxIdleMinutes, no por el último latido.',
   },
   stages: [
     {
@@ -128,7 +127,8 @@ export const DEVICE_SIGNALS_AND_SESSIONS: WorkflowDefinitionFixture = {
         {
           code: 'sig.session_heartbeat',
           name: 'Latido de sesión',
-          description: 'Existe y valida dispositivo y sesión, pero la app no lo llama (triaje de cableado, categoría D).',
+          description:
+            'Valida dispositivo y sesión y deja la última actividad en la sesión (hora del servidor), que es lo que mira el job de caducidad. La app todavía no lo llama (triaje de cableado, categoría D).',
           method: 'POST',
           path: '/customers/:customerId/sessions/:sessionId/heartbeat',
           roles: SESSION_ROLES,
@@ -255,7 +255,7 @@ export const DEVICE_SIGNALS_AND_SESSIONS: WorkflowDefinitionFixture = {
       code: 'signals_session_expiry',
       name: 'Caducidad de sesiones abiertas',
       description:
-        'Cada intervalo (5 minutos por defecto) el job marca `expired` las sesiones `active` iniciadas hace más del máximo de inactividad (120 minutos por defecto).',
+        'Cada intervalo (5 minutos por defecto) el job marca `expired` las sesiones `active` sin actividad (último latido o, sin latidos, el inicio) durante más del máximo de inactividad (120 minutos por defecto).',
       module: 'runtime_jobs',
       actor: 'system',
       client: 'BLOCK',
@@ -266,7 +266,7 @@ export const DEVICE_SIGNALS_AND_SESSIONS: WorkflowDefinitionFixture = {
         {
           code: 'sig.expire_sessions_job',
           description:
-            'Cada intervalo marca como expired las sesiones activas iniciadas hace más del máximo de inactividad, para que ninguna quede abierta indefinidamente.',
+            'Cada intervalo marca como expired las sesiones activas cuya última actividad (último latido o, sin latidos, el inicio) supera el máximo de inactividad, para que ninguna quede abierta indefinidamente sin cortar una que se sigue usando.',
           name: 'Caducar sesiones',
           kind: 'job',
           job: 'expire_stale_sessions',

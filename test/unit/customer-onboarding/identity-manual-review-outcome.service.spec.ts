@@ -78,9 +78,10 @@ function build(rows: Attempt[]) {
   const lifecycle = { advance: jest.fn(async (..._args: unknown[]) => undefined) };
   const sequelize = { transaction: jest.fn(async (callback: (transaction: unknown) => Promise<unknown>) => callback({})) };
 
-  const service = new IdentityManualReviewOutcomeService(repository as never, lifecycle as never, sequelize as never);
+  const events = { publish: jest.fn(async (..._args: unknown[]) => ({})) };
+  const service = new IdentityManualReviewOutcomeService(repository as never, lifecycle as never, sequelize as never, events as never);
   const controller = new IdentityReviewCallbackController(service, repository as never);
-  return { service, controller, repository, lifecycle };
+  return { service, controller, repository, lifecycle, events };
 }
 
 function snapshot(row: Attempt): Attempt {
@@ -143,6 +144,34 @@ describe('la resolución de una revisión humana de identidad', () => {
 
       expect(enRevision.finalResult).toBe('VERIFIED');
       expect(resultado).toMatchObject({ identityResult: 'verified' });
+    });
+
+    it('A8: aprobar publica el veredicto verified del intento revisado', async () => {
+      const enRevision = attempt({ id: '35', finalResult: 'IN_REVIEW', reasonCodesJson: { executionId: 'exec-k' } });
+      const { controller, events } = build([enRevision]);
+
+      await controller.aplicar(TENANT, CLAVE, { executionId: 'exec-k', decision: 'APPROVE', resolvedByInternalUserId: '7' });
+
+      expect(events.publish).toHaveBeenCalledTimes(1);
+      expect((events.publish as jest.Mock).mock.calls[0][0]).toMatchObject({
+        tenantId: TENANT,
+        customerId: CUSTOMER,
+        attemptId: '35',
+        verdict: 'verified',
+        source: 'manual_review',
+        reasonCode: null,
+      });
+    });
+
+    it('A8: rechazar publica el veredicto rejected; CANCEL no publica nada', async () => {
+      const enRevision = attempt({ id: '36', finalResult: 'IN_REVIEW', reasonCodesJson: { executionId: 'exec-r' } });
+      const { controller, events } = build([enRevision]);
+
+      await controller.aplicar(TENANT, CLAVE, { executionId: 'exec-r', decision: 'CANCEL' });
+      expect(events.publish).not.toHaveBeenCalled();
+
+      await controller.aplicar(TENANT, CLAVE, { executionId: 'exec-r', decision: 'DECLINE' });
+      expect((events.publish as jest.Mock).mock.calls[0][0]).toMatchObject({ verdict: 'rejected', reasonCode: 'MANUAL_REVIEW_REJECTED' });
     });
 
     it('no resuelve nada si ningún intento nació de esa ejecución', async () => {

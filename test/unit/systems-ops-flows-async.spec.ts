@@ -144,8 +144,8 @@ describe('SystemFlowsAsyncService.pendingWork · quién consume cada evento de d
   const dominio = async (...filas: unknown[]) => (await servicio([], {}, filas).pendingWork()).domainEvents;
 
   it('procesado, sin mensaje y fuera del registro es SIN_REGISTRO: lo traga el job de compatibilidad', async () => {
-    const d = await dominio(evento('customer.lifecycle.under_review', { eventos: 4 }));
-    expect(d.unregistered).toEqual(['customer.lifecycle.under_review']);
+    const d = await dominio(evento('codigo.sin.registro', { eventos: 4 }));
+    expect(d.unregistered).toEqual(['codigo.sin.registro']);
     expect(d.rows[0]).toMatchObject({ registered: false, consumer: 'SIN_REGISTRO' });
   });
 
@@ -174,7 +174,7 @@ describe('SystemFlowsAsyncService.pendingWork · quién consume cada evento de d
   it('sin ningún evento procesado no se concluye nada, esté registrado o no', async () => {
     const d = await dominio(
       evento('support.sla.breached', { procesados: 0, fallidos: 2 }),
-      evento('customer.lifecycle.active', { procesados: 0 }),
+      evento('codigo.sin.registro', { procesados: 0 }),
     );
     expect(d.rows.map((row) => row.consumer)).toEqual(['SIN_PROCESAR', 'SIN_PROCESAR']);
     expect(d.unregistered).toEqual([]);
