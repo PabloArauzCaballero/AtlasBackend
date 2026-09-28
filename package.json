@@ -193,7 +193,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@nestjs/testing": "^11.2.6",
+    "@nestjs/testing": "^12.1.0",
     "@opentelemetry/context-async-hooks": "^2.9.0",
     "@redocly/cli": "^2.54.2",
     "@types/compression": "^1.7.5",
@@ -210,11 +210,11 @@
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "jest": "^30.5.2",
-    "prettier": "^3.9.8",
+    "prettier": "^3.9.9",
     "supertest": "^7.3.0",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.14",
     "tsx": "^4.23.15",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=22.0.0"
