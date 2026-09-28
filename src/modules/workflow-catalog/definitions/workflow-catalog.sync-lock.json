@@ -1,6 +1,6 @@
 {
   "processes": {
-    "migration": "20260927091000-sync-workflow-catalog-2",
+    "migration": "20260927121000-sync-workflow-catalog-3",
     "hashes": {
       "customer_credit_journey": "cc1c978debdf011b",
       "post_login_first_screen": "6b88e3d8745e29e5",
@@ -47,7 +47,7 @@
     }
   },
   "rbac": {
-    "migration": "20260927090500-sync-internal-rbac-catalog-5",
+    "migration": "20260927120500-sync-internal-rbac-catalog-5",
     "hash": "43b5ec78205ede09"
   }
 }
