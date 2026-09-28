@@ -71,6 +71,7 @@ export class ExternalDataService {
     idempotencyKey?: string;
     requestedByUserId?: string;
     retryOfRequestId?: string;
+    syntheticProbe?: boolean;
   }) {
     return this.execution.executeExternalDataRequest(input);
   }

@@ -179,6 +179,73 @@ describe('ExternalDataExecutionService', () => {
       expect(result.status).toBe('CONSENT_REQUIRED');
       expect(adapter.execute).not.toHaveBeenCalled();
     });
+
+    function probeProvider(defaultMode: string) {
+      const built = buildService();
+      (built.registry.requireProvider as jest.Mock).mockResolvedValueOnce({
+        id: 'p1',
+        providerCode: 'DIGITAL_TRUST_GENERIC',
+        defaultMode,
+        requiresConsent: true,
+      } as never);
+      const adapter = {
+        execute: jest.fn(async () => ({
+          providerCode: 'DIGITAL_TRUST_GENERIC',
+          status: 'COMPLETED',
+          payload: {},
+          latencyMs: 5,
+          isMocked: true,
+        })),
+        normalize: jest.fn(async () => []),
+      };
+      (built.registry.requireAdapter as jest.Mock).mockReturnValueOnce(adapter as never);
+      (built.repository.findCostPolicy as jest.Mock).mockResolvedValueOnce(null as never);
+      (built.repository.createProviderRequest as jest.Mock).mockResolvedValueOnce({ id: 'req-probe' } as never);
+      return { ...built, adapter };
+    }
+    const probeBody = {
+      providerCode: 'DIGITAL_TRUST_GENERIC',
+      queryType: 'IDENTITY_VERIFICATION',
+      purpose: 'MANUAL_REVIEW',
+      decisionStage: 'MANUAL_REVIEW',
+      input: {},
+      forceRefresh: true,
+    } as never;
+
+    // Regresión: la prueba del portal inventaba el cliente `'1'`; en una base sin él, la FK
+    // `data_provider_requests.customer_id → customers` tumbaba TODA prueba con 23503.
+    it('una prueba sintética sin cliente contra el emulador llama al proveedor y no inventa cliente ni pide consentimiento', async () => {
+      delete process.env.DIGITAL_TRUST_GENERIC_MODE;
+      const { service, repository, adapter } = probeProvider('mock_server');
+
+      const result = await service.executeExternalDataRequest({ tenantId: 't1', body: probeBody, syntheticProbe: true });
+
+      expect(repository.findCustomerConsent).not.toHaveBeenCalled();
+      expect(adapter.execute).toHaveBeenCalledTimes(1);
+      expect((repository.createProviderRequest as jest.Mock).mock.calls[0][0]).toMatchObject({ customerId: undefined });
+      expect(repository.createObservations).not.toHaveBeenCalled();
+      expect(result.status).not.toBe('CONSENT_REQUIRED');
+    });
+
+    it('contra un proveedor real (sandbox) la prueba sin cliente sigue exigiendo consentimiento', async () => {
+      delete process.env.DIGITAL_TRUST_GENERIC_MODE;
+      const { service, adapter } = probeProvider('sandbox');
+
+      const result = await service.executeExternalDataRequest({ tenantId: 't1', body: probeBody, syntheticProbe: true });
+
+      expect(result.status).toBe('CONSENT_REQUIRED');
+      expect(adapter.execute).not.toHaveBeenCalled();
+    });
+
+    it('sin la marca de prueba, una llamada sin cliente sigue exigiendo consentimiento aunque sea al emulador', async () => {
+      delete process.env.DIGITAL_TRUST_GENERIC_MODE;
+      const { service, adapter } = probeProvider('mock_server');
+
+      const result = await service.executeExternalDataRequest({ tenantId: 't1', body: probeBody });
+
+      expect(result.status).toBe('CONSENT_REQUIRED');
+      expect(adapter.execute).not.toHaveBeenCalled();
+    });
   });
 
   describe('ATLAS-ROBUSTEZ: retryMaxAttempts/retryBackoffSeconds de la cost policy alimentan el kernel de resiliencia', () => {
