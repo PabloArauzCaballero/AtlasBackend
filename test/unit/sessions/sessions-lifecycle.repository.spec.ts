@@ -85,6 +85,17 @@ describe('SessionsLifecycleRepository', () => {
     expect(save).toHaveBeenCalledWith({ transaction: 'tx' });
   });
 
+  it('B6: touchActivity fija lastActivityAt sin tocar el estado y guarda dentro de la transacción', async () => {
+    const { repo } = buildRepo();
+    const save = jest.fn(async (..._args: unknown[]) => ({ id: 's1' }));
+    const session = { save, sessionStatus: 'active' } as never;
+    const at = new Date('2026-09-27T10:00:00Z');
+    await repo.touchActivity(session, at, opts);
+    expect((session as { lastActivityAt: Date }).lastActivityAt).toBe(at);
+    expect((session as { sessionStatus: string }).sessionStatus).toBe('active');
+    expect(save).toHaveBeenCalledWith({ transaction: 'tx' });
+  });
+
   it('findCustomerSessions pagina con offset derivado de page/limit', async () => {
     const { repo, customerSessionModel } = buildRepo();
     (customerSessionModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);

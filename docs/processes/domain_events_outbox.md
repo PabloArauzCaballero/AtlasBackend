@@ -20,7 +20,7 @@ Empieza con la fila en pending dentro de la transacción del servicio y termina 
 
 ## Qué pasa cuando falla
 
-Un fallo reintenta con espera de attempts² minutos (tope 60) y al agotar intentos pasa a failed, que es la cola de muertos; si el proceso muere a mitad, reclaim_stuck_events rescata lo que quedó en processing. Un evento sin registro lo marca procesado process_outbox sin avisar a nadie: esa es la trampa conocida.
+Un fallo reintenta con espera de attempts² minutos (tope 60) y al agotar intentos pasa a failed, que es la cola de muertos; si el proceso muere a mitad, reclaim_stuck_events rescata lo que quedó en processing. Un evento de dominio sin registro lo sigue marcando procesado process_outbox, pero ya no en silencio: deja el aviso OUTBOX_UNREGISTERED_EVENT, la serie atlas_outbox_unregistered_events_total y el recuento por código en el resultado de la corrida.
 
 ## Qué indicador dice que va bien
 

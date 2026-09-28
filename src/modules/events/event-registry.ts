@@ -58,6 +58,33 @@ const eventGroups: Array<{ family: string; events: string[]; aggregateTypes: str
     priority: 20,
   },
   {
+    /*
+     * Transiciones del ciclo de vida del cliente (hallazgo A8/B12, 2026-09-26). Las escribe
+     * `CustomerLifecycleRepository.createTransitionEvent` como `customer.lifecycle.${newStatus}`, en la
+     * misma transacción que el cambio de estado. Hasta hoy no estaban aquí y `process_outbox` las
+     * marcaba procesadas en silencio. Registrarlas las pasa a `process_events`; NO tienen canales en
+     * `notification-rules.service.ts` (ni plantillas que los respalden), así que se consumen sin
+     * mensaje: qué decirle al cliente en cada estado sigue siendo decisión de producto.
+     *
+     * Un código por cada DESTINO de `ALLOWED_TRANSITIONS` (`registered` es sólo inicial: ninguna
+     * transición llega ahí). Un estado nuevo en `customer-lifecycle.constants.ts` tiene que añadirse
+     * aquí; la prueba `event-registry.spec.ts` lo exige.
+     */
+    family: 'customer_lifecycle',
+    aggregateTypes: ['customer'],
+    events: [
+      'customer.lifecycle.onboarding_in_progress',
+      'customer.lifecycle.under_review',
+      'customer.lifecycle.observed',
+      'customer.lifecycle.active',
+      'customer.lifecycle.suspended',
+      'customer.lifecycle.rejected',
+      'customer.lifecycle.blocked',
+      'customer.lifecycle.closed',
+    ],
+    priority: 10,
+  },
+  {
     // AT-033: hecho de dominio escrito por el caso de uso de solicitud, en la transacción del agregado.
     // T-11 (2026-09-26): `credit.decision.recorded` se une aquí porque describe al MISMO agregado
     // (`credit_application`) en otro punto de su ciclo de vida, no un dominio nuevo.

@@ -1,6 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock } from '../../support/jest-mocks.js';
 import { RuntimeJobsService } from '../../../src/modules/runtime-jobs/runtime-jobs.service.js';
+import { Op } from 'sequelize';
+import { Sequelize } from 'sequelize-typescript';
 
 /**
  * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 3): primer test real de
@@ -242,6 +244,73 @@ describe('RuntimeJobsService', () => {
       expect(result).toMatchObject({ selected: 3, expired: 3 });
       const updateArgs = (sessionModel.update as jest.Mock).mock.calls[0][0] as { sessionStatus: string };
       expect(updateArgs.sessionStatus).toBe('expired');
+    });
+  });
+
+  describe('expireStaleSessions · por última actividad (B6)', () => {
+    it('caduca por COALESCE(last_activity_at, started_at) y no por started_at a secas', async () => {
+      const { service, sessionModel } = buildService();
+      (sessionModel.count as jest.Mock).mockResolvedValueOnce(0 as never);
+      await service.expireStaleSessions({
+        tenantId: 't1',
+        body: { maxIdleMinutes: 120, dryRun: true } as never,
+        currentUser: internalUser,
+      });
+
+      const { where } = (sessionModel.count as jest.Mock).mock.calls[0][0] as { where: Record<string | symbol, unknown> };
+      expect(where).toMatchObject({ tenantId: 't1', sessionStatus: 'active' });
+      expect(where).not.toHaveProperty('startedAt');
+      // Se renderiza con el generador de PostgreSQL real: lo que importa es el SQL que llega a la base.
+      const pg = new Sequelize({ dialect: 'postgres', logging: false });
+      const sql = (pg.getQueryInterface().queryGenerator as { whereItemsQuery(w: unknown): string }).whereItemsQuery({
+        [Op.and]: where[Op.and as unknown as string],
+      });
+      expect(sql).toMatch(/COALESCE\("last_activity_at", "started_at"\) < '/);
+      await pg.close();
+    });
+
+    it('el mismo filtro va al UPDATE que caduca', async () => {
+      const { service, sessionModel } = buildService();
+      (sessionModel.count as jest.Mock).mockResolvedValueOnce(1 as never);
+      (sessionModel.update as jest.Mock).mockResolvedValueOnce([1] as never);
+      await service.expireStaleSessions({
+        tenantId: 't1',
+        body: { maxIdleMinutes: 120, dryRun: false } as never,
+        currentUser: internalUser,
+      });
+      const countWhere = ((sessionModel.count as jest.Mock).mock.calls[0][0] as { where: unknown }).where;
+      const updateWhere = ((sessionModel.update as jest.Mock).mock.calls[0][1] as { where: unknown }).where;
+      expect(updateWhere).toBe(countWhere);
+    });
+  });
+
+  describe('processOutbox · eventos de dominio sin registrar (B12)', () => {
+    it('los marca procesados como siempre, pero los devuelve contados por código y deja aviso', async () => {
+      const { service, sequelize, outboxModel } = buildService();
+      (sequelize.query as jest.Mock).mockResolvedValueOnce([
+        { id: '1', tenant_id: 't1', event_code: 'post_api_v1_auth_login_completed', event_family: 'api_audit' },
+        { id: '2', tenant_id: null, event_code: 'post_api_v1_auth_refresh_completed', event_family: null },
+        { id: '3', tenant_id: 't1', event_code: 'algo.sin.registrar', event_family: null },
+        { id: '4', tenant_id: 't1', event_code: 'algo.sin.registrar', event_family: 'domain' },
+      ] as never);
+      (outboxModel.count as jest.Mock).mockResolvedValue(0 as never);
+      const warn = jest
+        .spyOn((service as unknown as { logger: { warn: (m: string) => void } }).logger, 'warn')
+        .mockImplementation(() => undefined);
+
+      const response = await service.processOutbox({
+        tenantId: 't1',
+        body: { limit: 50, dryRun: false } as never,
+        currentUser: internalUser,
+      });
+
+      const result = response.result as { processed: number; unregisteredDomainEvents: Record<string, number> };
+      expect(result.processed).toBe(4);
+      expect(result.unregisteredDomainEvents).toEqual({ 'algo.sin.registrar': 2 });
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0][0]).toMatch(/^OUTBOX_UNREGISTERED_EVENT tenant=t1 code=algo\.sin\.registrar count=2/);
+      const sql = (sequelize.query as jest.Mock).mock.calls[0][0] as string;
+      expect(sql).toMatch(/RETURNING .*event_code, event\.event_family/);
     });
   });
 

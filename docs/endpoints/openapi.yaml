@@ -14155,8 +14155,13 @@ paths:
   /merchant/users/provisioning-requests/{requestId}/approve:
     post:
       description: >-
-        La contraseña provisional se genera aquí y viaja UNA sola vez, en esta
-        respuesta. No hay ninguna lectura posterior que la devuelva.
+        Conceder ES activar: la identidad nace en estado `active` (con cambio de
+        contraseña obligatorio en el primer acceso) y la petición se cierra como
+        `provisioned`, en la misma transacción. La contraseña provisional se
+        genera aquí y viaja en esta respuesta y en el correo de credenciales
+        iniciales que se envía a la persona al confirmar; no hay ninguna lectura
+        posterior que la devuelva. Un fallo del correo no deshace la concesión:
+        queda en el log.
       operationId: MerchantUsersController_approveRequest
       parameters:
         - name: requestId
@@ -14170,8 +14175,8 @@ paths:
       responses:
         '201':
           description: >-
-            Identidad creada en estado `invited` y petición cerrada como
-            `provisioned`.
+            Identidad creada en estado `active`, petición cerrada como
+            `provisioned` y contraseña provisional enviada por correo.
           content:
             application/json:
               schema:

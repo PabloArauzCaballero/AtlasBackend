@@ -71,7 +71,6 @@ export const MERCHANT_USERS_AND_ACCESS: WorkflowDefinitionFixture = {
     gaps: [
       'merchant/auth/* (login, refresh, logout, me) no tiene llamador directo: el ERP lo usa por su pasarela. Las tres primeras son públicas a propósito (la sesión aún no existe); login lleva freno de 10 intentos por minuto.',
       'PATCH /b2b/onboarding/merchant-users/:merchantUserId/identity y GET /merchant/users/:merchantUserId no tienen pantalla.',
-      'Contradicción: el controlador dice que conceder crea la identidad en «invited»; el servicio la crea «active» y manda la contraseña provisional por correo en el mismo paso.',
       'La recuperación de contraseña del comercio no pasa por merchant/auth/*: el ERP manda actorType merchant_user al plano genérico /auth/password-reset/*.',
     ],
   },

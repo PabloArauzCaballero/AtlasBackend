@@ -14,6 +14,7 @@ import { IdentityDecisionDto } from '../customer-onboarding-profile.schemas.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerVerificationRepository } from '../repositories/customer-verification.repository.js';
 import { identityResultForRow } from '../../../common/utils/identity/identity-result.util.js';
+import { IdentityVerdictEventPublisher } from './identity-verdict-event.publisher.js';
 
 /**
  * Resolución de la verificación de identidad y de la revisión documental (C9 y C10).
@@ -52,6 +53,7 @@ export class CustomerVerificationService {
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly eligibilityService: CustomerEligibilityService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly verdictEvents: IdentityVerdictEventPublisher,
   ) {}
 
   async decideIdentity(input: {
@@ -109,6 +111,20 @@ export class CustomerVerificationService {
           { transaction },
         );
       }
+
+      // A8: el cliente se entera del veredicto (`kyc.approved`/`kyc.rejected`), en esta misma transacción.
+      await this.verdictEvents.publish(
+        {
+          tenantId: input.tenantId,
+          customerId: input.customerId,
+          attemptId: String(attempt.id),
+          verdict: approved ? 'verified' : 'rejected',
+          source: 'internal_decision',
+          reasonCode: input.body.reasonCode,
+          decidedAt: now,
+        },
+        transaction,
+      );
 
       // Un rechazo devuelve al cliente a corregir; una aprobación no lo habilita por sí sola: la
       // habilitación sigue dependiendo de las quince condiciones de la regla, que se reevalúa aquí.
