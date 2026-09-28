@@ -9,7 +9,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { createStableCode, sha256Hex } from '../../../common/utils/crypto/hash.util.js';
-import { LoanInstallmentModel, LoanModel } from '../../../database/models/index.js';
+import { LoanInstallmentModel, LoanModel, LoanPaymentModel } from '../../../database/models/index.js';
 import { allocatePayment, type AllocatableInstallment } from '../domain/loan-allocation.js';
 import { clampToZero, fromCents, toCents } from '../domain/money.util.js';
 import { RegisterPaymentDto, ReversePaymentDto } from '../loans.schemas.js';
@@ -29,6 +29,30 @@ function outstandingOf(installment: LoanInstallmentModel): AllocatableInstallmen
 function isFullyPaid(installment: LoanInstallmentModel): boolean {
   const pending = outstandingOf(installment);
   return pending.principalDueCents + pending.interestDueCents + pending.lateFeeDueCents === 0;
+}
+
+/** La clave sólo identifica un reintento si describe el mismo cobro ya persistido. */
+function matchesPaymentRequest(payment: LoanPaymentModel, loanId: string, body: RegisterPaymentDto): boolean {
+  return (
+    payment.loanId === loanId &&
+    toCents(payment.amount) === toCents(body.amount) &&
+    payment.currencyCode === body.currencyCode &&
+    payment.paymentMethod === body.paymentMethod &&
+    (payment.externalReference ?? null) === (body.externalReference ?? null) &&
+    (!body.receivedAt || new Date(payment.receivedAt).getTime() === new Date(body.receivedAt).getTime())
+  );
+}
+
+/**
+ * Un reintento legítimo devuelve el cobro ya registrado. La misma clave con OTRO cobro (otro
+ * importe, otro préstamo, otro medio) no es un reintento: devolver el primero en silencio haría
+ * creer a quien llama que su segundo cobro quedó aplicado cuando nunca se aplicó.
+ */
+function repeatedPayment(payment: LoanPaymentModel, loanId: string, body: RegisterPaymentDto) {
+  if (!matchesPaymentRequest(payment, loanId, body)) {
+    throw new ConflictException('IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYMENT');
+  }
+  return { paymentId: payment.id, paymentCode: payment.paymentCode, duplicated: true };
 }
 
 @Injectable()
@@ -74,7 +98,7 @@ export class LoanPaymentService {
   ) {
     const duplicate = await this.loans.findPaymentByIdempotency(input.tenantId, idempotencyKeyHash, { transaction });
     // La pasarela reintenta; el cobro no puede aplicarse dos veces por eso.
-    if (duplicate) return { paymentId: duplicate.id, paymentCode: duplicate.paymentCode, duplicated: true };
+    if (duplicate) return repeatedPayment(duplicate, input.loanId, input.body);
 
     const loan = await this.loans.findLoanForUpdate(input.tenantId, input.loanId, transaction);
     if (!loan) throw new NotFoundException('LOAN_NOT_FOUND');
@@ -188,6 +212,9 @@ export class LoanPaymentService {
       if (!payment || payment.loanId !== loan.id) throw new NotFoundException('LOAN_PAYMENT_NOT_FOUND');
       if (payment.status === 'reversed') throw new ConflictException('LOAN_PAYMENT_ALREADY_REVERSED');
 
+      // ATL-09: se captura ANTES de mutar. `applyTotalsToLoan` reabre un préstamo `paid_off`, y leer
+      // el estado después dejaba el evento como `active → active`, sin rastro de la reapertura.
+      const previousStatus = loan.status;
       const allocations = await this.loans.findAllocationsByPayment(input.tenantId, payment.id, { transaction });
       const installments = await this.loans.findInstallments(input.tenantId, loan.id, { transaction });
       const byId = new Map(installments.map((installment) => [installment.id, installment]));
@@ -220,7 +247,7 @@ export class LoanPaymentService {
           tenantId: input.tenantId,
           loanId: loan.id,
           eventType: 'payment_reversed',
-          previousStatus: loan.status,
+          previousStatus,
           newStatus: loan.status,
           actorType: input.currentUser.role,
           actorInternalUserId: input.currentUser.internalUserId ?? null,

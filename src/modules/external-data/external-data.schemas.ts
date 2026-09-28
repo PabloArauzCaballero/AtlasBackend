@@ -4,6 +4,7 @@
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
 import { z } from 'zod';
+import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 
 const idStringSchema = z.string().trim().regex(/^\d+$/);
 const providerCodeSchema = z
@@ -241,7 +242,7 @@ export type SanitizationAuditQueryDto = z.infer<typeof sanitizationAuditQuerySch
 
 export const productionGateQuerySchema = z.object({
   providerCode: providerCodeSchema.optional(),
-  strict: z.coerce.boolean().default(true),
+  strict: queryBooleanSchema.default(true),
 });
 export type ProductionGateQueryDto = z.infer<typeof productionGateQuerySchema>;
 
@@ -258,7 +259,7 @@ export const idempotencyAuditQuerySchema = z.object({
 export type IdempotencyAuditQueryDto = z.infer<typeof idempotencyAuditQuerySchema>;
 
 export const decisionPackageQuerySchema = z.object({
-  includeRawResponses: z.coerce.boolean().default(false),
+  includeRawResponses: queryBooleanSchema.default(false),
   featureMaxAgeHours: z.coerce.number().int().positive().max(8760).optional(),
 });
 export type DecisionPackageQueryDto = z.infer<typeof decisionPackageQuerySchema>;

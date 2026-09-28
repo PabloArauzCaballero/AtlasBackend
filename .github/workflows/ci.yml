@@ -115,6 +115,11 @@ jobs:
       - name: Check auth coverage does not regress
         run: yarn check:auth-coverage
 
+      # FND-CORE-01: la coerción booleana de Zod lee el TEXTO "false" como true. Encendía el
+      # consumidor de estrés con la variable en false e invertía filtros de query. Prohibida en src/.
+      - name: Check no z.coerce.boolean in src
+        run: yarn check:no-coerce-boolean
+
       # Fase 2.1 del plan 10/10: congela la deuda de tamaño — ningún archivo runtime NUEVO grande
       # entra sin excepción documentada. Los umbrales de complejidad los aplica ESLint arriba.
       - name: Check runtime file size (complexity gate)
