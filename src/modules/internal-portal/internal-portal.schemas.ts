@@ -29,6 +29,27 @@ export const portalListQuerySchema = z.object({
 export type PortalListQueryDto = z.infer<typeof portalListQuerySchema>;
 
 /**
+ * Filtros de las listas de corridas y de alertas. Antes no estaban declarados: el portal mandaba
+ * `status`, `queue` y `severity`, Zod los descartaba en silencio y la tabla seguía mostrando todo.
+ * Un desplegable que no filtra es peor que no tenerlo: el operador cree que no hay fallidos.
+ */
+const facetFilter = z.string().trim().min(1).max(60).optional();
+
+export const portalJobsQuerySchema = portalListQuerySchema.extend({
+  status: facetFilter,
+  queue: facetFilter,
+});
+
+export type PortalJobsQueryDto = z.infer<typeof portalJobsQuerySchema>;
+
+export const portalAlertsQuerySchema = portalListQuerySchema.extend({
+  status: facetFilter,
+  severity: facetFilter,
+});
+
+export type PortalAlertsQueryDto = z.infer<typeof portalAlertsQuerySchema>;
+
+/**
  * Los identificadores del portal son opacos y compuestos (`dq:103`, `field:42`, `purpose:MKT`), no
  * enteros: se validan por forma, no por tipo. El tope de longitud y la lista de caracteres impiden
  * que un id absurdo llegue a la capa de consulta o al log.
@@ -94,4 +115,9 @@ export function ApiPortalListQuery(): MethodDecorator {
       description: 'Alias legado de `limit`, conservado por compatibilidad con el Admin Portal.',
     }),
   );
+}
+
+/** Documenta un filtro exacto (sin distinguir mayúsculas) de una lista del portal. */
+export function ApiPortalFacetQuery(name: string, description: string): MethodDecorator {
+  return ApiQuery({ name, required: false, schema: { type: 'string', maxLength: 60 }, description });
 }

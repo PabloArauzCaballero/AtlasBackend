@@ -24,8 +24,15 @@ export class PortalOperationsService extends PortalQueryBase {
     const page = parsePage(query);
     const q = clean(query.q, '');
     const scoped = tenantPredicate(scope, 'i');
-    const filters = { q, like: `%${q}%`, ...scopeReplacements(scope) };
-    const textMatch = `(:q = '' OR i.target_table ILIKE :like OR COALESCE(r.rule_name,'') ILIKE :like OR COALESCE(r.rule_code,'') ILIKE :like)`;
+    const status = clean(query.status, '');
+    const severity = clean(query.severity, '');
+    const filters = { q, like: `%${q}%`, status, severity, ...scopeReplacements(scope) };
+    // `status` y `severity` comparan contra el mismo valor que se publica (`COALESCE` + mayúsculas),
+    // así que la opción que el operador elige en el desplegable es exactamente la que filtra.
+    const textMatch =
+      `(:q = '' OR i.target_table ILIKE :like OR COALESCE(r.rule_name,'') ILIKE :like OR COALESCE(r.rule_code,'') ILIKE :like)` +
+      ` AND (:status = '' OR UPPER(COALESCE(i.issue_status, 'open')) = UPPER(:status))` +
+      ` AND (:severity = '' OR UPPER(COALESCE(r.severity, 'medium')) = UPPER(:severity))`;
 
     const rows = await this.queryRows(
       `SELECT i._id, i.target_table, i.target_record_id, i.issue_status, i.detected_at, i.resolved_at, i.resolution_notes,
@@ -102,8 +109,13 @@ export class PortalOperationsService extends PortalQueryBase {
     const page = parsePage(query);
     const q = clean(query.q, '');
     const scoped = tenantPredicate(scope, 'j');
-    const filters = { q, like: `%${q}%`, ...scopeReplacements(scope) };
-    const textMatch = `(:q = '' OR j.job_code ILIKE :like OR j.status ILIKE :like)`;
+    const status = clean(query.status, '');
+    const queue = clean(query.queue, '');
+    const filters = { q, like: `%${q}%`, status, queue, ...scopeReplacements(scope) };
+    const textMatch =
+      `(:q = '' OR j.job_code ILIKE :like OR j.status ILIKE :like)` +
+      ` AND (:status = '' OR UPPER(COALESCE(j.status, 'unknown')) = UPPER(:status))` +
+      ` AND (:queue = '' OR COALESCE(j.triggered_by_type, 'system') = :queue)`;
 
     const rows = await this.queryRows(
       `SELECT j._id, j.job_code, j.status, j.started_at, j.completed_at, j.input_json, j.result_json,
@@ -120,6 +132,17 @@ export class PortalOperationsService extends PortalQueryBase {
       filters,
     );
 
+    // Con el MISMO `WHERE`: las tarjetas «Fallidos» y «En ejecución» contaban sólo las 20 filas de
+    // la página, así que con miles de corridas decían «0 fallidos» aunque los hubiera más abajo.
+    const byStatusRows = await this.queryRows<{ status: string; count: string }>(
+      `SELECT UPPER(COALESCE(j.status, 'unknown')) AS status, COUNT(*)::text AS count
+         FROM system_job_runs j
+        WHERE ${scoped} AND ${textMatch}
+        GROUP BY 1`,
+      filters,
+    );
+    const byStatus = Object.fromEntries(byStatusRows.map((row) => [clean(row.status), intValue(row.count)]));
+
     const items = rows.map((row) => this.mapJob(row));
     return {
       items,
@@ -129,6 +152,7 @@ export class PortalOperationsService extends PortalQueryBase {
         total: intValue(total[0]?.count),
         totalPages: Math.max(1, Math.ceil(intValue(total[0]?.count) / page.limit)),
       },
+      summary: { byStatus },
     };
   }
 

@@ -50,8 +50,8 @@ const OPERATIONS_OVERVIEW: ReportDefinition = {
   criticality: 'HIGH',
   sourceType: 'SQL_AGGREGATE',
   sourceReference: 'system_endpoint_catalog + system_data_entity_catalog + data_quality_issues',
-  allowedFilters: { environment: ['local', 'staging', 'production_readonly'], from: 'ISO date', to: 'ISO date' },
-  permissions: { required: ['reports.read'] },
+  allowedFilters: { from: 'ISO date', to: 'ISO date' },
+  permissions: { required: ['reporting.read'] },
   widgets: [
     {
       widgetId: 'w-ops-counts',
@@ -110,8 +110,8 @@ const ENDPOINT_COVERAGE: ReportDefinition = {
   criticality: 'HIGH',
   sourceType: 'CATALOG',
   sourceReference: 'system_endpoint_catalog + system_test_suites + system_stress_profiles',
-  allowedFilters: { module: 'string', riskLevel: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
-  permissions: { required: ['systems.catalog.read'] },
+  allowedFilters: { module: 'string' },
+  permissions: { required: ['reporting.read', 'systems.endpoints.read'] },
   widgets: [
     {
       widgetId: 'w-endpoint-risk',
@@ -160,8 +160,8 @@ const DATA_GOVERNANCE: ReportDefinition = {
   criticality: 'CRITICAL',
   sourceType: 'GOVERNANCE_CATALOG',
   sourceReference: 'privacy_processing_purposes + retention_policies + sensitive_field_rules',
-  allowedFilters: { sensitivityLevel: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
-  permissions: { required: ['governance.policies.read'] },
+  allowedFilters: { classification: ['PII_DIRECTA', 'PII_INDIRECTA', 'FINANCIERO', 'BIOMETRICO', 'OPERACIONAL', 'PUBLICO'] },
+  permissions: { required: ['reporting.read', 'governance.policies.read'] },
   widgets: [
     {
       widgetId: 'w-sensitive-fields',
@@ -176,13 +176,15 @@ const DATA_GOVERNANCE: ReportDefinition = {
   ],
   filters: [
     {
-      filterId: 'f-sensitivity',
+      filterId: 'f-classification',
       reportId: 'data-governance',
-      key: 'sensitivityLevel',
-      label: 'Sensibilidad',
+      key: 'classification',
+      label: 'Clasificación',
       filterType: 'select',
       required: false,
-      options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+      // Los códigos de `data_classification_policies`: el filtro anterior ofrecía LOW…CRITICAL, que
+      // no es ningún valor de `sensitive_field_rules.classification_code` y no filtraba nada.
+      options: ['PII_DIRECTA', 'PII_INDIRECTA', 'FINANCIERO', 'BIOMETRICO', 'OPERACIONAL', 'PUBLICO'],
       defaultValue: null,
     },
   ],
@@ -201,7 +203,7 @@ const RISK_QUALITY: ReportDefinition = {
   sourceType: 'DATA_QUALITY',
   sourceReference: 'data_quality_rules + data_quality_issues + risk_policy_rules',
   allowedFilters: { severity: ['low', 'medium', 'high', 'critical'] },
-  permissions: { required: ['quality.rules.read'] },
+  permissions: { required: ['reporting.read', 'dataQuality.rules.read'] },
   widgets: [
     {
       widgetId: 'w-dq-open',

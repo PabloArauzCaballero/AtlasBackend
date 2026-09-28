@@ -17,12 +17,17 @@ import { InternalPortalService } from './internal-portal.service.js';
 import { portalScopeFor } from './application/portal-scope.util.js';
 import { businessTermDetailResponseSchema, businessTermListResponseSchema } from './business-metadata.openapi.js';
 import {
+  ApiPortalFacetQuery,
   ApiPortalListQuery,
   lineageQuerySchema,
   LineageQueryDto,
   portalIdParamSchema,
   portalListQuerySchema,
   PortalListQueryDto,
+  portalAlertsQuerySchema,
+  PortalAlertsQueryDto,
+  portalJobsQuerySchema,
+  PortalJobsQueryDto,
   runReportSchema,
   RunReportDto,
 } from './internal-portal.schemas.js';
@@ -185,10 +190,12 @@ export class InternalPortalController {
 
   @ApiOperation({ summary: 'Listar alertas del panel interno', description: 'Acotado al tenant del token.' })
   @ApiPortalListQuery()
+  @ApiPortalFacetQuery('status', 'Estado exacto de la alerta (OPEN, ACKNOWLEDGED, RESOLVED…).')
+  @ApiPortalFacetQuery('severity', 'Severidad exacta de la regla que la levantó (LOW, MEDIUM, HIGH, CRITICAL).')
   @ApiResponse({ status: 200, description: 'Lista de alertas.' })
   @Get('alerts')
   listAlerts(
-    @Query(new ZodValidationPipe(portalListQuerySchema)) query: PortalListQueryDto,
+    @Query(new ZodValidationPipe(portalAlertsQuerySchema)) query: PortalAlertsQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.service.listAlerts(portalScopeFor(currentUser), query);
@@ -210,11 +217,16 @@ export class InternalPortalController {
     return this.service.acknowledgeAlert(portalScopeFor(currentUser), params.alertId);
   }
 
-  @ApiOperation({ summary: 'Listar corridas de jobs', description: 'Acotado al tenant del token.' })
+  @ApiOperation({
+    summary: 'Listar corridas de jobs',
+    description: 'Acotado al tenant del token. `summary.byStatus` cuenta TODAS las corridas del filtro, no sólo la página.',
+  })
   @ApiPortalListQuery()
+  @ApiPortalFacetQuery('status', 'Estado exacto de la corrida (COMPLETED, FAILED, RUNNING…).')
+  @ApiPortalFacetQuery('queue', 'Origen del disparo (system, internal_user…).')
   @ApiResponse({ status: 200, description: 'Lista de corridas de jobs.' })
   @Get('jobs')
-  listJobs(@Query(new ZodValidationPipe(portalListQuerySchema)) query: PortalListQueryDto, @CurrentUser() currentUser: AuthenticatedUser) {
+  listJobs(@Query(new ZodValidationPipe(portalJobsQuerySchema)) query: PortalJobsQueryDto, @CurrentUser() currentUser: AuthenticatedUser) {
     return this.service.listJobs(portalScopeFor(currentUser), query);
   }
 
