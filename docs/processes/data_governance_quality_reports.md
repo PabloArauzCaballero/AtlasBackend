@@ -120,9 +120,9 @@ Negocio edita los textos que lee el cliente en la app sin pasar por ingeniería.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Listar contenidos | http | ATLAS_BACKEND | `GET /operations/app-content` | internal_operator, risk_analyst, admin, platform_admin | — |
-| Guardar un contenido | http | ATLAS_BACKEND | `PUT /operations/app-content` | internal_operator, risk_analyst, admin, platform_admin | — |
-| Borrar un contenido | http | ATLAS_BACKEND | `DELETE /operations/app-content/:contentId` | internal_operator, risk_analyst, admin, platform_admin | — |
+| Listar contenidos | http | ATLAS_BACKEND | `GET /operations/app-content` | internal_operator, risk_analyst, compliance_analyst, readonly_auditor, admin, platform_admin | — |
+| Guardar un contenido | http | ATLAS_BACKEND | `PUT /operations/app-content` | admin, platform_admin | — |
+| Borrar un contenido | http | ATLAS_BACKEND | `DELETE /operations/app-content/:contentId` | admin, platform_admin | — |
 
 ### Preparación de salida (`release_readiness_check`)
 

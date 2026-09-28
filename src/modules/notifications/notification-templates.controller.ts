@@ -46,7 +46,16 @@ export class NotificationTemplatesController {
   @ApiQuery({ name: 'active', required: false, schema: zodObjectPropertySchemas(listTemplatesQuerySchema).active })
   @ApiResponse({ status: 200, description: 'Lista paginada de plantillas.' })
   @Get('operations/notifications/templates')
-  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
+  @Roles(
+    'internal_operator',
+    'risk_analyst',
+    'compliance_analyst',
+    'fraud_analyst',
+    'readonly_auditor',
+    'admin',
+    'platform_admin',
+    'system',
+  )
   listTemplates(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listTemplatesQuerySchema)) query: ListTemplatesQueryDto) {
     return this.service.listTemplates(tenantId, query);
   }
@@ -93,7 +102,16 @@ export class NotificationTemplatesController {
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(preferencesParamsSchema.shape.customerId) })
   @ApiResponse({ status: 200, description: 'Preferencias del cliente por evento/canal.' })
   @Get('operations/notifications/preferences/:customerId')
-  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
+  @Roles(
+    'internal_operator',
+    'risk_analyst',
+    'compliance_analyst',
+    'fraud_analyst',
+    'readonly_auditor',
+    'admin',
+    'platform_admin',
+    'system',
+  )
   getPreferences(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(preferencesParamsSchema)) params: PreferencesParamsDto) {
     return this.service.getPreferences(tenantId, params.customerId);
   }

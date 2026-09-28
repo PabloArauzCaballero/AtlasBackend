@@ -127,14 +127,14 @@ Desde Notificaciones del portal admin: cola de mensajes con su entrega por prove
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Listar mensajes | http | ATLAS_BACKEND | `GET /operations/notifications/messages` | internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | — |
-| Ver un mensaje y sus entregas | http | ATLAS_BACKEND | `GET /operations/notifications/messages/:messageId` | internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | — |
+| Listar mensajes | http | ATLAS_BACKEND | `GET /operations/notifications/messages` | internal_operator, risk_analyst, compliance_analyst, fraud_analyst, readonly_auditor, admin, platform_admin, system | — |
+| Ver un mensaje y sus entregas | http | ATLAS_BACKEND | `GET /operations/notifications/messages/:messageId` | internal_operator, risk_analyst, compliance_analyst, fraud_analyst, readonly_auditor, admin, platform_admin, system | — |
 | Reintentar un mensaje fallido | http | ATLAS_BACKEND | `POST /operations/notifications/messages/:messageId/retry` | admin, platform_admin, system, internal_operator | — |
 | Cancelar un mensaje | http | ATLAS_BACKEND | `POST /operations/notifications/messages/:messageId/cancel` | admin, platform_admin, system, internal_operator | — |
-| Consultar plantillas | http | ATLAS_BACKEND | `GET /operations/notifications/templates` | internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | — |
+| Consultar plantillas | http | ATLAS_BACKEND | `GET /operations/notifications/templates` | internal_operator, risk_analyst, compliance_analyst, fraud_analyst, readonly_auditor, admin, platform_admin, system | — |
 | Crear una plantilla | http | ATLAS_BACKEND | `POST /operations/notifications/templates` | admin, platform_admin, system | — |
 | Editar una plantilla | http | ATLAS_BACKEND | `PATCH /operations/notifications/templates/:templateId` | admin, platform_admin, system | — |
-| Ver las preferencias de un cliente | http | ATLAS_BACKEND | `GET /operations/notifications/preferences/:customerId` | internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | — |
+| Ver las preferencias de un cliente | http | ATLAS_BACKEND | `GET /operations/notifications/preferences/:customerId` | internal_operator, risk_analyst, compliance_analyst, fraud_analyst, readonly_auditor, admin, platform_admin, system | — |
 | Cambiar las preferencias de un cliente | http | ATLAS_BACKEND | `PATCH /operations/notifications/preferences/:customerId` | admin, platform_admin, system, internal_operator | — |
 | Enviar un aviso in-app a muchos | http | ATLAS_BACKEND | `POST /operations/notifications/broadcast` | admin, platform_admin, system | — |
 
@@ -144,8 +144,8 @@ Operaciones consulta y ajusta las políticas que gobiernan los avisos desde Ajus
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Consultar las políticas | http | ATLAS_BACKEND | `GET /operations/notification-policies` | internal_operator, risk_analyst, admin, platform_admin | — |
-| Guardar las políticas | http | ATLAS_BACKEND | `PUT /operations/notification-policies` | internal_operator, risk_analyst, admin, platform_admin | — |
+| Consultar las políticas | http | ATLAS_BACKEND | `GET /operations/notification-policies` | internal_operator, risk_analyst, compliance_analyst, readonly_auditor, admin, platform_admin | — |
+| Guardar las políticas | http | ATLAS_BACKEND | `PUT /operations/notification-policies` | admin, platform_admin | — |
 
 ### Avisos a personas internas (`notif_internal_inbox`)
 

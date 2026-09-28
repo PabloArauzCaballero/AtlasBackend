@@ -66,7 +66,16 @@ export class NotificationsController {
   @ApiQuery({ name: 'channel', required: false, schema: zodObjectPropertySchemas(listMessagesQuerySchema).channel })
   @ApiResponse({ status: 200, description: 'Lista paginada de mensajes.' })
   @Get('operations/notifications/messages')
-  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
+  @Roles(
+    'internal_operator',
+    'risk_analyst',
+    'compliance_analyst',
+    'fraud_analyst',
+    'readonly_auditor',
+    'admin',
+    'platform_admin',
+    'system',
+  )
   listMessages(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listMessagesQuerySchema)) query: ListMessagesQueryDto) {
     return this.service.listMessages(tenantId, query);
   }
@@ -80,7 +89,16 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Detalle del mensaje con sus deliveries.' })
   @ApiResponse({ status: 404, description: 'NOTIFICATION_MESSAGE_NOT_FOUND.' })
   @Get('operations/notifications/messages/:messageId')
-  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
+  @Roles(
+    'internal_operator',
+    'risk_analyst',
+    'compliance_analyst',
+    'fraud_analyst',
+    'readonly_auditor',
+    'admin',
+    'platform_admin',
+    'system',
+  )
   getMessage(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(messageIdParamsSchema)) params: MessageIdParamsDto) {
     return this.service.getMessage(tenantId, params.messageId);
   }

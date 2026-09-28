@@ -23,7 +23,8 @@ const ADMIN_WRITE = ['admin', 'platform_admin'];
 /** Roles de clase de `ConsentOperationsController`. */
 const CONSENT_OPS = ['internal_operator', 'compliance_analyst', 'risk_analyst', 'admin', 'platform_admin'];
 /** Roles de clase de `AppContentOperationsController`. */
-const APP_CONTENT_OPS = ['internal_operator', 'risk_analyst', 'admin', 'platform_admin'];
+const APP_CONTENT_READ = ['internal_operator', 'risk_analyst', 'compliance_analyst', 'readonly_auditor', 'admin', 'platform_admin'];
+const APP_CONTENT_WRITE = ['admin', 'platform_admin'];
 
 export const DATA_GOVERNANCE_QUALITY_REPORTS: WorkflowDefinitionFixture = {
   processId: 'P-37',
@@ -280,7 +281,7 @@ export const DATA_GOVERNANCE_QUALITY_REPORTS: WorkflowDefinitionFixture = {
       client: 'ADMIN_PORTAL',
       screen: '/internal/settings/app-content',
       optional: true,
-      roles: APP_CONTENT_OPS,
+      roles: APP_CONTENT_READ,
       steps: [
         {
           code: 'content.list',
@@ -288,7 +289,7 @@ export const DATA_GOVERNANCE_QUALITY_REPORTS: WorkflowDefinitionFixture = {
           description: 'Entradas del catálogo de contenidos.',
           method: 'GET',
           path: '/operations/app-content',
-          roles: APP_CONTENT_OPS,
+          roles: APP_CONTENT_READ,
         },
         {
           code: 'content.upsert',
@@ -296,7 +297,7 @@ export const DATA_GOVERNANCE_QUALITY_REPORTS: WorkflowDefinitionFixture = {
           description: 'Crea o reemplaza una entrada.',
           method: 'PUT',
           path: '/operations/app-content',
-          roles: APP_CONTENT_OPS,
+          roles: APP_CONTENT_WRITE,
         },
         {
           code: 'content.delete',
@@ -304,7 +305,7 @@ export const DATA_GOVERNANCE_QUALITY_REPORTS: WorkflowDefinitionFixture = {
           description: 'Retira una entrada.',
           method: 'DELETE',
           path: '/operations/app-content/:contentId',
-          roles: APP_CONTENT_OPS,
+          roles: APP_CONTENT_WRITE,
           optional: true,
         },
       ],
