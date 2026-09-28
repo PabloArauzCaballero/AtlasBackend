@@ -19,6 +19,15 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    # Saltos mayores que el repo todavía NO soporta y que ya rompieron `dev` una vez (2026-09-28):
+    # typescript 7 no expone la API de compilador que usan ts-jest y typescript-eslint (#91 → #101);
+    # @nestjs/* 12 se publica sólo como módulo ES y Jest carga en CommonJS (#93 → #103). Se quitan de
+    # aquí cuando el repo migre a Nest 12 y a pruebas ESM, en un PR propio.
+    ignore:
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@nestjs/*'
+        update-types: ['version-update:semver-major']
     labels:
       - dependencies
     commit-message:
