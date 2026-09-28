@@ -71,6 +71,25 @@ describe('AiAssistClient', () => {
     expect(init.headers['content-type']).toBeUndefined();
   });
 
+  it('los portales mandan x-atlas-assist-surface; el móvil no la manda y el servicio lo toma como consumer-app', async () => {
+    const fetchMock = mockFetch(async () => respuesta(200, '{"reply":"ok"}'));
+    const { AiAssistClient } = await cargar();
+    const client = new AiAssistClient();
+
+    await client.chat('admin-portal:1:41', { prompt: 'hola', clientMessageId: 'a1b2c3d4-0000-4000-8000-000000000001' }, 'admin-portal');
+    await client.latestConversation('merchant-portal:1:77', 'merchant-portal');
+    await client.chat('1:c-1', { prompt: 'hola', clientMessageId: 'a1b2c3d4-0000-4000-8000-000000000001' });
+
+    const cabeceras = fetchMock.mock.calls.map((llamada) => (llamada[1] as { headers: Record<string, string> }).headers);
+    expect(cabeceras[0]['x-atlas-assist-surface']).toBe('admin-portal');
+    expect(cabeceras[0]['x-atlas-actor-ref']).toBe('admin-portal:1:41');
+    expect(cabeceras[1]['x-atlas-assist-surface']).toBe('merchant-portal');
+    expect(cabeceras[2]).not.toHaveProperty('x-atlas-assist-surface');
+    // La superficie es cabecera, nunca cuerpo: el servicio no debe poder leerla de lo que escribió la persona.
+    const cuerpo = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as Record<string, unknown>;
+    expect(cuerpo).not.toHaveProperty('surface');
+  });
+
   it('un cuerpo no-JSON (el HTML de un proxy) degrada a {} y conserva el código, que es el dato útil', async () => {
     mockFetch(async () => respuesta(502, '<html>Bad Gateway</html>'));
     const { AiAssistClient } = await cargar();

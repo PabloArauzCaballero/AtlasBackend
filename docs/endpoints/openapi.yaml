@@ -9584,6 +9584,158 @@ paths:
       summary: Reconocer (acknowledge) una alerta
       tags:
         - internal-portal
+  /internal/assist/chat:
+    post:
+      description: >-
+        Reenvía la pregunta al asistente de IA con una referencia opaca
+        `<surface>:<tenantId>:<userId>` y la superficie en cabecera; el
+        asistente no ve el token ni datos de la cuenta. El personal interno
+        puede usar `admin-portal`, `erp-staff`, `risk-portal` y `dashboards`; un
+        usuario de comercio sólo `merchant-portal`. `screen` es la sección del
+        portal en texto corto. `clientMessageId` es la clave de idempotencia:
+        reintentar con la MISMA recoge la respuesta ya guardada. Si el servicio
+        contestó sin modelo, la vista trae `mode: "sin-ia"`.
+      operationId: PortalAssistController_chat
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: 'Opcional: se toma del token.'
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                clientMessageId:
+                  type: string
+                  format: uuid
+                  pattern: >-
+                    ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                conversationId:
+                  type: string
+                  format: uuid
+                  pattern: >-
+                    ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                surface:
+                  type: string
+                  enum:
+                    - admin-portal
+                    - erp-staff
+                    - merchant-portal
+                    - risk-portal
+                    - dashboards
+                screen:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                  pattern: ^[\p{L}\p{M}\p{N} ›/·_().,-]+$
+              required:
+                - prompt
+                - clientMessageId
+                - surface
+              additionalProperties: false
+      responses:
+        '200':
+          description: La respuesta del asistente, con su conversación y turno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: >-
+            ASSIST_SURFACE_FORBIDDEN — esa superficie no es de este tipo de
+            usuario.
+        '404':
+          description: >-
+            ASSIST_DISABLED — el asistente está apagado; el portal esconde el
+            botón.
+        '409':
+          description: >-
+            ASSIST_IN_FLIGHT — la misma consulta sigue en curso; reintentar con
+            el mismo clientMessageId.
+        '429':
+          description: >-
+            ASSIST_BUSY — tope de consultas simultáneas o de mensajes por
+            minuto.
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: ASSIST_UNAVAILABLE — el asistente no contesta.
+      security:
+        - access-token: []
+      summary: Preguntarle al asistente del portal
+      tags:
+        - internal-assist
+  /internal/assist/conversation:
+    get:
+      description: >-
+        Los últimos turnos del hilo más reciente de ESA superficie, en orden
+        cronológico, para rehidratar el panel al abrirlo. Cada portal tiene su
+        hilo. Si el historial no se puede leer se contesta el hilo vacío.
+      operationId: PortalAssistController_conversation
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: 'Opcional: se toma del token.'
+          required: false
+          schema:
+            type: string
+        - name: surface
+          required: true
+          in: query
+          description: >-
+            El portal desde el que se abre el asistente; tiene que ser una
+            superficie del tipo de usuario del token.
+          schema:
+            enum:
+              - admin-portal
+              - erp-staff
+              - merchant-portal
+              - risk-portal
+              - dashboards
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: El hilo vigente, o vacío si no hay conversaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: >-
+            ASSIST_SURFACE_FORBIDDEN — esa superficie no es de este tipo de
+            usuario.
+        '404':
+          description: >-
+            ASSIST_DISABLED — el asistente está apagado; el portal esconde el
+            botón.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: La conversación vigente con el asistente del portal
+      tags:
+        - internal-assist
   /internal/auth/login:
     post:
       description: Autentica usuarios internos para el panel administrativo ATLAS.
@@ -32753,6 +32905,10 @@ tags:
     description: >-
       Atlas Assist: el asistente de IA de la app, reenviado a AtlasAIService con
       referencia opaca.
+  - name: internal-assist
+    description: >-
+      Atlas Assist en los portales (operaciones, ERP, comercio, Motor,
+      Tableros): una superficie por audiencia, autorizada por rol.
   - name: Mobile · Pagos
     description: >-
       Pagos desde la app del titular: instrucción de pago, QR del comercio y

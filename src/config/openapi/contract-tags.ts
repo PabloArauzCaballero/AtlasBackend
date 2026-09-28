@@ -45,6 +45,11 @@ export const CONTRACT_TAGS: ReadonlyArray<{ name: string; description: string }>
   },
   { name: 'mobile-welcome-audio', description: 'Locución de bienvenida del onboarding móvil, encargada al Motor y servida por bytes.' },
   { name: 'mobile-assist', description: 'Atlas Assist: el asistente de IA de la app, reenviado a AtlasAIService con referencia opaca.' },
+  {
+    name: 'internal-assist',
+    description:
+      'Atlas Assist en los portales (operaciones, ERP, comercio, Motor, Tableros): una superficie por audiencia, autorizada por rol.',
+  },
   { name: 'Mobile · Pagos', description: 'Pagos desde la app del titular: instrucción de pago, QR del comercio y comprobante.' },
   {
     name: 'Mobile · Soporte',

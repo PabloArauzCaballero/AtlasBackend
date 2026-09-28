@@ -11333,6 +11333,48 @@
     ],
     "body": false
   },
+  "POST /internal/assist/chat": {
+    "operationId": "PortalAssistController_chat",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500",
+      "503"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
+  "GET /internal/assist/conversation": {
+    "operationId": "PortalAssistController_conversation",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [
+      "surface"
+    ],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
   "GET /internal/processes": {
     "operationId": "ProcessCatalogController_list",
     "responses": [

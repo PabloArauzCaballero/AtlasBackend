@@ -5,6 +5,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { env } from '../../config/env.js';
+import type { PortalAssistSurface } from './assist.schemas.js';
 
 /**
  * Lo que devuelve el servicio de IA, sin interpretar: estado y cuerpo.
@@ -31,6 +32,13 @@ export type AiAssistResult = { status: number; ok: boolean; json: Record<string,
  * `x-atlas-actor-ref` lleva `tenantId:customerId`, nunca el JWT del usuario: el servicio de IA no
  * verifica sesiones de personas (exige RS256 y este backend firma HS256) y no debe poder hacerse
  * pasar por nadie. Con la referencia le basta para particionar conversaciones.
+ *
+ * ## La superficie la pone Core, nunca el navegador
+ *
+ * En los portales viaja además `x-atlas-assist-surface`, que elige en el servicio de IA el
+ * catálogo de hechos y la audiencia de la respuesta. La escribe este servidor DESPUÉS de comprobar
+ * que el usuario puede usar esa superficie: si la eligiera el navegador, un comercio podría pedir
+ * el catálogo del personal. El móvil no la manda y el servicio lo trata como `consumer-app`.
  */
 @Injectable()
 export class AiAssistClient {
@@ -41,20 +49,30 @@ export class AiAssistClient {
     return Boolean(env.ATLAS_AI_SERVICE_URL && env.ATLAS_AI_SERVICE_KEY);
   }
 
-  /** Pregunta al asistente. La respuesta queda guardada en la conversación del actor. */
+  /**
+   * Pregunta al asistente. La respuesta queda guardada en la conversación del actor.
+   * `surface` sólo la pasan los portales; sin ella el servicio contesta como en la app del cliente.
+   */
   async chat(
     actorRef: string,
     body: { prompt: string; clientMessageId: string; conversationId?: string; screen?: string },
+    surface?: PortalAssistSurface,
   ): Promise<AiAssistResult> {
-    return this.fetchOnce('POST', '/v1/assist/chat', actorRef, body);
+    return this.fetchOnce('POST', '/v1/assist/chat', actorRef, surface, body);
   }
 
   /** La conversación más reciente del actor, para rehidratar la hoja al abrirla. */
-  async latestConversation(actorRef: string): Promise<AiAssistResult> {
-    return this.fetchOnce('GET', '/v1/assist/conversations/latest', actorRef);
+  async latestConversation(actorRef: string, surface?: PortalAssistSurface): Promise<AiAssistResult> {
+    return this.fetchOnce('GET', '/v1/assist/conversations/latest', actorRef, surface);
   }
 
-  private async fetchOnce(method: 'GET' | 'POST', path: string, actorRef: string, body?: unknown): Promise<AiAssistResult> {
+  private async fetchOnce(
+    method: 'GET' | 'POST',
+    path: string,
+    actorRef: string,
+    surface: PortalAssistSurface | undefined,
+    body?: unknown,
+  ): Promise<AiAssistResult> {
     const base = (env.ATLAS_AI_SERVICE_URL ?? '').replace(/\/+$/, '');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), env.ATLAS_AI_SERVICE_TIMEOUT_MS);
@@ -64,6 +82,7 @@ export class AiAssistClient {
         headers: {
           'x-atlas-service-key': env.ATLAS_AI_SERVICE_KEY ?? '',
           'x-atlas-actor-ref': actorRef,
+          ...(surface ? { 'x-atlas-assist-surface': surface } : {}),
           ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
         },
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
