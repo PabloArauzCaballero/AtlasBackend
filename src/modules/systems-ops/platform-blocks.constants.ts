@@ -91,6 +91,17 @@ export interface BlockManifestEndpointConfig {
   readonly authValue: string | undefined;
   /** Qué falta cuando no hay credencial, dicho en los términos de ESTE bloque. */
   readonly missingCredentialReason: string;
+  /** Cabeceras que acompañan a la credencial (p. ej. el tenant del motor cuando va con llave). */
+  readonly extraHeaders?: Readonly<Record<string, string>>;
+}
+
+/**
+ * La llave del plano de gestión del motor, con el mismo orden de preferencia que el cliente de
+ * artefactos (`decision-engine.client.ts`): gobierno primero y, si no la hay, la de desenlaces, que
+ * también es de gestión. Nunca la de ejecución: esa no abre lecturas de gobierno.
+ */
+function machineKeyForDecisionEngine(): string | undefined {
+  return env.DECISION_ENGINE_GOVERNANCE_API_KEY || env.DECISION_ENGINE_OUTCOME_API_KEY || undefined;
 }
 
 /**
@@ -120,9 +131,16 @@ export function manifestConfigFor(code: string, callerToken: string | null): Blo
        * verificado y no de una cabecera, que es justo lo que impide que quien llama se atribuya uno
        * al que no ha autenticado.
        */
-      authHeader: 'authorization',
-      authValue: callerToken ? `Bearer ${callerToken}` : undefined,
-      missingCredentialReason: 'la petición llegó sin sesión que reenviar, y el motor identifica a quien pregunta por su token de ATLAS',
+      authHeader: callerToken ? 'authorization' : 'x-api-key',
+      authValue: callerToken ? `Bearer ${callerToken}` : machineKeyForDecisionEngine(),
+      /*
+       * Sin persona detrás —la puesta al día programada, que no tiene sesión que reenviar— se usa
+       * la llave del plano de GESTIÓN que este backend ya usa para leer artefactos y casos del
+       * motor. No sustituye a la identidad de quien pulsa el botón: sólo entra cuando NO hay nadie,
+       * y entonces lo honesto es que el motor audite «Atlas», porque fue Atlas quien lo pidió.
+       */
+      extraHeaders: callerToken ? undefined : { 'x-tenant-id': env.DECISION_ENGINE_TENANT_ID },
+      missingCredentialReason: 'no hay sesión que reenviar ni llave del plano de gestión del motor (DECISION_ENGINE_GOVERNANCE_API_KEY)',
     };
   }
   if (code === 'ERP_BACKEND') {
