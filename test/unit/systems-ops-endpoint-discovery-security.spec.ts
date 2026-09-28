@@ -7,7 +7,7 @@ describe('EndpointDiscoveryService security metadata', () => {
       riskLevelForEndpoint: () => 'LOW',
       containsPiiForEndpoint: () => false,
     };
-    const service = new EndpointDiscoveryService({} as never, classifier as never, {} as never);
+    const service = new EndpointDiscoveryService({} as never, classifier as never, {} as never, {} as never);
     const endpoints = await service.scanControllers();
     const login = endpoints.find((endpoint) => endpoint.fullPath === '/api/v1/auth/login');
     const provision = endpoints.find((endpoint) => endpoint.fullPath === '/api/v1/auth/provision-credentials');
@@ -19,7 +19,7 @@ describe('EndpointDiscoveryService security metadata', () => {
 
   it('resuelve conjuntos reales de roles de Systems Ops', async () => {
     const classifier = { riskLevelForEndpoint: () => 'LOW', containsPiiForEndpoint: () => false };
-    const service = new EndpointDiscoveryService({} as never, classifier as never, {} as never);
+    const service = new EndpointDiscoveryService({} as never, classifier as never, {} as never, {} as never);
     const endpoints = await service.scanControllers();
     const runSuite = endpoints.find((endpoint) => endpoint.fullPath === '/api/v1/systems/test-suites/:suiteId/run');
 
@@ -28,7 +28,7 @@ describe('EndpointDiscoveryService security metadata', () => {
 
   it('cada ruta sin @Roles propio hereda el de la clase, no sólo la primera (como RolesGuard)', async () => {
     const classifier = { riskLevelForEndpoint: () => 'LOW', containsPiiForEndpoint: () => false };
-    const service = new EndpointDiscoveryService({} as never, classifier as never, {} as never);
+    const service = new EndpointDiscoveryService({} as never, classifier as never, {} as never, {} as never);
     const endpoints = await service.scanControllers();
     const ruta = (method: string, fullPath: string) =>
       endpoints.find((endpoint) => endpoint.method === method && endpoint.fullPath === fullPath);
@@ -42,7 +42,7 @@ describe('EndpointDiscoveryService security metadata', () => {
 
   it('lee el @Roles de encima de un decorador multilínea y las constantes de cualquier módulo, sin dejar ninguna sin resolver', async () => {
     const classifier = { riskLevelForEndpoint: () => 'LOW', containsPiiForEndpoint: () => false };
-    const service = new EndpointDiscoveryService({} as never, classifier as never, {} as never);
+    const service = new EndpointDiscoveryService({} as never, classifier as never, {} as never, {} as never);
     const endpoints = await service.scanControllers();
     const creditLine = endpoints.find(
       (endpoint) => endpoint.method === 'GET' && endpoint.fullPath === '/api/v1/customers/:customerId/credit-line',
