@@ -72,7 +72,8 @@ describe('PortalOperationsService — contención por tenant', () => {
     const { service, captured } = buildOperations([]);
     await service.listJobs(portalScopeFor(tenantUser), { page: 1, limit: 20 });
 
-    expect(captured).toHaveLength(2);
+    // Página, total y conteo por estado: los tres con el mismo predicado de tenant.
+    expect(captured).toHaveLength(3);
     for (const query of captured) {
       expect(query.sql).toContain('j._tenant_id = CAST(:scopeTenantId AS BIGINT)');
       expect(query.replacements.scopeTenantId).toBe('7');

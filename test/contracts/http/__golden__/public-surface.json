@@ -10445,7 +10445,9 @@
       "limit",
       "page",
       "pageSize",
-      "q"
+      "q",
+      "severity",
+      "status"
     ],
     "path": [],
     "security": [
@@ -10490,7 +10492,9 @@
       "limit",
       "page",
       "pageSize",
-      "q"
+      "q",
+      "queue",
+      "status"
     ],
     "path": [],
     "security": [

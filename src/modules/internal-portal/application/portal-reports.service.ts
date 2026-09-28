@@ -9,6 +9,7 @@ import { clean, containsQuery, paginate, Query, Row } from './portal-format.util
 import { reportDefinitions } from './portal-report-definitions.js';
 import { PortalOperationsService } from './portal-operations.service.js';
 import { PortalQueryBase } from './portal-query.base.js';
+import { PortalReportWidgets } from './portal-report-widgets.js';
 import { PortalScope } from './portal-scope.util.js';
 
 /**
@@ -19,11 +20,11 @@ import { PortalScope } from './portal-scope.util.js';
  * esa dependencia era implícita cuando todo vivía en la misma clase de 1341 líneas; ahora es explícita.
  */
 export class PortalReportsService extends PortalQueryBase {
-  constructor(
-    sequelize: Sequelize,
-    private readonly operations: PortalOperationsService,
-  ) {
+  private readonly widgets: PortalReportWidgets;
+
+  constructor(sequelize: Sequelize, operations: PortalOperationsService) {
     super(sequelize);
+    this.widgets = new PortalReportWidgets(sequelize, operations);
   }
 
   /**
@@ -177,30 +178,31 @@ export class PortalReportsService extends PortalQueryBase {
 
   /**
    * Computa el reporte EN VIVO sobre los datos del alcance del actor. No persiste nada, y por eso
-   * ya no devuelve un `executionId`: ese identificador sugería una ejecución almacenada y
-   * recuperable que no existía en ninguna tabla. `computedAt` dice exactamente lo que es.
+   * no devuelve un `executionId`: `computedAt` dice exactamente lo que es.
    *
-   * El endpoint de snapshots históricos se retiró junto con este cambio: devolvía dos filas
-   * inventadas en código (`snapshot:<id>:seed` con la constante `NOW_SEED`). Cuando exista una
-   * tabla de snapshots, el endpoint puede volver leyendo de ella.
+   * Cada widget se calcula con SU consulta (`PortalReportWidgets`). Antes los cuatro informes
+   * devolvían lo mismo —semáforo de release, alertas y jobs— y los filtros se devolvían sin aplicar.
    */
   async runReport(scope: PortalScope, reportId: string, body: Row) {
     const report = this.getReport(reportId);
-    const [readiness, alerts, jobs] = await Promise.all([
-      this.getReleaseReadiness(scope),
-      this.operations.listAlerts(scope, { page: 1, limit: 10 }),
-      this.operations.listJobs(scope, { page: 1, limit: 10 }),
-    ]);
+    const allowed = new Set(report.filters.map((filter) => String(filter.key)));
+    const requested = (body.filters ?? {}) as Row;
+    // Sólo los filtros que el informe declara: el resto se ignoraba igual, pero ahora no se devuelve
+    // como si se hubiera aplicado.
+    const filters = Object.fromEntries(Object.entries(requested).filter(([key]) => allowed.has(key)));
+    const widgets = await Promise.all(
+      report.widgets.map(async (widget) => ({
+        widgetId: clean(widget.widgetId),
+        title: clean(widget.title),
+        data: await this.widgets.compute(scope, clean(widget.queryKey, ''), filters),
+      })),
+    );
     return {
       reportId: report.reportId,
       computedAt: new Date().toISOString(),
       persisted: false,
-      data: { filters: body.filters ?? body, readiness, alerts: alerts.items, jobs: jobs.items },
-      widgets: report.widgets.map((widget) => ({
-        widgetId: clean(widget.widgetId),
-        title: clean(widget.title),
-        data: { readinessStatus: readiness.status, alertCount: alerts.meta.total, jobCount: jobs.meta.total },
-      })),
+      appliedFilters: filters,
+      widgets,
     };
   }
 }

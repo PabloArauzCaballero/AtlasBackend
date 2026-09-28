@@ -9484,6 +9484,22 @@ paths:
       description: Acotado al tenant del token.
       operationId: InternalPortalController_listAlerts
       parameters:
+        - name: severity
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 60
+          description: >-
+            Severidad exacta de la regla que la levantó (LOW, MEDIUM, HIGH,
+            CRITICAL).
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 60
+          description: Estado exacto de la alerta (OPEN, ACKNOWLEDGED, RESOLVED…).
         - name: q
           required: false
           in: query
@@ -10791,9 +10807,25 @@ paths:
         - internal-portal
   /internal/jobs:
     get:
-      description: Acotado al tenant del token.
+      description: >-
+        Acotado al tenant del token. `summary.byStatus` cuenta TODAS las
+        corridas del filtro, no sólo la página.
       operationId: InternalPortalController_listJobs
       parameters:
+        - name: queue
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 60
+          description: Origen del disparo (system, internal_user…).
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 60
+          description: Estado exacto de la corrida (COMPLETED, FAILED, RUNNING…).
         - name: q
           required: false
           in: query

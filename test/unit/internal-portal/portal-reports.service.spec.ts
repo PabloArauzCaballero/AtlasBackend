@@ -200,28 +200,24 @@ describe('PortalReportsService', () => {
       expect(Date.parse(resultado.computedAt)).not.toBeNaN();
     });
 
-    it('las alertas y los jobs se piden CON el alcance del actor', async () => {
+    it('las incidencias abiertas se piden CON el alcance del actor y sólo las abiertas', async () => {
       await service.runReport(ALCANCE_TENANT, 'operations-overview', {});
 
-      expect(operations.listAlerts).toHaveBeenCalledWith(ALCANCE_TENANT, { page: 1, limit: 10 });
-      expect(operations.listJobs).toHaveBeenCalledWith(ALCANCE_TENANT, { page: 1, limit: 10 });
+      expect(operations.listAlerts).toHaveBeenCalledWith(ALCANCE_TENANT, { page: 1, limit: 10, status: 'OPEN' });
     });
 
-    it('cada widget recibe el resumen ya resuelto: el portal no vuelve a contar', async () => {
+    it('cada widget trae su propio cálculo, ya resuelto en líneas etiqueta/valor', async () => {
       const resultado = await service.runReport(ALCANCE_TENANT, 'operations-overview', {});
 
-      expect(resultado.widgets.length).toBeGreaterThan(0);
-      for (const widget of resultado.widgets) {
-        expect(widget.data).toEqual({ readinessStatus: 'ready', alertCount: 1, jobCount: 3 });
-      }
+      expect(resultado.widgets.map((widget) => widget.data.kind)).toEqual(['metrics', 'rows']);
+      expect(resultado.widgets[0].data.entries).toContainEqual({ label: 'Endpoints catalogados', value: 120 });
     });
 
-    it('los filtros llegan del cuerpo, y sin envoltorio se toma el cuerpo entero', async () => {
-      const conEnvoltorio = await service.runReport(ALCANCE_TENANT, 'operations-overview', { filters: { from: '2026-01-01' } });
-      expect(conEnvoltorio.data.filters).toEqual({ from: '2026-01-01' });
-
-      const sinEnvoltorio = await service.runReport(ALCANCE_TENANT, 'operations-overview', { from: '2026-01-01' });
-      expect(sinEnvoltorio.data.filters).toEqual({ from: '2026-01-01' });
+    it('los filtros llegan del cuerpo y sólo se aplican los que el informe declara', async () => {
+      const resultado = await service.runReport(ALCANCE_TENANT, 'operations-overview', {
+        filters: { from: '2026-01-01', environment: 'production' },
+      });
+      expect(resultado.appliedFilters).toEqual({ from: '2026-01-01' });
     });
 
     it('un reporte inexistente falla antes de tocar la base', async () => {
