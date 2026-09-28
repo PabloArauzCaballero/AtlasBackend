@@ -6,7 +6,18 @@
 import type { WorkflowDefinitionFixture } from '../workflow-definition.types.js';
 
 const CUSTOMER_ROLES = ['customer', 'internal_operator', 'admin', 'platform_admin', 'system'];
-const OPS_READ_ROLES = ['internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system'];
+const OPS_READ_ROLES = [
+  'internal_operator',
+  'risk_analyst',
+  'compliance_analyst',
+  'fraud_analyst',
+  'readonly_auditor',
+  'admin',
+  'platform_admin',
+  'system',
+];
+const POLICY_READ_ROLES = ['internal_operator', 'risk_analyst', 'compliance_analyst', 'readonly_auditor', 'admin', 'platform_admin'];
+const POLICY_WRITE_ROLES = ['admin', 'platform_admin'];
 const OPS_ACT_ROLES = ['admin', 'platform_admin', 'system', 'internal_operator'];
 const CAMPAIGN_READ_ROLES = ['internal_operator', 'admin', 'platform_admin', 'system'];
 const CAMPAIGN_WRITE_ROLES = ['admin', 'platform_admin'];
@@ -376,7 +387,7 @@ export const NOTIFICATIONS_AND_CAMPAIGNS: WorkflowDefinitionFixture = {
       client: 'ADMIN_PORTAL',
       screen: '/internal/settings/notification-policies',
       optional: true,
-      roles: ['internal_operator', 'risk_analyst', 'admin', 'platform_admin'],
+      roles: POLICY_READ_ROLES,
       steps: [
         {
           code: 'notif.policies_get',
@@ -384,7 +395,7 @@ export const NOTIFICATIONS_AND_CAMPAIGNS: WorkflowDefinitionFixture = {
           description: 'Lista las políticas de notificación vigentes.',
           method: 'GET',
           path: '/operations/notification-policies',
-          roles: ['internal_operator', 'risk_analyst', 'admin', 'platform_admin'],
+          roles: POLICY_READ_ROLES,
           optional: true,
         },
         {
@@ -393,7 +404,7 @@ export const NOTIFICATIONS_AND_CAMPAIGNS: WorkflowDefinitionFixture = {
           description: 'Reemplaza las políticas de notificación.',
           method: 'PUT',
           path: '/operations/notification-policies',
-          roles: ['internal_operator', 'risk_analyst', 'admin', 'platform_admin'],
+          roles: POLICY_WRITE_ROLES,
           optional: true,
         },
       ],

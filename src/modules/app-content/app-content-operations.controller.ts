@@ -14,6 +14,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { GOVERNANCE_POLICY_READ_ROLES, GOVERNANCE_POLICY_WRITE_ROLES } from '../../common/utils/auth/role-groups.util.js';
 import { AppContentService } from './app-content.service.js';
 import {
   contentIdParamsSchema,
@@ -37,7 +38,6 @@ import {
 @ApiBearerAuth('access-token')
 @Controller('operations/app-content')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-@Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
 export class AppContentOperationsController {
   constructor(private readonly service: AppContentService) {}
 
@@ -45,6 +45,7 @@ export class AppContentOperationsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Piezas de contenido con su estado de publicación.' })
   @Get()
+  @Roles(...GOVERNANCE_POLICY_READ_ROLES)
   list(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listContentQuerySchema)) query: ListContentQueryDto) {
     return this.service.listForAdmin(tenantId, { surface: query.surface });
   }
@@ -59,6 +60,7 @@ export class AppContentOperationsController {
   @ApiBody({ schema: zodToApiSchema(upsertContentSchema) })
   @ApiResponse({ status: 200, description: 'Pieza guardada.' })
   @Put()
+  @Roles(...GOVERNANCE_POLICY_WRITE_ROLES)
   upsert(
     @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(upsertContentSchema)) body: UpsertContentDto,
@@ -75,6 +77,7 @@ export class AppContentOperationsController {
   @ApiParam({ name: 'contentId', schema: zodToApiSchema(contentIdParamsSchema.shape.contentId) })
   @ApiResponse({ status: 200, description: 'Pieza retirada.' })
   @Delete(':contentId')
+  @Roles(...GOVERNANCE_POLICY_WRITE_ROLES)
   remove(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(contentIdParamsSchema)) params: ContentIdParamsDto) {
     return this.service.remove(tenantId, params.contentId);
   }

@@ -15,6 +15,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { GOVERNANCE_POLICY_READ_ROLES, GOVERNANCE_POLICY_WRITE_ROLES } from '../../common/utils/auth/role-groups.util.js';
 import { NotificationPoliciesRepository } from './notification-policies.repository.js';
 
 /**
@@ -49,7 +50,6 @@ export type UpsertNotificationPolicyDto = z.infer<typeof upsertNotificationPolic
 @ApiBearerAuth('access-token')
 @Controller('operations/notification-policies')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-@Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
 export class NotificationPoliciesOperationsController {
   constructor(private readonly policies: NotificationPoliciesRepository) {}
 
@@ -62,6 +62,7 @@ export class NotificationPoliciesOperationsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Políticas del tenant, activas e inactivas.' })
   @Get()
+  @Roles(...GOVERNANCE_POLICY_READ_ROLES)
   async list(@CurrentTenant() tenantId: string) {
     const policies = await this.policies.listAll(tenantId);
     return {
@@ -94,6 +95,7 @@ export class NotificationPoliciesOperationsController {
   @ApiBody({ schema: zodToApiSchema(upsertNotificationPolicySchema) })
   @ApiResponse({ status: 200, description: 'Política guardada.' })
   @Put()
+  @Roles(...GOVERNANCE_POLICY_WRITE_ROLES)
   async upsert(
     @CurrentTenant() tenantId: string,
     @Body(new ZodValidationPipe(upsertNotificationPolicySchema)) body: UpsertNotificationPolicyDto,
