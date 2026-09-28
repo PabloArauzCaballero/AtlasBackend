@@ -39,17 +39,15 @@ export class CustomerLifecycleRepository {
    * Escribirlo aquí —y no tras confirmar la transacción— garantiza que no exista un cambio de estado sin
    * su evento, ni un evento de un cambio que terminó revertido.
    *
-   * **Lo que este evento NO hace todavía, aunque se escribió para eso:** avisar al cliente. Este
-   * comentario decía que «el orquestador de notificaciones lo consume después y avisa al cliente», y
-   * no era verdad. `customer.lifecycle.*` no está en `EVENT_REGISTRY` ni tiene canales en
-   * `notification-rules.service.ts`. `process_events` sólo reclama códigos registrados y `process_outbox`
-   * sólo los no registrados, así que lo marca procesado el job de compatibilidad, sin avisar a nadie.
-   * Medido en el servidor el 2026-09-10 por `notification_messages.outbox_event_id`: 23 transiciones y 0
-   * mensajes, mientras `payment.*` y `user.*`, registrados y con canales, avisaron en los 8 casos. Un
-   * cliente observado o rechazado por un analista sigue sin enterarse. Qué decirle, en qué estados y por
-   * qué canal es una decisión de producto pendiente.
+   * **Lo que este evento NO hace todavía, aunque se escribió para eso:** avisar al cliente. Hasta el
+   * 2026-09-26 `customer.lifecycle.*` ni siquiera estaba en `EVENT_REGISTRY`: `process_outbox` lo marcaba
+   * procesado en silencio (medido el 2026-09-10: 23 transiciones, 0 mensajes). Desde entonces está
+   * registrado (familia `customer_lifecycle`) y lo consume `process_events`, pero sigue SIN canales en
+   * `notification-rules.service.ts`: se procesa sin mensaje. Qué decirle al cliente, en qué estados y por
+   * qué canal es una decisión de producto pendiente. El veredicto de identidad sí avisa, por
+   * `kyc.approved`/`kyc.rejected`.
    *
-   * Si se registra, ojo: los eventos anteriores ya están marcados procesados y no se reenviarán.
+   * Los eventos anteriores al registro ya están marcados procesados y no se reenvían.
    */
   createTransitionEvent(
     values: { tenantId: string; customerId: string; previousStatus: string; newStatus: string; reasonCode: string; now: Date },

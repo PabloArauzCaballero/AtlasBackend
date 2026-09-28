@@ -50,6 +50,10 @@ export class CustomerSessionModel extends Model {
   @Column({ field: 'gps_accuracy_meters', type: DataType.DECIMAL(8, 2) })
   declare gpsAccuracyMeters: string | null;
 
+  /** Hora del servidor del último latido; `expire_stale_sessions` caduca por ésta o, sin latidos, por `started_at`. */
+  @Column({ field: 'last_activity_at', type: DataType.DATE })
+  declare lastActivityAt: Date | null;
+
   @Column({ field: 'session_status', type: DataType.STRING(40) })
   declare sessionStatus: string | null;
 

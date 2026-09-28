@@ -121,10 +121,16 @@ export class MerchantUsersController {
   @ApiOperation({
     summary: 'Conceder el acceso pedido: crear la identidad con los datos de la petición',
     description:
-      'La contraseña provisional se genera aquí y viaja UNA sola vez, en esta respuesta. No hay ninguna lectura posterior que la devuelva.',
+      'Conceder ES activar: la identidad nace en estado `active` (con cambio de contraseña obligatorio en el primer ' +
+      'acceso) y la petición se cierra como `provisioned`, en la misma transacción. La contraseña provisional se genera ' +
+      'aquí y viaja en esta respuesta y en el correo de credenciales iniciales que se envía a la persona al confirmar; ' +
+      'no hay ninguna lectura posterior que la devuelva. Un fallo del correo no deshace la concesión: queda en el log.',
   })
   @ApiParam({ name: 'requestId', schema: zodToApiSchema(merchantUserRequestParamsSchema.shape.requestId) })
-  @ApiResponse({ status: 201, description: 'Identidad creada en estado `invited` y petición cerrada como `provisioned`.' })
+  @ApiResponse({
+    status: 201,
+    description: 'Identidad creada en estado `active`, petición cerrada como `provisioned` y contraseña provisional enviada por correo.',
+  })
   @ApiResponse({ status: 409, description: 'MERCHANT_PROVISIONING_REQUEST_ALREADY_DECIDED o MERCHANT_USER_EMAIL_TAKEN.' })
   @Post('provisioning-requests/:requestId/approve')
   @InternalPermissions('merchant.users.manage')

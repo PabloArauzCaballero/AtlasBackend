@@ -39,6 +39,7 @@ describe('CustomerVerificationService', () => {
       findPendingReviews: jest.fn(async (..._args: unknown[]) => [{ id: 'rev-1' }, { id: 'rev-2' }]),
       resolveReview: jest.fn(),
     };
+    const events = { publish: jest.fn(async (..._args: unknown[]) => ({})) };
     const service = new CustomerVerificationService(
       common.customersRepository as never,
       verificationRepository as never,
@@ -46,8 +47,9 @@ describe('CustomerVerificationService', () => {
       common.lifecycleService as never,
       common.eligibilityService as never,
       common.sequelize as never,
+      events as never,
     );
-    return { service, verificationRepository, ...common };
+    return { service, verificationRepository, events, ...common };
   }
 
   const baseInput = { tenantId: 't1', customerId: 'c1', currentUser: analyst, ipAddress: '10.0.0.1' };
@@ -156,6 +158,65 @@ describe('CustomerVerificationService', () => {
       rejectionReasonCode: 'document_illegible',
     });
     expect(result.identityVerificationResult).toBe('rejected');
+  });
+});
+
+describe('CustomerVerificationService · aviso del veredicto (A8)', () => {
+  function buildWithEvents() {
+    const common = commonMocks();
+    const verificationRepository = {
+      findAttemptAwaitingReview: jest.fn(async (..._args: unknown[]) => ({ id: 'attempt-9', finalResult: 'pending_review' })),
+      resolveAttempt: jest.fn(),
+      resolveIdentityDocument: jest.fn(),
+      findPendingReviews: jest.fn(async (..._args: unknown[]) => []),
+      resolveReview: jest.fn(),
+    };
+    const events = { publish: jest.fn(async (..._args: unknown[]) => ({})) };
+    const service = new CustomerVerificationService(
+      common.customersRepository as never,
+      verificationRepository as never,
+      common.onboardingRepository as never,
+      common.lifecycleService as never,
+      common.eligibilityService as never,
+      common.sequelize as never,
+      events as never,
+    );
+    return { service, events };
+  }
+  const input = { tenantId: 't1', customerId: 'c1', currentUser: analyst, ipAddress: null };
+
+  it('aprobar publica el veredicto verified del intento resuelto, dentro de la transacción', async () => {
+    const { service, events } = buildWithEvents();
+    await service.decideIdentity({ ...input, body: { decision: 'approve', reasonCode: 'DOC_OK' } as never });
+    expect(events.publish).toHaveBeenCalledTimes(1);
+    const [veredicto, transaccion] = (events.publish as jest.Mock).mock.calls[0] as [Record<string, unknown>, unknown];
+    expect(veredicto).toMatchObject({
+      tenantId: 't1',
+      customerId: 'c1',
+      attemptId: 'attempt-9',
+      verdict: 'verified',
+      source: 'internal_decision',
+      reasonCode: 'DOC_OK',
+    });
+    expect(transaccion).toBeDefined();
+  });
+
+  it('rechazar publica el veredicto rejected', async () => {
+    const { service, events } = buildWithEvents();
+    await service.decideIdentity({ ...input, body: { decision: 'reject', reasonCode: 'DOC_ILEGIBLE', notes: 'borroso' } as never });
+    expect((events.publish as jest.Mock).mock.calls[0][0]).toMatchObject({ verdict: 'rejected', reasonCode: 'DOC_ILEGIBLE' });
+  });
+
+  it('un intento delegado al Motor (409) no avisa nada', async () => {
+    const { service, events } = buildWithEvents();
+    const repo = (service as unknown as { verificationRepository: { findAttemptAwaitingReview: jest.Mock } }).verificationRepository;
+    repo.findAttemptAwaitingReview.mockResolvedValueOnce({
+      id: 'a',
+      finalResult: 'IN_REVIEW',
+      reasonCodesJson: { executionId: '1' },
+    } as never);
+    await expect(service.decideIdentity({ ...input, body: { decision: 'approve', reasonCode: 'x' } as never })).rejects.toThrow();
+    expect(events.publish).not.toHaveBeenCalled();
   });
 });
 

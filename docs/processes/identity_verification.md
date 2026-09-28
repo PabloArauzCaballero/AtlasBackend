@@ -20,7 +20,7 @@ Empieza cuando la app envía las imágenes y recibe un identificador con el esta
 
 ## Qué pasa cuando falla
 
-Si el Motor no responde, el intento queda UNAVAILABLE, que no es un rechazo y la app no debe pintarlo como tal; sin Motor configurado la petición responde 503. Si el aviso de vuelta falla, la resolución del analista se conserva en el Motor y el fallo queda en su auditoría, pero el intento sigue IN_REVIEW en Atlas. Hoy nadie avisa al cliente del veredicto: kyc.approved y kyc.rejected tienen canales y ningún código los emite.
+Si el Motor no responde, el intento queda UNAVAILABLE, que no es un rechazo y la app no debe pintarlo como tal; sin Motor configurado la petición responde 503. Si el aviso de vuelta falla, la resolución del analista se conserva en el Motor y el fallo queda en su auditoría, pero el intento sigue IN_REVIEW en Atlas. El veredicto de una persona (callback del Motor o decisión interna) avisa al cliente con kyc.approved o kyc.rejected por el outbox; el que el Motor decide en el acto no emite aviso: la app lo ve al consultar el estado.
 
 ## Qué indicador dice que va bien
 
@@ -130,7 +130,7 @@ El Motor avisa con clave de servicio y el executionId; Atlas resuelve exactament
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Aplicar la resolución del Motor | http | ATLAS_BACKEND | `POST /internal/identity/manual-review-callback` | — | — |
+| Aplicar la resolución del Motor | http | ATLAS_BACKEND | `POST /internal/identity/manual-review-callback` | — | kyc.approved, kyc.rejected |
 
 ### Decisión de identidad desde el portal admin (`identity_atlas_review`)
 
@@ -141,7 +141,7 @@ El analista interno mira las evidencias en el resumen de investigación del clie
 | Abrir el resumen de investigación | http | ATLAS_BACKEND | `GET /operations/customers/:customerId/investigation-summary` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | — |
 | Listar las evidencias de identidad | http | ATLAS_BACKEND | `GET /customer-onboarding/:customerId/evidence-documents` | internal_operator, risk_analyst, admin, platform_admin | — |
 | Ver los bytes de una evidencia | http | ATLAS_BACKEND | `GET /customer-onboarding/:customerId/evidence-documents/:documentId/content` | internal_operator, risk_analyst, admin, platform_admin | — |
-| Aprobar o rechazar la identidad | http | ATLAS_BACKEND | `POST /operations/customers/:customerId/identity-verification/decision` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | — |
+| Aprobar o rechazar la identidad | http | ATLAS_BACKEND | `POST /operations/customers/:customerId/identity-verification/decision` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | kyc.approved, kyc.rejected |
 
 ### Aplicar a mano una resolución de revisión (`identity_manual_apply`)
 
@@ -149,7 +149,7 @@ Ruta para que un analista aplique al expediente una decisión humana indicando q
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Aplicar la resolución manual de identidad | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/identity-manual-review` | internal_operator, risk_analyst, admin, platform_admin | — |
+| Aplicar la resolución manual de identidad | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/identity-manual-review` | internal_operator, risk_analyst, admin, platform_admin | kyc.approved, kyc.rejected |
 
 ## Fuentes
 

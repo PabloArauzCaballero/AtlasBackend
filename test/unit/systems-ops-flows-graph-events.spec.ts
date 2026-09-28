@@ -25,7 +25,7 @@ describe('eventos que publica un flujo', () => {
   });
 
   it('sin registro escrito directamente al outbox lo traga el job de compatibilidad', () => {
-    expect(consumidorDe('ATLAS_BACKEND', { code: 'customer.lifecycle.*', dynamic: true, via: 'outbox' })).toBe('COMPATIBILIDAD');
+    expect(consumidorDe('ATLAS_BACKEND', { code: 'codigo_sin_registro.*', dynamic: true, via: 'outbox' })).toBe('COMPATIBILIDAD');
   });
 
   it('un código armado en ejecución con prefijo registrado depende del valor', () => {
@@ -37,9 +37,9 @@ describe('eventos que publica un flujo', () => {
   });
 
   it('cada evento sale como nodo con su consumidor y su vía, sin afirmar avisos', () => {
-    const analisis = flowAnalysisSchema.parse({ events: [{ code: 'customer.lifecycle.*', dynamic: true, via: 'outbox', at: 'a.ts:1' }] });
+    const analisis = flowAnalysisSchema.parse({ events: [{ code: 'codigo_sin_registro.*', dynamic: true, via: 'outbox', at: 'a.ts:1' }] });
     const [nodo] = eventosDelFlujo('ATLAS_BACKEND', analisis);
-    expect(nodo).toMatchObject({ label: 'customer.lifecycle.*', meta: { consumer: 'COMPATIBILIDAD', via: 'outbox', dynamic: true } });
+    expect(nodo).toMatchObject({ label: 'codigo_sin_registro.*', meta: { consumer: 'COMPATIBILIDAD', via: 'outbox', dynamic: true } });
     expect(JSON.stringify(nodo)).not.toMatch(/avisa|notifica/i);
   });
 });

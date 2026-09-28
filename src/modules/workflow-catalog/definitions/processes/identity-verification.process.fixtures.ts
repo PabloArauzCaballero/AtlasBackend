@@ -30,7 +30,7 @@ export const IDENTITY_VERIFICATION: WorkflowDefinitionFixture = {
     startAndEnd:
       'Empieza cuando la app envía las imágenes y recibe un identificador con el estado PENDING (la respuesta no espera al veredicto). Termina cuando el intento queda VERIFIED o REJECTED: en el acto si decide el Motor, o cuando llega el aviso de la revisión humana, que además mueve al cliente a activo u observado. La app consulta el estado en bucle hasta ver un veredicto.',
     whenItFails:
-      'Si el Motor no responde, el intento queda UNAVAILABLE, que no es un rechazo y la app no debe pintarlo como tal; sin Motor configurado la petición responde 503. Si el aviso de vuelta falla, la resolución del analista se conserva en el Motor y el fallo queda en su auditoría, pero el intento sigue IN_REVIEW en Atlas. Hoy nadie avisa al cliente del veredicto: kyc.approved y kyc.rejected tienen canales y ningún código los emite.',
+      'Si el Motor no responde, el intento queda UNAVAILABLE, que no es un rechazo y la app no debe pintarlo como tal; sin Motor configurado la petición responde 503. Si el aviso de vuelta falla, la resolución del analista se conserva en el Motor y el fallo queda en su auditoría, pero el intento sigue IN_REVIEW en Atlas. El veredicto de una persona (callback del Motor o decisión interna) avisa al cliente con kyc.approved o kyc.rejected por el outbox; el que el Motor decide en el acto no emite aviso: la app lo ve al consultar el estado.',
     healthIndicator:
       'Reparto de final_result en identity_verification_attempts (VERIFIED, REJECTED, IN_REVIEW, UNAVAILABLE) y antigüedad de los intentos que siguen IN_REVIEW con executionId del Motor; un IN_REVIEW que envejece con el caso ya resuelto en el Motor delata un aviso perdido. La tasa de UNAVAILABLE mide la disponibilidad del Motor, no el fraude.',
   },
@@ -301,6 +301,7 @@ export const IDENTITY_VERIFICATION: WorkflowDefinitionFixture = {
             '404 intento no encontrado',
             '422 IDENTITY_ATTEMPT_WITHOUT_CUSTOMER',
           ],
+          events: ['kyc.approved', 'kyc.rejected'],
         },
       ],
     },
@@ -351,6 +352,7 @@ export const IDENTITY_VERIFICATION: WorkflowDefinitionFixture = {
           roles: INVESTIGATION_ROLES,
           resultingStates: ['verified', 'rejected'],
           errors: ['404 IDENTITY_VERIFICATION_ATTEMPT_NOT_FOUND', '409 IDENTITY_DECISION_DELEGADA_AL_MOTOR'],
+          events: ['kyc.approved', 'kyc.rejected'],
         },
       ],
     },
@@ -374,6 +376,7 @@ export const IDENTITY_VERIFICATION: WorkflowDefinitionFixture = {
           roles: EVIDENCE_VIEW_ROLES,
           optional: true,
           errors: ['403 ROLE_NOT_AUTHORIZED', '404 IDENTITY_ATTEMPT_NOT_FOUND'],
+          events: ['kyc.approved', 'kyc.rejected'],
         },
       ],
     },

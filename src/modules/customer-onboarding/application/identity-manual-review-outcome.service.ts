@@ -10,6 +10,7 @@ import { CustomerLifecycleService } from '../../customers/application/customer-l
 import { CustomerVerificationRepository } from '../repositories/customer-verification.repository.js';
 import { identityResultForRow } from '../../../common/utils/identity/identity-result.util.js';
 import type { IdentityVerificationAttemptModel } from '../../../database/models/index.js';
+import { IdentityVerdictEventPublisher } from './identity-verdict-event.publisher.js';
 
 export type ManualIdentityDecision = 'approved' | 'rejected';
 
@@ -65,6 +66,7 @@ export class IdentityManualReviewOutcomeService {
     private readonly verificationRepository: CustomerVerificationRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly verdictEvents: IdentityVerdictEventPublisher,
   ) {}
 
   /**
@@ -144,6 +146,20 @@ export class IdentityManualReviewOutcomeService {
           { transaction },
         );
       }
+
+      // A8: el cliente se entera del veredicto. Mismo intento → misma clave: un callback reenviado no avisa dos veces.
+      await this.verdictEvents.publish(
+        {
+          tenantId: input.tenantId,
+          customerId,
+          attemptId: String(attempt.id),
+          verdict: verified ? 'verified' : 'rejected',
+          source: 'manual_review',
+          reasonCode: verified ? null : 'MANUAL_REVIEW_REJECTED',
+          decidedAt: now,
+        },
+        transaction,
+      );
 
       /*
        * El avance del ciclo es de MEJOR ESFUERZO, igual que en el resto del alta: si la transición

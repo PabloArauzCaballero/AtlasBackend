@@ -33,6 +33,7 @@ import {
   RecalculateDataQualityDto,
 } from './runtime-jobs.schemas.js';
 import { countOutboxBacklog, publishOutboxBacklog } from './outbox-backlog.js';
+import { type ClaimedOutboxRow, reportUnregisteredDomainEvents, tallyUnregisteredDomainEvents } from './outbox-unregistered.js';
 
 function registeredEventCodesOrSentinel(): string[] {
   const codes = listEventDefinitions().map((event) => event.code);
@@ -115,7 +116,7 @@ export class RuntimeJobsService {
 
         const now = new Date();
         const claimed = await this.sequelize.transaction(async (transaction) => {
-          const rows = await this.sequelize.query<{ id: string; tenant_id: string | null }>(
+          const rows = await this.sequelize.query<ClaimedOutboxRow>(
             `WITH candidates AS (
              SELECT _id
              FROM outbox_events
@@ -134,7 +135,7 @@ export class RuntimeJobsService {
                _updated_at = :now
            FROM candidates
            WHERE event._id = candidates._id
-           RETURNING event._id AS id, event._tenant_id AS tenant_id;`,
+           RETURNING event._id AS id, event._tenant_id AS tenant_id, event.event_code, event.event_family;`,
             {
               replacements: { tenantId: input.tenantId, excludedCodes, limit: input.body.limit, now },
               type: QueryTypes.SELECT,
@@ -143,6 +144,10 @@ export class RuntimeJobsService {
           );
           return rows;
         });
+
+        // B12: lo reclamado que es dominio sin registrar se marca procesado igual, pero deja aviso y métrica.
+        const unregisteredDomainEvents = tallyUnregisteredDomainEvents(claimed);
+        reportUnregisteredDomainEvents(this.logger, this.metrics, input.tenantId, unregisteredDomainEvents);
 
         // Fase 3.4: backlog restante tras drenar, en dos series para que el nulo no quede invisible.
         const after = await countOutboxBacklog(this.outboxModel, input.tenantId);
@@ -155,6 +160,7 @@ export class RuntimeJobsService {
           processedWithoutTenant: claimed.filter((row) => row.tenant_id === null).length,
           skippedBusinessEvents: after.tenant,
           pendingWithoutTenant: after.withoutTenant,
+          unregisteredDomainEvents,
           dryRun: false,
           note: 'process-outbox conserva compatibilidad y no procesa eventos de negocio registrados; usa process-events para notificaciones.',
         };
@@ -181,7 +187,13 @@ export class RuntimeJobsService {
       { tenantId: input.tenantId, jobCode: 'expire_stale_sessions', body: input.body, currentUser: input.currentUser },
       async () => {
         const cutoff = new Date(Date.now() - input.body.maxIdleMinutes * 60_000);
-        const where = { tenantId: input.tenantId, sessionStatus: 'active', startedAt: { [Op.lt]: cutoff } };
+        // Por la ÚLTIMA actividad (hallazgo B6), no por el inicio: sin latidos se cae a `started_at`, como antes.
+        const lastActivity = Sequelize.fn('COALESCE', Sequelize.col('last_activity_at'), Sequelize.col('started_at'));
+        const where = {
+          tenantId: input.tenantId,
+          sessionStatus: 'active',
+          [Op.and]: [Sequelize.where(lastActivity, Op.lt, cutoff)],
+        };
         const selected = await this.sessionModel.count({ where } as never);
         let expired = 0;
         if (!input.body.dryRun) {

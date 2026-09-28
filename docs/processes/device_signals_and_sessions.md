@@ -20,7 +20,7 @@ Empieza con las decisiones de consentimiento `device_address_book` y `location_t
 
 ## Qué pasa cuando falla
 
-Sin consentimiento vigente la agenda y la ubicación responden 422 CONSENT_NOT_GRANTED; un dispositivo o sesión ajenos, 403. Si la app no cierra la sesión queda abierta hasta el job, que caduca por hora de INICIO y no por último latido (la app no envía latidos). Fraude se entera sólo mirando las pantallas de investigación: el resumen de comportamiento no tiene pantalla.
+Sin consentimiento vigente la agenda y la ubicación responden 422 CONSENT_NOT_GRANTED; un dispositivo o sesión ajenos, 403. Si la app no cierra la sesión queda abierta hasta el job, que caduca por la última actividad (el último latido o, sin latidos, la hora de inicio); como la app todavía no envía latidos, en la práctica sigue contando desde el inicio. Fraude se entera sólo mirando las pantallas de investigación: el resumen de comportamiento no tiene pantalla.
 
 ## Qué indicador dice que va bien
 
@@ -120,7 +120,7 @@ La app cierra la sesión saliente al terminar o cambiar de cuenta; la sesión pa
 
 ### Caducidad de sesiones abiertas (`signals_session_expiry`)
 
-Cada intervalo (5 minutos por defecto) el job marca `expired` las sesiones `active` iniciadas hace más del máximo de inactividad (120 minutos por defecto).
+Cada intervalo (5 minutos por defecto) el job marca `expired` las sesiones `active` sin actividad (último latido o, sin latidos, el inicio) durante más del máximo de inactividad (120 minutos por defecto).
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|

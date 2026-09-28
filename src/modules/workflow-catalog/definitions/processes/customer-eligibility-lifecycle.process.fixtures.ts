@@ -28,7 +28,7 @@ export const CUSTOMER_ELIGIBILITY_LIFECYCLE: WorkflowDefinitionFixture = {
     startAndEnd:
       'Empieza con un cliente en under_review que ya envió su alta. Termina cuando lifecycle_status queda en active (único estado que habilita crédito), observed, rejected, suspended o blocked, con su fila en customer_status_events y una evaluación en customer_eligibility_evaluations con decision_source automatic, manual_decision o manual_override.',
     whenItFails:
-      'Una transición ilegal responde 422 INVALID_STATUS_TRANSITION y no se fuerza. Si falta cualquier condición el cliente sigue en under_review con sus bloqueadores a la vista en la app. El cliente no se entera del cambio: los eventos customer.lifecycle.* se escriben en el outbox pero no están registrados ni tienen canal de aviso.',
+      'Una transición ilegal responde 422 INVALID_STATUS_TRANSITION y no se fuerza. Si falta cualquier condición el cliente sigue en under_review con sus bloqueadores a la vista en la app. El cliente no se entera del cambio: los eventos customer.lifecycle.* se escriben en el outbox y están registrados (los consume process_events), pero no tienen canal de aviso.',
     healthIndicator:
       'Tiempo desde el envío del alta hasta active o rejected, número de clientes en under_review con sólo ACCOUNT_NOT_ACTIVE pendiente (deberían promocionarse solos) y proporción de aprobaciones con decision_source manual_override en customer_eligibility_evaluations.',
   },
@@ -207,7 +207,7 @@ export const CUSTOMER_ELIGIBILITY_LIFECYCLE: WorkflowDefinitionFixture = {
       code: 'eligibility_lifecycle_event',
       name: 'Evento de la transición',
       description:
-        'Cada transición escribe customer.lifecycle.<estado> en el outbox en la misma transacción. No está en el registro de eventos: se marca procesado sin avisar a nadie.',
+        'Cada transición escribe customer.lifecycle.<estado> en el outbox en la misma transacción. Está registrado (familia customer_lifecycle) y lo consume process_events, pero sin canal de notificación: se procesa sin avisar a nadie.',
       module: 'customers',
       actor: 'system',
       client: 'BLOCK',
