@@ -4092,14 +4092,35 @@
      "code": "dsr_internal_resolution",
      "actor": "internal_user",
      "client": "ADMIN_PORTAL",
-     "screen": null,
+     "screen": "/internal/governance/privacy-requests",
      "steps": [
       {
-       "code": "dsr.internal_resolution",
-       "kind": "manual",
+       "code": "dsr.internal_list",
+       "kind": "http",
        "system": "ATLAS_BACKEND",
-       "method": null,
-       "path": null
+       "method": "GET",
+       "path": "/operations/privacy/data-subject-requests"
+      },
+      {
+       "code": "dsr.internal_detail",
+       "kind": "http",
+       "system": "ATLAS_BACKEND",
+       "method": "GET",
+       "path": "/operations/privacy/data-subject-requests/:requestId"
+      },
+      {
+       "code": "dsr.internal_take",
+       "kind": "http",
+       "system": "ATLAS_BACKEND",
+       "method": "POST",
+       "path": "/operations/privacy/data-subject-requests/:requestId/transition"
+      },
+      {
+       "code": "dsr.internal_resolution",
+       "kind": "http",
+       "system": "ATLAS_BACKEND",
+       "method": "POST",
+       "path": "/operations/privacy/data-subject-requests/:requestId/transition"
       }
      ]
     },
