@@ -16,6 +16,15 @@
 | [`customer-privacy.repository.ts`](./customer-privacy.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`customer-privacy.schemas.ts`](./customer-privacy.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
 | [`customer-privacy.service.ts`](./customer-privacy.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`data-subject-request.state.ts`](./data-subject-request.state.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`operations-privacy-requests.controller.ts`](./operations-privacy-requests.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`operations-privacy-requests.queries.ts`](./operations-privacy-requests.queries.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`operations-privacy-requests.schemas.ts`](./operations-privacy-requests.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
+| [`operations-privacy-requests.service.ts`](./operations-privacy-requests.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+
+## Subcarpetas
+
+- [`application/`](./application/README.md)
 
 ## Reglas de mantenimiento
 
