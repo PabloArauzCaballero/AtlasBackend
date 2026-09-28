@@ -10,12 +10,12 @@ import { syncWorkflowCatalog } from '../../modules/workflow-catalog/definitions/
 type MigrationContext = { context: QueryInterface };
 
 /**
- * Mismo volcado que `20260927091000-sync-workflow-catalog-2`, vuelto a correr porque cambió la
- * fixture P-11 (`customer_privacy_dsr`): la etapa de atención interna ya no es un paso manual sin
- * ruta, sino las tres rutas de la cola de solicitudes del titular y su pantalla del portal (A5).
+ * Mismo volcado que `20260926170500-sync-workflow-catalog-1` y `-2`, idempotente. Lo trae el cambio de P-35
+ * (hallazgo A4): proponer y aprobar cambios de esquema pasan a poder hacerse desde el portal interno
+ * con `governance.schema.*`, y la ficha deja de declarar ese hueco.
  */
 export async function up({ context: queryInterface }: MigrationContext): Promise<void> {
-  await syncWorkflowCatalog(queryInterface, WORKFLOW_DEFINITIONS, 'migration:20260927120500-sync-workflow-catalog-3');
+  await syncWorkflowCatalog(queryInterface, WORKFLOW_DEFINITIONS, 'migration:20260927121000-sync-workflow-catalog-3');
 }
 
 /**

@@ -7,6 +7,11 @@ import type { WorkflowDefinitionFixture } from '../workflow-definition.types.js'
 
 /** Roles de lectura de `SchemaManagementController`. */
 const SCHEMA_READ = ['internal_operator', 'admin', 'platform_admin', 'risk_analyst', 'readonly_auditor'];
+/**
+ * Roles de sesión que dejan pasar las escrituras. En sesión interna decide el permiso fino
+ * (`governance.schema.propose` / `governance.schema.approve`); en sesión de plataforma, el rol.
+ */
+const SCHEMA_WRITE = ['internal_operator', 'admin', 'platform_admin', 'risk_analyst', 'fraud_analyst', 'compliance_analyst', 'qa_engineer'];
 
 export const SCHEMA_CHANGE_MANAGEMENT: WorkflowDefinitionFixture = {
   processId: 'P-35',
@@ -24,13 +29,13 @@ export const SCHEMA_CHANGE_MANAGEMENT: WorkflowDefinitionFixture = {
     whyExists:
       'Gobierna las propuestas de estructura sin permitir cambios directos desde el portal: las relaciones son inmutables, las columnas críticas no se editan y un catálogo en uso exige versión nueva, así que cada cambio queda propuesto, decidido por otra persona y auditado en el change log.',
     whoStartsAndCloses:
-      'Lo inicia una persona interna que propone una tabla desde «Versiones de esquema»; lo cierra otra persona con rol de sesión platform_admin que aprueba o rechaza en «Change log» (quien propone no puede aprobar), y después un desarrollador aplica la migración.',
+      'Lo inicia una persona interna con el permiso governance.schema.propose que propone una tabla desde «Versiones de esquema»; lo cierra otra persona con governance.schema.approve (o una sesión de plataforma platform_admin) que aprueba o rechaza en «Change log» —quien propone no puede aprobar—, y después un desarrollador aplica la migración, que se enlaza al cambio con linkSchemaChangeToMigration.',
     startAndEnd:
-      'Empieza con la propuesta, que entra en schema_change_log como pending; termina cuando el cambio queda approved o rejected (rechazar exige notas) y, si se aprobó, cuando la migración Sequelize que lo materializa se despliega.',
+      'Empieza con la propuesta, que entra en schema_change_log como pending; termina cuando el cambio queda approved o rejected (rechazar exige notas) y, si se aprobó, cuando la migración Sequelize que lo materializa se despliega y deja su nombre en applied_by_migration.',
     whenItFails:
-      'Aprobar un cambio ya resuelto da 409, sin rol da 403 y un token sin platformUserId da 403. Hoy el portal interno no emite nunca platform_admin ni platformUserId, así que proponer y aprobar desde ahí queda inalcanzable; y el gate check:domain-schema-layout mira la base real, no este catálogo.',
+      'Aprobar un cambio ya resuelto da 409; sin el permiso fino (sesión interna) o sin rol (sesión de plataforma) da 403, que nombra el permiso que falta; aprobar lo que uno mismo propuso da 403. El gate check:domain-schema-layout mira la base real, no este catálogo.',
     healthIndicator:
-      'Propuestas en pending y su antigüedad, cambios aprobados sin migración que los aplique y diferencia entre el catálogo de versiones y la base real; se ve en «Change log» del portal.',
+      'Propuestas en pending y su antigüedad, cambios aprobados con applied_by_migration vacío (sin migración que los aplique) y diferencia entre el catálogo de versiones y la base real; se ve en «Change log» del portal.',
   },
   instanceEntity: {
     system: 'ATLAS_BACKEND',
@@ -47,6 +52,9 @@ export const SCHEMA_CHANGE_MANAGEMENT: WorkflowDefinitionFixture = {
     'src/modules/schema-management/schema-management.controller.ts',
     'src/modules/schema-management/schema-change-log.repository.ts',
     'src/modules/schema-management/services/schema-management.service.ts',
+    'src/modules/schema-management/services/schema-change-actor.ts',
+    'src/modules/schema-management/schema-change-authorization.guard.ts',
+    'src/database/migration-support/schema-change-link.util.ts',
     'src/modules/internal-users/internal-rbac.roles.ts (legacyRoleForInternalRoles)',
     'src/modules/systems-ops/systems-ops.constants.ts',
     '_plan-documentar-procesos-y-cableado-portal-2026-09-26/datos/procesos.json (P-35)',
@@ -116,18 +124,19 @@ export const SCHEMA_CHANGE_MANAGEMENT: WorkflowDefinitionFixture = {
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
       screen: '/internal/schema/versions',
-      roles: ['internal_operator', 'admin', 'platform_admin'],
+      roles: SCHEMA_WRITE,
       resultingStates: ['pending'],
       steps: [
         {
           code: 'schema.propose_table',
           name: 'Proponer una tabla',
-          description: 'Valida identificadores en dos capas y registra la propuesta; exige platformUserId en el token.',
+          description:
+            'Valida identificadores en dos capas y registra la propuesta con su proponente (interno o de plataforma). Sesión interna: permiso governance.schema.propose.',
           method: 'POST',
           path: '/operations/schema/tables',
-          roles: ['internal_operator', 'admin', 'platform_admin'],
+          roles: SCHEMA_WRITE,
           resultingStates: ['pending'],
-          errors: ['400 validación', '403 platformUserId ausente en el token'],
+          errors: ['400 validación', '403 sin governance.schema.propose, sin rol o sin actor identificado en el token'],
         },
       ],
     },
@@ -140,7 +149,7 @@ export const SCHEMA_CHANGE_MANAGEMENT: WorkflowDefinitionFixture = {
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
       screen: '/internal/schema/change-log',
-      roles: ['platform_admin'],
+      roles: SCHEMA_WRITE,
       requiredStates: ['pending'],
       resultingStates: ['approved', 'rejected'],
       steps: [
@@ -155,13 +164,14 @@ export const SCHEMA_CHANGE_MANAGEMENT: WorkflowDefinitionFixture = {
         {
           code: 'schema.approve_change',
           name: 'Aprobar o rechazar',
-          description: 'Sólo platform_admin; sólo se resuelve lo pending. Registra la decisión, no ejecuta DDL.',
+          description:
+            'Sesión interna con governance.schema.approve o sesión de plataforma platform_admin; sólo se resuelve lo pending. Registra la decisión, no ejecuta DDL.',
           method: 'PATCH',
           path: '/operations/schema/change-log/:changeId/approve',
-          roles: ['platform_admin'],
+          roles: SCHEMA_WRITE,
           requiredStates: ['pending'],
           resultingStates: ['approved', 'rejected'],
-          errors: ['403 rol insuficiente o proponente = aprobador', '404', '409 cambio ya resuelto'],
+          errors: ['403 sin governance.schema.approve, rol insuficiente o proponente = aprobador', '404', '409 cambio ya resuelto'],
         },
       ],
     },
@@ -179,7 +189,8 @@ export const SCHEMA_CHANGE_MANAGEMENT: WorkflowDefinitionFixture = {
         {
           code: 'schema.migration',
           name: 'Migración que materializa el cambio',
-          description: 'Opción C aprobada: nada del portal ejecuta DDL físico.',
+          description:
+            'Opción C aprobada: nada del portal ejecuta DDL físico. La migración llama a linkSchemaChangeToMigration con el id del cambio para dejar el enlace.',
           kind: 'manual',
           reason:
             'ATLAS-TECH-007: la ejecución de DDL por API está fuera del MVP; el cambio real es una migración en PR que corre al desplegar.',
@@ -189,10 +200,9 @@ export const SCHEMA_CHANGE_MANAGEMENT: WorkflowDefinitionFixture = {
   ],
   metadata: {
     gaps: [
-      'Aprobar exige rol de sesión platform_admin y proponer exige platformUserId; legacyRoleForInternalRoles nunca emite platform_admin (SUPER_ADMIN/SYSTEMS_ADMIN dan admin), así que desde el portal interno ambas acciones quedan inalcanzables.',
       'Pantallas sin gate de permiso en la página.',
       'check:domain-schema-layout consulta la base real, no este catálogo: dos verdades.',
-      'Ninguna aprobación queda enlazada con la migración que la aplica.',
+      'El enlace aprobación → migración depende de que la migración llame a linkSchemaChangeToMigration: nada obliga a hacerlo, y en una base donde el cambio no existe no enlaza nada.',
     ],
   },
 };

@@ -5,7 +5,7 @@ import { INTERNAL_PERMISSION_SEEDS, ROLE_PERMISSION_CODES } from '../../../src/m
  * Los permisos de la cola de solicitudes del titular (hallazgo A5).
  *
  * Mismo defecto que ya reparó `expedientes-permisos-seed.spec.ts`: el catálogo se siembra por
- * migración (`20260927120000-sync-internal-rbac-catalog-5`), y si estos códigos salieran de la lista
+ * migración (`20260928010000-sync-internal-rbac-catalog-6`), y si estos códigos salieran de la lista
  * canónica el controlador los seguiría exigiendo y NADIE los tendría: 403 para todos.
  */
 const LEER = 'privacy.requests.read';

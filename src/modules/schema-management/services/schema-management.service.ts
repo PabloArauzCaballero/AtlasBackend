@@ -9,6 +9,14 @@ import { SchemaManagementRepository, SchemaVersionCounts, SchemaVersionRow } fro
 import { SchemaChangeLogRepository } from '../schema-change-log.repository.js';
 import { SchemaManagementValidationService } from './schema-management-validation.service.js';
 import { mapChangeLogRow, mapTableRow, mapVersionRowWithCounts } from './schema-management.mapper.js';
+import {
+  PLATFORM_APPROVER_ROLES,
+  PLATFORM_PROPOSER_ROLES,
+  describeActor,
+  requesterOf,
+  resolveSchemaChangeActor,
+  sameActor,
+} from './schema-change-actor.js';
 import type { ApproveSchemaChangeRequest, CreateSchemaTableRequest } from '../schema-management.schemas.js';
 import {
   ApprovalResponseDto,
@@ -27,7 +35,11 @@ import {
  * SchemaManagementService — Fase 4B
  *
  * Orquesta el ciclo de vida de cambios DDL sobre el catálogo de schema:
- * proponer (pending) → aprobar/rechazar (platform_admin) → registrar resultado.
+ * proponer (pending) → aprobar/rechazar (otra persona) → registrar resultado.
+ *
+ * Quién puede: una sesión INTERNA con `governance.schema.propose` / `governance.schema.approve`
+ * (lo exige `SchemaChangeAuthorizationGuard`), o una sesión de PLATAFORMA con su rol de sesión
+ * (ver `schema-change-actor.ts`). El actor se registra con su población.
  *
  * Decisiones de robustez a largo plazo:
  * - 403 ForbiddenException para fallos de rol (401 es para autenticación, no autorización).
@@ -39,9 +51,6 @@ import {
  *   catálogo; el DDL real sigue saliendo por migraciones Sequelize revisadas en PR.
  *   Ver docs/pending/pending-items.md para el seguimiento operativo.
  */
-
-const PROPOSER_ROLES: ReadonlySet<string> = new Set(['internal_operator', 'admin', 'platform_admin']);
-const APPROVER_ROLES: ReadonlySet<string> = new Set(['platform_admin']);
 
 @Injectable()
 export class SchemaManagementService {
@@ -180,8 +189,7 @@ export class SchemaManagementService {
   // =========================================================================
 
   async proposeNewTable(data: CreateSchemaTableRequest, currentUser: AuthenticatedUser): Promise<SchemaChangeLogDto> {
-    this.assertRole(currentUser, PROPOSER_ROLES, 'propose schema changes');
-    const requesterId = this.requirePlatformUserId(currentUser);
+    const requester = resolveSchemaChangeActor(currentUser, PLATFORM_PROPOSER_ROLES, 'propose schema changes');
 
     const validation = await this.validation.validateNewTable({
       tableName: data.tableName,
@@ -210,10 +218,13 @@ export class SchemaManagementService {
         relationships: data.relationships,
         justification: data.justification,
       },
-      requesterPlatformUserId: requesterId,
+      requesterPlatformUserId: requester.kind === 'platform' ? requester.id : null,
+      requesterInternalUserId: requester.kind === 'internal' ? requester.id : null,
     });
 
-    this.logger.log(`Schema change proposed: changeId=${entry._id} type=CREATE_TABLE table=${data.tableName} requester=${requesterId}`);
+    this.logger.log(
+      `Schema change proposed: changeId=${entry._id} type=CREATE_TABLE table=${data.tableName} requester=${describeActor(requester)}`,
+    );
 
     return mapChangeLogRow(entry);
   }
@@ -227,8 +238,7 @@ export class SchemaManagementService {
     data: ApproveSchemaChangeRequest,
     currentUser: AuthenticatedUser,
   ): Promise<ApprovalResponseDto> {
-    this.assertRole(currentUser, APPROVER_ROLES, 'approve schema changes');
-    const approverId = this.requirePlatformUserId(currentUser);
+    const approver = resolveSchemaChangeActor(currentUser, PLATFORM_APPROVER_ROLES, 'approve schema changes');
 
     const updated = await this.changeLog.withTransaction(async (transaction) => {
       // Lock pesimista: previene doble aprobación concurrente del mismo cambio.
@@ -245,7 +255,7 @@ export class SchemaManagementService {
       }
 
       // Principio de 4 ojos: el aprobador no puede ser quien propuso el cambio.
-      if (String(entry.requester_platform_user_id) === String(approverId)) {
+      if (sameActor(requesterOf(entry), approver)) {
         throw new ForbiddenException('Segregation of duties: the requester of a schema change cannot approve their own change.');
       }
 
@@ -255,7 +265,8 @@ export class SchemaManagementService {
         changeId,
         {
           approvalStatus: approving ? 'approved' : 'rejected',
-          approvedByPlatformUserId: approverId,
+          approvedByPlatformUserId: approver.kind === 'platform' ? approver.id : null,
+          approvedByInternalUserId: approver.kind === 'internal' ? approver.id : null,
           approvalNotes: data.approvalNotes ?? null,
           // El DDL físico sale por migraciones (ver nota de clase). Aprobar registra la
           // decisión; 'success' aquí significa "decisión registrada correctamente".
@@ -271,7 +282,7 @@ export class SchemaManagementService {
       throw new NotFoundException(`Schema change ${changeId} disappeared during approval`);
     }
 
-    this.logger.log(`Schema change resolved: changeId=${changeId} status=${updated.approval_status} approver=${approverId}`);
+    this.logger.log(`Schema change resolved: changeId=${changeId} status=${updated.approval_status} approver=${describeActor(approver)}`);
 
     const response = new ApprovalResponseDto();
     response._id = updated._id;
@@ -309,19 +320,6 @@ export class SchemaManagementService {
   // =========================================================================
   // HELPERS
   // =========================================================================
-
-  private assertRole(user: AuthenticatedUser, allowed: ReadonlySet<string>, action: string): void {
-    if (!allowed.has(user.role)) {
-      throw new ForbiddenException(`Role "${user.role}" is not allowed to ${action}. Allowed roles: ${[...allowed].join(', ')}.`);
-    }
-  }
-
-  private requirePlatformUserId(user: AuthenticatedUser): string {
-    if (!user.platformUserId) {
-      throw new ForbiddenException('Schema management actions require an identified platform user (platformUserId missing in token).');
-    }
-    return user.platformUserId;
-  }
 
   private async mapVersionRow(row: SchemaVersionRow): Promise<SchemaVersionDto> {
     const [tablesCount, columnsCount, relationshipsCount] = await Promise.all([

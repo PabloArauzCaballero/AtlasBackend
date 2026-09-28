@@ -2910,7 +2910,13 @@
     "platform_admin"
    ],
    "PATCH /operations/schema/change-log/:p/approve": [
-    "platform_admin"
+    "internal_operator",
+    "admin",
+    "platform_admin",
+    "risk_analyst",
+    "fraud_analyst",
+    "compliance_analyst",
+    "qa_engineer"
    ],
    "PATCH /partner-onboarding/:p/branches/:p": [
     "merchant",
@@ -4008,7 +4014,11 @@
    "POST /operations/schema/tables": [
     "internal_operator",
     "admin",
-    "platform_admin"
+    "platform_admin",
+    "risk_analyst",
+    "fraud_analyst",
+    "compliance_analyst",
+    "qa_engineer"
    ],
    "POST /partner-onboarding/:p/branches": [
     "merchant",

@@ -148,13 +148,20 @@ describe('SchemaManagementRepository', () => {
         affectedEntityType: 'table',
         changePayload: { a: 1 },
         requesterPlatformUserId: 'p1',
+        requesterInternalUserId: null,
       });
       expect(created).toMatchObject({ _id: 'c1' });
 
       const bad = buildChangeLogRepo();
       (bad.sequelize.query as jest.Mock).mockResolvedValue([] as never);
       await expect(
-        bad.repo.createChangeLogEntry({ changeType: 'x', affectedEntityType: 'y', changePayload: {}, requesterPlatformUserId: 'p1' }),
+        bad.repo.createChangeLogEntry({
+          changeType: 'x',
+          affectedEntityType: 'y',
+          changePayload: {},
+          requesterPlatformUserId: 'p1',
+          requesterInternalUserId: null,
+        }),
       ).rejects.toThrow('Failed to insert');
     });
 
@@ -166,6 +173,8 @@ describe('SchemaManagementRepository', () => {
       expect(sql).toContain('approval_status = :approvalStatus');
       expect(sql).toContain('change_type = :changeType');
       expect(sql).toContain('requester_platform_user_id = :requesterUserId');
+      // El id del filtro puede ser de cualquiera de las dos poblaciones (hallazgo A4).
+      expect(sql).toContain('requester_internal_user_id = :requesterUserId');
 
       const none = buildChangeLogRepo();
       (none.sequelize.query as jest.Mock).mockResolvedValueOnce([] as never).mockResolvedValueOnce([{ count: '0' }] as never);
@@ -180,6 +189,7 @@ describe('SchemaManagementRepository', () => {
         await found.repo.resolveChangeLogEntry('c1', {
           approvalStatus: 'approved',
           approvedByPlatformUserId: 'p1',
+          approvedByInternalUserId: null,
           approvalNotes: null,
           changeResult: 'success',
           errorMessage: null,
@@ -192,6 +202,7 @@ describe('SchemaManagementRepository', () => {
         await missing.repo.resolveChangeLogEntry('nope', {
           approvalStatus: 'rejected',
           approvedByPlatformUserId: 'p1',
+          approvedByInternalUserId: null,
           approvalNotes: 'no',
           changeResult: 'rejected',
           errorMessage: null,

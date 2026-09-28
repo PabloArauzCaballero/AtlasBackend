@@ -9,7 +9,7 @@ import { syncInternalRbacCatalog } from '../../modules/internal-users/internal-r
 type MigrationContext = { context: QueryInterface };
 
 /**
- * Mismo motivo que `20260926171000-sync-internal-rbac-catalog-4`: el volcado de `20260821040000`
+ * Mismo motivo que `20260926171000-sync-internal-rbac-catalog-4` y `20260927120500-sync-internal-rbac-catalog-5`: el volcado de `20260821040000`
  * ya corrió, así que todo permiso declarado después —aquí `privacy.requests.read` y
  * `privacy.requests.manage`, la cola de solicitudes del titular (hallazgo A5)— vive sólo en el
  * código hasta que una migración lo vuelva a volcar. Sin ella, la pantalla responde 403 a todos.
