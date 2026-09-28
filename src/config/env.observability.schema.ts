@@ -51,4 +51,12 @@ export const observabilityEnvShape = {
   // (p. ej. un ambiente de pruebas efímero) sin tocar código.
   SYSTEM_HEALTH_MONITOR_ENABLED: optionalBooleanEnvSchema.default(true),
   SYSTEM_HEALTH_MONITOR_INTERVAL_MS: z.coerce.number().int().positive().max(3_600_000).default(60_000),
+
+  // Puesta al día del catálogo de sistemas (systems-ops): al arrancar el proceso HTTP y cada
+  // intervalo, cataloga las rutas de ESTE backend desde su contrato OpenAPI y trae el manifiesto de
+  // los bloques federados (motor y ERP). Sin esto el catálogo de un despliegue limpio se quedaba en
+  // cero hasta que alguien pulsara un botón que nadie sabía que había que pulsar.
+  SYSTEMS_CATALOG_AUTO_SYNC_ENABLED: optionalBooleanEnvSchema.default(true),
+  SYSTEMS_CATALOG_AUTO_SYNC_INITIAL_DELAY_MS: z.coerce.number().int().min(0).max(3_600_000).default(45_000),
+  SYSTEMS_CATALOG_AUTO_SYNC_INTERVAL_MS: z.coerce.number().int().min(60_000).max(604_800_000).default(21_600_000),
 };

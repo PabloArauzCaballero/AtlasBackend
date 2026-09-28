@@ -360,10 +360,11 @@ export const OPERACIONES: DominioSembrado = {
   nombre: 'operaciones',
   descripcion: 'Ocho reglas operativas explicadas, las seis suites de prueba con sus pasos y seis corridas con su desenlace real.',
   bloques: [
-    { tabla: 'platform_ops.system_operational_rule_catalog', filas: reglas, conflicto: ['rule_code'] },
-    { tabla: 'platform_ops.system_test_suites', filas: SUITES_DE_PRUEBA, conflicto: ['code'] },
+    { tabla: 'platform_ops.system_operational_rule_catalog', fundamental: true, filas: reglas, conflicto: ['rule_code'] },
+    { tabla: 'platform_ops.system_test_suites', fundamental: true, filas: SUITES_DE_PRUEBA, conflicto: ['code'] },
     {
       tabla: 'platform_ops.system_test_steps',
+      fundamental: true,
       filas: PASOS_DE_PRUEBA.map(({ suite_code, ...resto }) => ({
         ...resto,
         suite_id: refA('platform_ops.system_test_suites', { code: suite_code }),

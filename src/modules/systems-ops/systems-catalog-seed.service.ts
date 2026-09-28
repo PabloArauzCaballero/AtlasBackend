@@ -3,14 +3,14 @@
  * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
  * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
  */
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { SYSTEM_TOOL_SEEDS } from './systems-ops.constants.js';
-import { EndpointDiscoveryService } from './endpoint-discovery.service.js';
+import { SystemsCatalogAutoSyncService } from './systems-catalog-auto-sync.service.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { SystemsErpInventoryService } from './systems-erp-inventory.service.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
@@ -32,7 +32,7 @@ export class SystemsCatalogSeedService {
     private readonly catalogRepository: SystemsCatalogRepository,
     private readonly testRepository: SystemsTestExecutionRepository,
     private readonly stressRepository: SystemsStressProfileRepository,
-    private readonly discovery: EndpointDiscoveryService,
+    private readonly autoSync: SystemsCatalogAutoSyncService,
     private readonly classifier: SystemsCatalogClassifierService,
     @InjectModel(SystemJobRunModel) private readonly jobRunModel: typeof SystemJobRunModel,
     // Las dos mitades pesadas del reseeding: reflejar el esquema real y leer la documentación.
@@ -101,8 +101,11 @@ export class SystemsCatalogSeedService {
       }
       if (input.includeEndpointSeeds) {
         result.endpointSeeds = await this.seedCuratedEndpoints();
-        const discovered = await this.discovery.discoverAndMaybePersist(true);
-        result.discoveredEndpoints = discovered.persisted;
+        // Del contrato OpenAPI del propio proceso, no del escaneo de `src/`: la imagen desplegada no
+        // trae código fuente y el escaneo lanzaba 503, tumbando el refresco entero en TEST.
+        const self = await this.autoSync.syncSelf();
+        if (self.status !== 'OK') throw new ServiceUnavailableException(self.message);
+        result.discoveredEndpoints = self.endpointsImported;
         result.impacts = await this.seedImpactsFromDocs();
         result.suites = await this.seedSuites();
         result.stressProfiles = await this.seedStressProfiles();

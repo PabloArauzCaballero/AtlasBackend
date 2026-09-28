@@ -18,7 +18,7 @@ import { OPERACIONES } from './operaciones.seed-data.js';
 import { MENSAJERIA } from './mensajeria.seed-data.js';
 import { SOPORTE } from './soporte.seed-data.js';
 import { escribirDominio, type ResultadoBloque } from './escritor.js';
-import type { DominioSembrado } from './tipos.js';
+import type { AlcanceSiembra, DominioSembrado } from './tipos.js';
 
 /**
  * El orden importa: un dominio sólo puede depender de los que tiene delante.
@@ -52,8 +52,18 @@ export interface ResultadoSiembra {
   readonly bloques: readonly ResultadoBloque[];
 }
 
-export async function sembrarDemo(cliente: Client, soloDominios?: readonly string[]): Promise<ResultadoSiembra[]> {
-  const elegidos = soloDominios?.length ? DOMINIOS.filter((d) => soloDominios.includes(d.nombre)) : DOMINIOS;
+/** Los dominios que tienen algo que escribir con ese alcance, en su orden de dependencia. */
+function dominiosDe(alcance: AlcanceSiembra): readonly DominioSembrado[] {
+  return alcance === 'fundamental' ? DOMINIOS.filter((d) => d.bloques.some((bloque) => bloque.fundamental)) : DOMINIOS;
+}
+
+export async function sembrarDemo(
+  cliente: Client,
+  soloDominios?: readonly string[],
+  alcance: AlcanceSiembra = 'completa',
+): Promise<ResultadoSiembra[]> {
+  const candidatos = dominiosDe(alcance);
+  const elegidos = soloDominios?.length ? candidatos.filter((d) => soloDominios.includes(d.nombre)) : candidatos;
   if (soloDominios?.length) {
     const desconocidos = soloDominios.filter((nombre) => !DOMINIOS.some((d) => d.nombre === nombre));
     if (desconocidos.length > 0) {
@@ -63,14 +73,23 @@ export async function sembrarDemo(cliente: Client, soloDominios?: readonly strin
 
   const resultados: ResultadoSiembra[] = [];
   for (const dominio of elegidos) {
-    resultados.push({ dominio: dominio.nombre, bloques: await escribirDominio(cliente, dominio) });
+    resultados.push({ dominio: dominio.nombre, bloques: await escribirDominio(cliente, dominio, alcance) });
   }
   return resultados;
 }
 
 /** Cuántas filas declara cada dominio, sin tocar la base. Es lo que imprime `--dry-run`. */
-export function planDeSiembra(): { dominio: string; tabla: string; filas: number }[] {
-  return DOMINIOS.flatMap((dominio) =>
-    dominio.bloques.map((bloque) => ({ dominio: dominio.nombre, tabla: bloque.tabla, filas: bloque.filas.length })),
+export function planDeSiembra(
+  alcance: AlcanceSiembra = 'completa',
+): { dominio: string; tabla: string; filas: number; fundamental: boolean }[] {
+  return dominiosDe(alcance).flatMap((dominio) =>
+    dominio.bloques
+      .filter((bloque) => alcance === 'completa' || bloque.fundamental)
+      .map((bloque) => ({
+        dominio: dominio.nombre,
+        tabla: bloque.tabla,
+        filas: bloque.filas.length,
+        fundamental: bloque.fundamental === true,
+      })),
   );
 }

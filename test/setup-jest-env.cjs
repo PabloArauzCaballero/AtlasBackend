@@ -12,6 +12,8 @@ process.env.SYSTEM_TEST_ALLOWED_HOSTS_STAGING ||= 'staging.atlas.example.com';
 process.env.SYSTEM_TEST_ALLOWED_HOSTS_PRODUCTION_READONLY ||= 'production.atlas.example.com';
 // Ningún test debe disparar el setInterval real de SystemsHealthMonitorService.
 process.env.SYSTEM_HEALTH_MONITOR_ENABLED ||= 'false';
+// Ni el temporizador de la puesta al día del catálogo, que saldría a pedir manifiestos por la red.
+process.env.SYSTEMS_CATALOG_AUTO_SYNC_ENABLED ||= 'false';
 
 // --- Aislamiento del `.env` del desarrollador ----------------------------------------------------
 // `src/config/env.ts` carga `.env` con dotenv, que NO pisa variables ya definidas. Este archivo se

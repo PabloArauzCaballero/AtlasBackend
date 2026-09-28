@@ -51,7 +51,7 @@ export class PlatformCatalogFederationClient {
     try {
       const response = await fetch(url, {
         method: 'GET',
-        headers: { accept: 'application/json', [config.authHeader]: config.authValue },
+        headers: { accept: 'application/json', ...config.extraHeaders, [config.authHeader]: config.authValue },
         signal: controller.signal,
       });
       const elapsed = Date.now() - startedAt;

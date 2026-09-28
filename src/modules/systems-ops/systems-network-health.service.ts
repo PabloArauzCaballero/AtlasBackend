@@ -28,6 +28,12 @@ export interface NetworkBlockReport {
     endpoints: number;
     dataEntities: number;
     federationStatus: string;
+    /**
+     * Si los contadores son una MEDICIÓN. Falso mientras no haya una lectura correcta del bloque:
+     * entonces «0 endpoints» no significa cero, significa «nadie lo ha contado», y el panel tiene
+     * que poder decir eso en vez de pintar un cero.
+     */
+    measured: boolean;
     federationMessage: string | null;
     lastAttemptAt: string | null;
     lastSuccessAt: string | null;
@@ -170,20 +176,35 @@ function toCatalogSummary(
     endpoints: counts.endpoints.get(definition.code) ?? 0,
     dataEntities: counts.dataEntities.get(definition.code) ?? 0,
     federationStatus: federationStatusOf(definition, state),
-    federationMessage: state?.lastMessage ?? null,
-    lastAttemptAt: state?.lastAttemptAt?.toISOString() ?? null,
-    lastSuccessAt: state?.lastSuccessAt?.toISOString() ?? null,
-    remoteVersion: state?.remoteVersion ?? null,
-    remoteCommit: state?.remoteCommit ?? null,
+    ...lastRunOf(state),
+  };
+}
+
+/** Lo que la bitácora dice de la última pasada; todo en `null` si nunca la hubo. */
+function lastRunOf(
+  state: SystemBlockFederationStateModel | undefined,
+): Omit<NetworkBlockReport['catalog'], 'endpoints' | 'dataEntities' | 'federationStatus'> {
+  if (!state) {
+    return { measured: false, federationMessage: null, lastAttemptAt: null, lastSuccessAt: null, remoteVersion: null, remoteCommit: null };
+  }
+  return {
+    measured: Boolean(state.lastSuccessAt),
+    federationMessage: state.lastMessage ?? null,
+    lastAttemptAt: state.lastAttemptAt?.toISOString() ?? null,
+    lastSuccessAt: state.lastSuccessAt?.toISOString() ?? null,
+    remoteVersion: state.remoteVersion ?? null,
+    remoteCommit: state.remoteCommit ?? null,
   };
 }
 
 /**
- * Este backend no se federa: se introspecciona. Decirlo con un estado propio evita que el panel lo
- * muestre como «nunca ejecutado», que sería cierto y a la vez completamente engañoso.
+ * Este backend no se federa: cataloga sus rutas desde su propio contrato
+ * (`SystemsCatalogAutoSyncService`) y deja constancia en la misma bitácora. Con constancia de un
+ * éxito se reporta `SELF_INTROSPECTED`; sin ella, lo que haya —incluido `NEVER_RUN`—, porque decir
+ * «se introspecciona solo» con el contador en cero era justo lo que hacía que el cero pareciera real.
  */
 function federationStatusOf(definition: PlatformBlockDefinition, state: SystemBlockFederationStateModel | undefined): string {
-  if (definition.kind === 'SELF') return 'SELF_INTROSPECTED';
+  if (definition.kind === 'SELF') return state?.lastStatus === 'OK' ? 'SELF_INTROSPECTED' : (state?.lastStatus ?? 'NEVER_RUN');
   return state?.lastStatus ?? 'NEVER_RUN';
 }
 

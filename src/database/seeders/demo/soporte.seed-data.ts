@@ -1110,9 +1110,19 @@ export const SOPORTE: DominioSembrado = {
   nombre: 'soporte',
   descripcion: 'Mesa de soporte completa: 8 colas, 4 acuerdos, 22 categorías, 6 agentes, 10 casos con su conversación y 8 artículos.',
   bloques: [
-    { tabla: 'support.support_queues', filas: colas, conflicto: ['_tenant_id', 'queue_code'] },
-    { tabla: 'support.support_sla_policies', filas: acuerdos, conflicto: ['_tenant_id', 'policy_code', 'priority', 'version_number'] },
-    { tabla: 'support.support_case_categories', filas: categorias, conflicto: ['_tenant_id', 'category_code', 'catalog_version'] },
+    { tabla: 'support.support_queues', fundamental: true, filas: colas, conflicto: ['_tenant_id', 'queue_code'] },
+    {
+      tabla: 'support.support_sla_policies',
+      fundamental: true,
+      filas: acuerdos,
+      conflicto: ['_tenant_id', 'policy_code', 'priority', 'version_number'],
+    },
+    {
+      tabla: 'support.support_case_categories',
+      fundamental: true,
+      filas: categorias,
+      conflicto: ['_tenant_id', 'category_code', 'catalog_version'],
+    },
     { tabla: 'support.support_agent_profiles', filas: agentes, conflicto: ['_tenant_id', 'internal_user_id'] },
     { tabla: 'support.support_cases', filas: casos },
     { tabla: 'support.support_channels', filas: canales, conflicto: ['_tenant_id', 'channel_code'] },
@@ -1123,10 +1133,16 @@ export const SOPORTE: DominioSembrado = {
     { tabla: 'support.support_case_feedback', filas: encuestas },
     {
       tabla: 'support.support_canned_responses',
+      fundamental: true,
       filas: respuestas,
       conflicto: ['_tenant_id', 'response_code', 'locale', 'version_number'],
     },
-    { tabla: 'support.knowledge_articles', filas: articulos, conflicto: ['_tenant_id', 'article_key'] },
-    { tabla: 'support.knowledge_article_versions', filas: versionesArticulo, conflicto: ['article_id', 'locale', 'version_number'] },
+    { tabla: 'support.knowledge_articles', fundamental: true, filas: articulos, conflicto: ['_tenant_id', 'article_key'] },
+    {
+      tabla: 'support.knowledge_article_versions',
+      fundamental: true,
+      filas: versionesArticulo,
+      conflicto: ['article_id', 'locale', 'version_number'],
+    },
   ],
 };

@@ -327,6 +327,8 @@ export const MENSAJERIA: DominioSembrado = {
   bloques: [
     {
       tabla: 'messaging.notification_policies',
+      fundamental: true,
+      columnasDemostrativas: ['updated_by_internal_user_id'],
       filas: politicas,
       conflicto: ['_tenant_id', 'event_code', 'channel'],
       predicado: '_deleted = false',
