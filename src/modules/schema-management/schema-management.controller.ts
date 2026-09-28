@@ -13,6 +13,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { SchemaManagementService } from './services/schema-management.service.js';
+import { InternalPermissions } from '../internal-users/internal-permissions.decorator.js';
+import { SchemaChangeAuthorizationGuard } from './schema-change-authorization.guard.js';
 import {
   approveSchemaChangeRequestSchema,
   createSchemaTableRequestSchema,
@@ -33,16 +35,33 @@ import type {
  *
  * Endpoints DDL de solo-catálogo:
  * - Lectura: versiones, tablas, columnas, FK, change-log (roles internos + auditores).
- * - Escritura: proponer tabla (operadores), aprobar/rechazar (platform_admin, 4 ojos).
+ * - Escritura: proponer tabla y aprobar/rechazar (4 ojos).
  *
- * La autorización fina (quién propone vs quién aprueba, y el principio de 4 ojos)
- * vive en SchemaManagementService; los @Roles de aquí son la primera barrera.
+ * Escribir: una sesión interna con `governance.schema.propose` / `governance.schema.approve`
+ * (lo decide `SchemaChangeAuthorizationGuard`), o una sesión de plataforma con su rol
+ * (`platform_admin` para aprobar), que exige el servicio. El principio de 4 ojos vive en
+ * SchemaManagementService; los @Roles de aquí son la primera barrera.
  */
+
+/**
+ * Roles de sesión que pueden llegar a escribir. En sesión interna el rol no decide —lo hace el
+ * permiso fino—, pero tiene que dejar pasar a los roles que `legacyRoleForInternalRoles` emite para
+ * quien tiene el permiso (DATA_GOVERNANCE_MANAGER y SYSTEMS_ADMIN dan `admin`). Los auditores, nunca.
+ */
+const SCHEMA_WRITE_ROLES = [
+  'internal_operator',
+  'admin',
+  'platform_admin',
+  'risk_analyst',
+  'fraud_analyst',
+  'compliance_analyst',
+  'qa_engineer',
+] as const;
 
 @ApiTags('schema-management')
 @ApiBearerAuth('access-token')
 @Controller('operations/schema')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, SchemaChangeAuthorizationGuard)
 export class SchemaManagementController {
   constructor(private readonly schemaService: SchemaManagementService) {}
 
@@ -116,12 +135,14 @@ export class SchemaManagementController {
 
   @ApiOperation({
     summary: 'Proponer una tabla nueva (solo-catálogo, no ejecuta DDL)',
-    description: 'Registra una propuesta de cambio de esquema pendiente de aprobación (4 ojos) por platform_admin.',
+    description:
+      'Registra una propuesta de cambio de esquema pendiente de aprobación por otra persona (4 ojos). Sesión interna: exige el permiso governance.schema.propose; sesión de plataforma: rol internal_operator, admin o platform_admin.',
   })
   @ApiBody({ schema: zodToApiSchema(createSchemaTableRequestSchema) })
   @ApiResponse({ status: 201, description: 'Propuesta de tabla registrada.' })
   @Post('tables')
-  @Roles('internal_operator', 'admin', 'platform_admin')
+  @Roles(...SCHEMA_WRITE_ROLES)
+  @InternalPermissions('governance.schema.propose')
   @HttpCode(HttpStatus.CREATED)
   proposeTable(
     @Body(new ZodValidationPipe(createSchemaTableRequestSchema))
@@ -149,7 +170,8 @@ export class SchemaManagementController {
 
   @ApiOperation({
     summary: 'Aprobar o rechazar una propuesta de cambio de esquema',
-    description: 'Exclusivo de platform_admin (segundo par de ojos). Rechazar requiere approvalNotes.',
+    description:
+      'Segundo par de ojos: quien propuso no puede aprobar. Sesión interna: exige el permiso governance.schema.approve; sesión de plataforma: rol platform_admin. Rechazar requiere approvalNotes.',
   })
   @ApiParam({ name: 'changeId' })
   @ApiBody({ schema: zodToApiSchema(approveSchemaChangeRequestSchema) })
@@ -157,7 +179,8 @@ export class SchemaManagementController {
   @ApiResponse({ status: 404, description: 'SCHEMA_CHANGE_NOT_FOUND.' })
   @ApiResponse({ status: 409, description: 'SCHEMA_CHANGE_ALREADY_DECIDED.' })
   @Patch('change-log/:changeId/approve')
-  @Roles('platform_admin')
+  @Roles(...SCHEMA_WRITE_ROLES)
+  @InternalPermissions('governance.schema.approve')
   @HttpCode(HttpStatus.OK)
   approveChange(
     @Param('changeId') changeId: string,

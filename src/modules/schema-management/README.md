@@ -25,9 +25,9 @@ catálogo versionado creado en la Fase 4A.
 | GET | `/operations/schema/versions/:versionId` | internos + auditor | Detalle de versión |
 | GET | `/operations/schema/tables?versionId=` | internos + auditor | Tablas de una versión |
 | GET | `/operations/schema/tables/:tableId` | internos + auditor | Tabla + columnas + FK |
-| POST | `/operations/schema/tables` | `internal_operator`, `admin`, `platform_admin` | Proponer tabla (queda `pending`) |
+| POST | `/operations/schema/tables` | sesión interna con `governance.schema.propose`; plataforma: `internal_operator`, `admin`, `platform_admin` | Proponer tabla (queda `pending`) |
 | GET | `/operations/schema/change-log` | internos + auditor | Auditoría filtrable |
-| PATCH | `/operations/schema/change-log/:changeId/approve` | `platform_admin` | Aprobar o rechazar |
+| PATCH | `/operations/schema/change-log/:changeId/approve` | sesión interna con `governance.schema.approve`; plataforma: `platform_admin` | Aprobar o rechazar |
 
 ## Reglas de negocio
 
@@ -41,8 +41,14 @@ catálogo versionado creado en la Fase 4A.
 
 ## Permisos y errores
 
-- Rol insuficiente → `403 ForbiddenException` (401 se reserva para autenticación en `JwtAuthGuard`).
-- Token sin `platformUserId` → `403` (no hay actor auditable).
+- Sesión interna (el portal): decide el permiso fino (`SchemaChangeAuthorizationGuard` →
+  `InternalPermissionsGuard`); sin él, `403` que nombra el permiso. Los reciben
+  `DATA_GOVERNANCE_MANAGER`, `SYSTEMS_ADMIN` y `SUPER_ADMIN`. El rol de sesión no cuenta:
+  `legacyRoleForInternalRoles` nunca emite `platform_admin` (hallazgo A4, P-35).
+- Sesión de plataforma: rol insuficiente → `403 ForbiddenException` (401 se reserva para autenticación en `JwtAuthGuard`).
+- Token sin `internalUserId` ni `platformUserId` → `403` (no hay actor auditable).
+- El actor se guarda con su población: `requester_internal_user_id` / `requester_platform_user_id`
+  (la base exige al menos uno) y lo mismo para el aprobador. El 4 ojos compara población + id.
 - Entrada inválida → `400` con issues de Zod.
 - Recurso inexistente → `404`.
 - Cambio ya resuelto → `409`.
@@ -53,6 +59,14 @@ catálogo versionado creado en la Fase 4A.
 - Nunca se construye SQL desde keys de objetos del request.
 - Identificadores SQL validados en dos capas: Zod (regex estricta) + `SchemaManagementValidationService`.
 - IDs expuestos como `string` (BIGINT de Postgres) — evita pérdida de precisión.
+
+## Enlace con la migración
+
+La migración que aplica un cambio aprobado llama a
+`linkSchemaChangeToMigration(queryInterface, '<changeId>', '<nombre-de-la-migración>')`
+(`src/database/migration-support/schema-change-link.util.ts`), que rellena `applied_by_migration` y
+`applied_at`. Sólo enlaza cambios `approved` sin enlace previo, y no falla si el cambio no existe en
+esa base (el change log es dato de cada entorno).
 
 ## Alcance y pendientes
 

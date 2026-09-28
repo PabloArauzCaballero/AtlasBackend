@@ -215,7 +215,7 @@
     },
     "schema-management": {
       "context": "platform",
-      "allowedDependencies": []
+      "allowedDependencies": ["internal-users"]
     },
     "workflow-catalog": {
       "context": "platform",

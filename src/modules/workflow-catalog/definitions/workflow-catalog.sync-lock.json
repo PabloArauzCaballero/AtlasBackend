@@ -1,6 +1,6 @@
 {
   "processes": {
-    "migration": "20260926170500-sync-workflow-catalog-1",
+    "migration": "20260927091000-sync-workflow-catalog-2",
     "hashes": {
       "customer_credit_journey": "4c2abe0a4be737e9",
       "post_login_first_screen": "6b88e3d8745e29e5",
@@ -40,14 +40,14 @@
       "domain_events_outbox": "2d07e99fb6d767a7",
       "runtime_jobs": "848d1ce6eed299a7",
       "internal_users_rbac": "aed211438018b5a5",
-      "schema_change_management": "34d0d7bc4b4abd2c",
+      "schema_change_management": "f4b9cdbfe86a2602",
       "external_providers_operations": "a873c3bfb6dbaa1e",
       "data_governance_quality_reports": "0dd340d8bb86069f",
       "deploy_and_release": "df61d8d0f765dc9b"
     }
   },
   "rbac": {
-    "migration": "20260926171000-sync-internal-rbac-catalog-4",
-    "hash": "7463bb5ad12b32c9"
+    "migration": "20260927090500-sync-internal-rbac-catalog-5",
+    "hash": "43b5ec78205ede09"
   }
 }

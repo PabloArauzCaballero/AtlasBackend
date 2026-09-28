@@ -85,14 +85,20 @@ export interface SchemaChangeLogRow {
   affected_entity_id: string | null;
   affected_entity_type: string;
   change_payload: Record<string, unknown>;
-  requester_platform_user_id: string;
+  /** Proponente de plataforma o interno: la base exige al menos uno (`ck_schema_change_log_requester_present`). */
+  requester_platform_user_id: string | null;
+  requester_internal_user_id: string | null;
   approval_status: SchemaChangeApprovalStatus;
   approved_by_platform_user_id: string | null;
+  approved_by_internal_user_id: string | null;
   approved_at: Date | null;
   approval_notes: string | null;
   rolled_back: boolean;
   change_result: SchemaChangeResult | null;
   error_message: string | null;
+  /** Migración que materializó el cambio aprobado (`linkSchemaChangeToMigration`). */
+  applied_by_migration: string | null;
+  applied_at: Date | null;
   created_at: Date;
 }
 
@@ -131,12 +137,15 @@ export interface CreateChangeLogEntryInput {
   changeType: string;
   affectedEntityType: string;
   changePayload: Record<string, unknown>;
-  requesterPlatformUserId: string;
+  /** Exactamente uno de los dos: el del actor que propone. */
+  requesterPlatformUserId: string | null;
+  requesterInternalUserId: string | null;
 }
 
 export interface ResolveChangeLogEntryInput {
   approvalStatus: Extract<SchemaChangeApprovalStatus, 'approved' | 'rejected'>;
-  approvedByPlatformUserId: string;
+  approvedByPlatformUserId: string | null;
+  approvedByInternalUserId: string | null;
   approvalNotes: string | null;
   changeResult: SchemaChangeResult;
   errorMessage: string | null;

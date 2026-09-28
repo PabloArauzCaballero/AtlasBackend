@@ -74,6 +74,28 @@ export const DATA_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
     riskLevel: 'HIGH',
     requiresReason: true,
   }),
+  // Cambios de esquema (P-35). Proponer y aprobar son DOS permisos a propósito: el principio de
+  // cuatro ojos lo impone el servicio (quien propone no aprueba), pero repartirlos deja además
+  // conceder sólo una de las dos mitades. Los reciben por prefijo `governance.` DATA_GOVERNANCE_MANAGER
+  // y SYSTEMS_ADMIN, y SUPER_ADMIN como todo.
+  permission({
+    code: 'governance.schema.propose',
+    module: 'governance',
+    resource: 'schema_change',
+    action: 'propose',
+    description: 'Proponer un cambio de esquema (queda pendiente de aprobación por otra persona).',
+    riskLevel: 'HIGH',
+    requiresReason: true,
+  }),
+  permission({
+    code: 'governance.schema.approve',
+    module: 'governance',
+    resource: 'schema_change',
+    action: 'approve',
+    description: 'Aprobar o rechazar un cambio de esquema propuesto por otra persona.',
+    riskLevel: 'CRITICAL',
+    requiresReason: true,
+  }),
   permission({
     code: 'dataQuality.issues.read',
     module: 'data_quality',

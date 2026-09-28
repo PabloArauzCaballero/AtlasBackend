@@ -56,12 +56,16 @@ export function mapChangeLogRow(row: SchemaChangeLogRow): SchemaChangeLogDto {
   dto.changePayload = row.change_payload;
   dto.approvalStatus = row.approval_status;
   dto.requesterPlatformUserId = row.requester_platform_user_id;
+  dto.requesterInternalUserId = row.requester_internal_user_id ?? null;
   dto.approvedByPlatformUserId = row.approved_by_platform_user_id;
+  dto.approvedByInternalUserId = row.approved_by_internal_user_id ?? null;
   dto.approvedAt = row.approved_at;
   dto.approvalNotes = row.approval_notes;
   dto.changeResult = row.change_result;
   dto.errorMessage = row.error_message;
   dto.createdAt = row.created_at;
   dto.rolledBack = row.rolled_back;
+  dto.appliedByMigration = row.applied_by_migration ?? null;
+  dto.appliedAt = row.applied_at ?? null;
   return dto;
 }
