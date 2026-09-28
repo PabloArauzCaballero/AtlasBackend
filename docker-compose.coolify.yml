@@ -512,6 +512,20 @@ services:
     # y su actividad, así que retirarlos de la base no servía de nada —volvían con el siguiente
     # push—. TEST es donde Pablo prueba con datos reales camino de pre-producción; un entorno no
     # debería llenarse de personas inventadas por no haber dicho que no.
+    #
+    # `seed-demo --fundamental` corre SIEMPRE, antes que la demostración. Es la CONFIGURACIÓN sin la
+    # que el portal sale vacío —colas y categorías de soporte, artículos de ayuda, productos de
+    # crédito y políticas de mora, políticas de aviso, privacidad y calidad, catálogos de contexto,
+    # definiciones de eventos y observaciones, suites de prueba— y no trae ni una persona inventada
+    # (lo vigila `test/unit/database/siembra-fundamental.spec.ts`). Sólo INSERTA lo que falta
+    # (`ON CONFLICT DO NOTHING`): lo que un operador cambió desde el portal sobrevive al despliegue.
+    # Hasta 2026-09-28 iba dentro del opt-in: una base nueva nacía también sin configuración.
+    # Justo antes corre `sync-endpoint-catalog`: añade al catálogo de endpoints las rutas del
+    # contrato OpenAPI que falten (sin tocar las revisadas). En la imagen no hay código fuente, así
+    # que el botón del portal no podía llenarlo, y sin endpoints los perfiles de estrés de la
+    # siembra fundamental no tienen a qué apuntar.
+    # Va con `||` a un aviso como las herramientas de catálogo: `migrate` fallido deja la API sin
+    # arrancar (CLAUDE.md §3), y la configuración que falte se ve en el log, no con el servicio caído.
     command:
       - sh
       - -c
@@ -524,6 +538,8 @@ services:
         (node dist/scripts/apply-entity-business-narratives.js || echo 'AVISO: narrativa de entidades sin refrescar') &&
         (node dist/scripts/apply-curated-business-metadata.js || echo 'AVISO: dominios de negocio sin refrescar') &&
         (node dist/scripts/refresh-systems-catalog-introspection.js || echo 'AVISO: catalogo de esquema sin refrescar') &&
+        (node dist/scripts/sync-endpoint-catalog.js || echo 'AVISO: catalogo de endpoints sin refrescar') &&
+        (node dist/scripts/seed-demo.js --fundamental || echo 'AVISO: siembra fundamental incompleta: el portal puede salir sin configuracion') &&
         if [ "$${DEMO_SEED_ENABLED}" = "true" ]; then
         node dist/scripts/seed-demo.js;
         else echo 'siembra demostrativa desactivada: se enciende con DEMO_SEED_ENABLED=true'; fi

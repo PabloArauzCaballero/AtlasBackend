@@ -41,6 +41,7 @@
     "db:capture-query-baseline": "tsx scripts/capture-query-baseline.ts",
     "dev:jwt": "tsx scripts/create-dev-jwt.ts",
     "systems:catalog:introspect": "node dist/scripts/refresh-systems-catalog-introspection.js",
+    "systems:endpoints:sync": "node dist/scripts/sync-endpoint-catalog.js",
     "systems:catalog:narratives": "node dist/scripts/apply-entity-business-narratives.js",
     "systems:catalog:business": "node dist/scripts/apply-curated-business-metadata.js",
     "hash-password": "tsx scripts/hash-password.ts",

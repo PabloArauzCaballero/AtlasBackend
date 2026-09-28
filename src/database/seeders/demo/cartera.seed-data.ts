@@ -656,6 +656,7 @@ export const CARTERA: DominioSembrado = {
   bloques: [
     {
       tabla: 'credit.credit_products',
+      fundamental: true,
       filas: PRODUCTOS.map((p) => ({
         ...p,
         _tenant_id: T,
@@ -667,6 +668,7 @@ export const CARTERA: DominioSembrado = {
     },
     {
       tabla: 'credit.delinquency_policies',
+      fundamental: true,
       filas: POLITICAS_MORA.map((p) => ({
         ...p,
         _tenant_id: T,

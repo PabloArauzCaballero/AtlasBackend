@@ -4,11 +4,25 @@
  * @system define seeders para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
  */
 import type { Client } from 'pg';
-import { esReferencia, type BloqueSembrado, type DominioSembrado, type FilaSembrada, type ReferenciaNatural } from './tipos.js';
+import {
+  esReferencia,
+  type AlcanceSiembra,
+  type BloqueSembrado,
+  type DominioSembrado,
+  type FilaSembrada,
+  type ReferenciaNatural,
+} from './tipos.js';
 
 export interface ResultadoBloque {
   readonly tabla: string;
   readonly filas: number;
+  /**
+   * Filas que la base NO tenía y se insertaron ahora. En la siembra fundamental es el número que
+   * importa: `filas` cuenta las sentencias, y un `DO NOTHING` sobre una fila ya presente también
+   * cuenta ahí. Decir «42 sembradas» cuando se insertaron 0 sería un verde que miente. En la
+   * completa no distingue: PostgreSQL cuenta igual una fila insertada que una actualizada.
+   */
+  readonly nuevas?: number;
   readonly omitido?: string;
   /** Filas que no entraron porque su referencia natural no existe en esta base. */
   readonly omitidas?: number;
@@ -39,8 +53,19 @@ function aParametro(valor: unknown): unknown {
   return valor;
 }
 
-export function sentenciaDe(bloque: BloqueSembrado): { sql: string; columnas: string[] } {
+export function sentenciaDe(bloque: BloqueSembrado, alcance: AlcanceSiembra = 'completa'): { sql: string; columnas: string[] } {
   const columnas = columnasDe(bloque.filas);
+  if (alcance === 'fundamental') {
+    // Sin destino de conflicto: `DO NOTHING` cubre CUALQUIER índice único, también el de la clave
+    // natural cuando la fila existe con otro `_id` (una cola creada a mano, una base de desarrollo).
+    // La siembra fundamental completa lo que falta y no discute lo que hay.
+    return {
+      sql: `INSERT INTO ${entrecomilla(bloque.tabla)} (${columnas.map(entrecomilla).join(', ')}) VALUES (${columnas
+        .map((_, indice) => `$${indice + 1}`)
+        .join(', ')}) ON CONFLICT DO NOTHING`,
+      columnas,
+    };
+  }
   const conflicto = bloque.conflicto ?? ['_id'];
   // `_id` nunca se actualiza. Cuando el bloque reconcilia por clave NATURAL —una cola de soporte
   // por su código, por ejemplo— la fila que ya existe en desarrollo tiene su propio identificador,
@@ -102,11 +127,14 @@ export async function escribirBloque(
   cliente: Client,
   bloque: BloqueSembrado,
   cache = new Map<string, unknown>(),
+  alcance: AlcanceSiembra = 'completa',
 ): Promise<ResultadoBloque> {
   if (bloque.filas.length === 0) return { tabla: bloque.tabla, filas: 0, omitido: 'sin filas' };
-  const { sql, columnas } = sentenciaDe(bloque);
+  const { sql, columnas } = sentenciaDe(bloque, alcance);
+  const anuladas = new Set(alcance === 'fundamental' ? (bloque.columnasDemostrativas ?? []) : []);
 
   let escritas = 0;
+  let nuevas = 0;
   let omitidas = 0;
   let primerMotivo = '';
 
@@ -114,7 +142,7 @@ export async function escribirBloque(
     const parametros: unknown[] = [];
     try {
       for (const columna of columnas) {
-        const valor = fila[columna];
+        const valor = anuladas.has(columna) ? null : fila[columna];
         parametros.push(aParametro(esReferencia(valor) ? await resolverReferencia(cliente, valor, cache) : valor));
       }
     } catch (error) {
@@ -127,8 +155,9 @@ export async function escribirBloque(
       throw new Error(`${bloque.tabla}: la fila ${indice + 1} de ${bloque.filas.length} no entró (${detalle})`);
     }
     try {
-      await cliente.query(sql, parametros);
+      const resultado = await cliente.query(sql, parametros);
       escritas += 1;
+      nuevas += resultado.rowCount ?? 0;
     } catch (error) {
       const detalle = error instanceof Error ? error.message : String(error);
       throw new Error(`${bloque.tabla}: la fila ${indice + 1} de ${bloque.filas.length} no entró (${detalle})`);
@@ -137,15 +166,21 @@ export async function escribirBloque(
   return {
     tabla: bloque.tabla,
     filas: escritas,
+    nuevas,
     ...(omitidas > 0 ? { omitidas, omitido: `${omitidas} omitidas: ${primerMotivo}` } : {}),
   };
 }
 
-export async function escribirDominio(cliente: Client, dominio: DominioSembrado): Promise<ResultadoBloque[]> {
+export async function escribirDominio(
+  cliente: Client,
+  dominio: DominioSembrado,
+  alcance: AlcanceSiembra = 'completa',
+): Promise<ResultadoBloque[]> {
   const resultados: ResultadoBloque[] = [];
   // Una caché por dominio: dentro de una misma corrida los códigos naturales no cambian, y sin
   // ella una tabla de 400 filas que apunta a la misma cola hace 400 SELECT idénticos.
   const cache = new Map<string, unknown>();
-  for (const bloque of dominio.bloques) resultados.push(await escribirBloque(cliente, bloque, cache));
+  const bloques = alcance === 'fundamental' ? dominio.bloques.filter((bloque) => bloque.fundamental) : dominio.bloques;
+  for (const bloque of bloques) resultados.push(await escribirBloque(cliente, bloque, cache, alcance));
   return resultados;
 }
