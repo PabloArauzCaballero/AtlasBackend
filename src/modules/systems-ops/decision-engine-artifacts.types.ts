@@ -49,6 +49,11 @@ const deploymentSchema = z.object({
     .object({
       id: z.string(),
       versionNumber: z.number().optional(),
+      // La versión semántica y la validación de ESTA versión, la desplegada. Las del artefacto
+      // (`latestVersion`, `lastValidatedAt`) describen la más nueva de cualquier estado —un
+      // borrador incluido— y no la que decide.
+      semanticVersion: z.string().nullable().optional(),
+      validatedAt: z.string().nullable().optional(),
       status: z.string().optional(),
       artifact: z.object({ artifactCode: z.string(), name: z.string() }).optional(),
     })

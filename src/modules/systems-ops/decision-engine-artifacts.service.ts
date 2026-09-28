@@ -65,8 +65,15 @@ export class DecisionEngineArtifactsService {
 
     try {
       const [artifacts, deployments] = await Promise.all([
-        this.fetchJson(baseUrl, env.DECISION_ENGINE_ARTIFACTS_PATH, callerToken, artifactPageSchema),
-        this.fetchJson(baseUrl, `${env.DECISION_ENGINE_DEPLOYMENTS_PATH}?status=ACTIVE`, callerToken, deploymentPageSchema),
+        // `pageSize` al tope del motor (100): sin él devolvía 25 y, con más, la cuenta y la lista
+        // salían recortadas sin decirlo.
+        this.fetchJson(baseUrl, `${env.DECISION_ENGINE_ARTIFACTS_PATH}?pageSize=${CATALOG_PAGE_SIZE}`, callerToken, artifactPageSchema),
+        this.fetchJson(
+          baseUrl,
+          `${env.DECISION_ENGINE_DEPLOYMENTS_PATH}?status=ACTIVE&pageSize=${CATALOG_PAGE_SIZE}`,
+          callerToken,
+          deploymentPageSchema,
+        ),
       ]);
       return {
         generatedAt: new Date().toISOString(),
@@ -107,6 +114,9 @@ export class DecisionEngineArtifactsService {
     }
   }
 }
+
+/** El máximo que sirve el motor por página (`paginationArgs`). */
+const CATALOG_PAGE_SIZE = 100;
 
 /**
  * Une cada despliegue activo con el artefacto al que pertenece.
@@ -151,11 +161,11 @@ function identityOf(
     artifactType: firstText(artifact?.artifactType),
     ownerTeam: firstText(artifact?.ownerTeam),
     versionNumber: version?.versionNumber ?? null,
-    semanticVersion: firstText(artifact?.latestVersion),
+    semanticVersion: firstText(version?.semanticVersion),
     // El estado de la VERSION DESPLEGADA, no el de la ultima del artefacto: se separan en cuanto
     // alguien empieza a trabajar en la siguiente, y el que decide es este.
     versionStatus: firstText(version?.status, artifact?.latestStatus),
-    lastValidatedAt: firstText(artifact?.lastValidatedAt),
+    lastValidatedAt: firstText(version?.validatedAt),
   };
 }
 
