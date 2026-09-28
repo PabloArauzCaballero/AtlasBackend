@@ -8,6 +8,7 @@ import { describe, expect, it, jest } from '@jest/globals';
  */
 const mockReadSources = jest.fn(async (_endpoint: unknown) => '');
 jest.mock('../../../src/modules/systems-ops/systems-source-scan.util.js', () => ({
+  assertSourceTreeAvailable: async () => undefined,
   readSourcesForEndpoint: (endpoint: unknown) => mockReadSources(endpoint),
   clearSourceScanCacheForTests: () => undefined,
 }));

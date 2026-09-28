@@ -6,7 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { mapWithConcurrency } from '../../common/utils/concurrency.util.js';
 import { SystemsDataImpactInferenceRepository } from './systems-data-impact-inference.repository.js';
-import { readSourcesForEndpoint } from './systems-source-scan.util.js';
+import { assertSourceTreeAvailable, readSourcesForEndpoint } from './systems-source-scan.util.js';
 import { SystemDataEntityCatalogModel, SystemEndpointCatalogModel } from '../../database/models/index.js';
 
 const WRITE_METHODS = ['create', 'update', 'destroy', 'upsert', 'bulkCreate', 'findOrCreate', 'increment', 'decrement'];
@@ -64,6 +64,7 @@ export class SystemsDataImpactInferenceService {
   constructor(private readonly repository: SystemsDataImpactInferenceRepository) {}
 
   async infer(input: { persist: boolean }) {
+    await assertSourceTreeAvailable('Inferir impactos endpoint→tabla');
     const [endpoints, entities, relationships] = await Promise.all([
       this.repository.listActiveEndpoints(),
       this.repository.listEntitiesWithModel(),
