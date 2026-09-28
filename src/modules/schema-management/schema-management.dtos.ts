@@ -62,14 +62,20 @@ export class SchemaChangeLogDto {
   affectedEntityId!: string | null;
   changePayload!: Record<string, unknown>;
   approvalStatus!: 'pending' | 'approved' | 'rejected';
-  requesterPlatformUserId!: string;
+  /** Proponente: uno de los dos, según la población de la sesión que propuso. */
+  requesterPlatformUserId!: string | null;
+  requesterInternalUserId!: string | null;
   approvedByPlatformUserId!: string | null;
+  approvedByInternalUserId!: string | null;
   approvedAt!: Date | null;
   approvalNotes!: string | null;
   changeResult!: 'pending' | 'success' | 'failed' | 'rejected' | null;
   errorMessage!: string | null;
   createdAt!: Date;
   rolledBack!: boolean;
+  /** Migración que aplicó el cambio aprobado; `null` mientras no la haya. */
+  appliedByMigration!: string | null;
+  appliedAt!: Date | null;
 }
 
 export class ApprovalResponseDto {

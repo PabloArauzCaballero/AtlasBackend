@@ -12,19 +12,19 @@ Gobierna las propuestas de estructura sin permitir cambios directos desde el por
 
 ## Quién lo inicia y quién lo cierra
 
-Lo inicia una persona interna que propone una tabla desde «Versiones de esquema»; lo cierra otra persona con rol de sesión platform_admin que aprueba o rechaza en «Change log» (quien propone no puede aprobar), y después un desarrollador aplica la migración.
+Lo inicia una persona interna con el permiso governance.schema.propose que propone una tabla desde «Versiones de esquema»; lo cierra otra persona con governance.schema.approve (o una sesión de plataforma platform_admin) que aprueba o rechaza en «Change log» —quien propone no puede aprobar—, y después un desarrollador aplica la migración, que se enlaza al cambio con linkSchemaChangeToMigration.
 
 ## Cuándo empieza y cuándo termina
 
-Empieza con la propuesta, que entra en schema_change_log como pending; termina cuando el cambio queda approved o rejected (rechazar exige notas) y, si se aprobó, cuando la migración Sequelize que lo materializa se despliega.
+Empieza con la propuesta, que entra en schema_change_log como pending; termina cuando el cambio queda approved o rejected (rechazar exige notas) y, si se aprobó, cuando la migración Sequelize que lo materializa se despliega y deja su nombre en applied_by_migration.
 
 ## Qué pasa cuando falla
 
-Aprobar un cambio ya resuelto da 409, sin rol da 403 y un token sin platformUserId da 403. Hoy el portal interno no emite nunca platform_admin ni platformUserId, así que proponer y aprobar desde ahí queda inalcanzable; y el gate check:domain-schema-layout mira la base real, no este catálogo.
+Aprobar un cambio ya resuelto da 409; sin el permiso fino (sesión interna) o sin rol (sesión de plataforma) da 403, que nombra el permiso que falta; aprobar lo que uno mismo propuso da 403. El gate check:domain-schema-layout mira la base real, no este catálogo.
 
 ## Qué indicador dice que va bien
 
-Propuestas en pending y su antigüedad, cambios aprobados sin migración que los aplique y diferencia entre el catálogo de versiones y la base real; se ve en «Change log» del portal.
+Propuestas en pending y su antigüedad, cambios aprobados con applied_by_migration vacío (sin migración que los aplique) y diferencia entre el catálogo de versiones y la base real; se ve en «Change log» del portal.
 
 ## Resultado
 
@@ -73,7 +73,7 @@ La persona propone una tabla desde el formulario de «Versiones»; entra en el c
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Proponer una tabla | http | ATLAS_BACKEND | `POST /operations/schema/tables` | internal_operator, admin, platform_admin | — |
+| Proponer una tabla | http | ATLAS_BACKEND | `POST /operations/schema/tables` | internal_operator, admin, platform_admin, risk_analyst, fraud_analyst, compliance_analyst, qa_engineer | — |
 
 ### Aprobación del cambio (`schema_approve`)
 
@@ -82,7 +82,7 @@ Otra persona aprueba o rechaza la propuesta con SELECT … FOR UPDATE; el propon
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
 | Leer el change log | http | ATLAS_BACKEND | `GET /operations/schema/change-log` | internal_operator, admin, platform_admin, risk_analyst, readonly_auditor | — |
-| Aprobar o rechazar | http | ATLAS_BACKEND | `PATCH /operations/schema/change-log/:changeId/approve` | platform_admin | — |
+| Aprobar o rechazar | http | ATLAS_BACKEND | `PATCH /operations/schema/change-log/:changeId/approve` | internal_operator, admin, platform_admin, risk_analyst, fraud_analyst, compliance_analyst, qa_engineer | — |
 
 ### Aplicación por migración (`schema_apply_migration`)
 
@@ -98,6 +98,9 @@ El CREATE TABLE real sale por una migración Sequelize revisada en PR y aplicada
 - `src/modules/schema-management/schema-management.controller.ts`
 - `src/modules/schema-management/schema-change-log.repository.ts`
 - `src/modules/schema-management/services/schema-management.service.ts`
+- `src/modules/schema-management/services/schema-change-actor.ts`
+- `src/modules/schema-management/schema-change-authorization.guard.ts`
+- `src/database/migration-support/schema-change-link.util.ts`
 - `src/modules/internal-users/internal-rbac.roles.ts (legacyRoleForInternalRoles)`
 - `src/modules/systems-ops/systems-ops.constants.ts`
 - `_plan-documentar-procesos-y-cableado-portal-2026-09-26/datos/procesos.json (P-35)`

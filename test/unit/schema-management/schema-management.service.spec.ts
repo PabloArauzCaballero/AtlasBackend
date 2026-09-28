@@ -19,7 +19,8 @@ import type { AuthenticatedUser } from '../../../src/common/types/auth.types.js'
  * - Principio de 4 ojos: el proponente no puede aprobar su propio cambio
  * - Lock pesimista dentro de transacción al aprobar
  * - Conflict 409 si el cambio ya fue resuelto
- * - Requiere platformUserId en el token
+ * - Requiere un actor identificado en el token (platformUserId o internalUserId)
+ * - Sesión interna (hallazgo A4): propone y aprueba con el permiso fino, sin rol platform_admin
  */
 
 /**
@@ -69,6 +70,14 @@ const adminUser: AuthenticatedUser = {
   platformUserId: '20',
 };
 
+/**
+ * Sesiones INTERNAS como las emite el portal: sólo `internalUserId`, y el rol que da
+ * `legacyRoleForInternalRoles` (DATA_GOVERNANCE_MANAGER → admin). El permiso fino ya lo decidió
+ * `SchemaChangeAuthorizationGuard` (ver su spec); aquí se prueba qué registra el servicio.
+ */
+const internalProposer: AuthenticatedUser = { sub: 'i-7', role: 'admin', tenantId: '1', internalUserId: '7' };
+const internalApprover: AuthenticatedUser = { sub: 'i-8', role: 'admin', tenantId: '1', internalUserId: '8' };
+
 const customerUser: AuthenticatedUser = {
   sub: 'u-cust',
   role: 'customer',
@@ -94,13 +103,17 @@ function makePendingChange(overrides: Partial<SchemaChangeLogRow> = {}): SchemaC
     affected_entity_type: 'TABLE',
     change_payload: { tableName: 'payment_reversals' },
     requester_platform_user_id: '10',
+    requester_internal_user_id: null,
     approval_status: 'pending',
     approved_by_platform_user_id: null,
+    approved_by_internal_user_id: null,
     approved_at: null,
     approval_notes: null,
     rolled_back: false,
     change_result: 'pending',
     error_message: null,
+    applied_by_migration: null,
+    applied_at: null,
     created_at: new Date('2026-07-06T01:00:00Z'),
     ...overrides,
   };
@@ -351,7 +364,7 @@ describe('SchemaManagementService', () => {
       expect(repo.createChangeLogEntry).not.toHaveBeenCalled();
     });
 
-    it('rechaza si el token no trae platformUserId (no hay a quién auditar)', async () => {
+    it('rechaza si el token no trae ni platformUserId ni internalUserId (no hay a quién auditar)', async () => {
       const noIdOperator: AuthenticatedUser = { sub: 'x', role: 'internal_operator' };
       await expect(service.proposeNewTable(validProposal, noIdOperator)).rejects.toThrow(ForbiddenException);
     });
@@ -378,6 +391,21 @@ describe('SchemaManagementService', () => {
       expect(input.changePayload.tableName).toBe('payment_reversals');
       expect(input.changePayload.justification).toBeTruthy();
     });
+
+    it('A4: un usuario INTERNO propone y queda registrado como proponente interno', async () => {
+      repo.createChangeLogEntry.mockResolvedValue(makePendingChange({ requester_platform_user_id: null, requester_internal_user_id: '7' }));
+
+      const dto = await service.proposeNewTable(validProposal, internalProposer);
+
+      const input = repo.createChangeLogEntry.mock.calls[0]?.[0] as {
+        requesterPlatformUserId: string | null;
+        requesterInternalUserId: string | null;
+      };
+      expect(input.requesterInternalUserId).toBe('7');
+      expect(input.requesterPlatformUserId).toBeNull();
+      expect(dto.requesterInternalUserId).toBe('7');
+      expect(dto.requesterPlatformUserId).toBeNull();
+    });
   });
 
   // =========================================================================
@@ -385,7 +413,7 @@ describe('SchemaManagementService', () => {
   // =========================================================================
 
   describe('approveSchemaChange', () => {
-    it('rechaza con 403 a internal_operator (solo platform_admin aprueba)', async () => {
+    it('sesión de PLATAFORMA: rechaza con 403 a internal_operator (sólo platform_admin aprueba)', async () => {
       await expect(service.approveSchemaChange('100', { approval: 'approve' }, operatorUser)).rejects.toThrow(ForbiddenException);
       expect(repo.withTransaction).not.toHaveBeenCalled();
     });
@@ -467,6 +495,50 @@ describe('SchemaManagementService', () => {
       };
       expect(resolveInput.approvalNotes).toBe('Missing FK to compliance table');
       expect(resolveInput.changeResult).toBe('rejected');
+    });
+  });
+
+  describe('approveSchemaChange con sesión interna (A4)', () => {
+    const internalChange = () => makePendingChange({ requester_platform_user_id: null, requester_internal_user_id: '7' });
+
+    it('otro usuario interno aprueba sin rol platform_admin y queda registrado como aprobador interno', async () => {
+      repo.getChangeLogEntryForUpdate.mockResolvedValue(internalChange());
+      repo.resolveChangeLogEntry.mockResolvedValue(
+        makePendingChange({
+          requester_platform_user_id: null,
+          requester_internal_user_id: '7',
+          approval_status: 'approved',
+          approved_by_internal_user_id: '8',
+          change_result: 'success',
+          approved_at: new Date(),
+        }),
+      );
+
+      const result = await service.approveSchemaChange('100', { approval: 'approve' }, internalApprover);
+
+      expect(result.approvalStatus).toBe('approved');
+      const input = repo.resolveChangeLogEntry.mock.calls[0]?.[1] as {
+        approvedByInternalUserId: string | null;
+        approvedByPlatformUserId: string | null;
+      };
+      expect(input.approvedByInternalUserId).toBe('8');
+      expect(input.approvedByPlatformUserId).toBeNull();
+    });
+
+    it('CUATRO OJOS: el usuario interno que propuso no puede aprobar', async () => {
+      repo.getChangeLogEntryForUpdate.mockResolvedValue(internalChange());
+      await expect(service.approveSchemaChange('100', { approval: 'approve' }, internalProposer)).rejects.toThrow('Segregation of duties');
+      expect(repo.resolveChangeLogEntry).not.toHaveBeenCalled();
+    });
+
+    it('el mismo id en otra población NO es la misma persona (interno 10 ≠ plataforma 10)', async () => {
+      repo.getChangeLogEntryForUpdate.mockResolvedValue(makePendingChange({ requester_platform_user_id: '10' }));
+      repo.resolveChangeLogEntry.mockResolvedValue(makePendingChange({ approval_status: 'approved', approved_at: new Date() }));
+      const internalTen: AuthenticatedUser = { sub: 'i-10', role: 'admin', tenantId: '1', internalUserId: '10' };
+
+      await expect(service.approveSchemaChange('100', { approval: 'approve' }, internalTen)).resolves.toMatchObject({
+        approvalStatus: 'approved',
+      });
     });
   });
 
