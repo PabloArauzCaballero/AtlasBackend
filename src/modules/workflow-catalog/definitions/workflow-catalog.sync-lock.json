@@ -1,6 +1,6 @@
 {
   "processes": {
-    "migration": "20260926170500-sync-workflow-catalog-1",
+    "migration": "20260927200000-sync-workflow-catalog-3",
     "hashes": {
       "customer_credit_journey": "4c2abe0a4be737e9",
       "post_login_first_screen": "6b88e3d8745e29e5",
@@ -8,11 +8,11 @@
       "customer_partner_commerce": "7d4bd41ebc6b0c1d",
       "account_signup_to_login": "fd42001e5bdce026",
       "customer_onboarding_kyc": "9154df58cb6e1edd",
-      "identity_verification": "ccb5446ba91f42ac",
+      "identity_verification": "fba0e9610c914d55",
       "onboarding_risk_assessment": "249833550c27b456",
       "customer_eligibility_lifecycle": "cc38dd647da4d96e",
       "credit_line_and_application": "630892826753a7f4",
-      "bank_statement_capacity": "818652b6668bde66",
+      "bank_statement_capacity": "8f20e85e6269c056",
       "purchase_and_disbursement": "2837523c574dffea",
       "installment_payment_claims": "54f9898a850f6526",
       "loan_servicing_collections": "d9625be6d8ad1e15",

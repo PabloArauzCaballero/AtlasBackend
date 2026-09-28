@@ -159,6 +159,55 @@ export function rejectionCopyFor(code: string | null): RejectionCopy {
 }
 
 /**
+ * El motivo que una PERSONA eligió en el motor, traducido al código de la tabla.
+ *
+ * Cuando quien revisa marca el documento como no válido, el motor guarda su motivo en
+ * `rejectionReason` (su propio vocabulario) y deja `errorCode` como estaba —a menudo vacío, porque
+ * el caso no había fallado: estaba en duda—. Sin esta traducción, todo lo que decidiera una persona
+ * caería en «lectura insuficiente», la frase más débil, aunque la persona hubiera dicho con toda
+ * claridad que era una factura o que estaba editado.
+ */
+const BY_ENGINE_REJECTION_REASON: Readonly<Record<string, string>> = {
+  NOT_BANK_STATEMENT: 'NOT_A_FINANCIAL_STATEMENT',
+  UNSUPPORTED_FILE: 'INVALID_PDF',
+  EMPTY_DOCUMENT: 'EMPTY_DOCUMENT',
+  CORRUPTED_PDF: 'PDF_EXTRACTION_FAILED',
+  UNREADABLE_DOCUMENT: 'ENCRYPTED_PDF',
+  TAMPERED_DOCUMENT: 'TAMPERED_DOCUMENT',
+  ACTIVE_CONTENT: 'ACTIVE_CONTENT_IN_DOCUMENT',
+  INSUFFICIENT_PERIOD: 'INSUFFICIENT_STATEMENT_PERIOD',
+  STALE_PERIOD: 'STALE_STATEMENT',
+};
+
+/**
+ * El motivo de un rechazo del motor, mirando primero su código técnico y después el motivo que
+ * guardó (el de la persona, si lo resolvió una).
+ */
+export function rejectionCopyForRun(errorCode: string | null, rejectionReason: string | null): RejectionCopy {
+  if (errorCode && BY_CODE[errorCode]) return BY_CODE[errorCode];
+  const translated = rejectionReason ? BY_ENGINE_REJECTION_REASON[rejectionReason] : undefined;
+  return rejectionCopyFor(translated ?? errorCode);
+}
+
+/**
+ * Por qué no se usa un análisis que el motor ACEPTÓ pero cuya capacidad no es utilizable.
+ *
+ * Pasa, sobre todo, cuando una persona aprueba en el motor un extracto dudoso que cubre menos meses
+ * de los que exige la política: el documento sirve, pero no hay tres meses con los que calcular. Se
+ * le dice eso, que es lo único que la persona puede arreglar. Si no es el periodo, la frase débil.
+ */
+export function ineligibleCopyFor(
+  affordability: {
+    coverage?: { monthsComplete?: number; minimumMonthsRequired?: number } | null;
+  } | null,
+): RejectionCopy {
+  const coverage = affordability?.coverage;
+  const monthsComplete = coverage?.monthsComplete ?? 0;
+  const minimum = coverage?.minimumMonthsRequired ?? 3;
+  return monthsComplete < minimum ? BY_CODE.INSUFFICIENT_STATEMENT_PERIOD : rejectionCopyFor(null);
+}
+
+/**
  * Qué se le dice a quien tiene el extracto en revisión humana.
  *
  * Es un estado distinto del rechazo y merece decirse distinto: el documento sirve, y lo que falta es

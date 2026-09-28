@@ -16,7 +16,7 @@ Fuente: `src/modules/workflow-catalog/definitions/`. Cada proceso llega a la bas
 | P-04 | [Evaluación de riesgo del alta (Motor → ruleset local → heurística)](onboarding_risk_assessment.md) | P0 | `RISK_ANALYST` | ATLAS_BACKEND, DECISION_ENGINE | 9 | 15 |
 | P-05 | [Elegibilidad y ciclo de vida del cliente](customer_eligibility_lifecycle.md) | P1 | `OPERATIONS_MANAGER` | ATLAS_BACKEND | 5 | 8 |
 | P-06 | [Línea de crédito, solicitud y decisión de crédito por el Motor](credit_line_and_application.md) | P0 | `RISK_MANAGER` | ATLAS_BACKEND, DECISION_ENGINE, ERP_BACKEND | 11 | 23 |
-| P-07 | [Extracto bancario → capacidad de pago → recálculo de línea](bank_statement_capacity.md) | P1 | `RISK_ANALYST` | ATLAS_BACKEND, DECISION_ENGINE | 5 | 14 |
+| P-07 | [Extracto bancario → capacidad de pago → recálculo de línea](bank_statement_capacity.md) | P1 | `RISK_ANALYST` | ATLAS_BACKEND, DECISION_ENGINE | 6 | 16 |
 | P-08 | [Compra con QR del comercio y desembolso del préstamo](purchase_and_disbursement.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, DECISION_ENGINE, ERP_BACKEND | 11 | 22 |
 | P-09 | [Pago de cuota con QR del comercio, comprobante y verificación](installment_payment_claims.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, ERP_BACKEND | 10 | 21 |
 | P-10 | [Cartera: pagos, reversos, castigo, mora y calificación](loan_servicing_collections.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, DECISION_ENGINE | 13 | 33 |

@@ -5,7 +5,12 @@
  * la misma frase para todos. Estas pruebas fijan que cada rechazo lleve una ACCIÓN distinta, porque
  * es lo único que separa un mensaje útil de uno que la persona no puede resolver.
  */
-import { rejectionCopyFor, reviewCopyFor } from '../../src/modules/credit/domain/statement-rejection.js';
+import {
+  ineligibleCopyFor,
+  rejectionCopyFor,
+  rejectionCopyForRun,
+  reviewCopyFor,
+} from '../../src/modules/credit/domain/statement-rejection.js';
 
 describe('motivo de rechazo de un extracto', () => {
   it('separa los tres casos que exigen acciones distintas', () => {
@@ -50,5 +55,29 @@ describe('motivo de rechazo de un extracto', () => {
     const enRevision = reviewCopyFor('SUSPECTED_TAMPERING');
     expect(enRevision.title).toContain('revisión');
     expect(enRevision.message).not.toContain('No pudimos usar');
+  });
+
+  /*
+   * A6 · Lo que decide una PERSONA en el motor llega en `rejectionReason` (su vocabulario), con
+   * `errorCode` vacío. Sin traducirlo caería siempre en la frase más débil.
+   */
+  it('el motivo que eligió la persona en el motor se traduce a su acción', () => {
+    expect(rejectionCopyForRun(null, 'NOT_BANK_STATEMENT').category).toBe('NO_ES_EXTRACTO');
+    expect(rejectionCopyForRun(null, 'TAMPERED_DOCUMENT').category).toBe('DOCUMENTO_MANIPULADO');
+    expect(rejectionCopyForRun(null, 'INSUFFICIENT_PERIOD').category).toBe('PERIODO_INSUFICIENTE');
+    expect(rejectionCopyForRun(null, 'STALE_PERIOD').category).toBe('EXTRACTO_VENCIDO');
+    expect(rejectionCopyForRun(null, 'UNREADABLE_DOCUMENT').category).toBe('ARCHIVO_ILEGIBLE');
+  });
+
+  it('el código técnico manda sobre el motivo, y sin ninguno de los dos, la frase débil', () => {
+    expect(rejectionCopyForRun('TAMPERED_DOCUMENT', 'NOT_BANK_STATEMENT').category).toBe('DOCUMENTO_MANIPULADO');
+    expect(rejectionCopyForRun(null, null).category).toBe('LECTURA_INSUFICIENTE');
+    expect(rejectionCopyForRun(null, 'MOTIVO_NUEVO').category).toBe('LECTURA_INSUFICIENTE');
+  });
+
+  it('un análisis sin capacidad utilizable pide el periodo cuando faltan meses', () => {
+    expect(ineligibleCopyFor({ coverage: { monthsComplete: 2, minimumMonthsRequired: 3 } }).category).toBe('PERIODO_INSUFICIENTE');
+    expect(ineligibleCopyFor(null).category).toBe('PERIODO_INSUFICIENTE');
+    expect(ineligibleCopyFor({ coverage: { monthsComplete: 4, minimumMonthsRequired: 3 } }).category).toBe('LECTURA_INSUFICIENTE');
   });
 });

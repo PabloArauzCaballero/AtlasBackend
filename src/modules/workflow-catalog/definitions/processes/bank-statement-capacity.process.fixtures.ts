@@ -23,13 +23,13 @@ export const BANK_STATEMENT_CAPACITY: WorkflowDefinitionFixture = {
     whyExists:
       'La línea calculada sólo con lo declarado en el alta no refleja lo que la persona gana y gasta de verdad. El extracto aporta ingresos, gastos, obligaciones y rechazos por fondos insuficientes, y con eso el Motor recalcula una capacidad de pago que la app promete revisar en 24 horas.',
     whoStartsAndCloses:
-      'Lo inicia el cliente desde la pantalla «extracto bancario» de la app al subir el PDF. Lo cierra el job `process_bank_statement_reviews` con el veredicto del Motor; cuando el Motor duda, una persona analista lo mira en la pantalla de extractos del portal del Motor.',
+      'Lo inicia el cliente desde la pantalla «extracto bancario» de la app al subir el PDF. Lo cierra el job `process_bank_statement_reviews` con el veredicto del Motor; cuando el Motor duda, una persona analista lo resuelve en la pantalla de extractos del portal del Motor, que avisa a Atlas para que cierre la revisión.',
     startAndEnd:
       'Empieza con la revisión creada en `received` y un plazo comprometido (`promised_by`) de 24 horas; sólo cabe una revisión abierta por cliente. Termina en `applied` (capacidad aplicada y línea recalculada) o `rejected` (el Motor demostró que el documento no sirve y dice por qué).',
     whenItFails:
-      'Motor caído o archivo ilegible del almacén: la revisión NO se rechaza, se queda en `received` y el siguiente barrido reintenta. Si el Motor la deriva a revisión, queda en `processing` con su motivo; hoy nada vuelve a leer esa resolución del Motor, así que la revisión sigue abierta y bloquea subir otro extracto. Los plazos por vencer sólo se anotan en el registro del job.',
+      'Motor caído o archivo ilegible del almacén: la revisión NO se rechaza, se queda en `received` y el siguiente barrido reintenta. Si el Motor la deriva a revisión, queda en `processing` con su motivo hasta que la persona del Motor la resuelve: el Motor avisa (`/internal/credit/bank-statement-review-callback`, con reintentos por su outbox) y, si el aviso se pierde, el mismo job relee en cada pasada las revisiones `processing` en el Motor. Un análisis aceptado sin capacidad utilizable se cierra como rechazado (normalmente por faltar meses), no se aparca. Los plazos por vencer sólo se anotan en el registro del job.',
     healthIndicator:
-      'Revisiones abiertas (`received`/`processing`) con `promised_by` vencido o por vencer, proporción `applied` frente a `rejected` por `rejection_category`, y revisiones que se quedan en `processing` con `review_reason` sin cerrarse.',
+      'Revisiones abiertas (`received`/`processing`) con `promised_by` vencido o por vencer, proporción `applied` frente a `rejected` por `rejection_category`, y revisiones en `processing` más antiguas que una pasada del job (el aviso del Motor no llegó y la relectura tampoco pudo cerrarlas).',
   },
   instanceEntity: {
     system: 'ATLAS_BACKEND',
@@ -46,6 +46,8 @@ export const BANK_STATEMENT_CAPACITY: WorkflowDefinitionFixture = {
     'src/modules/credit/credit.controller.ts',
     'src/modules/credit/application/bank-statement.service.ts',
     'src/modules/credit/application/bank-statement-review.worker.ts',
+    'src/modules/credit/application/bank-statement-human-review.sync.ts',
+    'src/modules/credit/bank-statement-review-callback.controller.ts',
     'src/modules/credit/bank-statement.mapper.ts',
     'src/modules/credit/domain/statement-rejection.ts',
     'src/modules/decision-engine/bank-statement-engine.client.ts',
@@ -116,7 +118,8 @@ export const BANK_STATEMENT_CAPACITY: WorkflowDefinitionFixture = {
         {
           code: 'statement.process_job',
           name: 'Barrer las revisiones pendientes',
-          description: 'Procesa por orden de llegada y cuenta las revisiones con el plazo a punto de vencer.',
+          description:
+            'Procesa por orden de llegada, relee en el Motor las revisiones que esperaban a una persona y cuenta las que tienen el plazo a punto de vencer.',
           kind: 'job',
           job: 'process_bank_statement_reviews',
           repeatable: true,
@@ -144,7 +147,7 @@ export const BANK_STATEMENT_CAPACITY: WorkflowDefinitionFixture = {
       code: 'statement_motor_human_review',
       name: 'Revisión humana en el Motor',
       description:
-        'Cuando el Motor duda, o el análisis sale sin capacidad utilizable, la revisión queda `processing` con `review_reason`. Una persona la toma y la resuelve en la pantalla de extractos del Motor. Atlas no vuelve a leer esa resolución.',
+        'Cuando el Motor duda, la revisión queda `processing` con `review_reason`. Una persona la toma y la resuelve en la pantalla de extractos del Motor, que encola un aviso de vuelta a Atlas.',
       module: 'credit',
       actor: 'internal_user',
       client: 'MOTOR_PORTAL',
@@ -174,7 +177,7 @@ export const BANK_STATEMENT_CAPACITY: WorkflowDefinitionFixture = {
         {
           code: 'statement.motor_review_resolve',
           name: 'Resolver la revisión',
-          description: 'Cierra la revisión en el Motor. Ningún job ni aviso de Atlas recoge después esta resolución.',
+          description: 'Cierra la revisión en el Motor y encola en su outbox el aviso de vuelta a Atlas, con reintentos.',
           system: 'DECISION_ENGINE',
           method: 'POST',
           path: '/v1/workers/bank-statement/reviews/:requestId/resolve',
@@ -183,11 +186,46 @@ export const BANK_STATEMENT_CAPACITY: WorkflowDefinitionFixture = {
         {
           code: 'statement.motor_review_reprocess',
           name: 'Reprocesar el extracto',
-          description: 'Vuelve a pasar el documento por el worker.',
+          description: 'Vuelve a pasar el documento por el worker. No avisa: el desenlace lo recoge la relectura del job.',
           system: 'DECISION_ENGINE',
           method: 'POST',
           path: '/v1/workers/bank-statement/reviews/:requestId/reprocess',
           optional: true,
+        },
+      ],
+    },
+    {
+      code: 'statement_human_review_return',
+      name: 'Vuelta de la revisión humana a Atlas',
+      description:
+        'Atlas relee la ejecución en el Motor con su propia llave y cierra la revisión: `applied` si hay capacidad utilizable, `rejected` con un motivo accionable si la persona la marcó no válida, la cerró sin resultado o faltan meses. Mientras el Motor siga con el caso no toca nada.',
+      module: 'credit',
+      actor: 'system',
+      client: 'BLOCK',
+      requiredStates: ['processing'],
+      resultingStates: ['applied', 'rejected', 'processing'],
+      steps: [
+        {
+          code: 'statement.review_callback',
+          name: 'Recibir el aviso del Motor',
+          description:
+            'Autenticado con x-engine-callback-key (guard `EngineCallbackKeyGuard`), no con sesión. Sólo trae la referencia: sin revisión abierta para esa ejecución responde `applied: false`.',
+          method: 'POST',
+          path: '/internal/credit/bank-statement-review-callback',
+          auth: false,
+          requiredStates: ['processing'],
+          resultingStates: ['applied', 'rejected', 'processing'],
+          errors: ['400 Falta requestId', '401 Credencial de servicio invalida'],
+        },
+        {
+          code: 'statement.review_reread',
+          name: 'Releer la ejecución en el Motor',
+          description:
+            'La decisión sale de esta lectura, no del aviso. La misma relectura la hace el job en cada pasada por si el aviso se pierde.',
+          system: 'DECISION_ENGINE',
+          method: 'GET',
+          path: '/v1/workers/bank-statement/runs/:requestId',
+          repeatable: true,
         },
       ],
     },
@@ -199,7 +237,7 @@ export const BANK_STATEMENT_CAPACITY: WorkflowDefinitionFixture = {
       module: 'credit',
       actor: 'system',
       client: 'BLOCK',
-      requiredStates: ['received'],
+      requiredStates: ['received', 'processing'],
       resultingStates: ['applied', 'processing'],
       steps: [
         {
@@ -349,6 +387,43 @@ export const BANK_STATEMENT_CAPACITY: WorkflowDefinitionFixture = {
       description: 'Y lo resuelve en el Motor.',
     },
     {
+      code: 'statement.resolve_to_callback',
+      from: 'statement.motor_review_resolve',
+      to: 'statement.review_callback',
+      condition: 'on_success',
+      description: 'El Motor avisa a Atlas (outbox, con reintentos).',
+    },
+    {
+      code: 'statement.callback_to_reread',
+      from: 'statement.review_callback',
+      to: 'statement.review_reread',
+      condition: 'on_success',
+      description: 'Atlas relee la ejecución con su llave.',
+    },
+    {
+      code: 'statement.reread_to_apply',
+      from: 'statement.review_reread',
+      to: 'statement.engine_line_recalculation',
+      condition: 'conditional',
+      expression: { outcome: 'analyzed', affordabilityEligible: true },
+      description: 'Aprobada con capacidad utilizable: se recalcula la línea.',
+    },
+    {
+      code: 'statement.reread_rejected',
+      from: 'statement.review_reread',
+      to: 'statement.latest',
+      condition: 'conditional',
+      expression: { outcome: 'rejected' },
+      description: 'No válida, cerrada sin resultado o sin meses suficientes: el cliente ve el motivo y puede subir otro.',
+    },
+    {
+      code: 'statement.job_rereads',
+      from: 'statement.process_job',
+      to: 'statement.review_reread',
+      condition: 'always',
+      description: 'Red del aviso: cada pasada relee las revisiones `processing` en el Motor.',
+    },
+    {
       code: 'statement.apply_to_status',
       from: 'statement.engine_line_recalculation',
       to: 'statement.latest',
@@ -366,6 +441,12 @@ export const BANK_STATEMENT_CAPACITY: WorkflowDefinitionFixture = {
     },
   ],
   dependencies: [
+    {
+      step: 'statement.review_reread',
+      dependsOn: 'statement.engine_run_poll',
+      type: 'requires_data',
+      description: 'Sólo se relee una revisión que guardó la ejecución del Motor (`engine_request_id`).',
+    },
     {
       step: 'statement.submit',
       dependsOn: 'statement.upload_bytes',

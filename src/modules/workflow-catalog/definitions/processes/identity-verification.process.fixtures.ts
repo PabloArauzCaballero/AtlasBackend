@@ -218,7 +218,7 @@ export const IDENTITY_VERIFICATION: WorkflowDefinitionFixture = {
       code: 'identity_motor_human_review',
       name: 'Revisión humana en la cola IDENTIDAD del Motor',
       description:
-        'Un analista abre el caso, mira las imágenes guardadas y resuelve. Sólo la resolución de esta cola avisa a Atlas; la bandeja de revisiones del worker etiqueta el corpus pero no cierra el intento.',
+        'Un analista abre el caso, mira las imágenes guardadas y resuelve. Sólo la resolución de esta cola avisa a Atlas, y así debe ser: la bandeja de revisiones del worker (`/v1/workers/identity-verification/reviews`) sólo contiene ejecuciones pedidas por HTTP desde el Motor (portal, pruebas, corpus) —Atlas no crea ninguna: su verificación entra por la decisión y su duda abre caso en esta cola—, así que etiquetar allí no corresponde a ningún intento de Atlas.',
       module: 'decision_engine',
       actor: 'internal_user',
       client: 'MOTOR_PORTAL',
@@ -267,7 +267,7 @@ export const IDENTITY_VERIFICATION: WorkflowDefinitionFixture = {
           code: 'identity.motor_resolve',
           name: 'Resolver el caso',
           description:
-            'APPROVE o DECLINE del analista asignado (o supervisión). Tras confirmar, el Motor avisa a Atlas; CANCEL no se aplica.',
+            'APPROVE o DECLINE del analista asignado (o supervisión). En la misma transacción el Motor encola en su outbox el aviso a Atlas, que se entrega con reintentos y retroceso (antes era un único intento tras el commit); CANCEL no se aplica.',
           system: 'DECISION_ENGINE',
           method: 'POST',
           path: '/v1/manual-reviews/:caseId/resolve',
