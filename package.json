@@ -131,6 +131,7 @@
     "docs:validate": "yarn docs:openapi && yarn check:openapi && yarn docs:openapi:lint && yarn docs:build",
     "check:read-api-honesty": "tsx scripts/check-read-api-honesty.ts",
     "check:auth-coverage": "tsx scripts/check-auth-coverage.ts",
+    "check:no-coerce-boolean": "tsx scripts/check-no-coerce-boolean.ts",
     "contracts:check-sync": "tsx scripts/contracts/check-sync.ts",
     "contracts:build": "node contracts/atlas-integration-v1/build.mjs",
     "db:grants:apply": "tsx src/database/apply-grants.ts",

@@ -4,6 +4,7 @@
  * @system valida la carga del artefacto de `flows:derive` y las consultas del explorador de flujos.
  */
 import { z } from 'zod';
+import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 
 const code = z.string().trim().min(1).max(60);
 const stringList = z.array(z.string().trim().min(1).max(200)).max(200).default([]);
@@ -207,16 +208,16 @@ export const flowsListQuerySchema = z.object({
   caller: z.string().trim().min(1).max(40).optional(),
   role: z.string().trim().min(1).max(120).optional(),
   table: z.string().trim().min(1).max(160).optional(),
-  isPublic: z.coerce.boolean().optional(),
-  tested: z.coerce.boolean().optional(),
-  withFindings: z.coerce.boolean().optional(),
+  isPublic: queryBooleanSchema.optional(),
+  tested: queryBooleanSchema.optional(),
+  withFindings: queryBooleanSchema.optional(),
 });
 export type FlowsListQueryDto = z.infer<typeof flowsListQuerySchema>;
 
 export const flowsGraphQuerySchema = z.object({
   systemCode: code,
   module: z.string().trim().min(1).max(120),
-  includeRoles: z.coerce.boolean().default(false),
+  includeRoles: queryBooleanSchema.default(false),
 });
 export type FlowsGraphQueryDto = z.infer<typeof flowsGraphQuerySchema>;
 
