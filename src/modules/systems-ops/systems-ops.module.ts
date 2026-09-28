@@ -41,6 +41,7 @@ import { SystemsCatalogSeedService } from './systems-catalog-seed.service.js';
 import { SystemsEndpointDocsService } from './systems-endpoint-docs.service.js';
 import { SystemsSchemaIntrospectionService } from './systems-schema-introspection.service.js';
 import { SystemsHealthMonitorService } from './systems-health-monitor.service.js';
+import { SystemsCatalogAutoSyncService } from './systems-catalog-auto-sync.service.js';
 import { SystemsHealthService } from './systems-health.service.js';
 import { SystemsStressRunService } from './systems-stress-run.service.js';
 import { SystemsStressExecutorService } from './systems-stress-executor.service.js';
@@ -179,6 +180,7 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
     SystemsErpInventoryService,
     SystemsHealthService,
     SystemsHealthMonitorService,
+    SystemsCatalogAutoSyncService,
     SystemsTestRunnerService,
     SystemsTestAssertionService,
     SystemsTestHttpClientService,

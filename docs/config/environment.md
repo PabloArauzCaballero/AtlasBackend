@@ -178,6 +178,21 @@ SYSTEM_HEALTH_MONITOR_INTERVAL_MS=60000
 El monitor consulta el catálogo de herramientas críticas y notifica a usuarios internos cuando una
 dependencia cae o se recupera. Puede desactivarse en tests efímeros; no sustituye liveness/readiness.
 
+## Puesta al día del catálogo de sistemas
+
+```env
+SYSTEMS_CATALOG_AUTO_SYNC_ENABLED=true
+SYSTEMS_CATALOG_AUTO_SYNC_INITIAL_DELAY_MS=45000
+SYSTEMS_CATALOG_AUTO_SYNC_INTERVAL_MS=21600000
+```
+
+Corre en el proceso que sirve HTTP (`APP_ROLE=api` o `all`), porque es el único que tiene el contrato
+OpenAPI en memoria. Al arrancar y cada intervalo cataloga las rutas de este backend y trae el
+manifiesto del motor (con `DECISION_ENGINE_GOVERNANCE_API_KEY`, plano de gestión) y del ERP (con
+`ERP_BACKEND_CATALOG_API_KEY`, que debe ser igual a `PLATFORM_CATALOG_API_KEY` del ERP). Sin esas
+llaves el bloque queda «sin configurar» en «Salud de la red», nunca en cero silencioso. Un candado de
+PostgreSQL evita que dos réplicas lo hagan a la vez; nunca pisa dueño, revisión ni narrativa.
+
 ## Proveedores de datos externos
 
 Los modos y credenciales `SEGIP_*`, `INFOCENTER_*`, `*_GENERIC_*` y políticas

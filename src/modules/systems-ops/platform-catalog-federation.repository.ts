@@ -38,6 +38,16 @@ export class PlatformCatalogFederationRepository {
     else await this.endpointModel.create({ ...insertOnly, ...structural } as never);
   }
 
+  /** La fila existente de un endpoint por su código, o `null`. Para decidir entre crear y refrescar. */
+  findEndpointByCode(code: string): Promise<SystemEndpointCatalogModel | null> {
+    return this.endpointModel.findOne({ where: { code } });
+  }
+
+  /** Refresca sólo la parte ESTRUCTURAL de una fila que ya existe; ver `upsertEndpointRow`. */
+  async refreshEndpointStructure(row: SystemEndpointCatalogModel, structural: Record<string, unknown>): Promise<void> {
+    await row.update(reactivate(row.status, structural));
+  }
+
   async upsertDataEntityRow(structural: Record<string, unknown>, insertOnly: Record<string, unknown>): Promise<void> {
     const existing = await this.dataEntityModel.unscoped().findOne({
       where: {
@@ -58,9 +68,11 @@ export class PlatformCatalogFederationRepository {
    * retirado no sirve para contestar «¿dónde estuvo este dato el trimestre pasado?», que es
    * exactamente lo que una auditoría viene a preguntar.
    */
-  async deprecateMissingEndpoints(systemCode: string, keptCodes: readonly string[]): Promise<number> {
+  async deprecateMissingEndpoints(systemCode: string, keptCodes: readonly string[], detectedFrom?: string): Promise<number> {
     const rows = await this.endpointModel.findAll({
-      where: { systemCode, status: { [Op.ne]: 'DEPRECATED' } },
+      // `detectedFrom` acota la retirada a lo que puso UNA fuente: el contrato propio no puede
+      // retirar las rutas sembradas a mano ni las del escaneo de código, que no son suyas.
+      where: { systemCode, status: { [Op.ne]: 'DEPRECATED' }, ...(detectedFrom ? { detectedFrom } : {}) },
       attributes: ['id', 'code'],
     });
     const kept = new Set(keptCodes);
