@@ -524,6 +524,10 @@ services:
     # contrato OpenAPI que falten (sin tocar las revisadas). En la imagen no hay código fuente, así
     # que el botón del portal no podía llenarlo, y sin endpoints los perfiles de estrés de la
     # siembra fundamental no tienen a qué apuntar.
+    # Después, `import-flow-model` carga el mapa de Flujos (`ops/flow-model/flow-model.json.gz`,
+    # empaquetado de AtlasFlowIntelligence): sin él, Sistemas › Flujos, pantallas y hallazgos salen
+    # vacíos (TEST, 2026-09-28: las cuatro tablas `system_flow_*` a 0). Un artefacto más viejo que el
+    # último cargado lo rechaza el propio servicio.
     # Va con `||` a un aviso como las herramientas de catálogo: `migrate` fallido deja la API sin
     # arrancar (CLAUDE.md §3), y la configuración que falte se ve en el log, no con el servicio caído.
     command:
@@ -540,6 +544,7 @@ services:
         (node dist/scripts/refresh-systems-catalog-introspection.js || echo 'AVISO: catalogo de esquema sin refrescar') &&
         (node dist/scripts/sync-endpoint-catalog.js || echo 'AVISO: catalogo de endpoints sin refrescar') &&
         (node dist/scripts/seed-demo.js --fundamental || echo 'AVISO: siembra fundamental incompleta: el portal puede salir sin configuracion') &&
+        (node dist/scripts/import-flow-model.js || echo 'AVISO: mapa de flujos sin cargar: Sistemas > Flujos puede salir vacio') &&
         if [ "$${DEMO_SEED_ENABLED}" = "true" ]; then
         node dist/scripts/seed-demo.js;
         else echo 'siembra demostrativa desactivada: se enciende con DEMO_SEED_ENABLED=true'; fi

@@ -101,6 +101,8 @@ COPY --from=build /app/dist ./dist
 # job de despliegue usando esta misma imagen.
 COPY --from=build /app/src/database ./src/database
 COPY ops/docker/healthcheck.mjs ./ops/docker/healthcheck.mjs
+# El mapa de Flujos (artefacto de AtlasFlowIntelligence) que el job `migrate` carga en el catálogo.
+COPY ops/flow-model ./ops/flow-model
 
 # `node` es el usuario sin privilegios que ya trae la imagen oficial. El proceso no necesita escribir
 # en ningún sitio salvo el archivo de log, cuyo directorio se le entrega explícitamente.

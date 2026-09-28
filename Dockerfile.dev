@@ -145,6 +145,8 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./package.json
 COPY ops/docker/healthcheck.mjs ./ops/docker/healthcheck.mjs
+# El mapa de Flujos (artefacto de AtlasFlowIntelligence) que el job `migrate` carga en el catálogo.
+COPY ops/flow-model ./ops/flow-model
 
 # `node` es el usuario sin privilegios de la imagen oficial. Sólo necesita escribir en `logs/`.
 RUN mkdir -p /app/logs && chown -R node:node /app/logs
