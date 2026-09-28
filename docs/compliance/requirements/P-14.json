@@ -37,7 +37,7 @@
     "blockedBy": "Contrato contra dobles: habilita desarrollo. La misma batería contra el motor real de staging (P-14, segundo paso) no se ha ejecutado."
   },
   {
-    "requirementId": "B20",
+    "requirementId": "B20-1",
     "packageId": "P-14",
     "repository": "AtlasBackend",
     "title": "Receptor S2S de eventos del ERP: firma HMAC por sentido, ventana anti-replay y cerrado sin secreto",
@@ -66,7 +66,7 @@
     "blockedBy": null
   },
   {
-    "requirementId": "B20",
+    "requirementId": "B20-2",
     "packageId": "P-14",
     "repository": "AtlasBackend",
     "title": "ERP→Core: inbox con unicidad por clave en la misma transacción que el efecto y orden por versión de agregado",
@@ -99,7 +99,7 @@
     "blockedBy": null
   },
   {
-    "requirementId": "B20",
+    "requirementId": "B20-3",
     "packageId": "P-14",
     "repository": "AtlasBackend",
     "title": "Cobertura liquidada en Core: proyección consultable sin duplicar estado económico; tópicos sin uso acusados y registrados",
@@ -124,7 +124,7 @@
     "blockedBy": null
   },
   {
-    "requirementId": "B20",
+    "requirementId": "B20-4",
     "packageId": "P-14",
     "repository": "AtlasBackend",
     "title": "Core→ERP: payment.* encolados en la transacción del aviso y entregados firmados, en orden por cuota, con reintentos y DLQ visible",
@@ -169,7 +169,7 @@
     "blockedBy": null
   },
   {
-    "requirementId": "B20",
+    "requirementId": "B20-5",
     "packageId": "P-14",
     "repository": "AtlasBackend",
     "title": "Dobles del proveedor en el cliente de entrega: 200/401/409/422/429/5xx/timeout/red/cuerpo malformado",
@@ -218,7 +218,7 @@
     "blockedBy": null
   },
   {
-    "requirementId": "P-14",
+    "requirementId": "P-14-1",
     "packageId": "P-14",
     "repository": "AtlasBackend",
     "title": "Contratos atlas-integration-v1: esquemas por familia, fixtures deterministas y conformidad de productor y consumidor",
@@ -259,7 +259,7 @@
     "blockedBy": null
   },
   {
-    "requirementId": "P-14",
+    "requirementId": "P-14-2",
     "packageId": "P-14",
     "repository": "AtlasBackend",
     "title": "Familia comercio/contrato congelada en atlas-integration-v1",
@@ -271,7 +271,7 @@
     "blockedBy": "Intercambio real existente (cola de alta ERP pide → Motor decide → Core concede → ERP acusa) pero con varios contratos HTTP propios de cada lado; congelarlo exige revisar esa cadena con sus dueños (E + C). Queda listado en el README del contrato como pendiente."
   },
   {
-    "requirementId": "B20",
+    "requirementId": "B20-6",
     "packageId": "P-14",
     "repository": "AtlasBackend",
     "title": "Integración productiva Core↔ERP desplegada (secretos, URL y worker-outbox del ERP)",
