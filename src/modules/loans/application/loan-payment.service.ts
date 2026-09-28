@@ -188,6 +188,9 @@ export class LoanPaymentService {
       if (!payment || payment.loanId !== loan.id) throw new NotFoundException('LOAN_PAYMENT_NOT_FOUND');
       if (payment.status === 'reversed') throw new ConflictException('LOAN_PAYMENT_ALREADY_REVERSED');
 
+      // ATL-09: se captura ANTES de mutar. `applyTotalsToLoan` reabre un préstamo `paid_off`, y leer
+      // el estado después dejaba el evento como `active → active`, sin rastro de la reapertura.
+      const previousStatus = loan.status;
       const allocations = await this.loans.findAllocationsByPayment(input.tenantId, payment.id, { transaction });
       const installments = await this.loans.findInstallments(input.tenantId, loan.id, { transaction });
       const byId = new Map(installments.map((installment) => [installment.id, installment]));
@@ -220,7 +223,7 @@ export class LoanPaymentService {
           tenantId: input.tenantId,
           loanId: loan.id,
           eventType: 'payment_reversed',
-          previousStatus: loan.status,
+          previousStatus,
           newStatus: loan.status,
           actorType: input.currentUser.role,
           actorInternalUserId: input.currentUser.internalUserId ?? null,
