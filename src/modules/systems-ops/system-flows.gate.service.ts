@@ -11,7 +11,17 @@ import { SystemFlowsScreensService } from './system-flows.screens.service.js';
 export const BLOQUES = ['ATLAS_BACKEND', 'DECISION_ENGINE', 'ERP_BACKEND', 'DASHBOARDS'] as const;
 export const CLIENTES = ['ADMIN_PORTAL', 'CONSUMER_APP', 'ERP_PORTAL', 'MOTOR_PORTAL', 'DASHBOARDS_PORTAL'] as const;
 
-export type GateCheck = { code: string; passed: boolean; count: number; detail: string };
+/**
+ * `measured: false` quiere decir que la cifra no se pudo tomar porque falta cargar el artefacto del que depende. Una
+ * comprobación sin medir NUNCA pasa: en un entorno recién desplegado el catálogo de flujos está vacío, y «0 CRITICAL sin
+ * verificar» o «0 escrituras desprotegidas» salían en verde sin haber mirado nada.
+ */
+export type GateCheck = { code: string; passed: boolean; measured: boolean; count: number; detail: string };
+
+/** Alcances que cada comprobación necesita cargados para que su cifra diga algo. */
+const REQUIERE_ENDPOINTS = BLOQUES.map((bloque) => `endpoints:${bloque}`);
+const REQUIERE_HALLAZGOS = BLOQUES.map((bloque) => `findings:${bloque}`);
+const REQUIERE_PANTALLAS = CLIENTES.map((cliente) => `screens:${cliente}`);
 
 /**
  * FLOW_DOCUMENTATION_GATE, tal como la define el plan: antes de certificar, todos los CRITICAL
@@ -38,25 +48,65 @@ export class SystemFlowsGateService {
       this.repository.unwiredProcessSteps(),
     ]);
     const checks: GateCheck[] = [
-      comprobacionCriticos(criticos),
-      {
-        code: 'UNPROTECTED_WRITE_OPEN',
-        passed: desprotegidas === 0,
-        count: desprotegidas,
-        detail: 'hallazgos UNPROTECTED_WRITE abiertos: escrituras sin guarda de autorización',
-      },
-      comprobacionDeriva(deriva),
-      {
-        code: 'REVIEW_PENDING_HIGH',
-        passed: pendientes === 0,
-        count: pendientes,
-        detail: 'flujos de riesgo alto pendientes de revisión humana o rechazados (un rechazo dice que su análisis está mal)',
-      },
+      sinMedirSiFalta(comprobacionCriticos(criticos), cargas, REQUIERE_ENDPOINTS),
+      sinMedirSiFalta(
+        {
+          code: 'UNPROTECTED_WRITE_OPEN',
+          passed: desprotegidas === 0,
+          measured: true,
+          count: desprotegidas,
+          detail: 'hallazgos UNPROTECTED_WRITE abiertos: escrituras sin guarda de autorización',
+        },
+        cargas,
+        REQUIERE_HALLAZGOS,
+      ),
+      sinMedirSiFalta(comprobacionDeriva(deriva), cargas, [...REQUIERE_ENDPOINTS, ...REQUIERE_PANTALLAS]),
+      sinMedirSiFalta(
+        {
+          code: 'REVIEW_PENDING_HIGH',
+          passed: pendientes === 0,
+          measured: true,
+          count: pendientes,
+          detail: 'flujos de riesgo alto pendientes de revisión humana o rechazados (un rechazo dice que su análisis está mal)',
+        },
+        cargas,
+        REQUIERE_ENDPOINTS,
+      ),
       comprobacionArtefactos(cargas),
-      comprobacionProcesos(sinCablear),
+      // Sin los endpoints cargados, TODOS los pasos salen «sin pantalla»: la cifra acusaría a los procesos de algo que
+      // sólo dice que el catálogo está vacío.
+      sinMedirSiFalta(comprobacionProcesos(sinCablear), cargas, REQUIERE_ENDPOINTS),
     ];
-    return { passed: checks.every((check) => check.passed), evaluatedAt: new Date(), checks };
+    return {
+      passed: checks.every((check) => check.passed),
+      // Para que la pantalla distinga «no se puede certificar» de «en este entorno no se ha cargado nada que evaluar».
+      artifactsLoaded: cargas.size > 0,
+      evaluatedAt: new Date(),
+      checks,
+    };
   }
+}
+
+/**
+ * Si falta cualquiera de los alcances de los que depende, la comprobación queda sin medir y no pasa. La cifra se conserva
+ * (con carga parcial dice algo de lo cargado), pero el detalle avisa de que no cubre lo que falta.
+ */
+function sinMedirSiFalta(check: GateCheck, cargas: Set<string>, requiere: readonly string[]): GateCheck {
+  const faltan = requiere.filter((alcance) => !cargas.has(alcance));
+  if (!faltan.length) return check;
+  const nada = faltan.length === requiere.length;
+  return {
+    ...check,
+    passed: false,
+    measured: false,
+    detail: `sin medir: falta cargar ${faltan.map(alcanceLegible).join(', ')}${nada ? '' : ' (la cifra cubre sólo lo cargado)'} · ${check.detail}`,
+  };
+}
+
+function alcanceLegible(alcance: string): string {
+  const [scope, code] = alcance.split(':');
+  const que = scope === 'endpoints' ? 'endpoints' : scope === 'findings' ? 'hallazgos' : 'pantallas';
+  return `${que} de ${code}`;
 }
 
 function comprobacionCriticos(filas: Array<{ systemCode: string; count: number }>): GateCheck {
@@ -65,6 +115,7 @@ function comprobacionCriticos(filas: Array<{ systemCode: string; count: number }
   return {
     code: 'CRITICAL_VERIFIED',
     passed: total === 0,
+    measured: true,
     count: total,
     detail: `flujos CRITICAL sin verificar sobre su código actual${porBloque ? ` (${porBloque})` : ''}`,
   };
@@ -83,6 +134,7 @@ function comprobacionDeriva(deriva: Awaited<ReturnType<SystemFlowsScreensService
     return {
       code: 'RBAC_DRIFT_SIN_GUARDA',
       passed: false,
+      measured: false,
       count: 0,
       detail: 'sin uso observado de pantallas: no se puede afirmar que no haya llamadas sin guarda',
     };
@@ -97,6 +149,7 @@ function comprobacionDeriva(deriva: Awaited<ReturnType<SystemFlowsScreensService
   return {
     code: 'RBAC_DRIFT_SIN_GUARDA',
     passed: sinGuarda === 0 && limites.length === 0,
+    measured: true,
     count: sinGuarda,
     detail: `llamadas desde pantallas a endpoints sin permiso ni rol, sobre ${deriva.screensWithObservedEdges} pantalla(s) con uso observado${limites.length ? ` · ${limites.join(' · ')}` : ''}`,
   };
@@ -112,6 +165,7 @@ function comprobacionArtefactos(cargas: Set<string>): GateCheck {
   return {
     code: 'ARTIFACTS_PRESENT',
     passed: faltan.length === 0,
+    measured: true,
     count: faltan.length,
     detail: faltan.length
       ? `falta cargar: ${faltan.join(', ')}`
@@ -125,6 +179,7 @@ function comprobacionProcesos(filas: Array<{ workflowCode: string; count: number
   return {
     code: 'PROCESS_STEPS_WIRED',
     passed: total === 0,
+    measured: true,
     count: total,
     detail: total
       ? `pasos de personas sin pantalla en procesos P0/P1: ${filas.map((f) => `${f.workflowCode} (${f.count})`).join(', ')}`

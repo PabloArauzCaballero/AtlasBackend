@@ -283,7 +283,10 @@ export class RuntimeJobsService {
           openIssues,
           issuesCreated: 0,
           dryRun: input.body.dryRun,
-          note: 'Recalcula conteos actuales; las reglas automáticas de calidad quedan para workers específicos por regla.',
+          // Corre programado y termina en SUCCESS: sin decir que no evalúa nada, el registro de jobs lo presentaba
+          // como una pasada de calidad. Las reglas de `data_quality_rules` no las ejecuta ningún proceso todavía.
+          rulesEvaluated: 0,
+          note: 'Sólo cuenta las incidencias abiertas: no evalúa ninguna regla de calidad (no hay evaluador de reglas).',
         };
       },
     );

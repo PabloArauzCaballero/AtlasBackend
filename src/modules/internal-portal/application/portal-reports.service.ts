@@ -133,7 +133,9 @@ export class PortalReportsService extends PortalQueryBase {
         key: 'open_quality_issues',
         label: 'Issues de calidad abiertos',
         status: issues === 0 ? 'ok' : 'warning',
-        detail: `${issues} issues abiertos`,
+        // Ningún proceso evalúa las reglas (ver `recalculateDataQuality`): las incidencias sólo entran por revisión manual.
+        // Sin decirlo, «0 issues abiertos» se leía como «los datos cumplen las reglas».
+        detail: `${issues} issues abiertos · las reglas de calidad no se evalúan solas: sólo cuentan las incidencias registradas a mano`,
         details: { issues },
       },
       {
