@@ -80,6 +80,18 @@ export function mailParagraph(text: string): MailBlock {
  * los bloques de código oscuros en los dos temas: un código se lee mejor
  * invertido, y separarlo del texto elimina la duda de dónde empieza y dónde
  * acaba. El interletraje ancho es lo que permite copiarlo a mano sin releer.
+ *
+ * Y se selecciona ENTERO de un solo gesto. Un botón de «copiar al portapapeles»
+ * no existe en un correo: copiar necesita JavaScript y Gmail, Outlook y Apple
+ * Mail lo eliminan siempre. Lo más cerca que se puede estar es `user-select:all`,
+ * que hace que un clic (o una pulsación larga en el móvil) seleccione los seis
+ * dígitos completos en vez de obligar a arrastrar los tiradores de selección.
+ *
+ * No funciona en todas partes —Gmail web filtra las propiedades CSS que no están
+ * en su lista y ésta puede caerse—, pero donde se pierde no se pierde nada: el
+ * bloque queda exactamente como estaba. Se declara con prefijo y sin él porque
+ * los clientes basados en WebKit (Apple Mail, el que abre la mayoría de quienes
+ * reciben esto en un iPhone) atienden al prefijado.
  */
 export function mailCode(value: string): MailBlock {
   return (
@@ -87,7 +99,8 @@ export function mailCode(value: string): MailBlock {
     `style="margin:8px 0 20px"><tr><td align="center" ` +
     `style="background:${COLOR.codeSurface};border-radius:12px;padding:22px 16px">` +
     `<div style="font-family:${FONT_MONO};font-size:30px;line-height:36px;font-weight:700;` +
-    `letter-spacing:10px;color:${COLOR.codeInk};text-indent:10px">${value}</div>` +
+    `letter-spacing:10px;color:${COLOR.codeInk};text-indent:10px;` +
+    `-webkit-user-select:all;-moz-user-select:all;-ms-user-select:all;user-select:all">${value}</div>` +
     `</td></tr></table>`
   );
 }
