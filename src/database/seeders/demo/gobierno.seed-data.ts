@@ -520,10 +520,14 @@ export const GOBIERNO: DominioSembrado = {
   descripcion:
     'Seis clasificaciones de dato, diez reglas de campo sensible, cinco derechos del titular, ocho reglas de calidad con seis incidencias y tres entradas de vigilancia.',
   bloques: [
-    { tabla: 'privacy.data_classification_policies', filas: CLASIFICACIONES.map((c) => ({ ...c, _created_at: F, _updated_at: F })) },
-    { tabla: 'privacy.sensitive_field_rules', filas: reglas },
+    {
+      tabla: 'privacy.data_classification_policies',
+      fundamental: true,
+      filas: CLASIFICACIONES.map((c) => ({ ...c, _created_at: F, _updated_at: F })),
+    },
+    { tabla: 'privacy.sensitive_field_rules', fundamental: true, filas: reglas },
     { tabla: 'privacy.data_subject_requests', filas: derechos },
-    { tabla: 'audit.data_quality_rules', filas: reglasCalidad },
+    { tabla: 'audit.data_quality_rules', fundamental: true, filas: reglasCalidad },
     { tabla: 'audit.data_quality_issues', filas: incidencias },
     { tabla: 'case_management.watchlist_entries', filas: vigilancia },
   ],

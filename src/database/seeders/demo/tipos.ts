@@ -67,7 +67,34 @@ export interface BloqueSembrado {
    * specification» aunque el índice exista y sea exactamente ese.
    */
   readonly predicado?: string;
+  /**
+   * `true` cuando el bloque es CONFIGURACIÓN sin la que una pantalla del portal no sirve —colas y
+   * categorías de soporte, productos de crédito, políticas, catálogos, definiciones— y no población
+   * inventada. Sólo estos bloques entran en la siembra FUNDAMENTAL, que corre en cada despliegue.
+   *
+   * Por defecto NO lo es, a propósito: un bloque nuevo que alguien olvide clasificar se queda en la
+   * demostración, que es opt-in. Olvidarlo al revés metería personas inventadas en todos los
+   * entornos en el siguiente despliegue, que es exactamente lo que `0009e4b` tuvo que cortar.
+   */
+  readonly fundamental?: boolean;
+  /**
+   * Columnas de un bloque fundamental que apuntan a la POBLACIÓN demostrativa (p. ej. «quién la
+   * cambió» → un usuario interno inventado). En la siembra fundamental se escriben nulas: la fila
+   * de configuración sirve igual, y exigir al usuario inventado reintroduciría la demo por la
+   * puerta de atrás —o tumbaría la siembra con una clave foránea en una base sin ella—.
+   */
+  readonly columnasDemostrativas?: readonly string[];
 }
+
+/**
+ * Qué parte de la siembra se escribe.
+ *
+ * - `fundamental`: sólo los bloques de configuración, y SÓLO lo que falta (`ON CONFLICT DO NOTHING`).
+ *   Nunca pisa una fila existente: lo que un operador cambió desde el portal —el SLA de una cola,
+ *   el texto de una política— sobrevive a cada despliegue.
+ * - `completa`: todos los bloques con upsert (`DO UPDATE`), como siempre. Es la demostración.
+ */
+export type AlcanceSiembra = 'fundamental' | 'completa';
 
 /** Un dominio de negocio con sus bloques, en orden de dependencia. */
 export interface DominioSembrado {

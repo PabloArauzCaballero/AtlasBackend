@@ -324,7 +324,7 @@ export const ACTIVIDAD: DominioSembrado = {
     'Doce horas de salud por proveedor, siete señales de riesgo explicadas, telemetría de ubicación y dispositivo, y las concesiones y tickets de los expedientes.',
   bloques: [
     { tabla: 'integrations.provider_health_logs', filas: saludProveedores },
-    { tabla: 'risk.risk_signal_seeds', filas: senales },
+    { tabla: 'risk.risk_signal_seeds', fundamental: true, filas: senales },
     { tabla: 'telemetry.customer_location_pings', filas: ubicaciones },
     { tabla: 'telemetry.device_risk_events', filas: riesgosDispositivo },
     { tabla: 'telemetry.ip_reputation_observations', filas: reputacionIp },
