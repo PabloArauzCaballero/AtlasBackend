@@ -4,6 +4,7 @@
  * @system valida y audita el catálogo de cambios; la ejecución física permanece en migraciones revisadas.
  */
 import { z } from 'zod';
+import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 
 /**
  * Schemas Zod de schema-management.
@@ -31,7 +32,7 @@ export const schemaVersionsListQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(20),
     offset: z.coerce.number().int().min(0).default(0),
-    includeInactive: z.coerce.boolean().default(false),
+    includeInactive: queryBooleanSchema.default(false),
   })
   .strict();
 
