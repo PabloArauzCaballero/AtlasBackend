@@ -519,8 +519,9 @@ paths:
   /admin/external-providers/requests/{requestId}/approve:
     post:
       description: >-
-        Aprueba una solicitud bloqueada por política de costo o que requiere
-        revisión manual, permitiendo su ejecución.
+        Deja constancia de la aprobación de una solicitud retenida por política
+        de costo o por revisión manual. No la ejecuta: hay que volver a
+        lanzarla.
       operationId: AdminExternalProvidersController_approveRequest
       parameters:
         - name: requestId
@@ -562,7 +563,9 @@ paths:
         '404':
           description: Solicitud no encontrada.
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: >-
+            EXTERNAL_REQUEST_NOT_AWAITING_APPROVAL: la solicitud ya terminó o no
+            necesitaba permiso.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
