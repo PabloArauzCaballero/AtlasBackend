@@ -113,7 +113,7 @@ export class SupportMessageService {
           { lastActivityAt: new Date(), status: nextChannelStatus(channel.status, command.actor) },
           { transaction },
         );
-        this.announce(command, message);
+        transaction.afterCommit(() => this.announce(command, message));
       }
 
       return message;
@@ -125,7 +125,8 @@ export class SupportMessageService {
   /**
    * Avisa por el hilo en vivo de que hay un mensaje nuevo.
    *
-   * Va DENTRO del `if (created)`: un reintento por mala red no debe hacer sonar el chat otra vez.
+   * Se registra DENTRO del `if (created)` y se emite después del commit: un reintento o rollback
+   * no debe hacer sonar el chat por un mensaje que no se confirmó.
    * Y el aviso viaja con el cuerpo ya redactado, nunca con el original cifrado — el bus efímero no
    * es lugar para un secreto que la base guarda bajo llave.
    *
