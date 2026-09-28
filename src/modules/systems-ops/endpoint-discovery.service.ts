@@ -11,6 +11,7 @@ import { env } from '../../config/env.js';
 import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from './endpoint-code.util.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { OpenApiCatalogService } from './openapi-catalog.service.js';
+import { SystemsCatalogAutoSyncService } from './systems-catalog-auto-sync.service.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
 import {
   RoleConstants,
@@ -67,6 +68,7 @@ export class EndpointDiscoveryService {
     private readonly repository: SystemsCatalogRepository,
     private readonly classifier: SystemsCatalogClassifierService,
     private readonly openApiCatalog: OpenApiCatalogService,
+    private readonly autoSync: SystemsCatalogAutoSyncService,
   ) {}
 
   /**
@@ -76,7 +78,15 @@ export class EndpointDiscoveryService {
    */
   async discover(mode: 'OPENAPI_CONTRACT' | 'SOURCE_SCAN', persist: boolean): Promise<{ discovered: number; persisted: number }> {
     if (mode === 'SOURCE_SCAN') return this.discoverAndMaybePersist(persist);
-    return this.openApiCatalog.catalogFromContract(persist);
+    if (!persist) return this.openApiCatalog.catalogFromContract(false);
+    /*
+     * Al persistir, el botón va por el MISMO camino que la puesta al día automática: crea las rutas nuevas y de las
+     * que ya existen sólo refresca lo estructural (método, ruta, contrato). Antes hacía `upsertEndpoint` sobre todas,
+     * que devuelve la revisión a NEEDS_REVIEW y el dueño a `systems`: cada pulsación borraba lo que alguien revisó.
+     */
+    const outcome = await this.autoSync.syncSelf();
+    if (outcome.status !== 'OK') throw new ServiceUnavailableException(outcome.message);
+    return { discovered: outcome.endpointsImported, persisted: outcome.endpointsImported };
   }
 
   async discoverAndMaybePersist(
