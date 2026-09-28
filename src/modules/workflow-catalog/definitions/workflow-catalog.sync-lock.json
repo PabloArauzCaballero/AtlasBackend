@@ -1,6 +1,6 @@
 {
   "processes": {
-    "migration": "20260928011000-sync-workflow-catalog-5",
+    "migration": "20260928020000-sync-workflow-catalog-6",
     "hashes": {
       "customer_credit_journey": "cc1c978debdf011b",
       "post_login_first_screen": "6b88e3d8745e29e5",
@@ -14,11 +14,11 @@
       "credit_line_and_application": "630892826753a7f4",
       "bank_statement_capacity": "8f20e85e6269c056",
       "purchase_and_disbursement": "2837523c574dffea",
-      "installment_payment_claims": "54f9898a850f6526",
+      "installment_payment_claims": "cbe45e5a1e237484",
       "loan_servicing_collections": "d9625be6d8ad1e15",
       "customer_privacy_dsr": "74f59091f13ead3f",
       "customer_support_case": "d2640f85bf6e28be",
-      "notifications_and_campaigns": "374c91fc4cf4cdd4",
+      "notifications_and_campaigns": "4b5d2058903c8369",
       "atlas_assist_help": "739bca0ece3307b7",
       "device_signals_and_sessions": "f399ca99c47f0d56",
       "merchant_onboarding_chain": "d53ed57ab2990bb0",
@@ -39,7 +39,7 @@
       "flow_intelligence_cycle": "7826dd3c217fd82f",
       "domain_events_outbox": "50059dfa6108fc6b",
       "runtime_jobs": "848d1ce6eed299a7",
-      "internal_users_rbac": "aed211438018b5a5",
+      "internal_users_rbac": "be536bb9444105e3",
       "schema_change_management": "f4b9cdbfe86a2602",
       "external_providers_operations": "a873c3bfb6dbaa1e",
       "data_governance_quality_reports": "0dd340d8bb86069f",

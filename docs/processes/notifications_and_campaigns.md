@@ -77,7 +77,7 @@ flowchart LR
 | `campaign_upstream` | Atlas valida y guarda la campaña | system | BLOCK | — | 13 |
 | `campaign_run` | El planificador ejecuta la campaña | system | BLOCK | — | 1 |
 | `campaign_follow_up` | Seguimiento de resultados en el ERP | internal_user | ERP_PORTAL | `/operaciones/admin/notificaciones` | 3 |
-| `campaign_admin_observation` | Operaciones observa campañas desde el portal admin | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 3 |
+| `campaign_admin_observation` | Operaciones observa campañas desde el portal admin | internal_user | ADMIN_PORTAL | `/internal/notifications/campaigns` | 7 |
 
 ### Hecho de negocio que genera el aviso (`notif_domain_trigger`)
 
@@ -212,13 +212,17 @@ El ERP muestra la lista de campañas, su detalle y los mensajes por canal con su
 
 ### Operaciones observa campañas desde el portal admin (`campaign_admin_observation`)
 
-Las rutas de lectura de campañas existen en Atlas pero ninguna pantalla del portal admin las llama: hoy las campañas sólo se ven desde el ERP. Hueco de cableado.
+La sección Campañas del portal admin lista las campañas y sus segmentos, abre el detalle con los mensajes por canal y deja pausar, reanudar o cancelar (esto último sólo admin y platform_admin). Crear y programar sigue en el ERP.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
 | Listar campañas | http | ATLAS_BACKEND | `GET /operations/notifications/campaigns` | internal_operator, admin, platform_admin, system | — |
 | Ver una campaña | http | ATLAS_BACKEND | `GET /operations/notifications/campaigns/:campaignId` | internal_operator, admin, platform_admin, system | — |
 | Ver los mensajes de la campaña | http | ATLAS_BACKEND | `GET /operations/notifications/campaigns/:campaignId/messages` | internal_operator, admin, platform_admin, system | — |
+| Ver los segmentos de audiencia | http | ATLAS_BACKEND | `GET /operations/notifications/audience-segments` | internal_operator, admin, platform_admin, system | — |
+| Pausar desde el portal | http | ATLAS_BACKEND | `POST /operations/notifications/campaigns/:campaignId/pause` | admin, platform_admin | — |
+| Reanudar desde el portal | http | ATLAS_BACKEND | `POST /operations/notifications/campaigns/:campaignId/resume` | admin, platform_admin | — |
+| Cancelar desde el portal | http | ATLAS_BACKEND | `POST /operations/notifications/campaigns/:campaignId/cancel` | admin, platform_admin | — |
 
 ## Fuentes
 

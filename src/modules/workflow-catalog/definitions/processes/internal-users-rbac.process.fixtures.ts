@@ -28,7 +28,7 @@ export const INTERNAL_USERS_RBAC: WorkflowDefinitionFixture = {
     startAndEnd:
       'Empieza con el alta (contraseña de al menos 10 caracteres, entre 1 y 8 roles y un motivo) y termina con el usuario activo entrando con PIN; un permiso nuevo empieza en internal-rbac.catalog.*.ts y termina volcado a la base por la migración sync-internal-rbac-catalog-N al desplegar.',
     whenItFails:
-      'Un login fallido repetido bloquea la cuenta hasta locked_until (401 ACCOUNT_LOCKED con la hora de vuelta) aunque el usuario figure activo, y no hay pantalla ni ruta que la desbloquee antes: se hace a mano en la base. Un permiso sin migración responde 403 en todos los entornos (pasó con partner.qr.review). Sin correo real el PIN no llega y nadie entra.',
+      'Un login fallido repetido bloquea la cuenta hasta locked_until (401 ACCOUNT_LOCKED con la hora de vuelta) aunque el usuario figure activo; un administrador la desbloquea antes desde la ficha del usuario, con motivo. Un permiso sin migración responde 403 en todos los entornos (pasó con partner.qr.review). Sin correo real el PIN no llega y nadie entra.',
     healthIndicator:
       'Usuarios activos con al menos un rol, cuentas con locked_until vigente, altas sin primer acceso y permisos del código que faltan en la base; el administrador ve usuarios y roles en «Usuarios» y «Roles» del portal.',
   },
@@ -247,19 +247,23 @@ export const INTERNAL_USERS_RBAC: WorkflowDefinitionFixture = {
       code: 'internal_account_unlock',
       name: 'Desbloqueo de una cuenta',
       description:
-        'Un «no me deja entrar» casi siempre es locked_until en iam.auth_credentials; el bloqueo expira solo, pero no hay pantalla ni ruta que lo limpie antes.',
+        'Un «no me deja entrar» casi siempre es locked_until en iam.auth_credentials; el bloqueo expira solo, y un administrador lo levanta antes desde la ficha del usuario.',
       module: 'internal_users',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/settings/users/[internalUserId]',
       optional: true,
+      roles: IDENTITY_ADMINS,
       steps: [
         {
-          code: 'iam.unlock_by_sql',
-          name: 'Desbloquear a mano',
-          description: 'locked_until=NULL, failed_login_attempts=0, status=active; subir token_version invalida sesiones viejas.',
-          kind: 'manual',
-          reason:
-            'No existe ruta que limpie locked_until: se hace con SQL sobre iam.auth_credentials (hash en base64 si se cambia la contraseña).',
+          code: 'iam.unlock',
+          name: 'Desbloquear la cuenta',
+          description:
+            'Permiso internal.users.manage y motivo obligatorio: limpia locked_until y el contador de intentos, auditado como internal_users.unlock. No cambia el estado ni revoca sesiones.',
+          method: 'POST',
+          path: '/internal/users/:internalUserId/unlock',
+          roles: IDENTITY_ADMINS,
+          errors: ['404 INTERNAL_USER_NOT_FOUND', '409 INTERNAL_USER_NOT_LOCKED'],
         },
       ],
     },
@@ -275,7 +279,7 @@ export const INTERNAL_USERS_RBAC: WorkflowDefinitionFixture = {
         {
           code: 'rbac.sync_migration',
           name: 'Migración sync-internal-rbac-catalog-N',
-          description: 'Vuelca permisos y su asignación a roles; la última es 20260926171000-sync-internal-rbac-catalog-4.',
+          description: 'Vuelca permisos y su asignación a roles; la vigente es la de número más alto en src/database/migrations.',
           kind: 'manual',
           reason:
             'Es una migración revisada en PR que corre en el despliegue (P-38), no una llamada: el volcado 20260821040000 ya corrió y no se repite solo.',
@@ -287,7 +291,6 @@ export const INTERNAL_USERS_RBAC: WorkflowDefinitionFixture = {
     gaps: [
       'El inventario pone de dueño SUPER_ADMIN; el rol cuyo cometido es éste es INTERNAL_IDENTITY_ADMIN (SUPER_ADMIN queda para roles privilegiados).',
       'El inventario dice estados active/locked/disabled; el esquema admite active/invited/suspended/locked/disabled, y el bloqueo real vive en auth_credentials.locked_until.',
-      'Desbloqueo sin pantalla ni ruta: sólo SQL.',
       'Los roles no los inserta ninguna migración: vienen de la base de semillas.',
       'La memoria habla de POST /internal/users; la ruta real de alta es POST /internal/auth/signup.',
     ],

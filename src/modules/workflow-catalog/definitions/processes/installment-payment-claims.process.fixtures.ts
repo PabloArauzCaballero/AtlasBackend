@@ -395,13 +395,22 @@ export const INSTALLMENT_PAYMENT_CLAIMS: WorkflowDefinitionFixture = {
       code: 'pay_internal_oversight',
       name: 'Seguimiento interno de avisos',
       description:
-        'Operaciones podría consultar la cola de avisos de un comercio (la ruta admite roles internos), pero el portal interno no tiene ninguna pantalla que lo haga: los avisos atascados o sin comercio no se ven.',
+        'Operaciones ve en «Avisos de pago» la cola de todo el tenant, con comercio, cliente, préstamo, cuota y horas de espera, para llamar al comercio que deja avisos sin mirar. Es sólo lectura: verificar lo hace el comercio desde el ERP. Un aviso pendiente sigue sin plazo ni alerta automática.',
       module: 'loan_payment_claims',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
+      screen: '/internal/operations/payment-claims',
       optional: true,
-      roles: ['internal_operator', 'admin', 'platform_admin'],
+      roles: ['internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin'],
       steps: [
+        {
+          code: 'pay.internal_tenant_queue',
+          name: 'Ver la cola de avisos del tenant',
+          description: 'Lista paginada de todos los avisos, con filtros y las horas que lleva cada uno esperando.',
+          method: 'GET',
+          path: '/operations/payment-claims',
+          roles: ['internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin'],
+        },
         {
           code: 'pay.internal_list_claims',
           description:
