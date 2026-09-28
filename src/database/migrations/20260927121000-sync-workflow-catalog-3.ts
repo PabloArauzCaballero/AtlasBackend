@@ -10,12 +10,12 @@ import { syncWorkflowCatalog } from '../../modules/workflow-catalog/definitions/
 type MigrationContext = { context: QueryInterface };
 
 /**
- * Mismo volcado que `20260926170500-sync-workflow-catalog-1`, idempotente. Lo trae el cambio de P-35
+ * Mismo volcado que `20260926170500-sync-workflow-catalog-1` y `-2`, idempotente. Lo trae el cambio de P-35
  * (hallazgo A4): proponer y aprobar cambios de esquema pasan a poder hacerse desde el portal interno
  * con `governance.schema.*`, y la ficha deja de declarar ese hueco.
  */
 export async function up({ context: queryInterface }: MigrationContext): Promise<void> {
-  await syncWorkflowCatalog(queryInterface, WORKFLOW_DEFINITIONS, 'migration:20260927091000-sync-workflow-catalog-2');
+  await syncWorkflowCatalog(queryInterface, WORKFLOW_DEFINITIONS, 'migration:20260927121000-sync-workflow-catalog-3');
 }
 
 /**
