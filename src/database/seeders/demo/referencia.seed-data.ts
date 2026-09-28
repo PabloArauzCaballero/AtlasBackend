@@ -41,6 +41,7 @@ export const REFERENCIA: DominioSembrado = {
   bloques: [
     {
       tabla: 'privacy.retention_policies',
+      fundamental: true,
       conflicto: ['policy_code'],
       filas: [
         {
@@ -126,6 +127,7 @@ export const REFERENCIA: DominioSembrado = {
     },
     {
       tabla: 'privacy.privacy_processing_purposes',
+      fundamental: true,
       conflicto: ['purpose_code'],
       filas: [
         {
@@ -142,6 +144,7 @@ export const REFERENCIA: DominioSembrado = {
     },
     {
       tabla: 'privacy.consent_documents',
+      fundamental: true,
       filas: [
         {
           _id: 1,
@@ -209,6 +212,7 @@ export const REFERENCIA: DominioSembrado = {
     },
     {
       tabla: 'integrations.data_providers',
+      fundamental: true,
       conflicto: ['provider_code'],
       filas: [
         {
@@ -359,6 +363,7 @@ export const REFERENCIA: DominioSembrado = {
     },
     {
       tabla: 'integrations.external_provider_cost_policies',
+      fundamental: true,
       conflicto: ['provider_id', 'query_type'],
       filas: [
         {
@@ -572,6 +577,7 @@ export const REFERENCIA: DominioSembrado = {
     },
     {
       tabla: 'catalog.catalog_entries',
+      fundamental: true,
       conflicto: ['catalog_code', 'catalog_version', 'entry_code'],
       filas: [
         {
@@ -758,6 +764,7 @@ export const REFERENCIA: DominioSembrado = {
     },
     {
       tabla: 'catalog.attribute_definitions',
+      fundamental: true,
       conflicto: ['attribute_code'],
       filas: [
         {
@@ -972,6 +979,7 @@ export const REFERENCIA: DominioSembrado = {
     },
     {
       tabla: 'catalog.app_content_entries',
+      fundamental: true,
       conflicto: ['_tenant_id', 'surface', 'content_key', 'locale'],
       predicado: '_deleted = false',
       filas: [
@@ -1095,6 +1103,7 @@ export const REFERENCIA: DominioSembrado = {
     },
     {
       tabla: 'risk.feature_definitions',
+      fundamental: true,
       conflicto: ['feature_code'],
       filas: [
         {
@@ -1435,6 +1444,7 @@ export const REFERENCIA: DominioSembrado = {
      */
     {
       tabla: 'platform_ops.system_tool_catalog',
+      fundamental: true,
       conflicto: ['code'],
       filas: [
         {
@@ -2058,6 +2068,7 @@ export const REFERENCIA: DominioSembrado = {
     },
     {
       tabla: 'platform_ops.system_stress_profiles',
+      fundamental: true,
       conflicto: ['code'],
       // El catálogo de endpoints lo llena un descubrimiento que necesita la API corriendo; en una
       // base recién migrada está vacío y estos perfiles no tienen a qué apuntar. Se omiten y se

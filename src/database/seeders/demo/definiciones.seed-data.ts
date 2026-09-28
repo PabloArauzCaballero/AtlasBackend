@@ -496,8 +496,14 @@ export const DEFINICIONES: DominioSembrado = {
   descripcion:
     'Diez eventos de dominio, doce observaciones (cuatro de ellas prohibidas o restringidas con su motivo) y cinco artefactos de decisión.',
   bloques: [
-    { tabla: 'catalog.event_definitions', filas: eventos },
-    { tabla: 'catalog.observation_definitions', filas: observaciones },
-    { tabla: 'catalog.decision_artifact_bindings', filas: artefactos, conflicto: ['_tenant_id', 'decision_type'] },
+    { tabla: 'catalog.event_definitions', fundamental: true, filas: eventos },
+    { tabla: 'catalog.observation_definitions', fundamental: true, filas: observaciones },
+    {
+      tabla: 'catalog.decision_artifact_bindings',
+      fundamental: true,
+      columnasDemostrativas: ['changed_by_internal_user_id'],
+      filas: artefactos,
+      conflicto: ['_tenant_id', 'decision_type'],
+    },
   ],
 };

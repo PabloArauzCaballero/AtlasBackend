@@ -1077,10 +1077,15 @@ export const ECOSISTEMA: DominioSembrado = {
   nombre: 'ecosistema',
   descripcion: 'Catálogos de contexto: ocupaciones, rubros, entidades financieras, destinos, zonas y motivos de rechazo.',
   bloques: [
-    { tabla: 'catalog.context_sources', filas: FUENTES.map((f) => ({ ...f, _created_at: AHORA, _updated_at: AHORA })) },
-    { tabla: 'catalog.context_catalogs', filas: CATALOGOS.map((c) => ({ ...c, _created_at: AHORA, _updated_at: AHORA })) },
+    { tabla: 'catalog.context_sources', fundamental: true, filas: FUENTES.map((f) => ({ ...f, _created_at: AHORA, _updated_at: AHORA })) },
+    {
+      tabla: 'catalog.context_catalogs',
+      fundamental: true,
+      filas: CATALOGOS.map((c) => ({ ...c, _created_at: AHORA, _updated_at: AHORA })),
+    },
     {
       tabla: 'catalog.context_catalog_versions',
+      fundamental: true,
       filas: VERSIONES.map((v) => ({
         ...v,
         created_by_platform_user_id: null,
@@ -1090,6 +1095,7 @@ export const ECOSISTEMA: DominioSembrado = {
     },
     {
       tabla: 'catalog.context_items',
+      fundamental: true,
       filas: ITEMS.map((i) => ({
         _id: i.id,
         catalog_version_id: i.version,
@@ -1104,8 +1110,8 @@ export const ECOSISTEMA: DominioSembrado = {
         _updated_at: AHORA,
       })),
     },
-    { tabla: 'catalog.context_item_aliases', filas: ALIAS.map((a) => ({ ...a, _created_at: AHORA })) },
-    { tabla: 'catalog.context_risk_mappings', filas: MAPEOS_RIESGO.map((m) => ({ ...m, _created_at: AHORA })) },
+    { tabla: 'catalog.context_item_aliases', fundamental: true, filas: ALIAS.map((a) => ({ ...a, _created_at: AHORA })) },
+    { tabla: 'catalog.context_risk_mappings', fundamental: true, filas: MAPEOS_RIESGO.map((m) => ({ ...m, _created_at: AHORA })) },
     {
       tabla: 'catalog.context_ingestion_jobs',
       filas: TRABAJOS_INGESTA.map((t) => ({ ...t, triggered_by_platform_user_id: null, _created_at: AHORA })),
