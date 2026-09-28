@@ -26,7 +26,8 @@ import { CustomerEligibilityRiskRepository } from './customer-eligibility-risk.r
 import type { EligibilityFacts } from './customer-eligibility.facts.js';
 import { CustomerEligibilityPhasesRepository } from './customer-eligibility-phases.repository.js';
 import type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
-import { IDENTITY_ATTEMPT_LOOKBACK_LIMIT, pickCurrentIdentityAttempt } from '../../../common/utils/identity/identity-result.util.js';
+import { IDENTITY_ATTEMPT_LOOKBACK_LIMIT, pickIdentityAttemptForEligibility } from '../../../common/utils/identity/identity-result.util.js';
+import { env } from '../../../config/env.js';
 
 export type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
 
@@ -236,7 +237,7 @@ export class CustomerEligibilityRepository {
       limit: IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
       transaction: options.transaction,
     } as FindOptions);
-    return pickCurrentIdentityAttempt(attempts)?.finalResult ?? null;
+    return pickIdentityAttemptForEligibility(attempts, { requireHumanReview: env.IDENTITY_REQUIRE_HUMAN_REVIEW })?.finalResult ?? null;
   }
 
   /**

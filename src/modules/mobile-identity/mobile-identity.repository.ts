@@ -7,7 +7,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { IdentityVerificationAttemptModel } from '../../database/models/index.js';
-import { IDENTITY_ATTEMPT_LOOKBACK_LIMIT, pickCurrentIdentityAttempt } from '../../common/utils/identity/identity-result.util.js';
+import {
+  IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
+  LIVENESS_IDENTITY_CHANNEL,
+  pickCurrentIdentityAttempt,
+} from '../../common/utils/identity/identity-result.util.js';
 
 /**
  * El canal con el que se marcan los intentos de este flujo.
@@ -17,7 +21,7 @@ import { IDENTITY_ATTEMPT_LOOKBACK_LIMIT, pickCurrentIdentityAttempt } from '../
  * fotografía con la mano y luz variable, la otra con un escáner— y sus tasas de
  * revisión no se pueden comparar si comparten fila.
  */
-export const MOBILE_CHANNEL = 'MOBILE_APP';
+export const MOBILE_CHANNEL = LIVENESS_IDENTITY_CHANNEL;
 
 /** Estado inicial: aceptado y sin resolver. */
 export const PENDING_RESULT = 'PENDING';

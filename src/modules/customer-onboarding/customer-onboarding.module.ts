@@ -35,6 +35,7 @@ import {
   EvidenceExtractionModel,
   EvidenceReviewModel,
   IdentityVerificationAttemptModel,
+  ManualReviewCaseModel,
   OnDeviceComputationRunModel,
   OnDeviceMetricValueModel,
   OnboardingFlowModel,
@@ -101,6 +102,7 @@ import { CustomerOnboardingRepository } from './customer-onboarding.repository.j
 import { CustomerOnboardingService } from './customer-onboarding.service.js';
 import { IdentityReviewCallbackController } from './identity-review-callback.controller.js';
 import { IdentityVerdictEventPublisher } from './application/identity-verdict-event.publisher.js';
+import { IdentityReviewCaseRepository } from './repositories/identity-review-case.repository.js';
 
 @Module({
   imports: [
@@ -120,6 +122,8 @@ import { IdentityVerdictEventPublisher } from './application/identity-verdict-ev
       AuthEventModel,
       CustomerIdentityDocumentModel,
       IdentityVerificationAttemptModel,
+      // La bandeja de operaciones: el caso `identity_review` que abre la revisión humana de identidad.
+      ManualReviewCaseModel,
       EvidenceDocumentModel,
       EvidenceExtractionModel,
       EvidenceReviewModel,
@@ -168,6 +172,7 @@ import { IdentityVerdictEventPublisher } from './application/identity-verdict-ev
     CustomerSupportingEvidenceController,
   ],
   providers: [
+    IdentityReviewCaseRepository,
     IdentityVerdictEventPublisher,
     // AT-015: el grupo atómico del alta tiene nombre, dueño y alcance declarados.
     LegacyOnboardingAtomicBridge,
@@ -224,6 +229,6 @@ import { IdentityVerdictEventPublisher } from './application/identity-verdict-ev
    * significa «la agenda de este cliente», y sólo hace falta que se separen una
    * vez para que la política decida sobre números que nadie escribió.
    */
-  exports: [OnboardingAbandonmentService, CustomerContactsSnapshotService],
+  exports: [OnboardingAbandonmentService, CustomerContactsSnapshotService, IdentityReviewCaseRepository],
 })
 export class CustomerOnboardingModule {}

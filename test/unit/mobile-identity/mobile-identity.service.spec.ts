@@ -97,8 +97,16 @@ describe('MobileIdentityService', () => {
         riskMatches: 0,
       })),
     };
-    const service = new MobileIdentityService(repository as never, engine as never, bindings as never, contacts as never, senales as never);
-    return { service, repository, engine, bindings, contacts, senales };
+    const reviewCases = { openIfAbsent: jest.fn(async (..._args: unknown[]) => ({})) };
+    const service = new MobileIdentityService(
+      repository as never,
+      engine as never,
+      bindings as never,
+      contacts as never,
+      senales as never,
+      reviewCases as never,
+    );
+    return { service, repository, engine, bindings, contacts, senales, reviewCases };
   }
 
   /** Deja correr la promesa que el servicio lanzó sin esperar. */
@@ -126,40 +134,87 @@ describe('MobileIdentityService', () => {
     expect(engine.execute.mock.calls[0]?.[2]).toEqual({ timeoutMs: env.DECISION_ENGINE_IDENTITY_TIMEOUT_MS, maxAttempts: 1 });
   });
 
-  it('escribe VERIFIED cuando el artefacto verifica', async () => {
-    const { service, repository } = montar({
-      output: {
-        identidad_resultado: 'VERIFICADO',
-        identidad_motivo: 'IDENTIDAD_CONFIRMADA',
-        identidad_parecido: 0.897,
-        identidad_evidencia_documento: 0.92,
-      },
-    });
+  /** La política de revisión humana, encendida o apagada sólo durante una prueba. */
+  async function conRevisionHumana(valor: boolean, prueba: () => Promise<void>): Promise<void> {
+    const anterior = env.IDENTITY_REQUIRE_HUMAN_REVIEW;
+    (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = valor;
+    try {
+      await prueba();
+    } finally {
+      (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = anterior;
+    }
+  }
 
-    await service.start('1', cuerpo(), 'idem-1');
-    await dejarResolver();
+  it('con revisión humana, un VERIFICADO del Motor queda IN_REVIEW con la sugerencia y abre el caso en la bandeja', () =>
+    conRevisionHumana(true, async () => {
+      const { service, repository, reviewCases } = montar({
+        output: { identidad_resultado: 'VERIFICADO', identidad_motivo: 'IDENTIDAD_CONFIRMADA', identidad_parecido: 0.9 },
+      });
 
-    expect(repository.complete).toHaveBeenCalledWith(
-      '1',
-      '5501',
-      expect.objectContaining({
-        finalResult: 'VERIFIED',
-        selfieMatchScore: '0.90',
-        documentForensicsScore: '0.92',
-      }),
-    );
-  });
+      await service.start('1', { ...cuerpo(), customerId: '77' } as never, 'idem-1');
+      await dejarResolver();
 
-  it('escribe REJECTED cuando el artefacto rechaza', async () => {
-    const { service, repository } = montar({
-      output: { identidad_resultado: 'RECHAZADO', identidad_motivo: 'DOCUMENTO_NO_VALIDO' },
-    });
+      const [, , update] = repository.complete.mock.calls[0] as [
+        string,
+        string,
+        { finalResult: string; reasonCodes: Record<string, unknown> },
+      ];
+      expect(update.finalResult).toBe('IN_REVIEW');
+      expect(update.reasonCodes).toMatchObject({ engineDecision: 'VERIFIED', humanReviewPolicy: true });
+      expect(reviewCases.openIfAbsent).toHaveBeenCalledTimes(1);
+    }));
 
-    await service.start('1', cuerpo(), 'idem-1');
-    await dejarResolver();
+  it('con revisión humana, un RECHAZADO tampoco cierra solo; un REVISION_HUMANA sigue en la cola del Motor sin caso duplicado', () =>
+    conRevisionHumana(true, async () => {
+      const rechazo = montar({ output: { identidad_resultado: 'RECHAZADO' } });
+      await rechazo.service.start('1', cuerpo(), 'idem-1');
+      await dejarResolver();
+      expect(rechazo.repository.complete).toHaveBeenCalledWith('1', '5501', expect.objectContaining({ finalResult: 'IN_REVIEW' }));
 
-    expect(repository.complete).toHaveBeenCalledWith('1', '5501', expect.objectContaining({ finalResult: 'REJECTED' }));
-  });
+      const motor = montar({ output: { identidad_resultado: 'REVISION_HUMANA' } });
+      await motor.service.start('1', cuerpo(), 'idem-1');
+      await dejarResolver();
+      const [, , update] = motor.repository.complete.mock.calls[0] as [string, string, { reasonCodes: Record<string, unknown> }];
+      expect(update.reasonCodes.humanReviewPolicy).toBeUndefined();
+      expect(motor.reviewCases.openIfAbsent).not.toHaveBeenCalled();
+    }));
+
+  it('escribe VERIFIED cuando el artefacto verifica (revisión humana apagada)', () =>
+    conRevisionHumana(false, async () => {
+      const { service, repository } = montar({
+        output: {
+          identidad_resultado: 'VERIFICADO',
+          identidad_motivo: 'IDENTIDAD_CONFIRMADA',
+          identidad_parecido: 0.897,
+          identidad_evidencia_documento: 0.92,
+        },
+      });
+
+      await service.start('1', cuerpo(), 'idem-1');
+      await dejarResolver();
+
+      expect(repository.complete).toHaveBeenCalledWith(
+        '1',
+        '5501',
+        expect.objectContaining({
+          finalResult: 'VERIFIED',
+          selfieMatchScore: '0.90',
+          documentForensicsScore: '0.92',
+        }),
+      );
+    }));
+
+  it('escribe REJECTED cuando el artefacto rechaza (revisión humana apagada)', () =>
+    conRevisionHumana(false, async () => {
+      const { service, repository } = montar({
+        output: { identidad_resultado: 'RECHAZADO', identidad_motivo: 'DOCUMENTO_NO_VALIDO' },
+      });
+
+      await service.start('1', cuerpo(), 'idem-1');
+      await dejarResolver();
+
+      expect(repository.complete).toHaveBeenCalledWith('1', '5501', expect.objectContaining({ finalResult: 'REJECTED' }));
+    }));
 
   it('un desenlace que este código no conoce va a revisión, no a aprobación', async () => {
     const { service, repository } = montar({

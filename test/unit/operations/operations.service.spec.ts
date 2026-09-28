@@ -360,6 +360,20 @@ describe('OperationsService', () => {
       expect(operationsRepository.closeManualReviewCase).not.toHaveBeenCalled();
     });
 
+    it('rechaza decidir aquí el caso de identidad: se decide en el panel de identidad, que lo cierra', async () => {
+      const { service, operationsRepository } = await buildService();
+      (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({
+        closedAt: null,
+        status: 'open',
+        customerId: '10',
+        decisionExecutionId: null,
+        caseType: 'identity_review',
+      } as never);
+
+      await expect(service.decideManualReviewCase(baseInput())).rejects.toThrow(/MANUAL_REVIEW_ES_DE_IDENTIDAD/);
+      expect(operationsRepository.closeManualReviewCase).not.toHaveBeenCalled();
+    });
+
     it('sí deja decidir cuando la decisión salió de la política local (sin ejecución del Motor)', async () => {
       const { service, operationsRepository } = await buildService();
       (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({

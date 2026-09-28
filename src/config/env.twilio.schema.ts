@@ -30,6 +30,14 @@ export const twilioProviderEnvShape = {
   TWILIO_STATUS_CALLBACK_URL: optionalUrlEnvSchema,
 
   TWILIO_WHATSAPP_FROM: z.string().optional(),
+  // Plantilla de WhatsApp aprobada en Twilio (Content Template, `HX…`). WhatsApp sólo admite texto libre
+  // en las 24 h tras un mensaje del cliente y ATLAS no recibe WhatsApp: el código del alta SIEMPRE sale
+  // por plantilla. Debe ser de categoría «Authentication» con el código como variable `{{1}}`.
+  TWILIO_WHATSAPP_OTP_CONTENT_SID: z
+    .string()
+    .trim()
+    .regex(/^HX[0-9a-fA-F]{32}$/)
+    .optional(),
 
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().optional(),

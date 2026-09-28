@@ -22,7 +22,7 @@ import { runtimeJobsEnvShape } from './env.runtime-jobs.schema.js';
 import { pushProviderEnvShape } from './env.push.schema.js';
 import { twilioProviderEnvShape } from './env.twilio.schema.js';
 import { brevoProviderEnvShape } from './env.brevo.schema.js';
-import { otpDeliveryEnvShape } from './env.otp.schema.js';
+import { onboardingEnvShape } from './env.identity-review.schema.js';
 import { metaWhatsAppProviderEnvShape } from './env.meta-whatsapp.schema.js';
 
 export const DEFAULT_JWT_SECRET = 'dev-only-atlas-access-token-secret-change-me';
@@ -206,7 +206,7 @@ export const envBaseSchema = z.object({
   // Dirección del ERP, sólo para reportar su salud. Bloque propio en `env.erp.schema.ts`.
   ...erpEnvShape,
   ...dashboardsEnvShape,
-  ...otpDeliveryEnvShape,
+  ...onboardingEnvShape,
   /**
    * Si Flujos devuelve el FICHERO y la LÍNEA de cada endpoint y pantalla —el atajo del hallazgo al
    * código— y el árbol de fuentes para quien tenga `systems.flows.read`. Fuera de producción

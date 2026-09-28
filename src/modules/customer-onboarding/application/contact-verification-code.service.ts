@@ -23,10 +23,11 @@ export type VerificationChannel = 'sms' | 'email' | 'whatsapp';
 /**
  * Orden de preferencia con el que se ofrecen los canales. Lo decide el SERVIDOR, no la app.
  *
- * Aquí es donde se cambia si algún día SMS pasa a ser el canal principal: la app toma el primero
- * disponible de esta lista, así que no hace falta publicar una versión nueva para cambiarlo.
+ * WhatsApp primero (2026-09-28): el teléfono es el login principal y el canal del producto es
+ * «WhatsApp-first»; si WhatsApp está apagado, la app cae a SMS, que es el siguiente disponible. La app
+ * toma el primero disponible de esta lista, así que cambiarlo no exige publicar una versión nueva.
  */
-export const CHANNEL_PREFERENCE: readonly VerificationChannel[] = ['email', 'sms', 'whatsapp'] as const;
+export const CHANNEL_PREFERENCE: readonly VerificationChannel[] = ['whatsapp', 'sms', 'email'] as const;
 
 export type CodeDeliveryOutcome = {
   delivered: boolean;

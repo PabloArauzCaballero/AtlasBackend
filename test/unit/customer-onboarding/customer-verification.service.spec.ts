@@ -40,6 +40,7 @@ describe('CustomerVerificationService', () => {
       resolveReview: jest.fn(),
     };
     const events = { publish: jest.fn(async (..._args: unknown[]) => ({})) };
+    const reviewCases = { closeOpen: jest.fn(async (..._args: unknown[]) => 0) };
     const service = new CustomerVerificationService(
       common.customersRepository as never,
       verificationRepository as never,
@@ -48,8 +49,9 @@ describe('CustomerVerificationService', () => {
       common.eligibilityService as never,
       common.sequelize as never,
       events as never,
+      reviewCases as never,
     );
-    return { service, verificationRepository, events, ...common };
+    return { service, verificationRepository, events, reviewCases, ...common };
   }
 
   const baseInput = { tenantId: 't1', customerId: 'c1', currentUser: analyst, ipAddress: '10.0.0.1' };
@@ -65,6 +67,29 @@ describe('CustomerVerificationService', () => {
       /IDENTITY_DECISION_DELEGADA_AL_MOTOR.*4242/,
     );
     expect(verificationRepository.resolveAttempt).not.toHaveBeenCalled();
+  });
+
+  it('un intento RETENIDO por la revisión humana (el Motor decidió, no abrió caso) se decide aquí y cierra el caso de la bandeja', async () => {
+    const { service, verificationRepository, reviewCases } = build();
+    (verificationRepository.findAttemptAwaitingReview as jest.Mock).mockResolvedValueOnce({
+      id: 'attempt-4',
+      finalResult: 'IN_REVIEW',
+      reasonCodesJson: { executionId: '4242', engineDecision: 'VERIFIED', humanReviewPolicy: true },
+    } as never);
+    await expect(service.decideIdentity({ ...baseInput, body: { decision: 'approve', reasonCode: 'ok' } as never })).resolves.toMatchObject(
+      {
+        identityVerificationResult: 'verified',
+      },
+    );
+    expect(verificationRepository.resolveAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'attempt-4' }),
+      expect.objectContaining({ finalResult: 'VERIFIED' }),
+      expect.anything(),
+    );
+    expect(reviewCases.closeOpen).toHaveBeenCalledWith(
+      expect.objectContaining({ customerId: 'c1', resolution: 'approved' }),
+      expect.anything(),
+    );
   });
 
   it('un intento del Motor YA resuelto (no IN_REVIEW) sí admite la decisión humana', async () => {
@@ -172,6 +197,7 @@ describe('CustomerVerificationService · aviso del veredicto (A8)', () => {
       resolveReview: jest.fn(),
     };
     const events = { publish: jest.fn(async (..._args: unknown[]) => ({})) };
+    const reviewCases = { closeOpen: jest.fn(async (..._args: unknown[]) => 0) };
     const service = new CustomerVerificationService(
       common.customersRepository as never,
       verificationRepository as never,
@@ -180,6 +206,7 @@ describe('CustomerVerificationService · aviso del veredicto (A8)', () => {
       common.eligibilityService as never,
       common.sequelize as never,
       events as never,
+      reviewCases as never,
     );
     return { service, events };
   }

@@ -197,6 +197,7 @@ x-atlas-env: &atlas-env
   DECISION_ENGINE_STATEMENT_API_KEY: ${DECISION_ENGINE_STATEMENT_API_KEY:-}
   DECISION_ENGINE_SUBJECT_SALT: ${DECISION_ENGINE_SUBJECT_SALT:-}
   DECISION_ENGINE_IDENTITY_ARTIFACT: ${DECISION_ENGINE_IDENTITY_ARTIFACT:-IDENTIDAD_CARNET_MOVIL}
+  IDENTITY_REQUIRE_HUMAN_REVIEW: ${IDENTITY_REQUIRE_HUMAN_REVIEW:-true}
   # El codigo REAL del artefacto de originacion en el motor. El defecto del esquema
   # (`credit_underwriting`) no existe alli, asi que toda solicitud caia en 404 y se resolvia como
   # `engine_unavailable_manual`: el credito quedaba esperando a una persona sin que nada dijera que

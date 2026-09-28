@@ -62,9 +62,9 @@ const eventGroups: Array<{ family: string; events: string[]; aggregateTypes: str
      * Transiciones del ciclo de vida del cliente (hallazgo A8/B12, 2026-09-26). Las escribe
      * `CustomerLifecycleRepository.createTransitionEvent` como `customer.lifecycle.${newStatus}`, en la
      * misma transacción que el cambio de estado. Hasta hoy no estaban aquí y `process_outbox` las
-     * marcaba procesadas en silencio. Registrarlas las pasa a `process_events`; NO tienen canales en
-     * `notification-rules.service.ts` (ni plantillas que los respalden), así que se consumen sin
-     * mensaje: qué decirle al cliente en cada estado sigue siendo decisión de producto.
+     * marcaba procesadas en silencio. Registrarlas las pasa a `process_events`. Sólo
+     * `customer.lifecycle.active` tiene canales («Tu cuenta ha sido verificada», 2026-09-28); las demás
+     * se consumen sin mensaje.
      *
      * Un código por cada DESTINO de `ALLOWED_TRANSITIONS` (`registered` es sólo inicial: ninguna
      * transición llega ahí). Un estado nuevo en `customer-lifecycle.constants.ts` tiene que añadirse

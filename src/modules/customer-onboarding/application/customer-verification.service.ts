@@ -15,6 +15,7 @@ import { CustomerOnboardingRepository } from '../customer-onboarding.repository.
 import { CustomerVerificationRepository } from '../repositories/customer-verification.repository.js';
 import { identityResultForRow } from '../../../common/utils/identity/identity-result.util.js';
 import { IdentityVerdictEventPublisher } from './identity-verdict-event.publisher.js';
+import { IdentityReviewCaseRepository } from '../repositories/identity-review-case.repository.js';
 
 /**
  * Resolución de la verificación de identidad y de la revisión documental (C9 y C10).
@@ -37,6 +38,9 @@ import { IdentityVerdictEventPublisher } from './identity-verdict-event.publishe
  */
 function assertNotDelegatedToEngine(attempt: { finalResult: string | null; reasonCodesJson: Record<string, unknown> | null }): void {
   const executionId = attempt.reasonCodesJson?.executionId;
+  // Retenido por `IDENTITY_REQUIRE_HUMAN_REVIEW`: el Motor DECIDIÓ (no abrió caso) y su veredicto quedó
+  // como sugerencia. La única bandeja donde se resuelve es ésta.
+  if (attempt.reasonCodesJson?.humanReviewPolicy === true) return;
   if (executionId && String(attempt.finalResult ?? '').toUpperCase() === 'IN_REVIEW') {
     throw new ConflictException(
       `IDENTITY_DECISION_DELEGADA_AL_MOTOR: la ejecución ${String(executionId)} del Motor abrió el caso; se resuelve allí.`,
@@ -54,6 +58,7 @@ export class CustomerVerificationService {
     private readonly eligibilityService: CustomerEligibilityService,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly verdictEvents: IdentityVerdictEventPublisher,
+    private readonly reviewCases: IdentityReviewCaseRepository,
   ) {}
 
   async decideIdentity(input: {
@@ -124,6 +129,18 @@ export class CustomerVerificationService {
           decidedAt: now,
         },
         transaction,
+      );
+
+      // El caso de la bandeja de operaciones (si la revisión humana lo abrió) se cierra con la decisión.
+      await this.reviewCases.closeOpen(
+        {
+          tenantId: input.tenantId,
+          customerId: input.customerId,
+          resolution: approved ? 'approved' : 'rejected',
+          notes: input.body.notes ?? null,
+          now,
+        },
+        { transaction },
       );
 
       // Un rechazo devuelve al cliente a corregir; una aprobación no lo habilita por sí sola: la

@@ -35,6 +35,15 @@ describe('NotificationRulesService.getRulesForEvent', () => {
       expect(service.getRulesForEvent('purchase.created')[0].required).toBe(false);
     });
 
+    it('customer.lifecycle.active avisa «tu cuenta ha sido verificada» por app, push, correo y SMS, siempre', () => {
+      const [rule] = service.getRulesForEvent('customer.lifecycle.active');
+      expect(rule.channels).toEqual(['in_app', 'push', 'email', 'sms']);
+      expect(rule.required).toBe(true);
+      expect(rule.templatePrefix).toBe('customer_lifecycle_active');
+      // Los demás estados siguen sin mensaje: sólo la activación es una noticia para el cliente.
+      expect(service.getRulesForEvent('customer.lifecycle.under_review')).toEqual([]);
+    });
+
     it('derives templatePrefix by replacing every dot with an underscore', () => {
       expect(service.getRulesForEvent('installment.due_soon')[0].templatePrefix).toBe('installment_due_soon');
     });
