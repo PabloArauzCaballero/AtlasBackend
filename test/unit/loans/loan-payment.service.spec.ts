@@ -78,7 +78,15 @@ describe('LoanPaymentService', () => {
     /** La pasarela reintenta; el cobro no puede aplicarse dos veces por eso. */
     it('devuelve el cobro ya registrado sin volver a aplicarlo', async () => {
       const { service, loans } = build();
-      (loans.findPaymentByIdempotency as jest.Mock).mockResolvedValueOnce({ id: 'pay-0', paymentCode: 'PAY-0' } as never);
+      (loans.findPaymentByIdempotency as jest.Mock).mockResolvedValueOnce({
+        id: 'pay-0',
+        paymentCode: 'PAY-0',
+        loanId: 'loan-1',
+        amount: '110.00',
+        currencyCode: 'BOB',
+        paymentMethod: 'transfer',
+        externalReference: null,
+      } as never);
 
       await expect(service.registerPayment(paymentInput() as never)).resolves.toEqual({
         paymentId: 'pay-0',
@@ -87,6 +95,25 @@ describe('LoanPaymentService', () => {
       });
       expect(loans.createPayment).not.toHaveBeenCalled();
       expect(loans.findLoanForUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rechaza la misma clave con otro importe o préstamo antes de tocar el cronograma', async () => {
+      for (const input of [paymentInput({ amount: '20.00' }), { ...paymentInput(), loanId: 'loan-2' }]) {
+        const { service, loans } = build();
+        (loans.findPaymentByIdempotency as jest.Mock).mockResolvedValueOnce({
+          id: 'pay-0',
+          paymentCode: 'PAY-0',
+          loanId: 'loan-1',
+          amount: '110.00',
+          currencyCode: 'BOB',
+          paymentMethod: 'transfer',
+          externalReference: null,
+        } as never);
+
+        await expect(service.registerPayment(input as never)).rejects.toThrow(ConflictException);
+        expect(loans.findLoanForUpdate).not.toHaveBeenCalled();
+        expect(loans.createPayment).not.toHaveBeenCalled();
+      }
     });
 
     it('exige que el préstamo exista, esté vivo y sea de la misma moneda', async () => {
