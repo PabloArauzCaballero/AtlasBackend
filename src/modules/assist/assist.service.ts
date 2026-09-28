@@ -156,7 +156,9 @@ export class AssistService {
   /**
    * Cada desenlace del servicio de IA, en el idioma de quien pregunta.
    *
-   * - 400: el texto ya viene redactado para la persona (datos sensibles, tope de tamaño); se reenvía.
+   * - 400: sólo se reenvía el aviso de datos sensibles, que viene redactado para la persona. Los
+   *   demás 400 son validaciones técnicas del servicio («screen inválida», un id mal formado): se
+   *   registran y la persona ve un texto amable. Mostrar «screen inválida» no le dice qué hacer.
    * - 404: el interruptor del servicio apagado → mismo 404 que el de Core.
    * - 409: la MISMA consulta sigue en curso; el móvil reintenta en silencio con el mismo
    *   `clientMessageId` y recoge la respuesta guardada. No es un error de la persona.
@@ -169,7 +171,14 @@ export class AssistService {
     const mensaje = mensajeDe(resultado.json);
     switch (resultado.status) {
       case 400:
-        return new BadRequestException({ code: 'ASSIST_REJECTED', message: mensaje ?? 'No se pudo enviar tu pregunta.' });
+        if (mensaje && MENSAJE_PARA_LA_PERSONA.test(mensaje)) {
+          return new BadRequestException({ code: 'ASSIST_REJECTED', message: mensaje });
+        }
+        this.logger.warn(`El servicio de IA rechazó la consulta: ${mensaje ?? 'sin mensaje'}`);
+        return new BadRequestException({
+          code: 'ASSIST_REJECTED',
+          message: 'No se pudo enviar tu pregunta. Vuelve a intentarlo en unos segundos.',
+        });
       case 404:
         return new NotFoundException(APAGADO);
       case 409:
@@ -256,6 +265,9 @@ function vistaDeConversacion(json: Record<string, unknown>): AssistConversationV
 }
 
 /** El `message` del cuerpo de error de Nest, si vino y es texto. */
+/** Los 400 del servicio de IA que están escritos para la persona: el aviso de datos sensibles. */
+const MENSAJE_PARA_LA_PERSONA = /^Por tu seguridad/;
+
 function mensajeDe(json: Record<string, unknown>): string | null {
   if (typeof json.message === 'string' && json.message.trim()) return json.message;
   return null;

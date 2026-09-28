@@ -137,6 +137,19 @@ describe('AssistService', () => {
     });
   });
 
+  it('un 400 técnico del servicio («screen inválida») no llega crudo a la pantalla', async () => {
+    const { AssistService } = await cargar();
+    const service = new AssistService(
+      clienteFalso({ chat: jest.fn(async () => ({ status: 400, ok: false, json: { message: 'screen inválida' } })) }) as never,
+    );
+
+    const fallo = service.chat('1', 'c-1', DTO);
+    await expect(fallo).rejects.toMatchObject({ status: 400 });
+    await expect(fallo).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'ASSIST_REJECTED', message: expect.not.stringContaining('screen') }),
+    });
+  });
+
   it.each([
     [404, 404],
     [409, 409],
