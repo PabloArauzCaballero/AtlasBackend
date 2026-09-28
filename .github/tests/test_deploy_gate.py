@@ -43,8 +43,17 @@ with tempfile.TemporaryDirectory() as tmp:
     assert set(deploy_events) == {'workflow_call'}, deploy_events
     assert 'dev' in ci_events['push']['branches'], ci_events
     assert 'dev' in ci_events['pull_request']['branches'], ci_events
+    assert 'test' in ci_events['push']['branches'], ci_events
+    assert 'test' in ci_events['pull_request']['branches'], ci_events
+    # El deploy cuelga de UN solo trabajo, `release-gate`, y ése cuelga de TODOS los demás: es el
+    # único check que se exige en dev/test/main, corre siempre (`if: always()`) y sólo es verde si
+    # todos terminaron en success — un gate cancelado o saltado lo pone en rojo.
     caller = ci['jobs']['deploy-dev']
-    assert set(caller['needs']) == set(ci['jobs']) - {'deploy-dev'}, caller['needs']
+    assert caller['needs'] == ['release-gate'], caller['needs']
+    gate = ci['jobs']['release-gate']
+    assert gate['if'] == 'always()', gate['if']
+    assert set(gate['needs']) == set(ci['jobs']) - {'deploy-dev', 'release-gate'}, gate['needs']
+    assert 'all(. == "success")' in gate['steps'][-1]['run'], gate['steps'][-1]['run']
     assert caller['uses'] == './.github/workflows/deploy-dev.yml', caller['uses']
     assert caller['secrets'] == 'inherit', caller['secrets']
     assert caller['if'] == "github.event_name == 'push' && github.ref == 'refs/heads/dev'", caller['if']
