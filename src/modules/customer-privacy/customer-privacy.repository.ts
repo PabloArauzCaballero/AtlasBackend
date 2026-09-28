@@ -183,6 +183,32 @@ export class CustomerPrivacyRepository {
     );
   }
 
+  /** Lee la solicitud bloqueando la fila: dos personas moviendo la misma a la vez no pueden pisarse. */
+  findDataSubjectRequestForUpdate(tenantId: string, requestId: string, options: Required<RepositoryOptions>) {
+    return this.dataSubjectRequestModel.findOne({
+      where: { tenantId, id: requestId },
+      transaction: options.transaction,
+      lock: options.transaction.LOCK.UPDATE,
+    });
+  }
+
+  updateDataSubjectRequest(
+    request: DataSubjectRequestModel,
+    values: { status: string; handledBy: string | null; resolvedAt: Date | null; resolutionNotes: string | null; updatedAt: Date },
+    options: RepositoryOptions,
+  ): Promise<DataSubjectRequestModel> {
+    return request.update(
+      {
+        status: values.status,
+        handledBy: values.handledBy,
+        resolvedAt: values.resolvedAt,
+        resolutionNotes: values.resolutionNotes,
+        updatedAtValue: values.updatedAt,
+      },
+      { transaction: options.transaction },
+    );
+  }
+
   createAudit(
     values: {
       tenantId: string;

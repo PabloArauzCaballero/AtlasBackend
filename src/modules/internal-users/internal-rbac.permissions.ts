@@ -127,6 +127,9 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'audit.events.read',
     'audit.events.detail',
     'reporting.read',
+    // Solicitudes de derechos del titular (hallazgo A5): la jefatura ve la cola y la cierra.
+    'privacy.requests.read',
+    'privacy.requests.manage',
   ],
   COMPLIANCE_ANALYST: [
     'auth.internal.me.read',
@@ -136,6 +139,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'governance.data.read',
     'governance.policies.read',
     'audit.events.read',
+    // Vigila los plazos de las solicitudes del titular; cerrarlas es de COMPLIANCE_MANAGER.
+    'privacy.requests.read',
   ],
   COLLECTIONS_MANAGER: [
     'auth.internal.me.read',

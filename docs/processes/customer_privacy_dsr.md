@@ -2,7 +2,7 @@
 
 # P-11 · Derechos del titular (ARCO), retención y supresión
 
-`customer_privacy_dsr` · v1 · prioridad **P0** · tipo `back_office` · dueño `DATA_GOVERNANCE_MANAGER` · bloques `ATLAS_BACKEND`, `DECISION_ENGINE`
+`customer_privacy_dsr` · v1 · prioridad **P0** · tipo `back_office` · dueño `COMPLIANCE_MANAGER` · bloques `ATLAS_BACKEND`, `DECISION_ENGINE`
 
 El cliente pide desde la app ver, corregir, llevarse, limitar o borrar sus datos, o retirar consentimientos; la solicitud queda registrada con plazo de 15 días. En paralelo, la retención programada purga telemetría cruda, y el Motor resuelve por su lado las solicitudes sobre decisiones automatizadas.
 
@@ -12,19 +12,19 @@ La persona tiene derecho a saber qué datos suyos guarda Atlas, a corregirlos, a
 
 ## Quién lo inicia y quién lo cierra
 
-Lo inicia el cliente desde la pantalla «Privacidad» de la app, eligiendo el derecho que quiere ejercer, o el propio sistema con la tarea programada de retención. Debería cerrarlo el equipo de gobierno de datos (DATA_GOVERNANCE_MANAGER) resolviendo la solicitud; hoy nadie puede cerrarla desde el portal. En el Motor, cumplimiento u operaciones atienden la parte de decisiones automatizadas.
+Lo inicia el cliente desde la pantalla «Privacidad» de la app, eligiendo el derecho que quiere ejercer, o el propio sistema con la tarea programada de retención. Lo cierra la jefatura de cumplimiento (COMPLIANCE_MANAGER) desde «Solicitudes de privacidad» del portal: la toma, la atiende y la completa o rechaza con motivo; el analista de cumplimiento vigila la cola y los plazos. En el Motor, cumplimiento u operaciones atienden la parte de decisiones automatizadas.
 
 ## Cuándo empieza y cuándo termina
 
-Empieza cuando la app registra la solicitud (estado `received`, vencimiento a 15 días desde la recepción). Debería terminar con la solicitud resuelta y fechada (`resolved_at`, `handled_by`, notas de resolución) en Atlas y con su espejo en el Motor en FULFILLED o REJECTED; hoy ningún paso escribe esa resolución en Atlas.
+Empieza cuando la app registra la solicitud (estado `received`, vencimiento a 15 días naturales desde la recepción). Pasa a `in_progress` cuando alguien de cumplimiento la toma y termina en `completed` o `rejected` con motivo, fecha de cierre y responsable (`resolved_at`, `handled_by`, `resolution_notes`), más su espejo en el Motor en FULFILLED o REJECTED si toca decisiones automatizadas. Completar no borra datos: la supresión se hace a mano.
 
 ## Qué pasa cuando falla
 
-Si falta la clave de idempotencia responde 400; si un cliente intenta pedir sobre otra cuenta, 403; si el cliente no existe, 404. El fallo grave es silencioso: la solicitud queda `received` para siempre, vence el plazo legal de 15 días y nadie se entera, porque no hay cola interna ni aviso. Un borrado en el Motor con decisiones previas se rechaza a propósito por obligación legal de conservar la evidencia.
+Si falta la clave de idempotencia responde 400; si un cliente intenta pedir sobre otra cuenta, 403; si el cliente no existe, 404. Al atenderla, un salto de estado no permitido responde 409 y cerrar sin motivo 422. El riesgo que queda es el plazo: no hay aviso programado, así que las vencidas se ven en la cola del portal (resaltadas y contadas en el resumen), no llegan solas a nadie. Un borrado en el Motor con decisiones previas se rechaza a propósito por obligación legal de conservar la evidencia.
 
 ## Qué indicador dice que va bien
 
-Solicitudes en `received` con `due_at` vencido (debe ser cero) y tiempo medio entre `requested_at` y `resolved_at`, ambos leídos de `data_subject_requests`; para la retención, que cada corrida de `apply_retention_policies` termine sin políticas activas sin destino ejecutable.
+Solicitudes abiertas (`received` o `in_progress`) con más de 15 días desde la recepción —el `summary.overdue` de la cola, debe ser cero— y tiempo medio entre `requested_at` y `resolved_at`, ambos leídos de `data_subject_requests`; para la retención, que cada corrida de `apply_retention_policies` termine sin políticas activas sin destino ejecutable.
 
 ## Resultado
 
@@ -33,7 +33,7 @@ Solicitudes en `received` con `due_at` vencido (debe ser cero) y tiempo medio en
 
 ## Dónde vive cada instancia
 
-`ATLAS_BACKEND` · `privacy.data_subject_requests` · estado en `status` · abiertas: `received`
+`ATLAS_BACKEND` · `privacy.data_subject_requests` · estado en `status` · abiertas: `received`, `in_progress`
 
 ## Etapas
 
@@ -56,7 +56,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | `dsr_request` | Solicitud del titular | customer | CONSUMER_APP | **sin pantalla declarada** | 1 |
 | `dsr_consent_revocation` | Retiro de consentimientos | customer | CONSUMER_APP | **sin pantalla declarada** | 1 |
-| `dsr_internal_resolution` | Atención interna de la solicitud | internal_user | ADMIN_PORTAL | **sin pantalla declarada** | 1 |
+| `dsr_internal_resolution` | Atención interna de la solicitud | internal_user | ADMIN_PORTAL | `/internal/governance/privacy-requests` | 4 |
 | `dsr_motor_decisions` | Solicitud sobre decisiones automatizadas en el Motor | internal_user | MOTOR_PORTAL | `/data-subject-requests` | 2 |
 | `dsr_retention_job` | Retención programada | system | BLOCK | — | 1 |
 | `dsr_retention_manual` | Retención lanzada a mano | internal_user | ADMIN_PORTAL | `/internal/operations/runtime-jobs` | 1 |
@@ -79,11 +79,14 @@ Desde la misma pantalla el cliente puede revocar permisos ya dados. Una revocaci
 
 ### Atención interna de la solicitud (`dsr_internal_resolution`)
 
-Una persona de gobierno de datos debería ver la solicitud, ejecutarla y registrarla como resuelta. Hoy no hay pantalla ni ruta para hacerlo: es el hueco central del proceso.
+En «Solicitudes de privacidad» del portal, cumplimiento ve la cola con el plazo legal de cada solicitud (las vencidas resaltadas), la toma, la atiende a mano y la cierra como completada o rechazada con motivo. Cada paso queda en el historial con autor y fecha. Completar no borra datos.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Resolver la solicitud y dejar constancia | manual | ATLAS_BACKEND | No hay ruta que liste ni resuelva data_subject_requests; la resolución, si ocurre, es un trabajo manual fuera del sistema y no queda registrada. | — | — |
+| Ver la cola de solicitudes y sus plazos | http | ATLAS_BACKEND | `GET /operations/privacy/data-subject-requests` | compliance_analyst, readonly_auditor, admin, platform_admin | — |
+| Abrir la solicitud con su historial | http | ATLAS_BACKEND | `GET /operations/privacy/data-subject-requests/:requestId` | compliance_analyst, readonly_auditor, admin, platform_admin | — |
+| Tomar la solicitud | http | ATLAS_BACKEND | `POST /operations/privacy/data-subject-requests/:requestId/transition` | compliance_analyst, admin, platform_admin | — |
+| Completar o rechazar la solicitud con motivo | http | ATLAS_BACKEND | `POST /operations/privacy/data-subject-requests/:requestId/transition` | compliance_analyst, admin, platform_admin | — |
 
 ### Solicitud sobre decisiones automatizadas en el Motor (`dsr_motor_decisions`)
 
@@ -116,6 +119,9 @@ Un administrador puede lanzar la misma retención desde la pantalla de tareas de
 - `src/modules/customer-privacy/customer-privacy.service.ts`
 - `src/modules/customer-privacy/customer-privacy.repository.ts`
 - `src/modules/customer-privacy/customer-privacy.schemas.ts`
+- `src/modules/customer-privacy/operations-privacy-requests.controller.ts`
+- `src/modules/customer-privacy/operations-privacy-requests.service.ts`
+- `src/modules/customer-privacy/data-subject-request.state.ts`
 - `src/database/models/data-subject-requests.model.ts`
 - `src/modules/runtime-jobs/scheduled-jobs.catalog.ts`
 - `src/modules/runtime-jobs/runtime-jobs.controller.ts`
@@ -125,6 +131,7 @@ Un administrador puede lanzar la misma retención desde la pantalla de tareas de
 - `AtlasDecisionEngineFrontend/src/app/(portal)/data-subject-requests/page.next.tsx`
 - `AtlasFrontend/apps/consumer-app/app/(app)/privacidad.tsx`
 - `AtlasAdminPortal/src/app/internal/operations/runtime-jobs/page.tsx`
+- `AtlasAdminPortal/src/app/internal/governance/privacy-requests/page.tsx`
 - `memoria atlas-plan-promesas-reales (frente 4: la cadena de supresión no ejecuta borrado local ni encadena al Motor)`
 - `memoria atlas-motor-imagenes-persistidas (el Motor copia carnet y selfie a su MinIO)`
 - `_plan-documentar-procesos-y-cableado-portal-2026-09-26/datos/procesos.json (P-11)`

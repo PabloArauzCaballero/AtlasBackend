@@ -10,13 +10,13 @@ import { syncWorkflowCatalog } from '../../modules/workflow-catalog/definitions/
 type MigrationContext = { context: QueryInterface };
 
 /**
- * Mismo patrón que `sync-workflow-catalog-1..3`: el catálogo se declara en código y cada cambio trae su
+ * Mismo patrón que `sync-workflow-catalog-1..4`: el catálogo se declara en código y cada cambio trae su
  * migración que lo vuelve a volcar. Ésta recoge la vuelta de la revisión humana de extractos
  * (`/internal/credit/bank-statement-review-callback` y la relectura del job) y el aviso de identidad
  * con reintentos por el outbox del Motor.
  */
 export async function up({ context: queryInterface }: MigrationContext): Promise<void> {
-  await syncWorkflowCatalog(queryInterface, WORKFLOW_DEFINITIONS, 'migration:20260927200000-sync-workflow-catalog-4');
+  await syncWorkflowCatalog(queryInterface, WORKFLOW_DEFINITIONS, 'migration:20260928011000-sync-workflow-catalog-5');
 }
 
 /** Sin vuelta atrás, como `sync-workflow-catalog-1`: el volcado anterior es un subconjunto de éste. */

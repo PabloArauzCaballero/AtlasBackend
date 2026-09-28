@@ -1,6 +1,6 @@
 {
   "processes": {
-    "migration": "20260927200000-sync-workflow-catalog-4",
+    "migration": "20260928011000-sync-workflow-catalog-5",
     "hashes": {
       "customer_credit_journey": "cc1c978debdf011b",
       "post_login_first_screen": "6b88e3d8745e29e5",
@@ -16,7 +16,7 @@
       "purchase_and_disbursement": "2837523c574dffea",
       "installment_payment_claims": "54f9898a850f6526",
       "loan_servicing_collections": "d9625be6d8ad1e15",
-      "customer_privacy_dsr": "8e8ca377c61ae9ac",
+      "customer_privacy_dsr": "74f59091f13ead3f",
       "customer_support_case": "d2640f85bf6e28be",
       "notifications_and_campaigns": "374c91fc4cf4cdd4",
       "atlas_assist_help": "739bca0ece3307b7",
@@ -47,7 +47,7 @@
     }
   },
   "rbac": {
-    "migration": "20260927120500-sync-internal-rbac-catalog-5",
-    "hash": "43b5ec78205ede09"
+    "migration": "20260928010000-sync-internal-rbac-catalog-6",
+    "hash": "6b5adcf185ecb02d"
   }
 }

@@ -23416,6 +23416,218 @@ paths:
       summary: Avisos de pago del tenant, para supervisar su verificación
       tags:
         - loans-operations
+  /operations/privacy/data-subject-requests:
+    get:
+      description: >-
+        Lista paginada de las solicitudes de acceso, rectificación, supresión,
+        portabilidad, revocación, restricción u oposición, con su cliente y su
+        responsable. El vencimiento (`dueAt`) se calcula a 15 días naturales
+        desde la recepción y `overdue` marca las abiertas (received,
+        in_progress) que ya lo pasaron. Las abiertas salen primero, la más
+        antigua arriba; `summary` resume toda la cola del tenant, sin filtros.
+      operationId: OperationsPrivacyRequestsController_list
+      parameters:
+        - name: pageSize
+          required: false
+          in: query
+          schema:
+            default: 25
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+          description: Solicitudes por página (máximo 100).
+        - name: page
+          required: false
+          in: query
+          schema:
+            default: 1
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 9007199254740991
+          description: Página, desde 1.
+        - name: customerId
+          required: false
+          in: query
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: Sólo las solicitudes de este cliente.
+        - name: overdue
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+          description: >-
+            `true`: sólo las abiertas con el plazo vencido; `false`: todas las
+            demás.
+        - name: type
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - access
+              - rectification
+              - deletion
+              - portability
+              - revocation
+              - restriction
+              - erasure
+              - objection
+          description: Tipo de derecho pedido.
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - received
+              - in_progress
+              - completed
+              - rejected
+          description: received, in_progress, completed o rejected.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: >-
+            Página de solicitudes, metadatos de paginación y resumen de abiertas
+            y vencidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Sin el permiso privacy.requests.read.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Solicitudes de derechos del titular del tenant
+      tags:
+        - customer-privacy
+  /operations/privacy/data-subject-requests/{requestId}:
+    get:
+      description: >-
+        La solicitud con su plazo calculado, las transiciones que admite desde
+        su estado actual y el historial (creación y cada cambio de estado con
+        autor, motivo y fecha) leído de la auditoría operativa.
+      operationId: OperationsPrivacyRequestsController_detail
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: Id de la solicitud.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Solicitud, transiciones admitidas e historial.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Sin el permiso privacy.requests.read.
+        '404':
+          description: DATA_SUBJECT_REQUEST_NOT_FOUND — no existe en este tenant.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Detalle de una solicitud del titular, con su historial
+      tags:
+        - customer-privacy
+  /operations/privacy/data-subject-requests/{requestId}/transition:
+    post:
+      description: >-
+        Máquina de estados explícita: received → in_progress → completed |
+        rejected. Tomarla (`in_progress`) la asigna a quien la toma; `completed`
+        y `rejected` exigen motivo (mínimo 10 caracteres), fechan el cierre
+        (`resolvedAt`) y quedan en la auditoría con autor y estado anterior.
+        `completed` significa que una persona ATENDIÓ la solicitud y dejó
+        escrito cómo: esta ruta NO borra ni modifica datos del cliente. Una
+        supresión se ejecuta a mano, respetando lo que la retención legal obliga
+        a conservar (identidad, antifraude, historial de crédito).
+      operationId: OperationsPrivacyRequestsController_transition
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: Id de la solicitud.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                toStatus:
+                  type: string
+                  enum:
+                    - in_progress
+                    - completed
+                    - rejected
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 2000
+              required:
+                - toStatus
+              additionalProperties: false
+      responses:
+        '200':
+          description: Solicitud actualizada, con su historial.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Sin el permiso privacy.requests.manage, o sin sesión interna.
+        '404':
+          description: DATA_SUBJECT_REQUEST_NOT_FOUND — no existe en este tenant.
+        '409':
+          description: >-
+            DATA_SUBJECT_REQUEST_INVALID_TRANSITION — el estado actual no admite
+            ese destino.
+        '422':
+          description: DATA_SUBJECT_REQUEST_REASON_REQUIRED — cerrar exige motivo.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Mover una solicitud del titular de estado
+      tags:
+        - customer-privacy
   /operations/rating-scale:
     get:
       description: >-

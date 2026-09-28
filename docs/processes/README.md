@@ -20,7 +20,7 @@ Fuente: `src/modules/workflow-catalog/definitions/`. Cada proceso llega a la bas
 | P-08 | [Compra con QR del comercio y desembolso del préstamo](purchase_and_disbursement.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, DECISION_ENGINE, ERP_BACKEND | 11 | 22 |
 | P-09 | [Pago de cuota con QR del comercio, comprobante y verificación](installment_payment_claims.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, ERP_BACKEND | 10 | 21 |
 | P-10 | [Cartera: pagos, reversos, castigo, mora y calificación](loan_servicing_collections.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, DECISION_ENGINE | 13 | 33 |
-| P-11 | [Derechos del titular (ARCO), retención y supresión](customer_privacy_dsr.md) | P0 | `DATA_GOVERNANCE_MANAGER` | ATLAS_BACKEND, DECISION_ENGINE | 6 | 7 |
+| P-11 | [Derechos del titular (ARCO), retención y supresión](customer_privacy_dsr.md) | P0 | `COMPLIANCE_MANAGER` | ATLAS_BACKEND, DECISION_ENGINE | 6 | 10 |
 | P-12 | [Soporte: casos, chat, mesa de ayuda, SLA y base de conocimiento](customer_support_case.md) | P0 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, ERP_BACKEND | 12 | 49 |
 | P-13 | [Notificaciones transaccionales y campañas masivas](notifications_and_campaigns.md) | P1 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, ERP_BACKEND | 12 | 57 |
 | P-14 | [Atlas Assist: ayuda contextual y chat en la app](atlas_assist_help.md) | P2 | `OPERATIONS_MANAGER` | ATLAS_BACKEND, AI_SERVICE | 5 | 6 |

@@ -11645,5 +11645,74 @@
       "access-token"
     ],
     "body": false
+  },
+  "GET /operations/privacy/data-subject-requests": {
+    "operationId": "OperationsPrivacyRequestsController_list",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [
+      "customerId",
+      "overdue",
+      "page",
+      "pageSize",
+      "status",
+      "type"
+    ],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /operations/privacy/data-subject-requests/{requestId}": {
+    "operationId": "OperationsPrivacyRequestsController_detail",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "requestId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "POST /operations/privacy/data-subject-requests/{requestId}/transition": {
+    "operationId": "OperationsPrivacyRequestsController_transition",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "422",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "requestId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
   }
 }

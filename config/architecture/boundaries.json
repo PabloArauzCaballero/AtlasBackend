@@ -94,7 +94,7 @@
     },
     "customer-privacy": {
       "context": "consent-privacy",
-      "allowedDependencies": ["customers"]
+      "allowedDependencies": ["customers", "internal-users"]
     },
     "credit": {
       "context": "credit-admission",

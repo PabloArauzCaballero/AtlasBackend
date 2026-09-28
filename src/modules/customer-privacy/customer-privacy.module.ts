@@ -15,9 +15,12 @@ import {
 } from '../../database/models/index.js';
 import { ConsentsModule } from '../consents/consents.module.js';
 import { CustomersModule } from '../customers/customers.module.js';
+import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { CustomerPrivacyController } from './customer-privacy.controller.js';
 import { CustomerPrivacyRepository } from './customer-privacy.repository.js';
 import { CustomerPrivacyService } from './customer-privacy.service.js';
+import { OperationsPrivacyRequestsController } from './operations-privacy-requests.controller.js';
+import { OperationsPrivacyRequestsService } from './operations-privacy-requests.service.js';
 
 @Module({
   imports: [
@@ -31,8 +34,10 @@ import { CustomerPrivacyService } from './customer-privacy.service.js';
     ]),
     CustomersModule,
     ConsentsModule,
+    // Aporta `InternalPermissionsGuard`: la cola interna se abre con `privacy.requests.read|manage`.
+    InternalUsersModule,
   ],
-  controllers: [CustomerPrivacyController],
-  providers: [CustomerPrivacyService, CustomerPrivacyRepository],
+  controllers: [CustomerPrivacyController, OperationsPrivacyRequestsController],
+  providers: [CustomerPrivacyService, CustomerPrivacyRepository, OperationsPrivacyRequestsService],
 })
 export class CustomerPrivacyModule {}
