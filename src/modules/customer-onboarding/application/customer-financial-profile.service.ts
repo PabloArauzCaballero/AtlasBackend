@@ -27,6 +27,8 @@ const FIELD_TO_ATTRIBUTE_CODE: Readonly<Record<keyof FinancialProfileDto, Financ
   monthlyExpensesDeclared: 'monthly_expenses_declared',
   economicActivityCode: 'economic_activity_code',
   sourceOfFunds: 'source_of_funds',
+  monthlyIncomeBand: 'monthly_income_band',
+  incomeFrequency: 'income_frequency',
 };
 
 type AttributeWrite = { code: FinancialAttributeCode; valueText: string | null; valueNumber: string | null };

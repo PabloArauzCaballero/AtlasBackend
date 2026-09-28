@@ -8,9 +8,11 @@ import { captureSourceSchema } from '../../common/storage/capture-source.js';
 import { ALLOWED_EVIDENCE_MIME_TYPES, MAX_EVIDENCE_BYTES } from '../../common/storage/document-storage.service.js';
 import {
   EMPLOYMENT_STATUS_VALUES,
+  INCOME_FREQUENCY_VALUES,
   MAXIMUM_CUSTOMER_AGE_YEARS,
   MAXIMUM_REFERENCE_CONTACTS,
   MINIMUM_CUSTOMER_AGE_YEARS,
+  MONTHLY_INCOME_BAND_VALUES,
   SOURCE_OF_FUNDS_VALUES,
 } from '../customers/customer-eligibility.constants.js';
 import { calculateAgeInYears } from '../customers/application/customer-eligibility.evaluator.js';
@@ -69,6 +71,8 @@ export const financialProfileSchema = z
     monthlyExpensesDeclared: positiveAmount.optional(),
     economicActivityCode: z.string().trim().min(1).max(80).optional(),
     sourceOfFunds: z.enum(SOURCE_OF_FUNDS_VALUES).optional(),
+    monthlyIncomeBand: z.enum(MONTHLY_INCOME_BAND_VALUES).optional(),
+    incomeFrequency: z.enum(INCOME_FREQUENCY_VALUES).optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, { message: 'Se requiere al menos un campo para actualizar.' })

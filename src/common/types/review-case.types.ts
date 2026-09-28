@@ -13,3 +13,11 @@
  * con su caso ya cerrado—. Los de riesgo de onboarding usan `risk_assessment_review`.
  */
 export const CREDIT_REVIEW_CASE_TYPE = 'credit_application_review';
+
+/**
+ * `manual_review_cases.case_type` del caso que abre la IDENTIDAD cuando la decide una persona
+ * (`IDENTITY_REQUIRE_HUMAN_REVIEW`). Se decide en el panel de identidad del expediente
+ * (`identity-verification/decision`), que resuelve intento, documento y evidencias y cierra el caso.
+ * Cerrarlo con el formulario de riesgo dejaría la identidad sin decidir y al cliente en revisión.
+ */
+export const IDENTITY_REVIEW_CASE_TYPE = 'identity_review';

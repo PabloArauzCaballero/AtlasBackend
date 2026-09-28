@@ -46,6 +46,12 @@ function coerceBoolean(value: unknown): unknown {
 /** Booleano con default `false`: la ausencia de la variable apaga la funcionalidad. */
 export const booleanEnvSchema = z.preprocess(coerceBoolean, z.boolean()).default(false);
 
+/**
+ * Booleano con default `true`: la ausencia de la variable ENCIENDE la salvaguarda. Ojo: una cadena
+ * vacía (`${VAR:-}` en un compose) cuenta como `false`, así que el compose debe dar el valor explícito.
+ */
+export const booleanEnvDefaultTrueSchema = z.preprocess(coerceBoolean, z.boolean()).default(true);
+
 /** Booleano sin default: distingue "no configurado" de "configurado en false". */
 export const optionalBooleanEnvSchema = z.preprocess(coerceBoolean, z.boolean()).optional();
 

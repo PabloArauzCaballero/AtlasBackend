@@ -4,7 +4,7 @@
  * @system funciones puras que `OperationsService.decideManualReviewCase` aplica antes de cerrar el caso.
  */
 import { ConflictException } from '@nestjs/common';
-import { CREDIT_REVIEW_CASE_TYPE } from '../../common/types/review-case.types.js';
+import { CREDIT_REVIEW_CASE_TYPE, IDENTITY_REVIEW_CASE_TYPE } from '../../common/types/review-case.types.js';
 
 /**
  * Los casos que NO se cierran con el formulario de decisión del portal.
@@ -28,4 +28,7 @@ import { CREDIT_REVIEW_CASE_TYPE } from '../../common/types/review-case.types.js
 export function assertDecidableFromPortal(reviewCase: { decisionExecutionId?: string | null; caseType?: string | null }): void {
   if (reviewCase.decisionExecutionId) throw new ConflictException('MANUAL_REVIEW_DELEGADA_AL_MOTOR');
   if (reviewCase.caseType === CREDIT_REVIEW_CASE_TYPE) throw new ConflictException('MANUAL_REVIEW_ES_DE_CREDITO');
+  // De identidad: se decide en el panel de identidad del expediente, que resuelve intento, documento y
+  // evidencias y cierra este caso. Cerrarlo aquí dejaría la identidad sin decidir.
+  if (reviewCase.caseType === IDENTITY_REVIEW_CASE_TYPE) throw new ConflictException('MANUAL_REVIEW_ES_DE_IDENTIDAD');
 }

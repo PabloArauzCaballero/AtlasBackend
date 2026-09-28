@@ -116,3 +116,28 @@ export function pickAttemptAwaitingReview<T extends IdentityAttemptLike>(attempt
   const open = attemptsNewestFirst.find((attempt) => !isTerminalIdentityResult(attempt.finalResult));
   return open ?? attemptsNewestFirst[0] ?? null;
 }
+
+/** El canal de la selfie y el carnet (`MOBILE_CHANNEL` de mobile-identity), el de la prueba de vida. */
+export const LIVENESS_IDENTITY_CHANNEL = 'MOBILE_APP';
+
+type PolicyAttempt = IdentityAttemptLike & { verificationChannel?: string | null; manualReviewedBy?: string | null };
+
+/**
+ * El intento que cuenta para HABILITAR al cliente.
+ *
+ * Sin política, el vigente (`pickCurrentIdentityAttempt`). Con `requireHumanReview`
+ * (`IDENTITY_REQUIRE_HUMAN_REVIEW`), el registro estatal (SEGIP) se sigue consultando y su veredicto
+ * se guarda tal cual, pero NO basta: lo que se exige es la prueba de vida y el carnet (canal móvil),
+ * que bajo esta política sólo llega a un veredicto por mano de una persona —el panel de operaciones o
+ * la cola del Motor—. También cuenta un intento de otro canal que haya resuelto una persona
+ * (`manualReviewedBy`). Sin ninguno no hay intento vigente y la identidad sigue sin verificar.
+ */
+export function pickIdentityAttemptForEligibility<T extends PolicyAttempt>(
+  attemptsNewestFirst: readonly T[],
+  options: { requireHumanReview: boolean },
+): T | null {
+  if (!options.requireHumanReview) return pickCurrentIdentityAttempt(attemptsNewestFirst);
+  return pickCurrentIdentityAttempt(
+    attemptsNewestFirst.filter((attempt) => attempt.verificationChannel === LIVENESS_IDENTITY_CHANNEL || Boolean(attempt.manualReviewedBy)),
+  );
+}

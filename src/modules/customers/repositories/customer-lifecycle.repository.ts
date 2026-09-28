@@ -42,10 +42,10 @@ export class CustomerLifecycleRepository {
    * **Lo que este evento NO hace todavía, aunque se escribió para eso:** avisar al cliente. Hasta el
    * 2026-09-26 `customer.lifecycle.*` ni siquiera estaba en `EVENT_REGISTRY`: `process_outbox` lo marcaba
    * procesado en silencio (medido el 2026-09-10: 23 transiciones, 0 mensajes). Desde entonces está
-   * registrado (familia `customer_lifecycle`) y lo consume `process_events`, pero sigue SIN canales en
-   * `notification-rules.service.ts`: se procesa sin mensaje. Qué decirle al cliente, en qué estados y por
-   * qué canal es una decisión de producto pendiente. El veredicto de identidad sí avisa, por
-   * `kyc.approved`/`kyc.rejected`.
+   * registrado (familia `customer_lifecycle`) y lo consume `process_events`. Desde el 2026-09-28
+   * `customer.lifecycle.active` avisa «Tu cuenta ha sido verificada» (regla en
+   * `notification-rules.service.ts`, plantillas en `20260928120000`); los demás estados siguen sin
+   * canales. El veredicto de identidad avisa aparte, por `kyc.approved`/`kyc.rejected`.
    *
    * Los eventos anteriores al registro ya están marcados procesados y no se reenvían.
    */

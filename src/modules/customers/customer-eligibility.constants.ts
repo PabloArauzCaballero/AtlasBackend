@@ -96,7 +96,12 @@ export const REQUIRED_FINANCIAL_ATTRIBUTE_CODES = [
 ] as const;
 
 /** Atributos económicos opcionales aceptados por el endpoint (no bloquean la habilitación). */
-export const OPTIONAL_FINANCIAL_ATTRIBUTE_CODES = ['employer_name', 'other_monthly_income'] as const;
+export const OPTIONAL_FINANCIAL_ATTRIBUTE_CODES = [
+  'employer_name',
+  'other_monthly_income',
+  'monthly_income_band',
+  'income_frequency',
+] as const;
 
 export const FINANCIAL_ATTRIBUTE_CODES = [...REQUIRED_FINANCIAL_ATTRIBUTE_CODES, ...OPTIONAL_FINANCIAL_ATTRIBUTE_CODES] as const;
 
@@ -104,6 +109,21 @@ export type FinancialAttributeCode = (typeof FINANCIAL_ATTRIBUTE_CODES)[number];
 
 /** Catálogos cerrados de los atributos económicos categóricos. */
 export const EMPLOYMENT_STATUS_VALUES = ['employee', 'self_employed', 'business_owner', 'retired', 'student', 'unemployed'] as const;
+/**
+ * Bandas del ingreso mensual autodeclarado (Bs). El alta pide la banda, no el monto: es un dato
+ * blando, y la app manda además `monthlyIncomeDeclared` con el valor conservador de la banda para que
+ * la capacidad sin extracto (`CAP_SIN_EXTRACTO`) siga teniendo un número.
+ */
+export const MONTHLY_INCOME_BAND_VALUES = [
+  'bs_0_3000',
+  'bs_3000_5000',
+  'bs_5000_8000',
+  'bs_8000_12000',
+  'bs_12000_20000',
+  'bs_20000_plus',
+] as const;
+/** Con qué frecuencia cobra: sirve para alinear las fechas de pago con su día de cobro. */
+export const INCOME_FREQUENCY_VALUES = ['monthly', 'biweekly', 'weekly', 'irregular'] as const;
 export const SOURCE_OF_FUNDS_VALUES = ['salary', 'business_income', 'rental_income', 'pension', 'remittances', 'savings', 'other'] as const;
 
 /** Cantidad mínima de referencias personales. Ver decisión D-6. */

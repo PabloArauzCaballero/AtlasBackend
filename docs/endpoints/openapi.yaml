@@ -3791,6 +3791,22 @@ paths:
                     - remittances
                     - savings
                     - other
+                monthlyIncomeBand:
+                  type: string
+                  enum:
+                    - bs_0_3000
+                    - bs_3000_5000
+                    - bs_5000_8000
+                    - bs_8000_12000
+                    - bs_12000_20000
+                    - bs_20000_plus
+                incomeFrequency:
+                  type: string
+                  enum:
+                    - monthly
+                    - biweekly
+                    - weekly
+                    - irregular
               additionalProperties: false
       responses:
         '200':

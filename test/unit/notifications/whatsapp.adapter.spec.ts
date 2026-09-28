@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { WhatsAppNotificationAdapter } from '../../../src/modules/notifications/adapters/whatsapp.adapter.js';
+import { twilioContent, WhatsAppNotificationAdapter } from '../../../src/modules/notifications/adapters/whatsapp.adapter.js';
 
 /**
  * `WhatsAppNotificationAdapter.send`: ramas de guarda (disabled / sin destinatario / proveedor no
@@ -59,6 +59,15 @@ describe('WhatsAppNotificationAdapter', () => {
     const bad = build('twilio');
     (bad.executor.run as jest.Mock).mockRejectedValue(new Error('boom') as never);
     expect(await bad.adapter.send(msg())).toMatchObject({ status: 'failed', errorCode: 'TWILIO_WHATSAPP_SEND_FAILED' });
+  });
+
+  it('twilio: el código del alta sale por la plantilla aprobada (ContentSid + {{1}}), nunca como texto libre', () => {
+    const sid = `HX${'a'.repeat(32)}`;
+    const otp = msg({ phone: '+591700', whatsappTemplateParameters: ['482913', '10'] });
+    expect(twilioContent(otp, sid)).toEqual({ ContentSid: sid, ContentVariables: JSON.stringify({ '1': '482913' }) });
+    // Sin plantilla configurada (sandbox) o sin código que mandar, se conserva el texto.
+    expect(twilioContent(otp, undefined)).toEqual({ Body: 'hola' });
+    expect(twilioContent(msg(), sid)).toEqual({ Body: 'hola' });
   });
 
   it('webhook: sin url -> WEBHOOK_URL_MISSING; con url -> sent(webhook_whatsapp); fallo -> WEBHOOK_WHATSAPP_FAILED', async () => {

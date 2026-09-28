@@ -26,6 +26,19 @@ function templateParameters(value: unknown): string[] {
   return value.flatMap((item) => (typeof item === 'string' || typeof item === 'number' ? [String(item)] : []));
 }
 
+/**
+ * Cuerpo del envío por Twilio. Un código de verificación (lleva `whatsappTemplateParameters`) sale por la
+ * plantilla aprobada `TWILIO_WHATSAPP_OTP_CONTENT_SID` con el código como `{{1}}`: con `Body` libre,
+ * Twilio lo rechaza (63016) fuera de la ventana de 24 h, que es SIEMPRE el caso del alta. Las plantillas
+ * de autenticación de WhatsApp sólo admiten la variable del código, así que no se manda el vencimiento.
+ * Sin plantilla configurada se conserva el texto libre, que sólo sirve dentro de la ventana (sandbox).
+ */
+export function twilioContent(message: NotificationMessagePayload, contentSid: string | undefined): Record<string, string> {
+  const [code] = templateParameters(message.payload?.whatsappTemplateParameters);
+  if (code && contentSid) return { ContentSid: contentSid, ContentVariables: JSON.stringify({ '1': code }) };
+  return { Body: message.body };
+}
+
 @Injectable()
 export class WhatsAppNotificationAdapter implements NotificationChannelAdapter {
   constructor(
@@ -175,7 +188,7 @@ export class WhatsAppNotificationAdapter implements NotificationChannelAdapter {
       {
         To: to.startsWith('whatsapp:') ? to : `whatsapp:${to}`,
         From: from.startsWith('whatsapp:') ? from : `whatsapp:${from}`,
-        Body: message.body,
+        ...twilioContent(message, env.TWILIO_WHATSAPP_OTP_CONTENT_SID),
       },
     );
     if (!response.ok)

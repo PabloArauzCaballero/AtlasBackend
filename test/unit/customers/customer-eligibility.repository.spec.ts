@@ -3,7 +3,8 @@
  * @business Impide habilitar crédito con evidencia omitida, mal relacionada o consultada fuera del tenant.
  * @system Ejercita todas las consultas y las relaciones indirectas de CustomerEligibilityRepository.
  */
-import { describe, expect, it, jest } from '@jest/globals';
+import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
+import { env } from '../../../src/config/env.js';
 import { CustomerEligibilityRepository } from '../../../src/modules/customers/repositories/customer-eligibility.repository.js';
 import { CustomerEligibilityRiskRepository } from '../../../src/modules/customers/repositories/customer-eligibility-risk.repository.js';
 
@@ -68,6 +69,16 @@ function build() {
 }
 
 describe('CustomerEligibilityRepository', () => {
+  // Las pruebas de fuera fijan la regla sin revisión humana obligatoria; la política va en su bloque.
+  let politica: unknown;
+  beforeAll(() => {
+    politica = env.IDENTITY_REQUIRE_HUMAN_REVIEW;
+    (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = false;
+  });
+  afterAll(() => {
+    (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = politica;
+  });
+
   it('compone en paralelo todos los hechos y resuelve relaciones indirectas', async () => {
     const { repository, models } = build();
     const profile = { id: 'profile-1' };
@@ -139,6 +150,52 @@ describe('CustomerEligibilityRepository', () => {
     const result = await repository.loadFacts('7', '10');
 
     expect(result.identityVerificationResult).toBe('verified');
+  });
+
+  describe('con IDENTITY_REQUIRE_HUMAN_REVIEW', () => {
+    let anterior: unknown;
+    beforeAll(() => {
+      anterior = env.IDENTITY_REQUIRE_HUMAN_REVIEW;
+      (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = true;
+    });
+    afterAll(() => {
+      (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = anterior;
+    });
+
+    it('un `verified` de SEGIP (sin persona) no basta: manda la prueba de vida, que sigue IN_REVIEW', async () => {
+      const { repository, models } = build();
+      models.attributeValue.findAll.mockResolvedValueOnce([]);
+      models.evidence.findAll.mockResolvedValueOnce([]);
+      models.identityAttempt.findAll.mockResolvedValueOnce([
+        { finalResult: 'IN_REVIEW', verificationChannel: 'MOBILE_APP', manualReviewedBy: null },
+        { finalResult: 'verified', verificationChannel: 'segip', manualReviewedBy: null },
+      ] as never);
+
+      expect((await repository.loadFacts('7', '10')).identityVerificationResult).toBe('IN_REVIEW');
+    });
+
+    it('verifica cuando una persona aprobó la prueba de vida', async () => {
+      const { repository, models } = build();
+      models.attributeValue.findAll.mockResolvedValueOnce([]);
+      models.evidence.findAll.mockResolvedValueOnce([]);
+      models.identityAttempt.findAll.mockResolvedValueOnce([
+        { finalResult: 'VERIFIED', verificationChannel: 'MOBILE_APP', manualReviewedBy: 'iu1' },
+        { finalResult: 'verified', verificationChannel: 'segip', manualReviewedBy: null },
+      ] as never);
+
+      expect((await repository.loadFacts('7', '10')).identityVerificationResult).toBe('VERIFIED');
+    });
+
+    it('sin intento de prueba de vida no hay identidad vigente', async () => {
+      const { repository, models } = build();
+      models.attributeValue.findAll.mockResolvedValueOnce([]);
+      models.evidence.findAll.mockResolvedValueOnce([]);
+      models.identityAttempt.findAll.mockResolvedValueOnce([
+        { finalResult: 'verified', verificationChannel: 'segip', manualReviewedBy: null },
+      ] as never);
+
+      expect((await repository.loadFacts('7', '10')).identityVerificationResult).toBeNull();
+    });
   });
 
   it('lee un `VERIFIED` en mayúsculas del canal móvil tal cual, para que isIdentityVerified lo normalice (I-1)', async () => {

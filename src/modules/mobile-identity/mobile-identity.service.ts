@@ -11,16 +11,11 @@ import { DecisionArtifactBindingService } from '../decision-engine/decision-arti
 import { DecisionEngineClient } from '../decision-engine/decision-engine.client.js';
 import { MobileIdentityRepository, PENDING_RESULT } from './mobile-identity.repository.js';
 import { CustomerContactsSnapshotService } from '../customer-onboarding/application/customer-contacts-snapshot.service.js';
+import { IdentityReviewCaseRepository } from '../customer-onboarding/repositories/identity-review-case.repository.js';
+import { abrirCasoDeIdentidad, desenlaceDelMotor } from './mobile-identity.human-review.js';
 
 import { StartIdentityVerificationDto, type IdentityVerificationState, type IdentityVerificationView } from './mobile-identity.schemas.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
-
-/** Cómo se traduce la decisión del artefacto al estado que el móvil entiende. */
-const ESTADO_POR_DECISION: Readonly<Record<string, IdentityVerificationState>> = {
-  VERIFICADO: 'VERIFIED',
-  RECHAZADO: 'REJECTED',
-  REVISION_HUMANA: 'IN_REVIEW',
-};
 
 /**
  * Verificación de identidad para el front móvil.
@@ -65,6 +60,7 @@ export class MobileIdentityService {
     private readonly bindings: DecisionArtifactBindingService,
     private readonly contacts: CustomerContactsSnapshotService,
     private readonly senales: MobileIdentitySignalsService,
+    private readonly reviewCases: IdentityReviewCaseRepository,
   ) {}
 
   /**
@@ -108,8 +104,10 @@ export class MobileIdentityService {
     const attempt = await this.repository.createPending(tenantId, customerId);
     const verificationId = String(attempt.id);
 
-    void this.resolver(tenantId, verificationId, body, idempotencyKey, customerId).catch((error: unknown) => {
+    void this.resolver(tenantId, verificationId, body, idempotencyKey, customerId).catch(async (error: unknown) => {
       this.logger.error(`La verificación ${verificationId} no pudo resolverse: ${describir(error)}`);
+      // Sin Motor tampoco hay veredicto: con la revisión humana obligatoria, lo decide una persona.
+      await this.caso(tenantId, customerId, 'El Motor no respondió; decide una persona.', env.IDENTITY_REQUIRE_HUMAN_REVIEW);
     });
 
     return {
@@ -239,16 +237,11 @@ export class MobileIdentityService {
       );
 
       const salida = respuesta.output ?? {};
-      const decision = String(salida.identidad_resultado ?? '');
-      const motivo = typeof salida.identidad_motivo === 'string' ? salida.identidad_motivo : null;
-
+      const desenlace = desenlaceDelMotor(salida);
       await this.repository.complete(tenantId, verificationId, {
-        // Un desenlace que el mapa no conoce va a revisión humana, no a
-        // aprobación: un artefacto puede añadir una rama nueva y este código no
-        // tiene por qué enterarse para seguir siendo seguro.
-        finalResult: ESTADO_POR_DECISION[decision] ?? 'IN_REVIEW',
+        finalResult: desenlace.finalResult,
         reasonCodes: {
-          reason: motivo,
+          ...desenlace.motivos,
           executionId: respuesta.executionId,
           artifactVersionId: respuesta.artifact?.versionId ?? null,
           behaviorSummaryId: comportamiento.summaryId,
@@ -273,6 +266,7 @@ export class MobileIdentityService {
         documentForensicsScore: decimal(salida.identidad_riesgo_fraude) ?? decimal(salida.identidad_evidencia_documento),
         completedAt: new Date(),
       });
+      await this.caso(tenantId, customerId, `El Motor sugiere ${desenlace.sugerencia}; decide una persona.`, desenlace.retenido);
     } catch (error: unknown) {
       await this.repository.complete(tenantId, verificationId, {
         finalResult: 'UNAVAILABLE',
@@ -283,6 +277,11 @@ export class MobileIdentityService {
       });
       throw error;
     }
+  }
+
+  /** Abre el caso de la bandeja cuando toca: un veredicto retenido, o un Motor caído con la revisión humana encendida. */
+  private async caso(tenantId: string, customerId: string | null, notes: string, abrir: boolean): Promise<void> {
+    if (abrir) await abrirCasoDeIdentidad(this.reviewCases, { tenantId, customerId, notes });
   }
 }
 

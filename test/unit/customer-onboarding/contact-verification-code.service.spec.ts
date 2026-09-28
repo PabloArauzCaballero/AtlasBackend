@@ -71,21 +71,21 @@ describe('ContactVerificationCodeService', () => {
   it('el catálogo lista los tres canales, en orden de preferencia, con su disponibilidad', async () => {
     const { service } = await build({ emailEnabled: true, smsProvider: 'disabled', whatsappProvider: 'disabled' });
     expect(service.channelCatalog()).toEqual([
-      { channel: 'email', available: true },
-      { channel: 'sms', available: false },
       { channel: 'whatsapp', available: false },
+      { channel: 'sms', available: false },
+      { channel: 'email', available: true },
     ]);
   });
 
   it('el catálogo sigue a la configuración: al encender SMS pasa a disponible sin tocar la app', async () => {
     const { service } = await build({ emailEnabled: true, smsProvider: 'twilio', whatsappProvider: 'disabled' });
     expect(service.channelCatalog()).toEqual([
-      { channel: 'email', available: true },
-      { channel: 'sms', available: true },
       { channel: 'whatsapp', available: false },
+      { channel: 'sms', available: true },
+      { channel: 'email', available: true },
     ]);
     // El orden NO depende de cuál esté encendido: lo fija el servidor y la app toma el primero válido.
-    expect(service.channelCatalog().map((c) => c.channel)).toEqual(['email', 'sms', 'whatsapp']);
+    expect(service.channelCatalog().map((c) => c.channel)).toEqual(['whatsapp', 'sms', 'email']);
   });
 
   /** Emitir + entregar, ahora en dos pasos: el primero transaccional, el segundo tras el commit. */

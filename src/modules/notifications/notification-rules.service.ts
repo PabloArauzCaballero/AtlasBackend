@@ -12,6 +12,9 @@ const CUSTOMER_EVENTS: Record<string, string[]> = {
   'user.phone.verified': ['in_app'],
   'kyc.approved': ['in_app', 'push', 'email'],
   'kyc.rejected': ['in_app', 'email'],
+  // «Tu cuenta ha sido verificada»: el paso a `active` tras la revisión. SMS porque el teléfono es el
+  // contacto que el alta exige verificar; el correo es opcional. Plantillas en 20260928120000.
+  'customer.lifecycle.active': ['in_app', 'push', 'email', 'sms'],
   'credit_line.approved': ['in_app', 'push', 'email'],
   'credit_line.rejected': ['in_app', 'email'],
   'credit_line.suspended': ['in_app', 'push', 'email'],
@@ -51,7 +54,7 @@ export class NotificationRulesService {
           channels: customerChannels as NotificationRule['channels'],
           recipientType: 'customer',
           recipientIdPath: ['customerId'],
-          required: ['installment.overdue', 'credit_line.suspended'].includes(eventCode),
+          required: ['installment.overdue', 'credit_line.suspended', 'customer.lifecycle.active'].includes(eventCode),
           templatePrefix: eventCode.replaceAll('.', '_'),
         },
       ];
