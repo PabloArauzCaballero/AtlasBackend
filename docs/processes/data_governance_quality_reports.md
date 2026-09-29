@@ -24,7 +24,7 @@ Una incidencia abierta queda en «Incidencias de calidad» hasta que alguien la 
 
 ## Qué indicador dice que va bien
 
-Incidencias de calidad abiertas (las que no están resolved, closed ni acknowledged), reglas sin evaluar, documentos legales vigentes por código y los controles de la preparación de salida en ok, warning o blocked.
+Incidencias de calidad pendientes (sin revisar o reconocidas: todas las que no están resolved, ignored ni closed), reglas sin evaluar, documentos legales vigentes por código y los controles de la preparación de salida en ok, warning o blocked.
 
 ## Resultado
 
@@ -33,7 +33,7 @@ Incidencias de calidad abiertas (las que no están resolved, closed ni acknowled
 
 ## Dónde vive cada instancia
 
-`ATLAS_BACKEND` · `audit.data_quality_issues` · estado en `issue_status` · abiertas: `open`
+`ATLAS_BACKEND` · `audit.data_quality_issues` · estado en `issue_status` · abiertas: `open`, `acknowledged`
 
 ## Etapas
 
@@ -84,13 +84,13 @@ El job evalúa las reglas de calidad y abre incidencias por registro que no las 
 
 ### Incidencias de calidad (`quality_issues`)
 
-El analista revisa las reglas y resuelve o ignora cada incidencia abierta.
+El analista revisa las reglas y reconoce, resuelve o descarta cada incidencia pendiente, siempre con motivo y notas.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
 | Ver las reglas de calidad | http | ATLAS_BACKEND | `GET /internal/data-quality/rules` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin, system_admin, qa_engineer, devops, readonly_auditor | — |
 | Listar incidencias | http | ATLAS_BACKEND | `GET /operations/data-quality/issues` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | — |
-| Resolver una incidencia | http | ATLAS_BACKEND | `POST /operations/data-quality/issues/:issueId/resolve` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | — |
+| Reconocer, resolver o descartar una incidencia | http | ATLAS_BACKEND | `POST /operations/data-quality/issues/:issueId/resolve` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | — |
 
 ### Exportaciones y reportes (`exports_and_reports`)
 
