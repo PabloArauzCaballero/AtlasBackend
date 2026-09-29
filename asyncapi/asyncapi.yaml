@@ -1,300 +1,440 @@
 # Contrato de los eventos de dominio de Atlas.
 #
-# El transporte no es un broker: es una TABLA de PostgreSQL (`outbox_events`), escrita en la misma
-# transacción que el cambio de negocio y despachada por el worker. Ver ADR-0001 y
-# docs/events/overview.md.
-#
-# AsyncAPI se usa igualmente porque lo que hay que publicar es el CONTRATO —qué eventos existen, con
-# qué forma y con qué garantías—, y eso es independiente de si el transporte es Kafka o una tabla.
-# Un consumidor necesita lo mismo en ambos casos.
-#
-# Validar:  npx @asyncapi/cli validate asyncapi/asyncapi.yaml
-
+# GENERADO por `yarn docs:events` (scripts/docs/generate-event-contract.ts). No se edita a mano:
+# `yarn check:events-docs` falla en CI si difiere del código. Ver docs/events/overview.md y ADR-0001.
 asyncapi: 3.0.0
-
 info:
   title: Atlas Backend · Eventos de dominio
   version: 0.3.0
-  description: |
-    Eventos de dominio publicados por Atlas mediante outbox transaccional en PostgreSQL.
+  description: |-
+    Eventos de dominio que Atlas ESCRIBE hoy en el outbox transaccional (`outbox_events`, PostgreSQL).
 
-    **Garantía de entrega: at-least-once.** Un consumidor DEBE ser idempotente: el mismo evento
-    puede llegar más de una vez. El orden NO está garantizado entre agregados distintos.
+    **Generado** por `yarn docs:events` desde `EVENT_REGISTRY` y los productores reales de `src/`; no se edita a mano.
+    Declara sólo los 28 códigos con productor de los 117 registrados: los reservados
+    están en `docs/events/event-catalog.md` y un consumidor no debe esperarlos.
 
-    El registro canónico de códigos es `src/modules/events/event-registry.ts`. Publicar un código
-    que no esté en ese registro se rechaza.
+    **Garantía de entrega: at-least-once.** Un consumidor DEBE ser idempotente. El orden no está garantizado
+    entre agregados distintos; usar `aggregate_version` para descartar versiones viejas.
+
+    El payload (`event_payload_json`) no tiene esquema publicado por código: su forma la fija cada productor,
+    citado en el resumen de cada mensaje.
   license:
     name: UNLICENSED
-  contact:
-    name: Equipo Backend Atlas
-    email: backend@atlas.local
-
 defaultContentType: application/json
-
 servers:
   outbox:
     host: postgresql
     protocol: postgres
-    description: |
-      Tabla `outbox_events`. No hay endpoint de suscripción: un consumidor externo se integra por el
-      webhook de notificaciones o consultando el propio backend. Se declara como servidor para que el
-      contrato exprese dónde vive la fuente de verdad.
-
+    description: >-
+      Tabla `outbox_events`. No hay endpoint de suscripción: se declara como servidor para que el contrato diga dónde
+      vive la fuente de verdad.
 channels:
-  userSecurity:
-    address: outbox_events/user_security
-    description: Registro, verificación de contacto, sesiones, dispositivos y bloqueo de cuenta.
-    messages:
-      userRegistered:
-        $ref: '#/components/messages/UserRegistered'
-      userAccountLocked:
-        $ref: '#/components/messages/UserAccountLocked'
-
   kycLegal:
     address: outbox_events/kyc_legal
-    description: Ciclo de verificación de identidad, consentimientos y documentos legales.
+    description: Eventos emitidos de la familia `kyc_legal`.
     messages:
-      kycSubmitted:
-        $ref: '#/components/messages/KycSubmitted'
       kycApproved:
         $ref: '#/components/messages/KycApproved'
-      consentRevoked:
-        $ref: '#/components/messages/ConsentRevoked'
-
-  riskScoringFraud:
-    address: outbox_events/risk_scoring_fraud
-    description: Evaluación de riesgo, señales y casos de fraude.
+      kycRejected:
+        $ref: '#/components/messages/KycRejected'
+  customerLifecycle:
+    address: outbox_events/customer_lifecycle
+    description: Eventos emitidos de la familia `customer_lifecycle`.
     messages:
-      scoreCalculated:
-        $ref: '#/components/messages/ScoreCalculated'
-      fraudCaseOpened:
-        $ref: '#/components/messages/FraudCaseOpened'
-
-  notifications:
-    address: outbox_events/notifications
-    description: Ciclo de vida de la entrega de notificaciones multicanal.
+      customerLifecycleOnboardingInProgress:
+        $ref: '#/components/messages/CustomerLifecycleOnboardingInProgress'
+      customerLifecycleUnderReview:
+        $ref: '#/components/messages/CustomerLifecycleUnderReview'
+      customerLifecycleObserved:
+        $ref: '#/components/messages/CustomerLifecycleObserved'
+      customerLifecycleActive:
+        $ref: '#/components/messages/CustomerLifecycleActive'
+      customerLifecycleSuspended:
+        $ref: '#/components/messages/CustomerLifecycleSuspended'
+      customerLifecycleRejected:
+        $ref: '#/components/messages/CustomerLifecycleRejected'
+      customerLifecycleBlocked:
+        $ref: '#/components/messages/CustomerLifecycleBlocked'
+      customerLifecycleClosed:
+        $ref: '#/components/messages/CustomerLifecycleClosed'
+  creditAdmission:
+    address: outbox_events/credit_admission
+    description: Eventos emitidos de la familia `credit_admission`.
     messages:
-      notificationSent:
-        $ref: '#/components/messages/NotificationSent'
-      notificationFailed:
-        $ref: '#/components/messages/NotificationFailed'
-
+      creditApplicationSubmitted:
+        $ref: '#/components/messages/CreditApplicationSubmitted'
+      creditDecisionRecorded:
+        $ref: '#/components/messages/CreditDecisionRecorded'
+  payments:
+    address: outbox_events/payments
+    description: Eventos emitidos de la familia `payments`.
+    messages:
+      paymentReported:
+        $ref: '#/components/messages/PaymentReported'
+      paymentConfirmed:
+        $ref: '#/components/messages/PaymentConfirmed'
+      paymentRejected:
+        $ref: '#/components/messages/PaymentRejected'
+  supportServiceManagement:
+    address: outbox_events/support_service_management
+    description: Eventos emitidos de la familia `support_service_management`.
+    messages:
+      supportCaseCreated:
+        $ref: '#/components/messages/SupportCaseCreated'
+      supportCaseAssigned:
+        $ref: '#/components/messages/SupportCaseAssigned'
+      supportCaseEscalated:
+        $ref: '#/components/messages/SupportCaseEscalated'
+      supportCaseResolved:
+        $ref: '#/components/messages/SupportCaseResolved'
+      supportCaseClosed:
+        $ref: '#/components/messages/SupportCaseClosed'
+      supportCaseReopened:
+        $ref: '#/components/messages/SupportCaseReopened'
+      supportChannelOpened:
+        $ref: '#/components/messages/SupportChannelOpened'
+      supportChannelClosed:
+        $ref: '#/components/messages/SupportChannelClosed'
+      supportMessageCreated:
+        $ref: '#/components/messages/SupportMessageCreated'
+      supportComplaintCreated:
+        $ref: '#/components/messages/SupportComplaintCreated'
+      supportSecurityEscalated:
+        $ref: '#/components/messages/SupportSecurityEscalated'
+      supportSlaBreached:
+        $ref: '#/components/messages/SupportSlaBreached'
+      supportKnowledgePublished:
+        $ref: '#/components/messages/SupportKnowledgePublished'
 operations:
-  receiveUserSecurity:
-    action: receive
-    channel:
-      $ref: '#/channels/userSecurity'
-    summary: Consumir eventos de identidad y sesión.
   receiveKycLegal:
     action: receive
     channel:
       $ref: '#/channels/kycLegal'
-    summary: Consumir eventos de KYC y consentimientos.
-  receiveRiskScoringFraud:
+    summary: Consumir los eventos emitidos de `kyc_legal`.
+  receiveCustomerLifecycle:
     action: receive
     channel:
-      $ref: '#/channels/riskScoringFraud'
-    summary: Consumir eventos de riesgo y fraude.
-  receiveNotifications:
+      $ref: '#/channels/customerLifecycle'
+    summary: Consumir los eventos emitidos de `customer_lifecycle`.
+  receiveCreditAdmission:
     action: receive
     channel:
-      $ref: '#/channels/notifications'
-    summary: Consumir eventos de entrega de notificaciones.
-
+      $ref: '#/channels/creditAdmission'
+    summary: Consumir los eventos emitidos de `credit_admission`.
+  receivePayments:
+    action: receive
+    channel:
+      $ref: '#/channels/payments'
+    summary: Consumir los eventos emitidos de `payments`.
+  receiveSupportServiceManagement:
+    action: receive
+    channel:
+      $ref: '#/channels/supportServiceManagement'
+    summary: Consumir los eventos emitidos de `support_service_management`.
 components:
   schemas:
-    EventEnvelope:
+    OutboxEvent:
       type: object
-      description: |
-        Envoltura común a TODOS los eventos, tal y como la persiste `outbox_events`. Es lo que
-        permite a un consumidor tratar cualquier evento de forma uniforme.
-      required: [eventCode, eventFamily, eventVersion, aggregateType, occurredAt]
+      description: Fila de `outbox_events` (columnas comprobadas contra `src/database/models/outbox-events.model.ts`).
+      required:
+        - event_id
+        - event_code
+        - schema_version
+        - aggregate_type
+        - status
+        - _created_at
       properties:
-        eventCode:
+        event_id:
           type: string
-          description: Código del catálogo. Estable; un cambio incompatible sube `eventVersion`, no el código.
-          examples: ['kyc.approved']
-        eventFamily:
+          format: uuid
+          description: Identificador único del evento.
+        event_code:
           type: string
-          examples: ['kyc_legal']
-        eventVersion:
+          description: Código del registro (`EVENT_REGISTRY`).
+        event_family:
+          type:
+            - string
+            - 'null'
+          description: Familia del registro.
+        event_version:
+          type:
+            - integer
+            - 'null'
+          description: Versión del código en el registro.
+        schema_version:
           type: integer
-          minimum: 1
           description: Versión del esquema del payload.
-        aggregateType:
+        aggregate_type:
           type: string
           description: Tipo de la entidad afectada.
-          examples: ['customer']
-        aggregateId:
-          type: [string, 'null']
+        aggregate_id:
+          type:
+            - string
+            - 'null'
           description: Identificador de la entidad afectada.
-        tenantId:
-          type: [string, 'null']
-          description: Tenant. `null` en eventos de plataforma compartida.
-        correlationId:
-          type: [string, 'null']
-          description: Enlaza el evento con la petición HTTP que lo originó y con sus logs.
-        causationId:
-          type: [string, 'null']
-          description: Evento que causó este. Permite reconstruir la cadena completa.
-        occurredAt:
+        aggregate_version:
+          type:
+            - string
+            - 'null'
+          description: 'Versión monótona del agregado (P-08): un consumidor que ya aplicó la N descarta la N-1 que llegue tarde.'
+        _tenant_id:
+          type:
+            - string
+            - 'null'
+          description: Tenant. `null` en eventos de plataforma.
+        event_payload_json:
+          type:
+            - object
+            - 'null'
+          description: Carga del evento. Sin PII en claro.
+        metadata_json:
+          type:
+            - object
+            - 'null'
+          description: Metadatos de origen.
+        correlation_id:
+          type:
+            - string
+            - 'null'
+          description: Enlaza el evento con la petición que lo originó.
+        causation_id:
+          type:
+            - string
+            - 'null'
+          description: Evento que causó éste.
+        idempotency_key:
+          type:
+            - string
+            - 'null'
+          description: Clave de deduplicación del productor.
+        producer:
+          type:
+            - string
+            - 'null'
+          description: Contexto que escribió el evento.
+        priority:
+          type:
+            - integer
+            - 'null'
+          description: Menor valor = se despacha antes dentro del lote.
+        status:
+          type: string
+          enum:
+            - pending
+            - processing
+            - processed
+            - failed
+            - cancelled
+          description: Estado.
+        _created_at:
           type: string
           format: date-time
-        priority:
-          type: [integer, 'null']
-          description: Menor valor = se despacha antes dentro del lote.
-
-    CustomerReference:
-      type: object
-      description: Referencia a un cliente. NUNCA lleva PII en claro; sólo el identificador.
-      required: [customerId]
-      properties:
-        customerId:
-          type: string
-
+          description: Momento en que se escribió.
   messages:
-    UserRegistered:
-      name: user.registered
-      title: Cliente registrado
-      summary: Se creó la cuenta del solicitante y comienza el recorrido de onboarding.
-      contentType: application/json
-      payload:
-        allOf:
-          - $ref: '#/components/schemas/EventEnvelope'
-          - type: object
-            properties:
-              payload:
-                $ref: '#/components/schemas/CustomerReference'
-
-    UserAccountLocked:
-      name: user.account.locked
-      title: Cuenta bloqueada
-      summary: Se bloqueó la cuenta por intentos fallidos. Relevante para detección de credential stuffing.
-      contentType: application/json
-      payload:
-        allOf:
-          - $ref: '#/components/schemas/EventEnvelope'
-          - type: object
-            properties:
-              payload:
-                type: object
-                properties:
-                  customerId: { type: string }
-                  reason: { type: string, examples: ['invalid_password_threshold'] }
-
-    KycSubmitted:
-      name: kyc.submitted
-      title: Paquete de identidad enviado
-      summary: El solicitante completó las seis secciones y envió su paquete a revisión.
-      contentType: application/json
-      payload:
-        allOf:
-          - $ref: '#/components/schemas/EventEnvelope'
-          - type: object
-            properties:
-              payload:
-                $ref: '#/components/schemas/CustomerReference'
-
     KycApproved:
       name: kyc.approved
-      title: Identidad aprobada
-      summary: La revisión de back office aprobó la identidad. Habilita las etapas siguientes del recorrido.
+      title: kyc.approved
+      summary: 'Familia kyc_legal. Productor: src/modules/customer-onboarding/application/identity-verdict-event.publisher.ts.'
       contentType: application/json
       payload:
-        allOf:
-          - $ref: '#/components/schemas/EventEnvelope'
-          - type: object
-            properties:
-              payload:
-                type: object
-                properties:
-                  customerId: { type: string }
-                  decidedBy: { type: string, description: 'Actor interno que decidió.' }
-
-    ConsentRevoked:
-      name: consent.revoked
-      title: Consentimiento revocado
-      summary: |
-        El titular revocó un consentimiento. Un consumidor que trate datos amparados por ese
-        consentimiento DEBE dejar de hacerlo: es la señal con más consecuencias legales del catálogo.
+        $ref: '#/components/schemas/OutboxEvent'
+    KycRejected:
+      name: kyc.rejected
+      title: kyc.rejected
+      summary: 'Familia kyc_legal. Productor: src/modules/customer-onboarding/application/identity-verdict-event.publisher.ts.'
       contentType: application/json
       payload:
-        allOf:
-          - $ref: '#/components/schemas/EventEnvelope'
-          - type: object
-            properties:
-              payload:
-                type: object
-                properties:
-                  customerId: { type: string }
-                  purposeCode: { type: string }
-
-    ScoreCalculated:
-      name: score.calculated
-      title: Riesgo evaluado
-      summary: |
-        Se calculó una evaluación de riesgo. El payload incluye la versión del modelo y del ruleset
-        usados: sin ellas, la decisión no es explicable meses después.
+        $ref: '#/components/schemas/OutboxEvent'
+    CustomerLifecycleOnboardingInProgress:
+      name: customer.lifecycle.onboarding_in_progress
+      title: customer.lifecycle.onboarding_in_progress
+      summary: 'Familia customer_lifecycle. Productor: src/modules/customers/repositories/customer-lifecycle.repository.ts.'
       contentType: application/json
       payload:
-        allOf:
-          - $ref: '#/components/schemas/EventEnvelope'
-          - type: object
-            properties:
-              payload:
-                type: object
-                properties:
-                  customerId: { type: string }
-                  modelCode: { type: string, examples: ['risk_heuristic_v0'] }
-                  modelVersion: { type: string }
-                  rulesetVersion: { type: string }
-
-    FraudCaseOpened:
-      name: fraud.case.opened
-      title: Caso de fraude abierto
-      summary: Se abrió un caso de fraude. Bloquea la elegibilidad hasta su resolución.
+        $ref: '#/components/schemas/OutboxEvent'
+    CustomerLifecycleUnderReview:
+      name: customer.lifecycle.under_review
+      title: customer.lifecycle.under_review
+      summary: 'Familia customer_lifecycle. Productor: src/modules/customers/repositories/customer-lifecycle.repository.ts.'
       contentType: application/json
       payload:
-        allOf:
-          - $ref: '#/components/schemas/EventEnvelope'
-          - type: object
-            properties:
-              payload:
-                type: object
-                properties:
-                  customerId: { type: string }
-                  caseId: { type: string }
-
-    NotificationSent:
-      name: notification.sent
-      title: Notificación entregada
+        $ref: '#/components/schemas/OutboxEvent'
+    CustomerLifecycleObserved:
+      name: customer.lifecycle.observed
+      title: customer.lifecycle.observed
+      summary: 'Familia customer_lifecycle. Productor: src/modules/customers/repositories/customer-lifecycle.repository.ts.'
       contentType: application/json
       payload:
-        allOf:
-          - $ref: '#/components/schemas/EventEnvelope'
-          - type: object
-            properties:
-              payload:
-                type: object
-                properties:
-                  messageId: { type: string }
-                  channel: { type: string, examples: ['in_app', 'email', 'sms', 'whatsapp', 'push'] }
-
-    NotificationFailed:
-      name: notification.failed
-      title: Notificación fallida
-      summary: |
-        Agotó los reintentos del adaptador. El mensaje permanece en `notification_messages`; el job
-        `retry_stuck_notifications` del worker es quien recoge los que quedaron a medias.
+        $ref: '#/components/schemas/OutboxEvent'
+    CustomerLifecycleActive:
+      name: customer.lifecycle.active
+      title: customer.lifecycle.active
+      summary: 'Familia customer_lifecycle. Productor: src/modules/customers/repositories/customer-lifecycle.repository.ts.'
       contentType: application/json
       payload:
-        allOf:
-          - $ref: '#/components/schemas/EventEnvelope'
-          - type: object
-            properties:
-              payload:
-                type: object
-                properties:
-                  messageId: { type: string }
-                  channel: { type: string }
-                  errorCode: { type: string }
+        $ref: '#/components/schemas/OutboxEvent'
+    CustomerLifecycleSuspended:
+      name: customer.lifecycle.suspended
+      title: customer.lifecycle.suspended
+      summary: 'Familia customer_lifecycle. Productor: src/modules/customers/repositories/customer-lifecycle.repository.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    CustomerLifecycleRejected:
+      name: customer.lifecycle.rejected
+      title: customer.lifecycle.rejected
+      summary: 'Familia customer_lifecycle. Productor: src/modules/customers/repositories/customer-lifecycle.repository.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    CustomerLifecycleBlocked:
+      name: customer.lifecycle.blocked
+      title: customer.lifecycle.blocked
+      summary: 'Familia customer_lifecycle. Productor: src/modules/customers/repositories/customer-lifecycle.repository.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    CustomerLifecycleClosed:
+      name: customer.lifecycle.closed
+      title: customer.lifecycle.closed
+      summary: 'Familia customer_lifecycle. Productor: src/modules/customers/repositories/customer-lifecycle.repository.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    CreditApplicationSubmitted:
+      name: credit.application.submitted
+      title: credit.application.submitted
+      summary: >-
+        Familia credit_admission. Productor:
+        src/modules/credit/application/use-cases/submit-credit-application.use-case.ts.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    CreditDecisionRecorded:
+      name: credit.decision.recorded
+      title: credit.decision.recorded
+      summary: 'Familia credit_admission. Productor: src/modules/credit/application/credit-decision-event-publisher.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    PaymentReported:
+      name: payment.reported
+      title: payment.reported
+      summary: 'Familia payments. Productor: src/modules/loan-payment-claims/loan-payment-claims.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    PaymentConfirmed:
+      name: payment.confirmed
+      title: payment.confirmed
+      summary: 'Familia payments. Productor: src/modules/loan-payment-claims/partner-payment-claims.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    PaymentRejected:
+      name: payment.rejected
+      title: payment.rejected
+      summary: 'Familia payments. Productor: src/modules/loan-payment-claims/partner-payment-claims.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportCaseCreated:
+      name: support.case.created
+      title: support.case.created
+      summary: >-
+        Familia support_service_management. Productor:
+        src/modules/support/application/support-case-creation-events.service.ts.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportCaseAssigned:
+      name: support.case.assigned
+      title: support.case.assigned
+      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-case-workflow.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportCaseEscalated:
+      name: support.case.escalated
+      title: support.case.escalated
+      summary: >-
+        Familia support_service_management. Productor:
+        src/modules/support/application/support-case-escalation.service.ts.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportCaseResolved:
+      name: support.case.resolved
+      title: support.case.resolved
+      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-case-closure.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportCaseClosed:
+      name: support.case.closed
+      title: support.case.closed
+      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-case-closure.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportCaseReopened:
+      name: support.case.reopened
+      title: support.case.reopened
+      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-case-closure.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportChannelOpened:
+      name: support.channel.opened
+      title: support.channel.opened
+      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-channel.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportChannelClosed:
+      name: support.channel.closed
+      title: support.channel.closed
+      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-channel.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportMessageCreated:
+      name: support.message.created
+      title: support.message.created
+      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-message.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportComplaintCreated:
+      name: support.complaint.created
+      title: support.complaint.created
+      summary: >-
+        Familia support_service_management. Productor:
+        src/modules/support/application/support-case-creation-events.service.ts.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportSecurityEscalated:
+      name: support.security.escalated
+      title: support.security.escalated
+      summary: >-
+        Familia support_service_management. Productor:
+        src/modules/support/application/support-case-creation-events.service.ts,
+        src/modules/support/application/support-case-escalation.service.ts.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportSlaBreached:
+      name: support.sla.breached
+      title: support.sla.breached
+      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-sla.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportKnowledgePublished:
+      name: support.knowledge.published
+      title: support.knowledge.published
+      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-knowledge.service.ts.'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'

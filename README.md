@@ -47,7 +47,8 @@ src/
     ├── risk/                  # scoring/evaluación de riesgo (base de Fase 2)
     ├── fraud/                 # casos de fraude, decisión y watchlist
     ├── catalog-management/    # catálogos de contexto/reglas versionadas (base de Fase 2)
-    ├── external-data/         # adapters a proveedores externos (burós de crédito, KYC)
+    ├── external-data/         # adapters a proveedores externos: HOY sólo simulados (mock_local/mock_server);
+    │                          # sandbox/production fallan con *_REAL_INTEGRATION_NOT_CONFIGURED
     ├── operations/            # panel interno de operaciones (base de Fase 2)
     ├── data-quality/          # reglas e incidencias de calidad de datos
     ├── audit/                 # auditoría consolidada por cliente (feed unificado por cursor
@@ -87,9 +88,13 @@ cp .env.example .env
 # ⚠️ Nunca commitear el .env real — .gitignore ya lo excluye y CI falla si aparece
 #    (ver `yarn check:no-env-file`).
 
-# 3. Migrar y sembrar datos mínimos de desarrollo
+# 3. Migrar y sembrar
 yarn db:migration:up
-yarn db:seed:up
+# Trae el conjunto publicado por la base de semillas (SEED_SOURCE_*; ver docs/database/seeds.md).
+# DESTRUCTIVO sobre las tablas del manifiesto; con --if-empty no toca una base que ya tenga carga.
+yarn db:seed:pull --if-empty
+# Sin base de semillas: la siembra demostrativa del repositorio (upserts en el bloque 900000+).
+yarn db:seed:demo
 
 # 4. (Opcional) generar un JWT de desarrollo para probar endpoints internos sin pasar por login
 yarn dev:jwt --role=admin
@@ -180,8 +185,9 @@ NOTIFICATION_TOKEN_ENCRYPTION_KEY=<otro-secreto-largo-distinto>
 | `yarn start:prod`                          | Compila y levanta respetando configuración de producción; exige `REDIS_URL` y secretos reales.                                      |
 | `yarn env:doctor`                          | Diagnostica variables críticas y explica si el entorno está en modo local o producción.                                             |
 | `yarn db:migration:up` / `down` / `status` | Migraciones Sequelize/Umzug.                                                                                                        |
-| `yarn db:seed:up` / `down` / `status`      | Seeders mínimos de desarrollo.                                                                                                      |
-| `yarn docs:openapi`                        | Genera `docs/endpoints/openapi.yaml` a partir del código (requiere una base de datos real disponible para levantar el `AppModule`). |
+| `yarn db:seed:pull` / `db:seed:status`    | Trae (destructivo; `--if-empty` para no pisar) o compara el conjunto de la base de semillas `SEED_SOURCE_*` (ver `docs/database/seeds.md`). |
+| `yarn db:seed:demo`                        | Siembra demostrativa del repositorio: upserts idempotentes en el bloque reservado 900000+ (`--fundamental`, `--dry-run`, `--solo`). |
+| `yarn docs:openapi`                        | Compila (escribe `dist/`) y genera `docs/endpoints/openapi.yaml` desde los metadatos de Nest en modo preview, sin abrir base ni Redis. |
 | `yarn docs:project`                        | Actualiza los `README.md` por carpeta y completa cabeceras JSDoc faltantes sin reemplazar documentación manual.                     |
 | `yarn docs:folders` / `yarn docs:inline`   | Ejecuta por separado el inventario por carpetas o la documentación inline.                                                          |
 | `yarn smoke`                               | Corre la suite de smoke tests contra un servidor real ya levantado (`BASE_URL` por defecto se deriva de `APP_PORT`/`API_PREFIX`: `http://localhost:3005/api/v1`). |

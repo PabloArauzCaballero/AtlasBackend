@@ -22,7 +22,7 @@
 | `GET /operations/audit/customer/:id` (offset)    | audit       | 8 fuentes de eventos                           | alta                | DEPRECADO → usar `/feed` |
 | `GET /operations/audit/customer/:id/feed`        | audit       | `audit_event_feed` (vista)                     | alta                | cursor real |
 | `GET /operations/work-queue`                     | operations  | manual_review_cases, fraud_cases, dq_issues... | media               | candidato: `v_operations_work_queue_v1` |
-| `GET /customers/:id` (overview)                  | customers   | customers + perfil + riesgo + conteos          | 1 fila              | candidato: `v_customer_overview_v1` |
+| `/customers/:id` (overview; ruta retirada, hoy `GET /internal/views/customers`) | customers   | customers + perfil + riesgo + conteos          | 1 fila              | candidato: `v_customer_overview_v1` |
 | `GET /external-data/providers/health`            | external    | provider_health_logs + data_providers          | 1 fila/proveedor    | candidato: `v_provider_health_latest_v1` |
 | `GET /systems/endpoints`                         | systems-ops | system_endpoint_catalog + impactos             | media               | candidato: `v_system_endpoint_coverage_v1` |
 | _(completar con el resto de endpoints GET)_      |             |                                                |                     |       |

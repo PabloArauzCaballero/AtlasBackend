@@ -52,7 +52,7 @@ source_files:
 | `DATABASE_CLEAN_ALLOW_PRODUCTION` | boolean | **Sí** | — | — |
 | `DATABASE_CLEAN_BEFORE_SEED` | boolean | **Sí** | — | Limpieza previa a seeds. Por defecto está apagada. En producción exige doble confirmación para evitar borrar datos reale |
 | `DATABASE_CLEAN_CONFIRM` | string | No | — | — |
-| `DATABASE_SEED_ON_STARTUP` | boolean | **Sí** | — | Seeding idempotente AL ARRANCAR (opt-in). Si es true, el backend aplica los seeders pendientes del perfil (derivado de S |
+| `DATABASE_SEED_ON_STARTUP` | boolean | **Sí** | — | Si es true, el proceso de trabajo de fondo trae al arrancar la base de semillas (`SEED_SOURCE_*`) sólo si esta base aún no la trajo; sin `SEED_SOURCE_*` no hace nada |
 | `DATABASE_SEED_ON_STARTUP_FAIL_FAST` | boolean | **Sí** | — | Si el seeding al arrancar falla y esto es true, el arranque ABORTA (exit). Por defecto false: se loguea el error y el ba |
 | `DB_ADMIN_PASSWORD` | string | No | — | — |
 | `DB_ADMIN_USER` | string | No | — | DB_ADMIN_USER/PASSWORD = identidad con CREATE ROLE usada SOLO por `yarn db:roles:bootstrap` para crear los roles del clu |
@@ -166,7 +166,6 @@ source_files:
 | `RUNTIME_JOBS_STUCK_EVENT_MINUTES` | number | No | `15` | — |
 | `RUNTIME_JOBS_STUCK_EVENTS_INTERVAL_MS` | number | No | `300_000` | Recuperación de eventos VARADOS. `claimPending` marca el evento como `processing` y le pone `locked_by`; si el proceso m |
 | `RUNTIME_JOBS_TICK_TIMEOUT_MS` | number | No | `300_000` | Techo de duración de UNA tanda del planificador (todos los tenants de un job). Sin él, un job colgado en una consulta qu |
-| `SEED_PROFILE` | enum (`production, development, demo, test`) | No | — | Perfil de seeds a ejecutar (production \| development \| demo \| test). Si no se define, el runner lo deriva de NODE_ENV |
 | `SENDGRID_API_KEY` | string | No | — | — |
 | `SENDGRID_FROM_EMAIL` | string | No | — | — |
 | `SHUTDOWN_DRAIN_MS` | number | No | `0` | Ciclo de vida del proceso (hallazgo A-07 de docs/audit/auditoria-integral-2026-07-30.md). SHUTDOWN_DRAIN_MS: al recibir  |

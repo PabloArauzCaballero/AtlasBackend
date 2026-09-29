@@ -2,7 +2,10 @@
 
 ## Usuario interno principal
 
-El seeder `development/20260704121500-seed-pablo-admin-user` crea/actualiza el usuario administrador del portal interno **solo en entornos no productivos** (falla explícitamente si `NODE_ENV=production`, ver ATLAS-P0-001 en `docs/progress/remediation-register.md`). El catálogo de roles/permisos que respalda esta cuenta lo siembra `production/20260704121000-seed-internal-rbac`:
+Esta cuenta (`iam.internal_users._id = 1`) **no la crea ningún seeder del repositorio**: llega con el
+conjunto que publica la base de semillas de **desarrollo** al traerlo con `yarn db:seed:pull` (o al
+arrancar con `DATABASE_SEED_ON_STARTUP=true`), junto con el catálogo de roles y permisos. La base de
+semillas de producción no la publica. Ver [Semillas](seeds.md).
 
 | Campo | Valor |
 |---|---|
@@ -15,16 +18,18 @@ El seeder `development/20260704121500-seed-pablo-admin-user` crea/actualiza el u
 
 `@atlas.internal` no es un dominio que exista, así que con el default **el PIN del segundo factor y el
 correo de reset no se pueden probar contra un buzón de verdad**: se envían y se pierden. Para
-recibirlos, define ambas variables en tu `.env` (que está en `.gitignore`) y vuelve a sembrar:
+recibirlos, define ambas variables en tu `.env` (que está en `.gitignore`) y vuelve a traer las
+semillas (`yarn db:seed:pull`):
 
 ```env
 DEV_ADMIN_EMAIL=tu.correo@ejemplo.com
 DEV_ADMIN_PASSWORD=tu-contraseña-local
 ```
 
-El seeder hashea `DEV_ADMIN_PASSWORD` **al sembrar**, así que ni la contraseña ni su hash entran al
-repo — es la misma lección de ATLAS-P0-002 aplicada al hash. Sin las variables el seeder se comporta
-igual que siempre (email fijo + hash versionado), que es lo que esperan CI y los smokes.
+Después de copiar las filas, `applyLocalIdentityOverrides` (`src/database/seed-local-identities.ts`)
+aplica esas variables sobre ellas y hashea `DEV_ADMIN_PASSWORD` **en tu máquina**, así que ni la
+contraseña ni su hash entran al repo — la lección de ATLAS-P0-002 aplicada al hash. Sólo fuera de
+producción. Sin las variables la cuenta queda exactamente como la publica la base de semillas.
 
 Los smokes de contrato leen la misma identidad por `INTERNAL_SMOKE_EMAIL` / `INTERNAL_SMOKE_PASSWORD`;
 si cambias el admin, cámbialas también o fallarán al autenticar.
@@ -34,8 +39,8 @@ Esta credencial existe para desarrollo local y pruebas iniciales. No debe usarse
 > **ATLAS-P0-002 (histórico):** la contraseña de esta cuenta estuvo documentada en texto plano en este
 > archivo. Se rotó y se retiró de aquí porque un hash o contraseña que aparece en el historial de git se
 > considera comprometido permanentemente, sin importar qué tan fuerte sea. Si necesitas rotarla de nuevo,
-> genera un hash nuevo con `hashPassword()` (`src/common/utils/crypto/password.util.ts`) y actualiza el
-> seeder — nunca vuelvas a escribir la contraseña en texto plano en un archivo versionado.
+> usa `DEV_ADMIN_PASSWORD` en tu `.env` o cambia la fila en la base de semillas de desarrollo — nunca
+> vuelvas a escribir la contraseña en texto plano en un archivo versionado.
 
 ## Usuarios y registros demo
 
@@ -83,7 +88,7 @@ curl -b cookies.txt http://localhost:53005/api/v1/systems/dashboard \
 
 ```bash
 yarn db:migration:up
-yarn db:seed:dev   # production + development (incluye el usuario admin Pablo)
+yarn db:seed:pull   # base de semillas de desarrollo (incluye el usuario admin); DESTRUCTIVO en sus tablas
 ```
 
 Esto limpia datos basura de una base local/staging desechable y carga todos los datos necesarios para probar el portal.

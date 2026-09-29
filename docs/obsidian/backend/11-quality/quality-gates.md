@@ -41,7 +41,7 @@ yarn test                # suite Jest
 | `check:read-api-views` | Integridad del modelo de lectura |
 | `check:entity-narratives` | Que las entidades tengan narrativa de negocio |
 | `check:openapi` | Que el contrato publicado coincida con el código |
-| `check:seed-profiles` | Separación de perfiles de seed |
+| `check:seed-references` | Que la siembra demostrativa no lleve ids de otra base (se corre a mano; no está en CI) |
 | `check:no-env-file` | Que no se versione un `.env` |
 | `check:env-example` | Que el ejemplo siga al esquema Zod |
 | `check:db-privileges` | Que el rol de runtime no tenga DDL |

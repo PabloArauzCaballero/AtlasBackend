@@ -246,7 +246,8 @@ construcción larga simplemente se salta el siguiente disparo. Los contenedores 
 
 ### La primera vez: relevar a los servidores de desarrollo
 
-Los seis puertos los tenía un `yarn dev` / `yarn start:dev` a mano. El desplegador **no** se apropia
+Los seis puertos los tenía un servidor de desarrollo arrancado a mano (`next dev` en los portales,
+`yarn start:dev` en este backend). El desplegador **no** se apropia
 de un puerto ajeno por su cuenta; para que pase a mandar él hay que relevarlos una vez:
 
 ```bash

@@ -117,17 +117,19 @@ DATABASE_SEED_ON_STARTUP=false
 DATABASE_SEED_ON_STARTUP_FAIL_FAST=false
 ```
 
-Con `DATABASE_SEED_ON_STARTUP=true`, el backend aplica al iniciar (`onApplicationBootstrap`) los
-seeders **pendientes** del perfil — derivado de `SEED_PROFILE`/`NODE_ENV`
-(`production→production`, `test→test`, resto→`development`) — de forma **idempotente**: Umzug solo
-corre los seeders no ejecutados y los propios seeders son upsert-safe (`ON CONFLICT DO NOTHING` /
-`WHERE NOT EXISTS`). En `development` esto siembra el admin `pablo@atlas.internal` sin correr
-`yarn db:seed:dev` a mano.
+Con `DATABASE_SEED_ON_STARTUP=true`, al iniciar (`onApplicationBootstrap`,
+`src/database/startup-seed.service.ts`) el proceso trae el conjunto publicado por la **base de
+semillas** —la misma carga que `yarn db:seed:pull`— **sólo si la base todavía no la trajo** (marca
+`atlas_seed.load_log`): una base ya sembrada no se toca. No hay perfiles: lo que se siembra lo decide
+a qué base apuntan `SEED_SOURCE_DATABASE_URL` o `SEED_SOURCE_HOST` + `SEED_SOURCE_DB` +
+`SEED_SOURCE_USER` + `SEED_SOURCE_PASSWORD` (ver [Semillas](../database/seeds.md)). Sin `SEED_SOURCE_*`
+no siembra nada. Fuera de producción reaplica después las credenciales locales (`DEV_ADMIN_EMAIL`,
+`DEV_ADMIN_PASSWORD`, `DEV_PARTNER_PASSWORD`).
 
-Seguridad: **nunca** corre seeders de dev/demo en producción (el perfil `production` solo incluye el
-stage `production`, validado por `assertProfileAllowedForEnv`). Usa la identidad de migración
-(`DB_MIGRATION_USER`, cae a `DB_USER` en local), así que en un despliegue con roles separados esa
-credencial debe estar disponible.
+Seguridad: sólo lo hace el proceso que ejecuta trabajo de fondo (`APP_ROLE` distinto de `api`), para
+que N réplicas no carguen a la vez; a la base de producción se la apunta a la base de semillas que sólo
+publica dato maestro. Usa la identidad de migración (`DB_MIGRATION_USER`, cae a `DB_USER` en local),
+así que en un despliegue con roles separados esa credencial debe estar disponible.
 
 Modo de fallo: por defecto un fallo de seed se **loguea y el backend arranca igual** (un seed roto no
 debería tumbar la API). Con `DATABASE_SEED_ON_STARTUP_FAIL_FAST=true` el arranque **aborta** ante un
@@ -215,7 +217,7 @@ EXTERNAL_PROVIDERS_MOCK_BASE_URL=
 
 Un proveedor sin integración real se deja en `${CODE}_MODE=disabled`, no en modo simulado: `disabled`
 responde un error explícito, simulado respondía un dato falso. Al arrancar, el log lista cada
-proveedor bloqueado y `GET /external-data/providers/readiness` los reporta con el blocker
+proveedor bloqueado y `GET /admin/external-providers/readiness` los reporta con el blocker
 `*_MOCK_MODE_IN_PRODUCTION`.
 
 ## Trabajos de fondo programados

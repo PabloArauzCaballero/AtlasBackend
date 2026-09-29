@@ -119,7 +119,10 @@ sistema despliega **tres procesos** desde una sola imagen, y eso mueve el límit
 2. **Retención/no-PII en logs sin control automático** (R/I) — política escrita, falta
    el lint/test que la haga cumplir. → Fase 3.2.
 3. **Rate limits no granulares por endpoint/rol** (D) — hoy global. → Fase 4.3.
-4. **Observabilidad de SLO casi completa** (D/T) — Fase 3.4: métricas Prometheus
-   (`GET /metrics`), trazas OpenTelemetry opt-in, y **dashboards + reglas de alerta** en
-   `ops/observability/` (error 5xx, p95/p99, target down). Falta instrumentar las **métricas de
-   negocio** (backlog de outbox, breaker abierto, costo por proveedor) en sus servicios.
+4. **Observabilidad de SLO casi completa** (D/T) — Fase 3.4: métricas Prometheus (ruta
+   `/metrics`, fuera del prefijo `/api/v1` y excluida del contrato OpenAPI), trazas OpenTelemetry
+   opt-in, y **dashboards + reglas de alerta** en `ops/observability/` (error 5xx, p95/p99, target
+   down). Las métricas de negocio de backlog del outbox (`atlas_outbox_pending_events`), estado del
+   breaker (`atlas_circuit_breaker_state`) y llamadas por proveedor (`atlas_provider_calls_total`)
+   ya existen (`src/common/observability/metrics.service.ts`); falta el **costo** por proveedor
+   (revisado 2026-09-29).

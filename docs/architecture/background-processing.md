@@ -15,7 +15,7 @@ Obtenido de `setInterval` / `OnApplicationBootstrap` / entregas *fire-and-forget
 
 | # | Pieza | Archivo | Disparo actual | ¿Necesita worker? |
 |---|---|---|---|---|
-| 1 | Planificador de 7 jobs de runtime | [runtime-jobs-scheduler.service.ts](../../src/modules/runtime-jobs/runtime-jobs-scheduler.service.ts) | `setInterval` por job, líder por Redis `SET NX PX`, opt-in `RUNTIME_JOBS_SCHEDULER_ENABLED` | **Sí** — es trabajo de fondo puro |
+| 1 | Planificador de trabajos programados (<!-- fig:jobs.always -->21<!-- /fig --> siempre + <!-- fig:jobs.optional -->5<!-- /fig --> opcionales, ver abajo) | [runtime-jobs-scheduler.service.ts](../../src/modules/runtime-jobs/runtime-jobs-scheduler.service.ts) | `setInterval` por job, líder por Redis `SET NX PX`, opt-in `RUNTIME_JOBS_SCHEDULER_ENABLED` | **Sí** — es trabajo de fondo puro |
 | 2 | Entrega de broadcasts de notificación | [notification-broadcast.service.ts](../../src/modules/notifications/notification-broadcast.service.ts) | *fire-and-forget* dentro del proceso que atendió el `POST` | **Sí** — hoy compite con la latencia del request |
 | 3 | Monitor de salud de herramientas críticas | [systems-health-monitor.service.ts](../../src/modules/systems-ops/systems-health-monitor.service.ts) | `setInterval`, opt-in `SYSTEM_HEALTH_MONITOR_ENABLED` | **Sí** — es un observador global, no per-instancia |
 | 4 | Seeding idempotente al arrancar | [startup-seed.service.ts](../../src/database/startup-seed.service.ts) | `OnApplicationBootstrap`, opt-in `DATABASE_SEED_ON_STARTUP` | **Sí** — mutación de datos, no debe correr en N réplicas de API |
@@ -23,17 +23,42 @@ Obtenido de `setInterval` / `OnApplicationBootstrap` / entregas *fire-and-forget
 | 6 | Métricas del pool de conexiones | [db-pool-metrics.service.ts](../../src/common/observability/db-pool-metrics.service.ts) | `OnModuleInit`, lectura por scrape | **No: en TODOS los procesos** — mide *este* pool |
 | 7 | Carga del registro de proveedores externos | [external-provider-registry.service.ts](../../src/modules/external-data/application/external-provider-registry.service.ts) | `OnModuleInit`, solo lee | **No: en TODOS los procesos** — es caché de arranque |
 
-Los siete jobs del punto 1, con su intervalo por defecto:
+Además de estas siete piezas, <!-- fig:jobs.intervalSources -->8<!-- /fig --> archivos de `src/` arrancan su propio
+`setInterval` fuera del planificador (tabla generada; la columna dice qué variable lo enciende o condiciona):
 
-| `jobCode` | Qué hace | Intervalo |
-|---|---|---|
-| `process_outbox` | Despacha el outbox transaccional | 30 s |
-| `process_events` | Procesa eventos de dominio pendientes | 30 s |
-| `expire_stale_sessions` | Caduca sesiones inactivas | 5 min |
-| `apply_retention_policies` | Aplica retención de datos personales | 24 h |
-| `retry_stuck_notifications` | Recoge mensajes que quedaron en `pending`/`sending` | 5 min |
-| `purge_idempotency_keys` | Borra claves de idempotencia resueltas | 24 h |
-| `recalculate_data_quality` | Recalcula indicadores de calidad de dato | 1 h |
+<!-- gen:interval-sources -->
+<!-- /gen:interval-sources -->
+
+- `systems-catalog-auto-sync` pone al día el catálogo de sistemas cada cierto tiempo si
+  `SYSTEMS_CATALOG_AUTO_SYNC_ENABLED` está encendida.
+- `messaging-relay-loop` es el bucle del relay del worker piloto de Mensajería (proceso aparte:
+  `src/messaging-worker.ts`, `yarn start:messaging`), a `MESSAGING_RELAY_INTERVAL_MS`; sólo reclama
+  eventos si `context_ownership` lo nombra dueño de Mensajería.
+- Los de `qa-orchestration` y `systems-stress-consumer` son latidos DENTRO de una corrida que ya
+  reclamó un trabajo programado (`consume_qa_journey_runs`, `consume_systems_stress_runs`): no programan
+  trabajo por su cuenta.
+
+### Trabajos programados del punto 1
+
+Tablas **generadas** desde los catálogos (`yarn docs:figures`; `yarn check:docs-figures` falla en CI si el
+código cambia y la tabla no). Nombre, variable de intervalo y su valor por defecto salen del código y
+del esquema de entorno; nada se escribe a mano.
+
+Corren **siempre** que el planificador está encendido (`RUNTIME_JOBS_SCHEDULER_ENABLED`) en el proceso
+con trabajo de fondo:
+
+<!-- gen:jobs-always -->
+<!-- /gen:jobs-always -->
+
+**Opcionales**: sólo existen si se cumple la condición (el mismo `if` que los crea en
+`optional-jobs.catalog.ts`). Por defecto, en un despliegue sin configurar, **no corre ninguno** salvo
+`retry_deferred_underwriting`, que depende de que la composición cablee el crédito (siempre en la
+imagen actual):
+
+<!-- gen:jobs-optional -->
+<!-- /gen:jobs-optional -->
+
+Las variables `RUNTIME_JOBS_*` de cada intervalo están en [Variables de entorno](../config/environment.md).
 
 ---
 
@@ -49,7 +74,7 @@ en la cola del pool, no en la base.
 
 ### 2.2 Escalar la API multiplica el trabajo de fondo
 
-Con N réplicas de API, cada una arranca los mismos siete `setInterval`. La elección de líder por
+Con N réplicas de API, cada una arranca los mismos `setInterval` (uno por trabajo programado). La elección de líder por
 Redis evita la ejecución simultánea, pero el diseño sigue acoplando dos decisiones que no tienen
 nada que ver: "cuánto tráfico HTTP hay que atender" y "cuánto trabajo de fondo hay que procesar".
 Separar el rol permite escalar cada uno por su propia señal.

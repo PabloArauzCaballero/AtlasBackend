@@ -55,7 +55,8 @@ ningún error visible.
 `type-check`, `type-check:tests`, `lint`, `format:check`, `test:unit:randomized`, `test:coverage`,
 `build`, `check:file-size`, `check:migrations`, `check:env-example`, `check:openapi`,
 `docs:openapi:lint`, `check:domain-schemas`, `check:domain-schema-layout`, `check:overfetching`,
-`check:read-api-views`, `check:tenant-header`, `check:seed-profiles`, `check:no-env-file`,
+`check:read-api-views`, `check:tenant-header`, `check:auth-coverage`, `check:architecture`,
+`check:entity-narratives`, `check:db-privileges`, `check:no-env-file`,
 `check:smoke-results-untracked`, build de la imagen, validación de los manifiestos de compose,
 `yarn audit --level high`, CodeQL, gitleaks y SBOM.
 

@@ -43,27 +43,17 @@ petición. Ver [Procesamiento en segundo plano](../architecture/background-proce
 
 ## 2. Catálogo
 
-**89 eventos en 9 familias.** El registro canónico es
-[`event-registry.ts`](../../src/modules/events/event-registry.ts); publicar un código que no esté ahí
-se rechaza.
+**<!-- fig:events.codes -->117<!-- /fig --> códigos en <!-- fig:events.families -->12<!-- /fig --> familias, de los que
+<!-- fig:events.emitted -->28<!-- /fig --> tienen productor en el código.** Los otros
+<!-- fig:events.reserved -->89<!-- /fig --> están **reservados**: registrados en
+[`event-registry.ts`](../../src/modules/events/event-registry.ts) para que el contrato no cambie cuando se
+implementen, pero hoy ningún código los escribe y un consumidor no debe esperarlos. El catálogo dice,
+familia por familia, cuántos se emiten.
 
-| Familia | Eventos | Prioridad | Ejemplos |
-|---|---:|---:|---|
-| `user_security` | 10 | — | `user.registered`, `user.login.failed`, `user.account.locked` |
-| `kyc_legal` | 10 | 10 | `kyc.submitted`, `kyc.approved`, `consent.accepted`, `consent.revoked` |
-| `risk_scoring_fraud` | 11 | 20 | `score.calculated`, `risk.alert.created`, `fraud.case.opened` |
-| `credit_line` | 9 | — | `credit_line.approved`, `credit_limit_movement.recorded` |
-| `purchase_downpayment` | 8 | — | `purchase.*` |
-| `installments_collections` | 14 | — | `installment.*`, `collection.*` |
-| `payments` | — | — | `payments.*` |
-| `merchant_settlement` | 15 | — | `merchant.*`, `reconciliation.*` |
-| `notifications` | 12 | — | `notification.sent`, `notification.failed`, `template.*` |
-
-!!! note "Familias del roadmap"
-    `purchase_downpayment`, `installments_collections`, `payments` y `merchant_settlement`
-    corresponden a capacidades **fuera del alcance actual** (compras, cuotas, comercios). Sus códigos
-    están reservados en el registro para que el contrato de eventos no cambie de forma incompatible
-    cuando se implementen. Un consumidor no debe esperar recibirlos hoy.
+La lista completa —qué código se emite, desde qué archivo y qué aviso genera— es el
+[Catálogo de eventos](event-catalog.md), **generado** desde el registro y los productores reales por
+`yarn docs:events`; el contrato AsyncAPI (`asyncapi/asyncapi.yaml`) se genera con él y declara sólo los
+emitidos. `yarn check:events-docs` (CI) y `yarn check:docs-figures` fallan si el código cambia y esto no.
 
 ---
 

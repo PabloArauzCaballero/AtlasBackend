@@ -82,10 +82,12 @@ yarn audit --level high
 
 ## Migraciones y seeders
 
-- Crea migraciones con `yarn db:migration:create` y seeders con `yarn db:seed:create`.
-- Mantén las migraciones **pequeñas** y acotadas por dominio (el gate `migration-check`
-  las limita). Los seeders de `production/` deben ser **idempotentes** y **sin datos
-  ficticios**.
+- Crea migraciones con `yarn db:migration:create`. Mantén las migraciones **pequeñas** y acotadas
+  por dominio (el gate `yarn check:migrations` bloquea colisiones contra una base vacía).
+- Ya no hay seeders versionados ni `db:seed:create`. El dato de semilla vive en una base aparte y se
+  trae con `yarn db:seed:pull` (ver `docs/database/seeds.md`). La siembra demostrativa del repositorio
+  es `src/database/seeders/demo/` (`yarn db:seed:demo`): upserts por clave natural, sin identificadores
+  de otra base — `yarn check:seed-references` lo exige.
 
 ## Decisiones de arquitectura
 

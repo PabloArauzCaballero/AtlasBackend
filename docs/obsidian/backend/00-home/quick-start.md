@@ -44,7 +44,7 @@ docker compose up -d postgres redis mongo
 
 # 4. Esquema y datos mínimos
 yarn db:migration:up
-yarn db:seed:up
+yarn db:seed:pull --if-empty   # base de semillas (SEED_SOURCE_*); o yarn db:seed:demo sin ella
 
 # 5. Validar la configuración antes de arrancar
 yarn env:doctor

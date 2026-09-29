@@ -80,7 +80,7 @@ Comandos: `yarn smoke:core`, `smoke:auth`, `smoke:sessions`, `smoke:catalog`, `s
 
 ## Datos de prueba
 
-Perfil `test` de los seeders (`yarn db:seed:test`), separado de `development`, `demo` y `production`. `yarn check:seed-profiles` valida la separación.
+Ya no hay perfiles de seeders ni `db:seed:test`: las pruebas unitarias usan dobles y fixtures propios, las de integración migran un Postgres efímero, y los datos de desarrollo llegan de la base de semillas (`yarn db:seed:pull`) o de la siembra demostrativa (`yarn db:seed:demo`). `yarn check:seed-references` impide que esa siembra lleve identificadores de otra base.
 
 ## Proveedores externos
 

@@ -36,10 +36,11 @@ related: []
 Los seeders trabajan por perfil, no por entorno:
 
 ```bash
-yarn db:seed:prod    # datos maestros mínimos
-yarn db:seed:dev     # + credenciales de desarrollo
-yarn db:seed:demo    # + datos de demostración
-yarn db:seed:test    # fixtures de prueba
+yarn db:seed:pull    # trae la base de semillas a la que apunte SEED_SOURCE_* (la de producción: sólo dato maestro;
+                     # la de desarrollo: + usuarios y comercios de prueba). DESTRUCTIVO en sus tablas
+yarn db:seed:status  # compara lo publicado con esta base, sin escribir
+yarn db:seed:demo    # siembra demostrativa del repositorio (upserts en el bloque 900000+);
+                     # la completa sólo con DEMO_SEED_ENABLED=true en el despliegue
 ```
 
 Ninguno de los dos gates que validaban esto sigue en el repositorio: `check:seed-profiles` y
@@ -48,7 +49,7 @@ aparte, y nada los sustituye todavía. Lo que hay hoy es `yarn db:seed:status` (
 `yarn db:seed:verify-graph` (integridad del conjunto cargado).
 
 > [!danger] Nunca sembrar el perfil de desarrollo en producción
-> `db:seed:dev` crea credenciales conocidas. El gate existe precisamente porque la confusión es fácil y el resultado es un acceso administrativo con contraseña pública.
+> La base de semillas de desarrollo publica credenciales conocidas. No hay gate que lo impida: la protección es que un despliegue productivo apunte `SEED_SOURCE_DB` a la base de producción, que no las tiene. La confusión es fácil y el resultado es un acceso administrativo con contraseña pública.
 
 ## Perfiles de ejecución
 

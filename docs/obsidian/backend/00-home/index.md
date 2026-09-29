@@ -18,6 +18,14 @@ related: []
 
 # Atlas Backend — Bóveda de documentación
 
+> [!warning] Instantánea congelada — las cifras NO son las de hoy
+> Esta bóveda describe la revisión `80fc741` (2026-08-06) y no se ha regenerado desde entonces. Sus
+> recuentos (rutas, tablas, esquemas, módulos, migraciones, jobs, eventos) y parte de sus comandos
+> corresponden a esa revisión: el código ha crecido mucho después (más esquemas, módulos y rutas;
+> las semillas salieron del repositorio). Las cifras vigentes están en
+> [Cifras reales](../../../architecture/index.md), que un gate compara con el código, y los comandos
+> vigentes en `package.json`. Úsala para entender el diseño, no como inventario.
+
 Base de conocimiento técnica, operativa y funcional del backend **Atlas**: una plataforma de originación de crédito con onboarding KYC, motor de riesgo, detección de fraude y gobierno de datos.
 
 > [!info] Cómo abrir esta bóveda

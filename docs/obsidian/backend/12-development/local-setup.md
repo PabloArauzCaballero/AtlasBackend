@@ -43,7 +43,7 @@ yarn db:provision:dev      # bootstrap de roles + verificación de privilegios
 
 # 5 — esquema y datos
 yarn db:migration:up
-yarn db:seed:dev
+yarn db:seed:pull --if-empty   # base de semillas de desarrollo; o yarn db:seed:demo sin ella
 
 # 6 — validar configuración
 yarn env:doctor
@@ -68,7 +68,6 @@ Con `APP_ROLE=all` (el default) un solo proceso hace ambas cosas — suficiente 
 | Comando | Qué hace |
 |---|---|
 | `yarn start:dev` | Compila y arranca forzando `NODE_ENV=development` |
-| `yarn start:dev:tsx` | `tsx watch` sobre `src/main.ts`, sin compilar |
 | `yarn start:watch:build` | `tsc -w` en paralelo |
 | `yarn start:prod` | Compila y arranca con configuración de producción |
 
@@ -80,11 +79,11 @@ Con `APP_ROLE=all` (el default) un solo proceso hace ambas cosas — suficiente 
 | `yarn hash-password` | Hash argon2 de una contraseña |
 | `yarn env:doctor` | Diagnóstico de la configuración |
 | `yarn db:migration:status` | Qué migraciones están aplicadas |
-| `yarn db:seed:reseed:dev` | Rehacer los datos de desarrollo |
+| `yarn db:seed:pull` | Rehacer los datos de desarrollo desde la base de semillas (destructivo en sus tablas) |
 
 ## Datos de desarrollo
 
-Las credenciales sembradas están en `docs/database/dev-credentials.md`. **Solo** para el perfil `development`: sembrarlas en producción crearía accesos con contraseña conocida — el gate `check:seed-profiles` existe por eso.
+Las credenciales sembradas están en `docs/database/dev-credentials.md`. **Sólo** las publica la base de semillas de desarrollo: apuntar producción a esa base crearía accesos con contraseña conocida, y no hay gate que lo impida (la protección es `SEED_SOURCE_DB`).
 
 ## Problemas frecuentes
 

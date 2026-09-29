@@ -4,8 +4,12 @@ Backend fintech de **identidad, onboarding KYC, elegibilidad, crédito, riesgo y
 NestJS 11, PostgreSQL 16 y TypeScript estricto.
 
 !!! info "Versión documentada"
-    Contrato **0.3.0** · OpenAPI **3.1** · 252 rutas / 264 operaciones · Node ≥ 22 · 284 suites y
-    2 425 pruebas en verde. Línea base completa en [reports/baseline.md](reports/baseline.md).
+    Contrato **0.3.0** · OpenAPI **3.1** · <!-- fig:openapi.paths -->534<!-- /fig --> rutas /
+    <!-- fig:openapi.operations -->570<!-- /fig --> operaciones en el contrato ·
+    <!-- fig:code.modules -->44<!-- /fig --> módulos · Node ≥ 22 · <!-- fig:tests.specFiles -->735<!-- /fig -->
+    archivos de prueba, que CI corre completos con el umbral de cobertura en cada PR (job `coverage`).
+    Estas cifras las vigila `yarn check:docs-figures`; más en [Arquitectura](architecture/index.md).
+    Línea base histórica en [reports/baseline.md](reports/baseline.md).
 
 ---
 
@@ -16,10 +20,17 @@ ser?**, **¿puede pagar?** y **¿debemos prestarle?**. Cada respuesta depende de
 (registro civil, buró, telco, banca) y de decisiones que un humano tiene que poder auditar meses
 después. Atlas orquesta ese recorrido de punta a punta y conserva la evidencia de cada decisión.
 
-Delimitación honesta de lo que **no** es: no es un core bancario (compras, cuotas y comercios quedan
-fuera), no es un motor de scoring certificado (el motor es heurístico y se declara como tal), y en
-producción **no sirve datos simulados** — un proveedor externo en modo simulado queda bloqueado en
-vez de fabricar evidencia. Detalle en [Contexto de negocio](business/business-context.md).
+Delimitación honesta de lo que **no** es: no es un core bancario ni un sistema contable — sí lleva
+los préstamos y sus cuotas (`loans`), los avisos de pago que confirma el comercio
+(`loan-payment-claims`) y el alta de comercios (`partner-onboarding`), pero la contabilidad y la
+facturación viven en el ERP —; no es un motor de scoring certificado: identidad, riesgo y crédito se
+preguntan al Motor de Decisión, un servicio aparte (`decision-engine`), y si el Motor no contesta el
+riesgo cae a un ruleset local o a la heurística `heuristic_v0`, y cada decisión dice de cuál salió
+(`decisionSource`); y en producción **no sirve datos
+simulados** — un proveedor externo en modo simulado queda bloqueado en vez de fabricar evidencia, y
+hoy **ningún proveedor externo tiene integración real** (ver
+[Proveedores externos](external-providers/README.md)). Detalle en
+[Contexto de negocio](business/business-context.md).
 
 ---
 
@@ -81,7 +92,8 @@ El backend se despliega en **dos roles de proceso** desde una sola imagen: `api`
 ```bash
 docker compose up -d          # PostgreSQL + Redis
 yarn install
-yarn db:migration:up && yarn db:seed:dev
+yarn db:migration:up
+yarn db:seed:demo --fundamental   # configuración mínima (colas, catálogos, políticas)
 yarn start:dev                # API en http://localhost:3005
 ```
 

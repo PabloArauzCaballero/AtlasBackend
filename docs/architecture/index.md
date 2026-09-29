@@ -1,7 +1,8 @@
 # Arquitectura
 
-Backend por capas sobre NestJS 11, con 27 módulos de dominio, **cero dependencias circulares** entre
-ellos y separación explícita entre el proceso que atiende clientes y el que ejecuta trabajo de fondo.
+Backend por capas sobre NestJS 11, con <!-- fig:code.modules -->44<!-- /fig --> módulos de dominio, fronteras entre
+módulos vigiladas por `yarn check:architecture` y separación explícita entre el proceso que atiende
+clientes y el que ejecuta trabajo de fondo.
 
 ## Por dónde empezar
 
@@ -19,22 +20,28 @@ ellos y separación explícita entre el proceso que atiende clientes y el que ej
 |---|---|
 | Capas uniformes: `controller → service → repository → mapper → DTO` | Revisión + `yarn check:overfetching` |
 | Nunca devolver modelos Sequelize al transporte HTTP | Revisión + tipos de los DTO |
-| Sin dependencias circulares (`forwardRef` prohibido) | **Verificado en el grafo**: 0 ciclos entre 27 módulos |
+| Sin dependencias circulares nuevas | `yarn check:architecture`: un ciclo sólo pasa con excepción declarada (dueño, tarea y vencimiento) en `config/architecture/boundaries.json`. Hoy hay <!-- fig:arch.cycles -->1<!-- /fig --> ciclo, el de la excepción `auth-mail-cycle` (auth → mail-sender → notifications → internal-users → auth, AT-040, vence 2027-03-31) |
 | Toda entrada validada con Zod | `yarn check:domain-schemas` |
 | Un solo mapa tabla → esquema | `yarn check:domain-schema-layout` |
 | Los archivos grandes no crecen | `yarn check:file-size` (trinquete) |
 
 ## Cifras reales
 
-| Elemento | Cantidad |
-|---|---:|
-| Módulos de dominio | 27 |
-| Controllers | 46 |
-| Modelos Sequelize | 131 |
-| Migraciones | 61 |
-| Tablas en 12 esquemas | 138 |
-| Rutas / operaciones expuestas | 252 / 264 |
-| Aristas módulo → módulo | 32 |
-| Dependencias circulares | **0** |
+Calculadas del código por `yarn check:docs-figures` en cada PR (job `contract-and-docs`): si el código
+cambia y esta tabla no, CI falla. Se regeneran con `yarn docs:figures`.
 
-Metodología y evidencia: [Auditoría Graphify](../reports/graphify-audit.md).
+| Elemento | Cantidad | Cómo se cuenta |
+|---|---:|---|
+| Módulos de dominio | <!-- fig:code.modules -->44<!-- /fig --> | carpetas de `src/modules` con `*.module.ts` |
+| Controladores | <!-- fig:code.controllers -->120<!-- /fig --> | clases `@Controller`, en <!-- fig:code.controllerFiles -->114<!-- /fig --> archivos |
+| Modelos Sequelize | <!-- fig:code.ormModels -->211<!-- /fig --> | clases `@Table` en `src/` |
+| Migraciones | <!-- fig:code.migrations -->161<!-- /fig --> | `src/database/migrations/*.ts` |
+| Tablas / esquemas de dominio | <!-- fig:db.tables -->219<!-- /fig --> / <!-- fig:db.schemas -->15<!-- /fig --> | `ATLAS_DOMAIN_TABLES` (`src/database/domain-tables.ts`) |
+| Rutas montadas | <!-- fig:code.routes -->579<!-- /fig --> | metadata de los controladores; incluye las internas fuera del contrato |
+| Rutas / operaciones del contrato | <!-- fig:openapi.paths -->534<!-- /fig --> / <!-- fig:openapi.operations -->570<!-- /fig --> | `docs/endpoints/openapi.yaml` |
+| Aristas módulo → módulo | <!-- fig:arch.moduleEdges -->91<!-- /fig --> | inventario de imports (`scripts/architecture/inventory-imports.ts`) |
+| Ciclos entre módulos | <!-- fig:arch.cycles -->1<!-- /fig --> | mismo inventario; cada uno con excepción declarada |
+
+Quién puede llamar a cada ruta: [Matriz de roles y permisos](../security/admin-rbac-matrix.md) (generada).
+
+Metodología de la auditoría de julio (cifras de entonces, ya no vigentes): [Auditoría Graphify](../reports/graphify-audit.md).
