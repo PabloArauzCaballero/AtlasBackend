@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
+import { containsLikePattern } from '../../../common/utils/strings/like-pattern.util.js';
 import { DataProviderRequestModel, ProviderHealthLogModel } from '../../../database/models/index.js';
 
 /**
@@ -90,6 +91,7 @@ export class ExternalProviderDashboardRepository {
     customerId?: string;
     responseStatuses?: string[];
     approvalStatus?: string;
+    q?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: DataProviderRequestModel[]; count: number }> {
@@ -99,6 +101,17 @@ export class ExternalProviderDashboardRepository {
     if (input.customerId) where.customerId = input.customerId;
     if (input.responseStatuses?.length) where.responseStatus = { [Op.in]: input.responseStatuses };
     if (input.approvalStatus) where.approvalStatus = input.approvalStatus;
+    // Sin `q` había que conocer el id de la solicitud para encontrarla; la pantalla lo pedía a ciegas.
+    const q = input.q?.trim();
+    if (q) {
+      const pattern = containsLikePattern(q);
+      where[Op.or as unknown as string] = [
+        ...(/^\d+$/.test(q) ? [{ id: q }] : []),
+        { providerRequestRef: { [Op.iLike]: pattern } },
+        { requestType: { [Op.iLike]: pattern } },
+        { errorMessageSafe: { [Op.iLike]: pattern } },
+      ];
+    }
     // `findAndCountAll` y no dos consultas: el total tiene que ser el de ESTE filtro, y contarlo
     // aparte abre la puerta a que el conteo y la página discrepen si entra una solicitud entre
     // ambas.

@@ -25,6 +25,8 @@ export const listMessagesQuerySchema = z.object({
   recipientType: z.string().trim().min(1).max(40).optional(),
   recipientId: z.string().trim().min(1).max(120).optional(),
   correlationId: z.string().trim().min(1).max(120).optional(),
+  /** Por partes: correlation ID, código de plantilla, título o asunto. */
+  q: z.string().trim().min(1).max(120).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -75,6 +77,8 @@ export const listTemplatesQuerySchema = z.object({
   code: z.string().trim().min(1).max(160).optional(),
   channel: notificationChannelSchema.optional(),
   active: queryBooleanSchema.optional(),
+  /** Por partes: código, título o asunto de la plantilla. */
+  q: z.string().trim().min(1).max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
@@ -100,6 +104,8 @@ export const updatePreferencesSchema = z.object({
 export const customerNotificationsQuerySchema = z.object({
   status: notificationStatusSchema.optional(),
   channel: notificationChannelSchema.optional(),
+  /** Por partes: título, asunto o texto del aviso. */
+  q: z.string().trim().min(1).max(120).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   page: z.coerce.number().int().positive().default(1),

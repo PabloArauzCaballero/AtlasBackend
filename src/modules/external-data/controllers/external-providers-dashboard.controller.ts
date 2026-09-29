@@ -76,6 +76,11 @@ export class ExternalProvidersDashboardController {
   @ApiQuery({ name: 'customerId', required: false, schema: zodObjectPropertySchemas(providerRequestsQuerySchema).customerId })
   @ApiQuery({ name: 'responseStatus', required: false, description: 'Lista separada por comas (FAILED,RATE_LIMITED).' })
   @ApiQuery({ name: 'approvalStatus', required: false, schema: zodObjectPropertySchemas(providerRequestsQuerySchema).approvalStatus })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Id de solicitud exacto (sólo dígitos) o, por partes, referencia del proveedor, tipo de consulta o mensaje de error.',
+  })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(providerRequestsQuerySchema).limit })
   @ApiQuery({ name: 'offset', required: false, schema: zodObjectPropertySchemas(providerRequestsQuerySchema).offset })
   @ApiResponse({ status: 200, description: 'Página de solicitudes.' })
@@ -90,6 +95,7 @@ export class ExternalProvidersDashboardController {
       customerId: query.customerId,
       responseStatuses: query.responseStatus,
       approvalStatus: query.approvalStatus,
+      q: query.q,
       limit: query.limit,
       offset: query.offset,
     });

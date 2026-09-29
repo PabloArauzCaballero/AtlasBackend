@@ -44,6 +44,7 @@ export class NotificationTemplatesController {
   @ApiQuery({ name: 'code', required: false, schema: zodObjectPropertySchemas(listTemplatesQuerySchema).code })
   @ApiQuery({ name: 'channel', required: false, schema: zodObjectPropertySchemas(listTemplatesQuerySchema).channel })
   @ApiQuery({ name: 'active', required: false, schema: zodObjectPropertySchemas(listTemplatesQuerySchema).active })
+  @ApiQuery({ name: 'q', required: false, description: 'Busca por partes en el código, el título y el asunto de la plantilla.' })
   @ApiResponse({ status: 200, description: 'Lista paginada de plantillas.' })
   @Get('operations/notifications/templates')
   @Roles(

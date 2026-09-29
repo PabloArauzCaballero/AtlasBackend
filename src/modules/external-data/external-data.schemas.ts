@@ -25,8 +25,16 @@ export const externalConsentSchema = z.object({
   customerId: idStringSchema,
   providerCode: providerCodeSchema.optional(),
   purpose: z.string().trim().min(3).max(100),
-  legalTextVersion: z.string().trim().min(1).max(80).default('v1'),
-  accepted: z.boolean().default(true),
+  /*
+   * `accepted` sólo admite `true`. Este endpoint REGISTRA un consentimiento otorgado: antes aceptaba
+   * `accepted: false` y grababa igual `granted: true`, así que una negativa quedaba en la base como
+   * un sí. Una negativa no se registra aquí (400); retirar uno existente es `…/revoke`.
+   *
+   * `legalTextVersion` se retiró: se validaba y se tiraba (no hay columna que lo guarde ni documento
+   * al que enlazarlo), y aceptarlo daba a entender que la versión del texto legal quedaba en la
+   * evidencia. Un cliente que lo siga mandando no falla: el esquema descarta lo no declarado.
+   */
+  accepted: z.literal(true).default(true),
   channel: z.string().trim().min(2).max(40).default('api'),
   sessionId: idStringSchema.optional(),
   deviceFingerprintSnapshot: z.string().trim().max(180).optional(),

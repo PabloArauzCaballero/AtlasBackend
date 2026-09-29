@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op, WhereOptions } from 'sequelize';
 import { NotificationTemplateModel } from '../../database/models/index.js';
 import { NotificationChannel } from './notification-types.js';
+import { withTextSearch } from './notification-list.filters.js';
 import { CreateTemplateDto, ListTemplatesQueryDto, UpdateTemplateDto } from './notifications.schemas.js';
 
 // Las plantillas son casi estáticas pero `findTemplate` se consultaba por cada mensaje del outbox
@@ -71,6 +72,7 @@ export class NotificationTemplatesRepository {
     if (query.code) (where as Record<string, unknown>).code = query.code;
     if (query.channel) (where as Record<string, unknown>).channel = query.channel;
     if (query.active !== undefined) (where as Record<string, unknown>).isActive = query.active;
+    withTextSearch(where as Record<string | symbol, unknown>, query.q, ['code', 'titleTemplate', 'subjectTemplate']);
     return this.templateModel.findAndCountAll({
       where,
       order: [

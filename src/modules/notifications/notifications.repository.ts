@@ -43,6 +43,7 @@ import {
 } from './notification-types.js';
 import { buildEncryptedDeliveryTargets, decryptDeliveryTargets } from './notification-delivery-targets.util.js';
 import { notExpired, ownedByGenericJobs } from './campaigns/notification-visibility.util.js';
+import { withCreatedBetween, withTextSearch } from './notification-list.filters.js';
 
 // Tamaño de lote para insertar mensajes de broadcast. Un único bulkCreate con decenas de miles de
 // filas produce una sentencia SQL gigante; trocear acota memoria del driver/servidor por INSERT.
@@ -247,18 +248,14 @@ export class NotificationsRepository {
   }
 
   async listMessages(tenantId: string, query: ListMessagesQueryDto) {
-    const where: Record<string, unknown> = { tenantId };
+    const where: Record<string | symbol, unknown> = { tenantId };
     if (query.status) where.status = query.status;
     if (query.channel) where.channel = query.channel;
     if (query.recipientType) where.recipientType = query.recipientType;
     if (query.recipientId) where.recipientId = query.recipientId;
     if (query.correlationId) where.correlationId = query.correlationId;
-    if (query.from || query.to) {
-      where.createdAtValue = {
-        ...(query.from ? { [Op.gte]: query.from } : {}),
-        ...(query.to ? { [Op.lte]: query.to } : {}),
-      };
-    }
+    withCreatedBetween(where, query);
+    withTextSearch(where, query.q, ['correlationId', 'templateCode', 'title', 'subject']);
     return this.messageModel.findAndCountAll({
       where: where as never,
       order: [
@@ -278,12 +275,8 @@ export class NotificationsRepository {
     const where: Record<string | symbol, unknown> = { tenantId, recipientType, recipientId, channel: 'in_app', ...notExpired() };
     if (query.status) where.status = query.status;
     if (query.channel) where.channel = query.channel;
-    if (query.from || query.to) {
-      where.createdAtValue = {
-        ...(query.from ? { [Op.gte]: query.from } : {}),
-        ...(query.to ? { [Op.lte]: query.to } : {}),
-      };
-    }
+    withCreatedBetween(where, query);
+    withTextSearch(where, query.q, ['title', 'subject', 'body']);
     return this.messageModel.findAndCountAll({
       where: where as never,
       order: [

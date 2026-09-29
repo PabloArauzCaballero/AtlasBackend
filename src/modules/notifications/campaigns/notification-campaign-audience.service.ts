@@ -49,8 +49,8 @@ export class NotificationCampaignAudienceService {
     return { definition, purpose: dto.purpose, requiresMarketingConsent: dto.purpose === 'marketing', ...estimate };
   }
 
-  async listSegments(tenantId: string, status: string) {
-    const rows = await this.repository.listSegments(tenantId, status);
+  async listSegments(tenantId: string, status: string, q?: string) {
+    const rows = await this.repository.listSegments(tenantId, status, q);
     return { data: rows.map(mapSegment) };
   }
 

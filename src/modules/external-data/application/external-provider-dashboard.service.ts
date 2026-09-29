@@ -10,6 +10,11 @@ import { ExternalProviderDashboardRepository } from '../infrastructure/external-
 import { percentile, providerModeFromEnv, round2, toProviderCode } from './external-data-policy.util.js';
 
 /** Estados de `response_status` agrupados por lo que significan PARA EL OPERADOR, no por su nombre. */
+/** El contrato canónico de página a partir del `offset` de este listado (que se mantiene por compatibilidad). */
+function pageMeta(input: { limit: number; offset: number }, total: number) {
+  return { page: Math.floor(input.offset / input.limit) + 1, limit: input.limit, total, totalPages: Math.ceil(total / input.limit) };
+}
+
 const SUCCESS_STATUSES = ['COMPLETED', 'MOCKED', 'DATA_NOT_AVAILABLE'];
 const FAILURE_STATUSES = ['FAILED', 'PROVIDER_UNAVAILABLE', 'PROVIDER_AUTH_FAILED', 'RATE_LIMITED'];
 const BLOCKED_STATUSES = ['BLOCKED_BY_COST_POLICY', 'CONSENT_REQUIRED', 'MANUAL_APPROVAL_REQUIRED'];
@@ -176,6 +181,7 @@ export class ExternalProviderDashboardService {
     customerId?: string;
     responseStatuses?: string[];
     approvalStatus?: string;
+    q?: string;
     limit: number;
     offset: number;
   }) {
@@ -187,7 +193,14 @@ export class ExternalProviderDashboardService {
     // filtro mal escrito enseña más datos que el filtro correcto, que es lo contrario de lo que
     // cualquiera espera de un filtro.
     if (input.providerCode && !provider) {
-      return { generatedAt: new Date().toISOString(), total: 0, limit: input.limit, offset: input.offset, requests: [] };
+      return {
+        generatedAt: new Date().toISOString(),
+        total: 0,
+        limit: input.limit,
+        offset: input.offset,
+        meta: pageMeta(input, 0),
+        requests: [],
+      };
     }
     const page = await this.dashboardRepository.listRequestsPage({
       from: new Date(Date.now() - input.days * 24 * 60 * 60 * 1000),
@@ -196,6 +209,7 @@ export class ExternalProviderDashboardService {
       customerId: input.customerId,
       responseStatuses: input.responseStatuses,
       approvalStatus: input.approvalStatus,
+      q: input.q,
       limit: input.limit,
       offset: input.offset,
     });
@@ -204,6 +218,7 @@ export class ExternalProviderDashboardService {
       total: page.count,
       limit: input.limit,
       offset: input.offset,
+      meta: pageMeta(input, page.count),
       requests: page.rows.map((request) => this.mapRequest(request, providers)),
     };
   }
