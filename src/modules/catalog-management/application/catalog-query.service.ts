@@ -5,6 +5,7 @@
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
+import { buildPaginationMeta } from '../../../common/utils/pagination/pagination.util.js';
 import { catalogDto, catalogVersionDto, contextItemDto } from '../catalog-management.mapper.js';
 import { CatalogManagementRepository } from '../catalog-management.repository.js';
 import { ListCatalogsQueryDto } from '../catalog-management.schemas.js';
@@ -14,21 +15,21 @@ import { assertInternal } from './catalog-management.shared.js';
 export class CatalogQueryService {
   constructor(private readonly repository: CatalogManagementRepository) {}
 
+  /**
+   * El estado de versión ya lo filtra la consulta (contra la versión más reciente, en SQL); aquí sólo
+   * se adjunta esa versión a cada fila de la página. `meta` y `summary` cuentan el filtro entero.
+   */
   async listCatalogs(input: { query: ListCatalogsQueryDto; currentUser: AuthenticatedUser }) {
     assertInternal(input.currentUser);
-    const catalogs = await this.repository.listCatalogs(input.query);
-    // Batch: una sola query trae la última versión de TODOS los catálogos listados, en vez de un
-    // `findLatestVersion` por catálogo (N+1 — antes, un tenant con muchos catálogos disparaba un
-    // round trip extra por fila devuelta).
-    const latestVersionsByCatalogId = await this.repository.findLatestVersionsByCatalogIds(catalogs.map((catalog) => String(catalog.id)));
-    const rows = catalogs
-      .map((catalog) => {
-        const currentVersion = latestVersionsByCatalogId.get(String(catalog.id)) ?? null;
-        if (input.query.status !== 'all' && currentVersion?.status !== input.query.status) return null;
-        return catalogDto(catalog, currentVersion);
-      })
-      .filter((item): item is NonNullable<typeof item> => item !== null);
-    return { items: rows };
+    const page = await this.repository.listCatalogs(input.query);
+    // Batch: una sola query trae la última versión de TODOS los catálogos de la página, en vez de un
+    // `findLatestVersion` por catálogo (N+1).
+    const latestVersionsByCatalogId = await this.repository.findLatestVersionsByCatalogIds(page.rows.map((catalog) => String(catalog.id)));
+    return {
+      items: page.rows.map((catalog) => catalogDto(catalog, latestVersionsByCatalogId.get(String(catalog.id)) ?? null)),
+      meta: buildPaginationMeta({ page: input.query.page, limit: input.query.limit }, page.total),
+      summary: page.summary,
+    };
   }
 
   async getCatalogVersion(input: { catalogCode: string; versionId: string; currentUser: AuthenticatedUser }) {

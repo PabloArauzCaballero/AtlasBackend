@@ -57,6 +57,18 @@ export const portalAlertsQuerySchema = portalListQuerySchema.extend({
 export type PortalAlertsQueryDto = z.infer<typeof portalAlertsQuerySchema>;
 
 /**
+ * Filtros de las reglas de calidad. El portal ya mandaba `severity` y `status`, pero la ruta usaba
+ * `portalListQuerySchema`, que los descartaba en silencio: los dos desplegables no filtraban nada.
+ * `status` es el estado de la DEFINICIÓN (`is_active`), no de una ejecución: las reglas no se ejecutan.
+ */
+export const portalDataQualityRulesQuerySchema = portalListQuerySchema.extend({
+  severity: facetFilter,
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+});
+
+export type PortalDataQualityRulesQueryDto = z.infer<typeof portalDataQualityRulesQuerySchema>;
+
+/**
  * Los identificadores del portal son opacos y compuestos (`dq:103`, `field:42`, `purpose:MKT`), no
  * enteros: se validan por forma, no por tipo. El tope de longitud y la lista de caracteres impiden
  * que un id absurdo llegue a la capa de consulta o al log.

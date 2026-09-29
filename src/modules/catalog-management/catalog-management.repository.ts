@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op, WhereOptions } from 'sequelize';
+import { listCatalogPage } from './catalog-list.query.js';
 import {
   ContextApprovalEventModel,
   ContextCatalogModel,
@@ -87,13 +88,9 @@ export class CatalogManagementRepository {
     private readonly riskPolicyRepository: CatalogRiskPolicyRepository,
   ) {}
 
-  listCatalogs(query: ListCatalogsQueryDto): Promise<ContextCatalogModel[]> {
-    const where: WhereOptions = {
-      ...(query.domain ? { domain: query.domain } : {}),
-      ...(query.active === 'true' ? { isActive: true } : {}),
-      ...(query.active === 'false' ? { isActive: false } : {}),
-    };
-    return this.catalogModel.findAll({ where, order: [['catalogCode', 'ASC']] } as FindOptions);
+  /** Página de catálogos con filtro, total y `summary` en SQL (ver `catalog-list.query.ts`). */
+  listCatalogs(query: ListCatalogsQueryDto) {
+    return listCatalogPage(this.catalogModel, query);
   }
 
   findCatalogByCode(catalogCode: string, options: RepositoryOptions = {}): Promise<ContextCatalogModel | null> {

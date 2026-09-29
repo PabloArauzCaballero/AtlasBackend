@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { CatalogDataGovernanceService } from './application/catalog-data-governance.service.js';
+import type { GovernancePolicySearchDto } from './catalog-list.schemas.js';
 import { CatalogDefinitionsService } from './application/catalog-definitions.service.js';
 import { CatalogIngestionService } from './application/catalog-ingestion.service.js';
 import { CatalogQueryService } from './application/catalog-query.service.js';
@@ -109,6 +110,10 @@ export class CatalogManagementService {
 
   getDataGovernancePolicies(input: { currentUser: AuthenticatedUser }) {
     return this.dataGovernanceService.getDataGovernancePolicies(input);
+  }
+
+  searchDataGovernancePolicies(input: { query: GovernancePolicySearchDto; currentUser: AuthenticatedUser }) {
+    return this.dataGovernanceService.searchDataGovernancePolicies(input);
   }
 
   upsertDataGovernancePackage(input: { body: DataGovernancePolicyPackageDto; currentUser: AuthenticatedUser; context: RequestContext }) {

@@ -118,10 +118,13 @@ describe('PortalReportsService', () => {
       expect(sqlDe('data_quality_issues')).not.toContain('_tenant_id = CAST(:scopeTenantId AS BIGINT)');
     });
 
-    it('sólo cuenta como incidente lo que sigue abierto', async () => {
+    it('cuenta como pendiente lo que no está corregido ni descartado: una reconocida sigue contando', async () => {
       await service.getReleaseReadiness(ALCANCE_TENANT);
 
-      expect(sqlDe('data_quality_issues')).toContain("NOT IN ('resolved','closed','acknowledged')");
+      // Reconocer no corrige el dato: antes `acknowledged` salía del conteo (y «Reconocer» no pedía
+      // motivo) mientras `ignored` contaba para siempre aunque la bandeja la diera por cerrada.
+      expect(sqlDe('data_quality_issues')).toContain("NOT IN ('resolved','ignored','closed')");
+      expect(sqlDe('data_quality_issues')).not.toContain('acknowledged');
     });
 
     it('con todo poblado y sin incidentes, el semáforo está en verde y sin avisos', async () => {

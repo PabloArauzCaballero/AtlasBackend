@@ -3,8 +3,8 @@
  * @business Esta pieza gobierna las reglas de riesgo vigentes y las políticas de tratamiento de datos.
  * @system expone la consulta y activación de rulesets de riesgo y la publicación de políticas de gobierno.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -18,6 +18,7 @@ import { RequestWithNetwork, requireIdempotencyKey } from '../../common/utils/ht
 import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
 import { InternalPermissions } from '../internal-users/internal-permissions.decorator.js';
 import { contextFrom } from './catalog-request-context.util.js';
+import { GOVERNANCE_POLICY_TYPES, governancePolicySearchSchema, type GovernancePolicySearchDto } from './catalog-list.schemas.js';
 import { CatalogManagementService } from './catalog-management.service.js';
 import {
   ActivateRiskRulesetVersionDto,
@@ -115,6 +116,49 @@ export class CatalogGovernanceController {
   @Get('data-governance/policies')
   getDataGovernancePolicies(@CurrentUser() currentUser: AuthenticatedUser) {
     return this.service.getDataGovernancePolicies({ currentUser });
+  }
+
+  /*
+   * La misma información que `data-governance/policies`, pero como una lista paginada con buscador,
+   * filtro por tipo y conteos del filtro entero: la pantalla pintaba seis listas enteras como un muro
+   * de tarjetas. Mismo rol y mismo permiso que la ruta de al lado.
+   */
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'readonly_auditor', 'admin', 'platform_admin')
+  @InternalPermissions('governance.policies.read')
+  @ApiOperation({
+    summary: 'Buscar políticas de gobierno de datos (paginado)',
+    description:
+      'Propósitos de tratamiento, retenciones, clasificaciones, campos sensibles y reglas de calidad activos en una sola lista, ' +
+      'ordenada por tipo y código. `policyId` es el que acepta `GET /internal/governance/policies/:policyId`. `summary` ' +
+      '(total, byType, sensitiveFields, explicitConsent, protectedClasses) cuenta el filtro entero, no la página.',
+  })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    schema: { type: 'string', maxLength: 200 },
+    description: 'Contiene (sin mayúsculas) en código, nombre o alcance.',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    schema: { type: 'string', enum: [...GOVERNANCE_POLICY_TYPES] },
+    description: 'Tipo de política.',
+  })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1, default: 1 }, description: 'Página, desde 1.' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+    description: 'Elementos por página (1-100).',
+  })
+  @ApiResponse({ status: 200, description: 'Página de políticas con `meta` y `summary`.' })
+  @ApiResponse({ status: 403, description: 'Sin el permiso governance.policies.read.' })
+  @Get('data-governance/policies/search')
+  searchDataGovernancePolicies(
+    @Query(new ZodValidationPipe(governancePolicySearchSchema)) query: GovernancePolicySearchDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.service.searchDataGovernancePolicies({ query, currentUser });
   }
 
   /*

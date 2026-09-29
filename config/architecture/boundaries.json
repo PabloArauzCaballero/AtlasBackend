@@ -179,7 +179,7 @@
     },
     "data-quality": {
       "context": "data-governance",
-      "allowedDependencies": []
+      "allowedDependencies": ["internal-users"]
     },
     "app-content": {
       "context": "platform",

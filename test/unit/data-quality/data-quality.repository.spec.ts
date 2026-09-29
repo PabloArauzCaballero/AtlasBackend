@@ -38,7 +38,7 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
     expect(findAll).toHaveBeenCalledTimes(1);
     const callArgs = callArg<{ limit: number; where: Record<string, unknown> }>(findAll, 0, 0);
     expect(callArgs.limit).toBe(3); // limit + 1
-    expect(callArgs.where).toEqual({ tenantId: 'tenant-1' }); // sin cursor todavía
+    expect(callArgs.where).toEqual({ [Op.and]: [{ tenantId: 'tenant-1' }] }); // sin cursor todavía
 
     expect(result.items).toHaveLength(2);
     expect(result.items.map((i) => i.id)).toEqual(['30', '29']);
@@ -65,12 +65,12 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
 
     await repository.findIssuesWithCursor('tenant-1', { limit: 10, cursor });
 
-    const callArgs = callArg<{ where: Record<string, unknown> }>(findAll, 0, 0);
-    // El filtro de cursor se agrega bajo una key Symbol (Op.and), invisible a Object.keys();
-    // Reflect.ownKeys() sí la incluye. Alcanza con confirmar que se agregó ese filtro además
-    // de tenantId, sin reconstruir el operador exacto.
-    expect(Reflect.ownKeys(callArgs.where).length).toBeGreaterThan(1);
-    expect(callArgs.where.tenantId).toBe('tenant-1');
+    const callArgs = callArg<{ where: Record<symbol, unknown[]> }>(findAll, 0, 0);
+    // Tenant + la condición de tupla (detected_at, id) del cursor.
+    const conditions = callArgs.where[Op.and] ?? [];
+    expect(conditions[0]).toEqual({ tenantId: 'tenant-1' });
+    expect(conditions).toHaveLength(2);
+    expect(Reflect.ownKeys(conditions[1] as object)).toContain(Op.or);
   });
 
   it('aplica los filtros opcionales de status/entityType/customerId', async () => {
@@ -79,8 +79,14 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
 
     await repository.findIssuesWithCursor('tenant-1', { limit: 10, status: 'open', entityType: 'customers', customerId: 'cust-1' });
 
-    const callArgs = callArg<{ where: Record<string, unknown> }>(findAll, 0, 0);
-    expect(callArgs.where).toMatchObject({ tenantId: 'tenant-1', issueStatus: 'open', targetTable: 'customers', targetRecordId: 'cust-1' });
+    const callArgs = callArg<{ where: Record<symbol, unknown[]> }>(findAll, 0, 0);
+    const conditions = callArgs.where[Op.and] ?? [];
+    expect(conditions).toContainEqual({ tenantId: 'tenant-1' });
+    expect(conditions).toContainEqual({ targetTable: 'customers' });
+    expect(conditions).toContainEqual({ targetRecordId: 'cust-1' });
+    // `status` no distingue mayúsculas y trata la fila sin estado como `open`: LOWER(COALESCE(issue_status,'open')).
+    expect(JSON.stringify(conditions[1])).toContain('LOWER');
+    expect(JSON.stringify(conditions[1])).toContain('"logic":"open"');
   });
 
   it('resuelve severity contra data_quality_rules — antes se ignoraba en silencio, no filtraba nada', async () => {
@@ -90,9 +96,12 @@ describe('DataQualityRepository.findIssuesWithCursor', () => {
 
     await repository.findIssuesWithCursor('tenant-1', { limit: 10, severity: 'critical' });
 
-    expect(ruleFindAll).toHaveBeenCalledWith(expect.objectContaining({ where: { severity: 'critical' } }));
-    const callArgs = callArg<{ where: Record<string, unknown> }>(issueFindAll, 0, 0);
-    expect(callArgs.where).toMatchObject({ tenantId: 'tenant-1', qualityRuleId: { [Op.in]: ['rule-1', 'rule-2'] } });
+    // En mayúsculas a los dos lados: la siembra guarda `critical` y el portal manda `CRITICAL`.
+    const ruleWhere = JSON.stringify(callArg<{ where: unknown }>(ruleFindAll, 0, 0).where);
+    expect(ruleWhere).toContain('UPPER');
+    expect(ruleWhere).toContain('"logic":"CRITICAL"');
+    const callArgs = callArg<{ where: Record<symbol, unknown[]> }>(issueFindAll, 0, 0);
+    expect(callArgs.where[Op.and]).toContainEqual({ qualityRuleId: { [Op.in]: ['rule-1', 'rule-2'] } });
   });
 
   it('cuando ninguna regla tiene esa severity, devuelve vacío sin consultar issues', async () => {
@@ -120,11 +129,33 @@ describe('DataQualityRepository — findIssues / finders / mutaciones', () => {
   it('findIssues (offset) arma el where con status/entityType/customerId y pagina', async () => {
     const { repo, issueModel } = buildFull();
     (issueModel.findAndCountAll as jest.Mock).mockResolvedValueOnce({ rows: [{ id: '1' }], count: 1 } as never);
+    (issueModel.findAll as jest.Mock).mockResolvedValueOnce([{ status: 'open', count: '1' }] as never);
     const res = await repo.findIssues('t1', { status: 'open', entityType: 'customers', customerId: 'c1', limit: 20, page: 1 } as never);
-    const args = (issueModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; limit: number };
-    expect(args.where).toMatchObject({ tenantId: 't1', issueStatus: 'open', targetTable: 'customers', targetRecordId: 'c1' });
+    const args = (issueModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<symbol, unknown[]>; limit: number };
+    expect(args.where[Op.and]).toContainEqual({ tenantId: 't1' });
+    expect(args.where[Op.and]).toContainEqual({ targetTable: 'customers' });
+    expect(args.where[Op.and]).toContainEqual({ targetRecordId: 'c1' });
+    // El resumen por estado se calcula con el MISMO where que la página, no sumando la página.
+    expect(((issueModel.findAll as jest.Mock).mock.calls[0][0] as { where: unknown }).where).toBe(args.where);
     expect(res.rows).toHaveLength(1);
-    expect(res.meta).toBeDefined();
+    expect(res.countsByStatus).toEqual([{ status: 'open', count: 1 }]);
+  });
+
+  it('findIssues con q busca «contiene» (escapado) en tabla, notas y código de regla', async () => {
+    const { repo, issueModel, ruleModel } = buildFull();
+    (ruleModel.findAll as jest.Mock).mockResolvedValueOnce([{ id: 'r7' }] as never);
+    (issueModel.findAndCountAll as jest.Mock).mockResolvedValueOnce({ rows: [], count: 0 } as never);
+    (issueModel.findAll as jest.Mock).mockResolvedValueOnce([] as never);
+    await repo.findIssues('t1', { q: 'dq_tel', limit: 20, page: 1 } as never);
+    expect((ruleModel.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { ruleCode: { [Op.iLike]: '%dq\\_tel%' } } });
+    const where = ((issueModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<symbol, unknown[]> }).where;
+    expect(where[Op.and]).toContainEqual({
+      [Op.or]: [
+        { targetTable: { [Op.iLike]: '%dq\\_tel%' } },
+        { resolutionNotes: { [Op.iLike]: '%dq\\_tel%' } },
+        { qualityRuleId: { [Op.in]: ['r7'] } },
+      ],
+    });
   });
 
   it('findIssues corta temprano (sin consultar issues) cuando la severity no matchea ninguna regla', async () => {

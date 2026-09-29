@@ -3,6 +3,8 @@
  * @business Esta pieza gobierna los catálogos que convierten datos externos y reglas de riesgo en decisiones consistentes.
  * @system implementa ingesta, versionado, aprobación, activación y consulta transaccional de catálogos.
  */
+import { applyDecorators } from '@nestjs/common';
+import { ApiQuery } from '@nestjs/swagger';
 import type { SchemaObject } from '../../common/openapi/zod-to-schema.util.js';
 
 const nullableString = { type: 'string', nullable: true } satisfies SchemaObject;
@@ -80,10 +82,25 @@ const contextItemSchema = {
   },
 } satisfies SchemaObject;
 
+const countSchema = { type: 'integer', minimum: 0 } satisfies SchemaObject;
+const paginationMetaSchema = {
+  type: 'object',
+  properties: { page: countSchema, limit: countSchema, total: countSchema, totalPages: countSchema },
+  required: ['page', 'limit', 'total', 'totalPages'],
+} satisfies SchemaObject;
+
 export const catalogListResponseSchema = {
   type: 'object',
-  properties: { items: { type: 'array', items: catalogSchema } },
-  required: ['items'],
+  properties: {
+    items: { type: 'array', items: catalogSchema },
+    meta: paginationMetaSchema,
+    summary: {
+      type: 'object',
+      description: 'Conteos del filtro entero (no de la página): total, activos, con la versión más reciente publicada y sin versión.',
+      properties: { total: countSchema, active: countSchema, published: countSchema, withoutVersion: countSchema },
+    },
+  },
+  required: ['items', 'meta', 'summary'],
 } satisfies SchemaObject;
 
 export const catalogVersionDetailResponseSchema = {
@@ -146,14 +163,21 @@ function definitionSchema(kind: 'observation' | 'event' | 'attribute' | 'feature
 
 export const definitionsResponseSchema = {
   type: 'object',
-  description: 'Definiciones semánticas disponibles para observación, reglas, features y decisiones.',
+  description:
+    'Una página de definiciones semánticas en el orden eventos → observaciones → atributos → features (por código). Las ' +
+    'cuatro listas traen sólo las filas de la página; `summary` cuenta cada tipo con el filtro entero.',
   properties: {
     observations: { type: 'array', items: definitionSchema('observation') },
     events: { type: 'array', items: definitionSchema('event') },
     attributes: { type: 'array', items: definitionSchema('attribute') },
     features: { type: 'array', items: definitionSchema('feature') },
+    meta: paginationMetaSchema,
+    summary: {
+      type: 'object',
+      properties: { total: countSchema, events: countSchema, observations: countSchema, attributes: countSchema, features: countSchema },
+    },
   },
-  required: ['observations', 'events', 'attributes', 'features'],
+  required: ['observations', 'events', 'attributes', 'features', 'meta', 'summary'],
 } satisfies SchemaObject;
 
 export const definitionsPackageResponseSchema = {
@@ -214,3 +238,17 @@ export const stagingDecisionResponseSchema = {
     itemsCreated: { type: 'integer', minimum: 0 },
   },
 } satisfies SchemaObject;
+
+/** `q`, `page` y `limit` de los dos listados paginados del módulo, con la descripción que exige Redocly. */
+export function ApiPagedListQuery(qDescription: string): MethodDecorator {
+  return applyDecorators(
+    ApiQuery({ name: 'q', required: false, schema: { type: 'string', maxLength: 200 }, description: qDescription }),
+    ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1, default: 1 }, description: 'Página, desde 1.' }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+      description: 'Elementos por página (1-100).',
+    }),
+  );
+}

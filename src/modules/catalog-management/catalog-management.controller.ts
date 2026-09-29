@@ -19,6 +19,7 @@ import { contextFrom } from './catalog-request-context.util.js';
 import { CatalogManagementService } from './catalog-management.service.js';
 import { CatalogStagingReadService } from './application/catalog-staging-read.service.js';
 import {
+  ApiPagedListQuery,
   catalogDecisionResponseSchema,
   catalogIngestionResponseSchema,
   catalogListResponseSchema,
@@ -66,11 +67,13 @@ export class CatalogManagementController {
 
   @ApiOperation({
     summary: 'Listar catálogos de contexto del motor de decisión',
-    description: 'Devuelve los catálogos que normalizan señales de negocio y su versión más reciente.',
+    description:
+      'Una página de los catálogos que normalizan señales de negocio, con su versión más reciente; `status` filtra por el estado de esa versión y `summary` cuenta el filtro entero.',
   })
   @ApiQuery({ name: 'domain', required: false, schema: zodObjectPropertySchemas(listCatalogsQuerySchema).domain })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(listCatalogsQuerySchema).status })
   @ApiQuery({ name: 'active', required: false, schema: zodObjectPropertySchemas(listCatalogsQuerySchema).active })
+  @ApiPagedListQuery('Contiene (sin mayúsculas) en código, nombre, dominio o equipo dueño del catálogo.')
   @ApiResponse({ status: 200, description: 'Lista de catálogos y su versión vigente o más reciente.', schema: catalogListResponseSchema })
   @Get('catalogs')
   listCatalogs(
@@ -244,6 +247,7 @@ export class CatalogManagementController {
   @ApiQuery({ name: 'type', required: false, schema: zodObjectPropertySchemas(definitionsQuerySchema).type })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(definitionsQuerySchema).status })
   @ApiQuery({ name: 'domain', required: false, schema: zodObjectPropertySchemas(definitionsQuerySchema).domain })
+  @ApiPagedListQuery('Contiene (sin mayúsculas) en el código o el nombre de la definición.')
   @ApiResponse({ status: 200, description: 'Definiciones agrupadas por tipo.', schema: definitionsResponseSchema })
   @Get('definitions')
   listDefinitions(

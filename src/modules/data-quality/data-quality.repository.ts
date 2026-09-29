@@ -5,11 +5,15 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindAndCountOptions, FindOptions, Op, Transaction, WhereOptions } from 'sequelize';
+import { col, fn, FindAndCountOptions, FindOptions, Op, Transaction, where as sqlWhere, WhereOptions } from 'sequelize';
+import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
 import { decodeCursor, encodeCursor } from '../../common/utils/pagination/cursor-pagination.util.js';
 import { DataChangeLogModel, DataQualityIssueModel, DataQualityRuleModel, OperationalAuditLogModel } from '../../database/models/index.js';
 import { DataQualityQueryDto } from './data-quality.schemas.js';
+
+type IssueFilters = { q?: string; status?: string; severity?: string; entityType?: string; customerId?: string };
+export type StatusCount = { status: string; count: number };
 
 @Injectable()
 export class DataQualityRepository {
@@ -28,11 +32,56 @@ export class DataQualityRepository {
    * una sub-consulta: primero los ids de reglas con esa severidad, luego filtramos issues por
    * `qualityRuleId IN (...)`. Si no hay ninguna regla con esa severidad, el resultado es vacío
    * sin tocar `issueModel` (antes: el parámetro `severity` de la query se ignoraba en silencio).
+   *
+   * La comparación es en MAYÚSCULAS a los dos lados: el portal ofrece `LOW…CRITICAL` y la siembra
+   * guarda `critical`; comparando exacto el filtro devolvía 0 filas con datos que sí existían.
    */
   private async severityRuleIds(severity: string | undefined): Promise<string[] | null> {
     if (!severity) return null;
-    const rules = await this.ruleModel.findAll({ where: { severity }, attributes: ['id'] } as FindOptions);
+    const rules = await this.ruleModel.findAll({
+      where: sqlWhere(fn('UPPER', col('severity')), severity.trim().toUpperCase()),
+      attributes: ['id'],
+    } as FindOptions);
     return rules.map((rule) => String(rule.id));
+  }
+
+  /** Reglas cuyo código contiene el texto buscado: el issue no guarda el código, sólo `quality_rule_id`. */
+  private async ruleIdsByCode(pattern: string): Promise<string[]> {
+    const rules = await this.ruleModel.findAll({ where: { ruleCode: { [Op.iLike]: pattern } }, attributes: ['id'] } as FindOptions);
+    return rules.map((rule) => String(rule.id));
+  }
+
+  /**
+   * El `WHERE` común a la lista, su `summary` y la variante por cursor. Devuelve `null` cuando el
+   * filtro de severidad no casa con ninguna regla (el resultado es vacío sin consultar issues).
+   *
+   * - `status` no distingue mayúsculas y trata la fila sin estado como `open`, igual que la bandeja.
+   * - `q` busca «contiene» (con `%` y `_` escapados) en la tabla del registro, en las notas de la
+   *   resolución y en el código de la regla. Antes el buscador del portal mandaba `entityType`, que
+   *   es igualdad exacta con la tabla: escribir «customer» no encontraba `customer.customers`.
+   */
+  private async issueConditions(tenantId: string, query: IssueFilters): Promise<WhereOptions[] | null> {
+    const ruleIds = await this.severityRuleIds(query.severity);
+    if (ruleIds && ruleIds.length === 0) return null;
+    const conditions: WhereOptions[] = [{ tenantId }];
+    if (query.status)
+      conditions.push(sqlWhere(fn('LOWER', fn('COALESCE', col('issue_status'), 'open')), query.status.trim().toLowerCase()));
+    if (query.entityType) conditions.push({ targetTable: query.entityType });
+    if (query.customerId) conditions.push({ targetRecordId: query.customerId });
+    if (ruleIds) conditions.push({ qualityRuleId: { [Op.in]: ruleIds } });
+    const q = query.q?.trim();
+    if (q) {
+      const pattern = containsLikePattern(q);
+      const byCode = await this.ruleIdsByCode(pattern);
+      conditions.push({
+        [Op.or]: [
+          { targetTable: { [Op.iLike]: pattern } },
+          { resolutionNotes: { [Op.iLike]: pattern } },
+          ...(byCode.length > 0 ? [{ qualityRuleId: { [Op.in]: byCode } }] : []),
+        ],
+      });
+    }
+    return conditions;
   }
 
   findRulesByIds(ruleIds: string[]): Promise<DataQualityRuleModel[]> {
@@ -41,27 +90,38 @@ export class DataQualityRepository {
   }
 
   async findIssues(tenantId: string, query: DataQualityQueryDto) {
-    const ruleIds = await this.severityRuleIds(query.severity);
-    if (ruleIds && ruleIds.length === 0) {
-      return { rows: [], meta: buildPaginationMeta(query, 0) };
+    const conditions = await this.issueConditions(tenantId, query);
+    if (!conditions) {
+      return { rows: [], meta: buildPaginationMeta(query, 0), countsByStatus: [] as StatusCount[] };
     }
-    const where: WhereOptions = {
-      tenantId,
-      ...(query.status ? { issueStatus: query.status } : {}),
-      ...(query.entityType ? { targetTable: query.entityType } : {}),
-      ...(query.customerId ? { targetRecordId: query.customerId } : {}),
-      ...(ruleIds ? { qualityRuleId: { [Op.in]: ruleIds } } : {}),
+    const where: WhereOptions = { [Op.and]: conditions };
+    const statusExpression = fn('LOWER', fn('COALESCE', col('issue_status'), 'open'));
+    const [result, countsByStatus] = await Promise.all([
+      this.issueModel.findAndCountAll({
+        where,
+        order: [
+          ['detectedAt', 'DESC'],
+          ['id', 'DESC'],
+        ],
+        limit: query.limit,
+        offset: toOffset(query),
+      } as FindAndCountOptions),
+      // Con el MISMO `WHERE`: las tarjetas «Abiertos/Cerrados» sumaban sólo las 20 filas de la página.
+      this.issueModel.findAll({
+        where,
+        attributes: [
+          [statusExpression, 'status'],
+          [fn('COUNT', col('_id')), 'count'],
+        ],
+        group: [statusExpression],
+        raw: true,
+      } as FindOptions) as unknown as Promise<Array<{ status: string; count: string | number }>>,
+    ]);
+    return {
+      rows: result.rows,
+      meta: buildPaginationMeta(query, result.count),
+      countsByStatus: countsByStatus.map((row) => ({ status: String(row.status), count: Number(row.count) })),
     };
-    const result = await this.issueModel.findAndCountAll({
-      where,
-      order: [
-        ['detectedAt', 'DESC'],
-        ['id', 'DESC'],
-      ],
-      limit: query.limit,
-      offset: toOffset(query),
-    } as FindAndCountOptions);
-    return { rows: result.rows, meta: buildPaginationMeta(query, result.count) };
   }
 
   /**
@@ -73,19 +133,12 @@ export class DataQualityRepository {
    */
   async findIssuesWithCursor(
     tenantId: string,
-    query: { status?: string; severity?: string; entityType?: string; customerId?: string; limit: number; cursor?: string },
+    query: IssueFilters & { limit: number; cursor?: string },
   ): Promise<{ items: DataQualityIssueModel[]; nextCursor: string | null }> {
-    const ruleIds = await this.severityRuleIds(query.severity);
-    if (ruleIds && ruleIds.length === 0) {
+    const conditions = await this.issueConditions(tenantId, query);
+    if (!conditions) {
       return { items: [], nextCursor: null };
     }
-    const where: Record<string, unknown> = {
-      tenantId,
-      ...(query.status ? { issueStatus: query.status } : {}),
-      ...(query.entityType ? { targetTable: query.entityType } : {}),
-      ...(query.customerId ? { targetRecordId: query.customerId } : {}),
-      ...(ruleIds ? { qualityRuleId: { [Op.in]: ruleIds } } : {}),
-    };
 
     const cursorKey = decodeCursor(query.cursor);
     if (cursorKey) {
@@ -93,18 +146,16 @@ export class DataQualityRepository {
       // detected_at puede repetirse entre filas (varias incidencias detectadas en el mismo
       // instante por el mismo job de calidad de datos), por eso el desempate por `id` es
       // obligatorio para que el cursor sea determinístico y no salte/repita filas.
-      where[Op.and as unknown as string] = [
-        {
-          [Op.or]: [
-            { detectedAt: { [Op.lt]: new Date(cursorKey.createdAt) } },
-            { [Op.and]: [{ detectedAt: new Date(cursorKey.createdAt) }, { id: { [Op.lt]: cursorKey.id } }] },
-          ],
-        },
-      ];
+      conditions.push({
+        [Op.or]: [
+          { detectedAt: { [Op.lt]: new Date(cursorKey.createdAt) } },
+          { [Op.and]: [{ detectedAt: new Date(cursorKey.createdAt) }, { id: { [Op.lt]: cursorKey.id } }] },
+        ],
+      });
     }
 
     const rowsPlusOne = await this.issueModel.findAll({
-      where: where as never,
+      where: { [Op.and]: conditions },
       order: [
         ['detectedAt', 'DESC'],
         ['id', 'DESC'],
@@ -126,7 +177,7 @@ export class DataQualityRepository {
 
   async resolveIssue(
     issue: DataQualityIssueModel,
-    values: { status: string; notes: string; resolvedAt: Date },
+    values: { status: string; notes: string; resolvedAt: Date | null },
     options: { transaction?: Transaction },
   ): Promise<DataQualityIssueModel> {
     issue.issueStatus = values.status;
@@ -167,7 +218,15 @@ export class DataQualityRepository {
   }
 
   createDataChange(
-    values: { tenantId: string; issueId: string; actorType: string; actorInternalUserId: string | null; reason: string; happenedAt: Date },
+    values: {
+      tenantId: string;
+      issueId: string;
+      actorType: string;
+      actorInternalUserId: string | null;
+      reason: string;
+      happenedAt: Date;
+      changeType?: string;
+    },
     options: { transaction?: Transaction },
   ): Promise<DataChangeLogModel> {
     return this.dataChangeLogModel.create(
@@ -175,7 +234,7 @@ export class DataQualityRepository {
         tenantId: values.tenantId,
         tableName: 'data_quality_issues',
         recordId: values.issueId,
-        changeType: 'resolve',
+        changeType: values.changeType ?? 'resolve',
         changedByType: values.actorType,
         changedByInternalUserId: values.actorInternalUserId,
         changedByPlatformUserId: null,

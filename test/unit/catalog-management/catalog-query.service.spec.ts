@@ -43,51 +43,44 @@ describe('CatalogQueryService', () => {
       );
     });
 
-    it('status: "all" includes catalogs regardless of their current version status', async () => {
+    it('attaches the latest version to each row of the page and returns meta and summary from the repository', async () => {
       const { service, repository } = await buildService();
-      (repository.listCatalogs as jest.Mock).mockResolvedValueOnce([{ id: 'c1' }, { id: 'c2' }] as never);
-      (repository.findLatestVersionsByCatalogIds as jest.Mock).mockResolvedValueOnce(
-        new Map([
-          ['c1', { status: 'draft' }],
-          ['c2', { status: 'published' }],
-        ]) as never,
-      );
+      const summary = { total: 25, active: 20, published: 12, withoutVersion: 3 };
+      (repository.listCatalogs as jest.Mock).mockResolvedValueOnce({ rows: [{ id: 'c1' }, { id: 'c2' }], total: 25, summary } as never);
+      (repository.findLatestVersionsByCatalogIds as jest.Mock).mockResolvedValueOnce(new Map([['c1', { status: 'draft' }]]) as never);
 
-      const result = await service.listCatalogs({ query: { status: 'all' } as never, currentUser: internalUser });
+      const result = await service.listCatalogs({ query: { status: 'all', page: 2, limit: 20 } as never, currentUser: internalUser });
 
-      expect(result.items).toHaveLength(2);
+      expect(result.items).toEqual([
+        { catalog: { id: 'c1' }, version: { status: 'draft' }, mapped: 'catalog' },
+        { catalog: { id: 'c2' }, version: null, mapped: 'catalog' },
+      ]);
+      expect(result.meta).toEqual({ page: 2, limit: 20, total: 25, totalPages: 2 });
+      expect(result.summary).toBe(summary);
     });
 
-    it('a specific status filter excludes catalogs whose current version does not match', async () => {
+    it('does not re-filter by status in memory: the repository already resolved it in SQL (so the page and total agree)', async () => {
       const { service, repository } = await buildService();
-      (repository.listCatalogs as jest.Mock).mockResolvedValueOnce([{ id: 'c1' }, { id: 'c2' }] as never);
-      (repository.findLatestVersionsByCatalogIds as jest.Mock).mockResolvedValueOnce(
-        new Map([
-          ['c1', { status: 'published' }],
-          ['c2', { status: 'draft' }],
-        ]) as never,
-      );
+      (repository.listCatalogs as jest.Mock).mockResolvedValueOnce({ rows: [{ id: 'c1' }], total: 1, summary: {} } as never);
+      (repository.findLatestVersionsByCatalogIds as jest.Mock).mockResolvedValueOnce(new Map([['c1', { status: 'published' }]]) as never);
 
-      const result = await service.listCatalogs({ query: { status: 'published' } as never, currentUser: internalUser });
+      const query = { status: 'published', page: 1, limit: 20 } as never;
+      const result = await service.listCatalogs({ query, currentUser: internalUser });
 
+      expect(repository.listCatalogs).toHaveBeenCalledWith(query);
       expect(result.items).toHaveLength(1);
-    });
-
-    it('a catalog with no version at all is excluded by any specific status filter (undefined !== filter)', async () => {
-      const { service, repository } = await buildService();
-      (repository.listCatalogs as jest.Mock).mockResolvedValueOnce([{ id: 'c1' }] as never);
-      (repository.findLatestVersionsByCatalogIds as jest.Mock).mockResolvedValueOnce(new Map() as never);
-
-      const result = await service.listCatalogs({ query: { status: 'published' } as never, currentUser: internalUser });
-
-      expect(result.items).toHaveLength(0);
+      expect(result.meta.total).toBe(1);
     });
 
     it('fetches the latest version of every listed catalog in a single batch call, not one findLatestVersion per catalog (N+1 regression)', async () => {
       const { service, repository } = await buildService();
-      (repository.listCatalogs as jest.Mock).mockResolvedValueOnce([{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }] as never);
+      (repository.listCatalogs as jest.Mock).mockResolvedValueOnce({
+        rows: [{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }],
+        total: 3,
+        summary: {},
+      } as never);
 
-      await service.listCatalogs({ query: { status: 'all' } as never, currentUser: internalUser });
+      await service.listCatalogs({ query: { status: 'all', page: 1, limit: 20 } as never, currentUser: internalUser });
 
       expect(repository.findLatestVersionsByCatalogIds).toHaveBeenCalledTimes(1);
       expect(repository.findLatestVersionsByCatalogIds).toHaveBeenCalledWith(['c1', 'c2', 'c3']);

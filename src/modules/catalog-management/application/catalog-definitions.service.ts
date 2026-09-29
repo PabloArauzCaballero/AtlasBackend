@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
+import { buildPaginationMeta } from '../../../common/utils/pagination/pagination.util.js';
 import { definitionDtos } from '../catalog-management.mapper.js';
 import { CatalogManagementRepository } from '../catalog-management.repository.js';
 import { DefinitionsPackageDto, DefinitionsQueryDto } from '../catalog-management.schemas.js';
@@ -25,9 +26,20 @@ export class CatalogDefinitionsService {
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
+  /**
+   * Las cuatro listas por tipo se conservan (compatibilidad) pero traen sólo las filas de la página;
+   * `meta` pagina el conjunto y `summary` cuenta cada tipo con el filtro entero, que es lo que pintan
+   * las tarjetas (antes contaban `length` de listas sin límite).
+   */
   async listDefinitions(input: { query: DefinitionsQueryDto; currentUser: AuthenticatedUser }) {
     assertInternal(input.currentUser);
-    return definitionDtos(await this.repository.listDefinitions(input.query));
+    const page = await this.repository.listDefinitions(input.query);
+    const total = page.counts.events + page.counts.observations + page.counts.attributes + page.counts.features;
+    return {
+      ...definitionDtos(page),
+      meta: buildPaginationMeta({ page: input.query.page, limit: input.query.limit }, total),
+      summary: { total, ...page.counts },
+    };
   }
 
   async upsertDefinitionsPackage(input: { body: DefinitionsPackageDto; currentUser: AuthenticatedUser; context: RequestContext }) {
