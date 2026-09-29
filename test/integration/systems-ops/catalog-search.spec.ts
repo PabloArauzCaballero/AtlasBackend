@@ -311,3 +311,96 @@ describe('auditoría: `q` y el corte del informe de tráfico', () => {
     expect(Number(rows[0]!.routes_total)).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe('informe de tráfico: buscar, filtrar y paginar rutas sin tocar los totales de la ventana', () => {
+  const created: string[] = [];
+  const RUTAS: Array<[string, string, number]> = [
+    ['GET', `/v1/tf_${tok}/lista`, 3],
+    ['POST', `/v1/tf_${tok}/lista`, 2],
+    ['GET', `/v1/tfX${tok}/otra`, 1],
+    ['DELETE', `/v1/tf_${tok}/borrar`, 1],
+  ];
+
+  beforeAll(async () => {
+    if (!db) return;
+    for (const [method, route, veces] of RUTAS) {
+      for (let i = 0; i < veces; i += 1) {
+        created.push(
+          await insert('system_action_logs', {
+            method,
+            route_template: route,
+            resolved_url_sanitized: route,
+            duration_ms: 10 + i,
+            response_status_code: 200,
+            occurred_at: new Date(),
+          }),
+        );
+      }
+    }
+  });
+
+  afterAll(async () => {
+    if (!db || !created.length) return;
+    await db.sequelize.query(`DELETE FROM ${T('system_action_logs')} WHERE _id IN (:ids)`, { replacements: { ids: created } });
+  });
+
+  const desde = () => new Date(Date.now() - 3_600_000);
+  const rutasDe = (rows: Array<{ method: string; route_template: string | null; route_present?: boolean }>) =>
+    rows.filter((row) => row.route_present !== false).map((row) => `${row.method} ${row.route_template}`);
+
+  it('el buscador encuentra por ruta y trata `_` como texto: «tf_» no casa con «tfX»', async () => {
+    if (!db) return;
+    const repo = new SystemsActionLogRepository(SystemActionLogModel, db.sequelize);
+    const rows = await repo.getTrafficLatencyByRoute(desde(), null, { q: `tf_${tok}`, limit: 50 });
+    // Sin escapar el guion bajo, `tfX…` también saldría. Ordenadas por peticiones y, a igualdad, por ruta.
+    expect(rutasDe(rows)).toEqual([`GET /v1/tf_${tok}/lista`, `POST /v1/tf_${tok}/lista`, `DELETE /v1/tf_${tok}/borrar`]);
+    expect(Number(rows[0]!.routes_matching)).toBe(3);
+  });
+
+  it('el método acota la tabla', async () => {
+    if (!db) return;
+    const repo = new SystemsActionLogRepository(SystemActionLogModel, db.sequelize);
+    const soloPost = await repo.getTrafficLatencyByRoute(desde(), null, { q: `tf_${tok}`, method: 'POST', limit: 50 });
+    expect(rutasDe(soloPost)).toEqual([`POST /v1/tf_${tok}/lista`]);
+    const busquedaPorMetodo = await repo.getTrafficLatencyByRoute(desde(), null, { q: `delete`, limit: 50 });
+    expect(rutasDe(busquedaPorMetodo).every((ruta) => ruta.startsWith('DELETE '))).toBe(true);
+  });
+
+  it('la página corta las coincidencias y `routes_matching` sigue contando todas', async () => {
+    if (!db) return;
+    const repo = new SystemsActionLogRepository(SystemActionLogModel, db.sequelize);
+    const p1 = await repo.getTrafficLatencyByRoute(desde(), null, { q: `tf_${tok}`, limit: 2, offset: 0 });
+    const p2 = await repo.getTrafficLatencyByRoute(desde(), null, { q: `tf_${tok}`, limit: 2, offset: 2 });
+    expect(rutasDe(p1)).toEqual([`GET /v1/tf_${tok}/lista`, `POST /v1/tf_${tok}/lista`]);
+    expect(rutasDe(p2)).toEqual([`DELETE /v1/tf_${tok}/borrar`]);
+    expect(Number(p1[0]!.routes_matching)).toBe(3);
+    expect(Number(p2[0]!.routes_matching)).toBe(3);
+  });
+
+  it('buscar no cambia los totales de la ventana, ni siquiera cuando no encuentra nada', async () => {
+    if (!db) return;
+    const repo = new SystemsActionLogRepository(SystemActionLogModel, db.sequelize);
+    const todo = await repo.getTrafficLatencyByRoute(desde(), null);
+    const acotado = await repo.getTrafficLatencyByRoute(desde(), null, { q: `tf_${tok}`, limit: 1 });
+    const nada = await repo.getTrafficLatencyByRoute(desde(), null, { q: `nada_${tok}`, limit: 20 });
+    for (const rows of [acotado, nada]) {
+      expect(rows[0]!.overall_total_requests).toBe(todo[0]!.overall_total_requests);
+      expect(rows[0]!.overall_error_count).toBe(todo[0]!.overall_error_count);
+      expect(rows[0]!.routes_total).toBe(todo[0]!.routes_total);
+    }
+    // Sin coincidencias queda UNA fila con los totales y sin ruta, no una lista vacía que borre el resumen.
+    expect(nada).toHaveLength(1);
+    expect(nada[0]!.route_present).toBe(false);
+    expect(Number(nada[0]!.routes_matching)).toBe(0);
+  });
+
+  it('sin buscador ni límite se comporta como antes: las rutas con más peticiones, hasta 50', async () => {
+    if (!db) return;
+    const repo = new SystemsActionLogRepository(SystemActionLogModel, db.sequelize);
+    const rows = await repo.getTrafficLatencyByRoute(desde(), null);
+    expect(rows.length).toBeLessThanOrEqual(50);
+    const pesos = rows.map((row) => Number(row.total_requests));
+    expect([...pesos].sort((a, b) => b - a)).toEqual(pesos);
+    expect(Number(rows[0]!.routes_matching)).toBe(Number(rows[0]!.routes_total));
+  });
+});

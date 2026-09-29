@@ -9,7 +9,10 @@ import { mapActionLog } from './systems-ops.mapper.js';
 import { SystemsActionLogQueryDto } from './systems-ops.schemas.js';
 import { SystemsActionLogRepository } from './systems-action-log.repository.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { buildPaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 import { systemsTenantScope } from './systems-tenant-scope.util.js';
+
+type TrafficReportOptions = { q?: string; method?: string; page?: number; limit?: number };
 
 @Injectable()
 export class SystemsActionLogQueryService {
@@ -48,9 +51,22 @@ export class SystemsActionLogQueryService {
     return { items: rows.map(mapActionLog) };
   }
 
-  async getTrafficLatencyReport(windowHours: number, user: AuthenticatedUser) {
+  /**
+   * Tráfico por ruta. `summary` es de TODA la ventana; `q`, `method` y la página sólo acotan `routes`.
+   * Sin `limit` se enseñan las rutas con más peticiones y `routesTruncated` avisa del corte; con `limit`
+   * se pagina y `meta.total` cuenta las rutas que cumplen el buscador.
+   */
+  async getTrafficLatencyReport(windowHours: number, user: AuthenticatedUser, options: TrafficReportOptions = {}) {
     const fromDate = new Date(Date.now() - windowHours * 60 * 60 * 1000);
-    const rows = await this.actionLogRepository.getTrafficLatencyByRoute(fromDate, systemsTenantScope(user));
+    const page = options.page ?? 1;
+    const filas = await this.actionLogRepository.getTrafficLatencyByRoute(fromDate, systemsTenantScope(user), {
+      q: options.q,
+      method: options.method,
+      limit: options.limit,
+      offset: options.limit ? (page - 1) * options.limit : 0,
+    });
+    // La fila sin ruta sólo trae los totales de la ventana (el buscador no encontró nada).
+    const rows = filas.filter((row) => row.route_present !== false);
     const routes = rows.map((row) => {
       const totalRequests = Number(row.total_requests);
       const errorCount = Number(row.error_count);
@@ -64,7 +80,7 @@ export class SystemsActionLogQueryService {
         lastSeenAt: row.last_seen_at,
       };
     });
-    const overall = rows[0];
+    const overall = filas[0];
     const totalRequests = Number(overall?.overall_total_requests ?? 0);
     const totalErrors = Number(overall?.overall_error_count ?? 0);
     return {
@@ -79,7 +95,8 @@ export class SystemsActionLogQueryService {
       routes,
       // El informe enseña las rutas con más peticiones, no todas. Sin esto la tabla parecía el total.
       routesTotal: Number(overall?.routes_total ?? 0),
-      routesTruncated: Number(overall?.routes_total ?? 0) > routes.length,
+      routesTruncated: options.limit === undefined && Number(overall?.routes_matching ?? overall?.routes_total ?? 0) > routes.length,
+      meta: options.limit ? buildPaginationMeta({ page, limit: options.limit }, Number(overall?.routes_matching ?? 0)) : undefined,
     };
   }
 

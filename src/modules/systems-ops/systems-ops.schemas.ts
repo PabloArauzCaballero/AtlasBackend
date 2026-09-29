@@ -179,15 +179,6 @@ export const systemsActionLogQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
-export const trafficLatencyQuerySchema = z.object({
-  windowHours: z.coerce
-    .number()
-    .int()
-    .positive()
-    .max(24 * 30)
-    .default(24),
-});
-
 export const trafficLatencyTimeseriesQuerySchema = z.object({
   windowHours: z.coerce
     .number()
@@ -308,7 +299,6 @@ export type QueueStressRunDto = z.infer<typeof queueStressRunSchema>;
 export type SystemsListQueryDto = z.infer<typeof systemsListQuerySchema>;
 export type SystemsColumnParamsDto = z.infer<typeof systemsColumnParamsSchema>;
 export type SystemsActionLogQueryDto = z.infer<typeof systemsActionLogQuerySchema>;
-export type TrafficLatencyQueryDto = z.infer<typeof trafficLatencyQuerySchema>;
 export type TrafficLatencyTimeseriesQueryDto = z.infer<typeof trafficLatencyTimeseriesQuerySchema>;
 export type RunTestSuiteDto = z.infer<typeof runTestSuiteSchema>;
 export type DiscoverEndpointsDto = z.infer<typeof discoverEndpointsSchema>;

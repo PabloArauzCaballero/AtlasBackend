@@ -11,6 +11,7 @@ import { SIN_CLIENTE } from './system-flows.screens.repository.js';
 import { matchScreenRuns, screenVerificationFrom } from './system-flows.verification.util.js';
 import { CLIENT_EVIDENCE, CLIENTES_CON_DERIVA, type PantallasObservadas } from './system-flows.evidence.js';
 import { RBAC_DRIFT_LIMIT } from './system-flows.sql.constants.js';
+import { containsText, slicePage, type RbacDriftQueryDto } from './system-flows.list-query.js';
 
 @Injectable()
 export class SystemFlowsScreensService {
@@ -107,11 +108,11 @@ export class SystemFlowsScreensService {
    * Los tres desenlaces se separan porque piden acciones distintas de personas distintas, y sólo el
    * primero es una avería. Ver `RBAC_DRIFT_SQL`.
    */
-  async rbacDrift() {
+  async rbacDrift(query: Partial<RbacDriftQueryDto> = {}) {
     const filas = await this.repository.rbacDrift();
     const porPantalla = new Map<
       string,
-      { clientCode: string; route: string; navPermissions: string[]; navRoles: string[]; calls: unknown[] }
+      { clientCode: string; route: string; navPermissions: string[]; navRoles: string[]; calls: DriftCall[] }
     >();
     for (const fila of filas) {
       const clave = `${fila.client_code} ${fila.route}`;
@@ -131,6 +132,35 @@ export class SystemFlowsScreensService {
       });
       porPantalla.set(clave, entrada);
     }
+    const screens = [...porPantalla.values()].filter((pantalla) => pantalla.calls.length);
+    // Una fila por llamada: es lo que la tabla del portal enseña y lo que se busca, filtra y pagina.
+    const llamadas = screens.flatMap((pantalla) =>
+      pantalla.calls.map((call) => ({
+        clientCode: pantalla.clientCode,
+        route: pantalla.route,
+        navPermissions: pantalla.navPermissions,
+        navRoles: pantalla.navRoles,
+        ...call,
+      })),
+    );
+    const filtradas = llamadas.filter(
+      (llamada) =>
+        (!query.severity || llamada.severity === query.severity) &&
+        (!query.clientCode || llamada.clientCode === query.clientCode) &&
+        containsText(query.q, llamada.clientCode, llamada.route, llamada.method, llamada.path, llamada.flowId),
+    );
+    const { items, meta } = slicePage(filtradas, query.page ?? 1, query.limit);
+    // Las cifras son del conjunto SIN filtrar: filtrar la tabla no debe cambiar cuántas hay en total.
+    const summary = {
+      screensWithDrift: screens.length,
+      calls: llamadas.length,
+      bySeverity: {
+        SIN_GUARDA: llamadas.filter((llamada) => llamada.severity === 'SIN_GUARDA').length,
+        PUBLIC: llamadas.filter((llamada) => llamada.severity === 'PUBLIC').length,
+        SOLO_ROL: llamadas.filter((llamada) => llamada.severity === 'SOLO_ROL').length,
+      },
+      clients: [...new Set(llamadas.map((llamada) => llamada.clientCode))].sort(),
+    };
     const [consideradas, conPuertaDeMenu] = await Promise.all([
       this.repository.screensWithObservedRoutes(CLIENTES_CON_DERIVA),
       this.repository.clientsWithMenuGates(),
@@ -144,10 +174,15 @@ export class SystemFlowsScreensService {
       screensWithObservedEdges: consideradas,
       // Si la consulta de deriva llegó a su tope, esto opina sobre datos incompletos y hay que decirlo.
       truncated: filas.length >= RBAC_DRIFT_LIMIT,
-      screens: [...porPantalla.values()].filter((pantalla) => pantalla.calls.length),
+      screens,
+      items,
+      meta,
+      summary,
     };
   }
 }
+
+type DriftCall = { flowId: string; method: string; path: string; severity: 'PUBLIC' | 'SOLO_ROL' | 'SIN_GUARDA'; roles: string[] };
 
 /**
  * Qué clase de desajuste es. Sólo `SIN_GUARDA` es una avería; los otros dos son otra conversación.

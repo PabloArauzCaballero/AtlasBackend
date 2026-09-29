@@ -10580,6 +10580,10 @@
     ],
     "headers": [],
     "query": [
+      "limit",
+      "page",
+      "q",
+      "state",
       "windowDays"
     ],
     "path": [],
@@ -10599,7 +10603,13 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "clientCode",
+      "limit",
+      "page",
+      "q",
+      "severity"
+    ],
     "path": [],
     "security": [
       "access-token"
@@ -11243,6 +11253,10 @@
     ],
     "headers": [],
     "query": [
+      "limit",
+      "method",
+      "page",
+      "q",
       "windowHours"
     ],
     "path": [],

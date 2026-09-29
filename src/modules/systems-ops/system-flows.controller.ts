@@ -17,6 +17,8 @@ import { InternalPermissions } from '../internal-users/internal-permissions.deco
 import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
 import { SYSTEMS_OPS_FINE_PERMISSION_ROLES, SYSTEMS_OPS_GOVERNANCE_ROLES } from './systems-ops.constants.js';
 import { SystemFlowsService } from './system-flows.service.js';
+import { ApiPendingWorkQuery, ApiRbacDriftQuery } from './system-flows.list-query.docs.js';
+import { PendingWorkQueryDto, pendingWorkQuerySchema, RbacDriftQueryDto, rbacDriftQuerySchema } from './system-flows.list-query.js';
 import {
   FindingsListQueryDto,
   findingsListQuerySchema,
@@ -120,12 +122,13 @@ export class SystemFlowsController {
     required: false,
     description: 'Días hacia atrás que se miran (1 a 365; 30 si no se indica o no es válido).',
   })
+  @ApiPendingWorkQuery()
   @InternalPermissions('systems.flows.read')
   @Get('flows/pending-work')
-  pendingWork(@Query('windowDays') windowDays?: string) {
-    const dias = Number(windowDays ?? 30);
+  pendingWork(@Query(new ZodValidationPipe(pendingWorkQuerySchema)) query: PendingWorkQueryDto) {
+    const dias = Number(query.windowDays ?? 30);
     // `Math.trunc(0.5)` daba 0 y la respuesta salía vacía, que se lee como «no se encola nada».
-    return this.service.pendingWork(Number.isFinite(dias) && dias >= 1 && dias <= 365 ? Math.trunc(dias) : 30);
+    return this.service.pendingWork(Number.isFinite(dias) && dias >= 1 && dias <= 365 ? Math.trunc(dias) : 30, query);
   }
 
   @ApiOperation({ summary: 'Pantallas cuya puerta declarada no es la que aplica la API' })
@@ -135,10 +138,11 @@ export class SystemFlowsController {
       'Pantallas con aristas observadas cuyo endpoint no exige el permiso que el menú declara, ' +
       'clasificadas en SIN_GUARDA (avería), PUBLIC (decisión declarada) y SOLO_ROL (otra puerta).',
   })
+  @ApiRbacDriftQuery()
   @InternalPermissions('systems.flows.read')
   @Get('flows/rbac-drift')
-  rbacDrift() {
-    return this.service.rbacDrift();
+  rbacDrift(@Query(new ZodValidationPipe(rbacDriftQuerySchema)) query: RbacDriftQueryDto) {
+    return this.service.rbacDrift(query);
   }
 
   @ApiOperation({ summary: 'Módulos con flujos, por bloque' })

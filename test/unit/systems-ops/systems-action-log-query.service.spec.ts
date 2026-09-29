@@ -94,6 +94,67 @@ describe('SystemsActionLogQueryService', () => {
     expect(completo).toMatchObject({ routesTotal: 1, routesTruncated: false });
   });
 
+  describe('getTrafficLatencyReport · buscar, filtrar y paginar', () => {
+    const ruta = (over: Record<string, unknown> = {}) => ({
+      route_template: '/api/v1/auth/login',
+      method: 'POST',
+      total_requests: '10',
+      error_count: '0',
+      avg_latency_ms: '5',
+      p95_latency_ms: '9',
+      last_seen_at: null,
+      route_present: true,
+      overall_total_requests: '500',
+      overall_error_count: '5',
+      overall_avg_latency_ms: '7',
+      overall_p95_latency_ms: '30',
+      routes_total: '73',
+      routes_matching: '3',
+      ...over,
+    });
+
+    it('sin limit no pagina: pide las 50 de siempre y no inventa `meta`', async () => {
+      const { service, actionLogRepository } = build();
+      (actionLogRepository.getTrafficLatencyByRoute as jest.Mock).mockResolvedValueOnce([ruta({ routes_matching: '73' })] as never);
+      const res = await service.getTrafficLatencyReport(24, user);
+      expect(actionLogRepository.getTrafficLatencyByRoute).toHaveBeenCalledWith(expect.any(Date), 't1', {
+        q: undefined,
+        method: undefined,
+        limit: undefined,
+        offset: 0,
+      });
+      expect(res.meta).toBeUndefined();
+      expect(res.routesTruncated).toBe(true);
+    });
+
+    it('el buscador, el método y la página viajan al repositorio y `meta.total` cuenta las coincidencias', async () => {
+      const { service, actionLogRepository } = build();
+      (actionLogRepository.getTrafficLatencyByRoute as jest.Mock).mockResolvedValueOnce([ruta()] as never);
+      const res = await service.getTrafficLatencyReport(24, user, { q: 'auth', method: 'POST', page: 3, limit: 20 });
+      expect(actionLogRepository.getTrafficLatencyByRoute).toHaveBeenCalledWith(expect.any(Date), 't1', {
+        q: 'auth',
+        method: 'POST',
+        limit: 20,
+        offset: 40,
+      });
+      expect(res.meta).toEqual({ page: 3, limit: 20, total: 3, totalPages: 1 });
+      // Con página no hay «corte»: lo que falta está en la página siguiente.
+      expect(res.routesTruncated).toBe(false);
+    });
+
+    it('si el buscador no encuentra nada, `summary` sigue siendo el de la ventana y `routes` queda vacío', async () => {
+      const { service, actionLogRepository } = build();
+      (actionLogRepository.getTrafficLatencyByRoute as jest.Mock).mockResolvedValueOnce([
+        ruta({ route_present: false, route_template: null, method: null, total_requests: null, routes_matching: '0' }),
+      ] as never);
+      const res = await service.getTrafficLatencyReport(24, user, { q: 'zzz', limit: 20 });
+      expect(res.routes).toEqual([]);
+      expect(res.summary).toMatchObject({ totalRequests: 500, avgLatencyMs: 7, p95LatencyMs: 30 });
+      expect(res.routesTotal).toBe(73);
+      expect(res.meta).toEqual({ page: 1, limit: 20, total: 0, totalPages: 0 });
+    });
+  });
+
   it('getTrafficLatencyReport tolera latencias null y filas vacías (sin dividir por cero)', async () => {
     const { service, actionLogRepository } = build();
     (actionLogRepository.getTrafficLatencyByRoute as jest.Mock).mockResolvedValueOnce([

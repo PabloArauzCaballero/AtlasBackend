@@ -30225,14 +30225,44 @@ paths:
     get:
       operationId: SystemFlowsController_pendingWork
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Texto libre: método, ruta y códigos de evento de cada flujo (sin
+            distinguir mayúsculas; `%` y `_` son texto).
+          schema: {}
+        - name: state
+          required: false
+          in: query
+          description: >-
+            Sólo flujos con pendientes (`pending`), con fallidos (`failed`) o
+            que el consumidor saltó (`skipped`).
+          schema:
+            enum:
+              - pending
+              - failed
+              - skipped
+            type: string
+        - name: page
+          required: false
+          in: query
+          description: Página (1 por omisión). Sólo cuenta si se indica `limit`.
+          schema: {}
+        - name: limit
+          required: false
+          in: query
+          description: >-
+            Filas por página (1 a 100). Sin él, `flows` llega entero (hasta el
+            corte declarado en `truncated`) y sin `meta`.
+          schema: {}
         - name: windowDays
           required: false
           in: query
           description: >-
             Días hacia atrás que se miran (1 a 365; 30 si no se indica o no es
             válido).
-          schema:
-            type: string
+          schema: {}
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -30262,6 +30292,42 @@ paths:
     get:
       operationId: SystemFlowsController_rbacDrift
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Texto libre: cliente, pantalla, método, ruta y flujo de cada llamada
+            (sin distinguir mayúsculas; `%` y `_` son texto).
+          schema: {}
+        - name: severity
+          required: false
+          in: query
+          description: Sólo llamadas de esa clase de desajuste.
+          schema:
+            enum:
+              - SIN_GUARDA
+              - PUBLIC
+              - SOLO_ROL
+            type: string
+        - name: clientCode
+          required: false
+          in: query
+          description: >-
+            Sólo llamadas desde pantallas de ese cliente (`summary.clients`
+            lista los que hay).
+          schema: {}
+        - name: page
+          required: false
+          in: query
+          description: Página (1 por omisión). Sólo cuenta si se indica `limit`.
+          schema: {}
+        - name: limit
+          required: false
+          in: query
+          description: >-
+            Filas por página (1 a 100). Sin él, `items` trae todas las llamadas
+            que cumplen los filtros y no hay `meta`.
+          schema: {}
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -31694,6 +31760,39 @@ paths:
     get:
       operationId: SystemsActionLogController_getTrafficLatencyReport
       parameters:
+        - name: limit
+          required: false
+          in: query
+          description: >-
+            Filas por página (1 a 100). Sin él, `routes` trae las 50 rutas con
+            más peticiones y `routesTruncated` avisa del corte.
+          schema: {}
+        - name: page
+          required: false
+          in: query
+          description: Página de `routes` (1 por omisión).
+          schema: {}
+        - name: method
+          required: false
+          in: query
+          description: Sólo las rutas de ese método HTTP. No cambia `summary`.
+          schema:
+            enum:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - HEAD
+              - OPTIONS
+            type: string
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Texto libre: método y ruta de cada fila de `routes` (sin distinguir
+            mayúsculas; `%` y `_` son texto). No cambia `summary`.
+          schema: {}
         - name: windowHours
           required: false
           in: query
