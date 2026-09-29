@@ -5,8 +5,9 @@
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, WhereOptions } from 'sequelize';
+import { Op, WhereOptions, literal } from 'sequelize';
 import { KnowledgeArticleModel, KnowledgeArticleVersionModel } from '../../../database/models/index.js';
+import { containsLikePattern } from '../../../common/utils/strings/like-pattern.util.js';
 import type { ListKnowledgeArticlesQueryDto, ListKnowledgeVersionsQueryDto } from '../support-knowledge.schemas.js';
 
 const articleView = (a: KnowledgeArticleModel) => ({
@@ -59,14 +60,36 @@ export class SupportKnowledgeReadService {
     const where: WhereOptions = { tenantId, deleted: false };
     if (query.status) Object.assign(where, { status: query.status });
     if (query.audience) Object.assign(where, { audience: query.audience });
-    if (query.search) Object.assign(where, { articleKey: { [Op.iLike]: `%${query.search}%` } });
+    /*
+     * La clave o el TÍTULO de la versión vigente. Antes sólo la clave, y sin escapar comodines: quien
+     * buscaba «código» por lo que dice el artículo no lo encontraba si la clave era «otp-no-llega».
+     */
+    const replacements = query.search ? { tenantBusqueda: tenantId, patronBusqueda: containsLikePattern(query.search) } : undefined;
+    if (replacements) {
+      const titled = literal(
+        `(SELECT v._id FROM knowledge_article_versions v WHERE v._tenant_id = :tenantBusqueda AND v.title ILIKE :patronBusqueda)`,
+      );
+      const byKeyOrTitle = [{ articleKey: { [Op.iLike]: replacements.patronBusqueda } }, { currentVersionId: { [Op.in]: titled } }];
+      Object.assign(where, { [Op.or]: byKeyOrTitle });
+    }
     const { rows, count } = await this.articles.findAndCountAll({
       where,
+      replacements,
       order: [['_updated_at', 'DESC NULLS LAST']],
       limit: query.pageSize,
       offset: (query.page - 1) * query.pageSize,
     });
-    return { items: rows.map(articleView), total: count, page: query.page, pageSize: query.pageSize };
+    const titles = await this.currentTitles(tenantId, rows);
+    const items = rows.map((row) => ({ ...articleView(row), currentTitle: titles.get(String(row.currentVersionId)) ?? null }));
+    return { items, total: count, page: query.page, pageSize: query.pageSize };
+  }
+
+  /** El título de la versión vigente de cada artículo de la página, en una sola consulta. */
+  private async currentTitles(tenantId: string, rows: KnowledgeArticleModel[]): Promise<Map<string, string>> {
+    const ids = rows.map((row) => row.currentVersionId).filter((id): id is string => Boolean(id));
+    if (ids.length === 0) return new Map();
+    const versions = await this.versions.findAll({ where: { tenantId, id: { [Op.in]: ids } }, attributes: ['id', 'title'] });
+    return new Map(versions.map((version) => [String(version.id), version.title]));
   }
 
   async getArticle(tenantId: string, articleId: string) {

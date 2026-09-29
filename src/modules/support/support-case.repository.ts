@@ -12,6 +12,7 @@ import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { redactSensitiveObject } from '../../common/utils/privacy/redaction.util.js';
 import { caseEventHash, eventContentHashOf } from './domain/support-hash-chain.js';
 import type { SupportCaseEventType } from './support.constants.js';
+import { SupportCaseSearch, supportCaseSearchConditions } from './support-case-list.where.js';
 
 const CASES = `${atlasSchemaFor('support_cases')}.support_cases`;
 const RESOLUTIONS = `${atlasSchemaFor('support_resolutions')}.support_resolutions`;
@@ -42,6 +43,8 @@ export interface ListCasesFilter {
   openedByActorId?: string | null;
   resolutionCode?: string | null;
   rootCauseCode?: string | null;
+  q?: SupportCaseSearch['q'];
+  restrictedVisibleTo?: SupportCaseSearch['restrictedVisibleTo'];
   limit: number;
   cursorOpenedAt?: Date | null;
   cursorId?: string | null;
@@ -169,6 +172,43 @@ export class SupportCaseRepository {
    * agente estaba mirando.
    */
   listCases(filter: ListCasesFilter): Promise<SupportCaseModel[]> {
+    const where = this.listWhere(filter);
+    const cursor =
+      filter.cursorOpenedAt && filter.cursorId
+        ? {
+            [Op.or]: [
+              { openedAt: { [Op.lt]: filter.cursorOpenedAt } },
+              { openedAt: filter.cursorOpenedAt, id: { [Op.lt]: filter.cursorId } },
+            ],
+          }
+        : {};
+
+    return this.cases.findAll({
+      where: { [Op.and]: [where, cursor] },
+      order: [
+        ['opened_at', 'DESC'],
+        ['_id', 'DESC'],
+      ],
+      limit: filter.limit,
+    });
+  }
+
+  /**
+   * Los contadores de la bandeja sobre el filtro ENTERO, no sobre la página: la bandeja pagina por
+   * cursor y no conoce su total, así que las tarjetas «visibles» contaban sólo las 20 filas cargadas.
+   */
+  async summarizeCases(filter: Omit<ListCasesFilter, 'limit' | 'cursorOpenedAt' | 'cursorId'>) {
+    const where = this.listWhere(filter);
+    const count = (extra: WhereOptions) => this.cases.count({ where: { [Op.and]: [where, extra] } });
+    const [total, highPriority, unassigned] = await Promise.all([
+      count({}),
+      count({ priority: { [Op.in]: ['P1', 'P2'] } }),
+      count({ currentAssigneeAgentId: null }),
+    ]);
+    return { total, highPriority, unassigned };
+  }
+
+  private listWhere(filter: Omit<ListCasesFilter, 'limit'>): WhereOptions {
     const where: WhereOptions = { tenantId: filter.tenantId, deleted: false };
     const conditions: Record<string, unknown> = {};
 
@@ -185,24 +225,8 @@ export class SupportCaseRepository {
     const byResolution = this.resolutionCondition(filter);
     if (byResolution) conditions.id = byResolution;
 
-    const cursor =
-      filter.cursorOpenedAt && filter.cursorId
-        ? {
-            [Op.or]: [
-              { openedAt: { [Op.lt]: filter.cursorOpenedAt } },
-              { openedAt: filter.cursorOpenedAt, id: { [Op.lt]: filter.cursorId } },
-            ],
-          }
-        : {};
-
-    return this.cases.findAll({
-      where: { ...where, ...conditions, ...cursor },
-      order: [
-        ['opened_at', 'DESC'],
-        ['_id', 'DESC'],
-      ],
-      limit: filter.limit,
-    });
+    const search = supportCaseSearchConditions(filter.tenantId, filter, (value) => this.sequelize.escape(value));
+    return { [Op.and]: [{ ...where, ...conditions }, ...search] };
   }
 
   /**
@@ -216,7 +240,7 @@ export class SupportCaseRepository {
    * Los códigos llegan validados contra el catálogo cerrado en Zod; aun así se escapan, porque una
    * subconsulta construida por concatenación no debe depender de que el esquema de arriba no cambie.
    */
-  private resolutionCondition(filter: ListCasesFilter): WhereOptions | null {
+  private resolutionCondition(filter: Omit<ListCasesFilter, 'limit'>): WhereOptions | null {
     const clauses: string[] = [];
     if (filter.resolutionCode) clauses.push(`resolution_code = ${this.sequelize.escape(filter.resolutionCode)}`);
     if (filter.rootCauseCode) clauses.push(`root_cause_code = ${this.sequelize.escape(filter.rootCauseCode)}`);

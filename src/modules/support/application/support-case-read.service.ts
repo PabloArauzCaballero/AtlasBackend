@@ -10,6 +10,7 @@ import { SupportCatalogRepository } from '../support-catalog.repository.js';
 import { SupportCaseTimelineRepository } from '../support-case-timeline.repository.js';
 import { SupportChannelRepository } from '../support-channel.repository.js';
 import type { ListCasesQueryDto } from '../support-case.schemas.js';
+import type { ListInternalCasesQueryDto } from '../support-case-list.schemas.js';
 import { toAssignmentDto, toCaseEventDto, toCustomerCaseDto, toInternalCaseDto } from '../support.mapper.js';
 import type { SupportActor } from './support-actor.service.js';
 import { SupportActorService } from './support-actor.service.js';
@@ -143,10 +144,10 @@ export class SupportCaseReadService {
    * Se ordena por prioridad y antigüedad —no sólo por prioridad— para evitar inanición: sin la
    * antigüedad, un flujo constante de P3 nuevos dejaría los P3 viejos al final para siempre.
    */
-  async listWorkQueue(input: { tenantId: string; actor: SupportActor; query: ListCasesQueryDto }) {
+  async listWorkQueue(input: { tenantId: string; actor: SupportActor; query: ListInternalCasesQueryDto }) {
     const agentProfileId = this.actors.assertIsAgent(input.actor);
     const category = await this.categoryFilter(input.tenantId, input.query.categoryCode);
-    const rows = await this.cases.listCases({
+    const filter = {
       tenantId: input.tenantId,
       queueId: input.query.queueId ?? null,
       categoryId: category ? String(category.id) : null,
@@ -158,15 +159,24 @@ export class SupportCaseReadService {
         ? input.query.status.split(',')
         : ['NEW', 'TRIAGED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_CUSTOMER', 'WAITING_INTERNAL', 'WAITING_PARTNER', 'ESCALATED'],
       priorities: input.query.priority ? input.query.priority.split(',') : undefined,
-      limit: input.query.limit,
-      cursorOpenedAt: input.query.cursorOpenedAt ? new Date(input.query.cursorOpenedAt) : null,
-      cursorId: input.query.cursorId ?? null,
-    });
+      q: input.query.q ?? null,
+      restrictedVisibleTo: { agentProfileId, isSupervisor: input.actor.isSupervisor },
+    };
+    const [rows, summary] = await Promise.all([
+      this.cases.listCases({
+        ...filter,
+        limit: input.query.limit,
+        cursorOpenedAt: input.query.cursorOpenedAt ? new Date(input.query.cursorOpenedAt) : null,
+        cursorId: input.query.cursorId ?? null,
+      }),
+      this.cases.summarizeCases(filter),
+    ]);
 
+    // La consulta ya aplica la visibilidad; este filtro es la segunda llave por si cambia la consulta.
     const visible = rows.filter(
       (row) => row.sensitivity !== 'RESTRICTED' || input.actor.isSupervisor || String(row.currentAssigneeAgentId) === agentProfileId,
     );
-    return { cases: visible.map(toInternalCaseDto), nextCursor: this.nextCursor(rows, input.query.limit) };
+    return { cases: visible.map(toInternalCaseDto), nextCursor: this.nextCursor(rows, input.query.limit), summary };
   }
 
   /**
