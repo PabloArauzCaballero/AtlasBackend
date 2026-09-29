@@ -19,6 +19,7 @@ import { OnboardingBehaviorSummaryService } from '../../customer-telemetry/appli
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 import { OnboardingRiskTriggerService } from './onboarding-risk-trigger.service.js';
+import { OnboardingReviewDossierPublisher } from './onboarding-review-dossier.publisher.js';
 
 /** Estados desde los que el envío a revisión tiene sentido. El resto es un error de negocio. */
 const SUBMITTABLE_STATUSES = ['registered', 'onboarding_in_progress', 'observed'] as const;
@@ -49,6 +50,7 @@ export class CustomerOnboardingStatusService {
     private readonly expedienteHooks: ExpedienteHooksService,
     private readonly comportamiento: OnboardingBehaviorSummaryService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly expediente: OnboardingReviewDossierPublisher,
   ) {}
 
   async getStatus(input: { tenantId: string; customerId: string; currentUser: AuthenticatedUser }) {
@@ -210,6 +212,12 @@ export class CustomerOnboardingStatusService {
     await this.congelarExpediente(input.tenantId, input.customerId);
     // El resumen DEFINITIVO del comportamiento (las cuatro fases); el de identidad fue a mitad del alta. Nunca lanza.
     await this.comportamiento.calcular(input.tenantId, input.customerId, 'submit');
+    /*
+     * El caso de identidad del Motor recibe ahora lo que en el paso de identidad aún no existía:
+     * domicilio, economía, ubicación y permisos. Sobre la ejecución del último intento MÓVIL. Nunca
+     * lanza ni corta el envío: si el Motor no contesta, queda en el log (`onboarding_dossier_*`).
+     */
+    await this.expediente.publish({ tenantId: input.tenantId, customerId: input.customerId, momento: 'envio' });
     return resultado;
   }
 

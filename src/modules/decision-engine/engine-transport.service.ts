@@ -50,7 +50,7 @@ export class EngineTransportService {
   async call(url: string, apiKey: string, body: Record<string, unknown>, opciones: OpcionesDeLlamada = {}): Promise<EngineRawResult> {
     return this.executor.run(
       async () => {
-        const raw = await this.fetchOnce(url, apiKey, body, opciones.timeoutMs ?? env.DECISION_ENGINE_TIMEOUT_MS);
+        const raw = await this.fetchOnce(url, apiKey, body, { timeoutMs: opciones.timeoutMs ?? env.DECISION_ENGINE_TIMEOUT_MS });
         if (raw.status === BUSINESS_REJECTION_STATUS) return raw;
         if (!raw.ok) {
           throw toAdapterError({ provider: PROVIDER, httpStatus: raw.status, message: `HTTP ${raw.status}`, error: raw.json });
@@ -65,13 +65,35 @@ export class EngineTransportService {
     );
   }
 
-  private async fetchOnce(url: string, apiKey: string, body: Record<string, unknown>, timeoutMs: number): Promise<EngineRawResult> {
+  /**
+   * UNA llamada, sin reintento ni circuito, con el verbo que se pida. Devuelve la respuesta tal cual
+   * (también un 4xx) y sólo lanza si la red falla o vence el plazo.
+   *
+   * Existe para escrituras ACCESORIAS —el expediente del alta que se anexa a un caso—: pasar por
+   * `call()` las contaría en el circuito del Motor, y una tanda de 404 de un anexo podría abrirlo y
+   * dejar sin decisiones a la identidad y al crédito. Mismas cabeceras y misma llave que `call()`.
+   */
+  async send(
+    url: string,
+    apiKey: string,
+    body: Record<string, unknown>,
+    opciones: { method: 'POST' | 'PUT'; timeoutMs: number; headers?: Record<string, string> },
+  ) {
+    return this.fetchOnce(url, apiKey, body, opciones);
+  }
+
+  private async fetchOnce(
+    url: string,
+    apiKey: string,
+    body: Record<string, unknown>,
+    opciones: { timeoutMs: number; method?: 'POST' | 'PUT'; headers?: Record<string, string> },
+  ): Promise<EngineRawResult> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), opciones.timeoutMs);
     try {
       const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
+        method: opciones.method ?? 'POST',
+        headers: { ...opciones.headers, 'content-type': 'application/json', 'x-api-key': apiKey },
         body: JSON.stringify(body),
         signal: controller.signal,
       });

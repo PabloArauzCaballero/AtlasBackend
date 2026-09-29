@@ -6,11 +6,14 @@
 import { Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import type { Transaction } from 'sequelize';
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { CustomerVerificationRepository } from '../repositories/customer-verification.repository.js';
 import { identityResultForRow } from '../../../common/utils/identity/identity-result.util.js';
 import type { IdentityVerificationAttemptModel } from '../../../database/models/index.js';
 import { IdentityVerdictEventPublisher } from './identity-verdict-event.publisher.js';
+import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
+import { IdentityReviewCaseRepository } from '../repositories/identity-review-case.repository.js';
 
 export type ManualIdentityDecision = 'approved' | 'rejected';
 
@@ -31,7 +34,7 @@ type ReviewResolution = {
   notes: string;
 };
 
-type ReviewOutcome = { customerId: string; identityResult: string; approvedEvidenceCount: number };
+type ReviewOutcome = { customerId: string; identityResult: string; approvedEvidenceCount: number; lifecycleStatus?: string };
 
 /**
  * La decisión humana tenía que volver al expediente, y no volvía.
@@ -67,6 +70,8 @@ export class IdentityManualReviewOutcomeService {
     private readonly lifecycleService: CustomerLifecycleService,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly verdictEvents: IdentityVerdictEventPublisher,
+    private readonly reviewCases: IdentityReviewCaseRepository,
+    private readonly eligibilityService: CustomerEligibilityService,
   ) {}
 
   /**
@@ -161,24 +166,7 @@ export class IdentityManualReviewOutcomeService {
         transaction,
       );
 
-      /*
-       * El avance del ciclo es de MEJOR ESFUERZO, igual que en el resto del alta: si la transición
-       * no aplica —porque el expediente ya está en otro estado— el veredicto igualmente queda
-       * guardado. Perder la decisión de un analista porque una transición no encajaba sería
-       * pedirle que la vuelva a tomar.
-       */
-      await this.lifecycleService
-        .advance({
-          tenantId: input.tenantId,
-          customerId,
-          toStatus: verified ? 'active' : 'observed',
-          reasonCode: verified ? 'identity_manual_review_approved' : 'identity_manual_review_rejected',
-          changedByType: 'internal_user',
-          changedByInternalUserId: input.reviewedByInternalUserId,
-          notes: `Revisión manual de identidad: ${input.decision} por el usuario interno ${input.reviewedByInternalUserId}.`,
-          transaction,
-        })
-        .catch(() => undefined);
+      const evaluation = await this.comoElPanel({ tenantId: input.tenantId, customerId, verified, input, now }, transaction);
 
       this.logger.log(
         `Revisión manual del cliente ${customerId}: ${input.decision} por el usuario interno ${input.reviewedByInternalUserId} · ${pending.length} evidencia(s).`,
@@ -188,7 +176,54 @@ export class IdentityManualReviewOutcomeService {
         customerId,
         identityResult: verified ? 'verified' : 'rejected',
         approvedEvidenceCount: pending.length,
+        lifecycleStatus: evaluation.lifecycleStatus,
       };
+    });
+  }
+
+  /**
+   * EQUIVALENTE a decidir en el panel de identidad (`identity-verification/decision`), a propósito
+   * (2026-09-28): con la revisión humana obligatoria el caso puede resolverse en el Motor o en el
+   * panel, y el cliente no puede quedar distinto según la pantalla que usó el analista.
+   *
+   * - El caso `identity_review` de la bandeja de operaciones se cierra con la decisión.
+   * - Un rechazo devuelve al cliente a corregir (`observed`). Mejor esfuerzo: si la transición no
+   *   aplica, el veredicto igualmente queda guardado.
+   * - Una aprobación NO habilita por sí sola. Antes este camino saltaba a `active` directamente,
+   *   por encima de la regla de habilitación; ahora se reevalúa la regla, que promueve a `active`
+   *   —y emite `customer.lifecycle.active`, «Tu cuenta ha sido verificada»— cuando es lo único que falta.
+   */
+  private async comoElPanel(
+    args: { tenantId: string; customerId: string; verified: boolean; input: ReviewResolution; now: Date },
+    transaction: Transaction,
+  ) {
+    const { tenantId, customerId, verified, input, now } = args;
+    await this.reviewCases.closeOpen(
+      { tenantId, customerId, resolution: verified ? 'approved' : 'rejected', notes: input.notes, now },
+      { transaction },
+    );
+    if (!verified) {
+      await this.lifecycleService
+        .advance({
+          tenantId,
+          customerId,
+          toStatus: 'observed',
+          reasonCode: 'identity_manual_review_rejected',
+          changedByType: 'internal_user',
+          changedByInternalUserId: input.reviewedByInternalUserId,
+          notes: `Revisión manual de identidad: ${input.decision} por el usuario interno ${input.reviewedByInternalUserId}.`,
+          transaction,
+        })
+        .catch(() => undefined);
+    }
+    return this.eligibilityService.evaluateAndRecord({
+      tenantId,
+      customerId,
+      evaluatedByType: 'internal_user',
+      evaluatedByInternalUserId: input.reviewedByInternalUserId,
+      decisionSource: 'manual_decision',
+      reasonCode: verified ? 'identity_manual_review_approved' : 'identity_manual_review_rejected',
+      transaction,
     });
   }
 }

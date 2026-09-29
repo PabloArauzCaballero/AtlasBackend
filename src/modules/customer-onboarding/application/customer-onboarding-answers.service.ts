@@ -67,17 +67,23 @@ export class CustomerOnboardingAnswersService {
     const customer = await this.customersRepository.findById(input.tenantId, input.customerId);
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
+    return this.read(input.tenantId, input.customerId);
+  }
+
+  /**
+   * Lo mismo SIN la comprobación de propiedad, para quien ya la hizo o no actúa en nombre de una
+   * persona: el expediente del alta que se anexa al caso del Motor (`OnboardingReviewDossierService`).
+   */
+  async read(tenantId: string, customerId: string): Promise<OnboardingAnswers> {
     const [profile, financialProfile, address] = await Promise.all([
-      this.profileDataRepository.findCurrentProfile(input.tenantId, input.customerId),
-      this.readFinancialProfile(input.tenantId, input.customerId),
-      this.readAddress(input.tenantId, input.customerId),
+      this.profileDataRepository.findCurrentProfile(tenantId, customerId),
+      this.readFinancialProfile(tenantId, customerId),
+      this.readAddress(tenantId, customerId),
     ]);
 
     return {
-      customerId: input.customerId,
-      personalData: profile
-        ? { firstName: profile.firstName, lastName: profile.lastName, birthDate: profile.birthDate }
-        : null,
+      customerId,
+      personalData: profile ? { firstName: profile.firstName, lastName: profile.lastName, birthDate: profile.birthDate } : null,
       financialProfile,
       address,
     };

@@ -73,6 +73,10 @@ describe('CustomerOnboardingStatusService', () => {
       { findOne: jest.fn(async (..._args: unknown[]) => null) } as never,
     );
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
+    // El anexo del expediente del alta al caso del Motor: nunca lanza, devuelve su desenlace.
+    const expediente = {
+      publish: jest.fn(async (..._args: unknown[]) => ({ sent: true, executionId: 'ex-1', result: null, reason: null })),
+    };
 
     const service = new CustomerOnboardingStatusService(
       customersRepository as never,
@@ -88,9 +92,11 @@ describe('CustomerOnboardingStatusService', () => {
       // El resumen de comportamiento tras el envío: best-effort, nunca lanza.
       { calcular: jest.fn(async (..._args: unknown[]) => ({ disponible: false })) } as never,
       sequelize as never,
+      expediente as never,
     );
     return {
       service,
+      expediente,
       customersRepository,
       onboardingRepository,
       flowRepository,
@@ -212,6 +218,35 @@ describe('CustomerOnboardingStatusService', () => {
 
       await expect(service.submitForReview(submitInput)).rejects.toThrow(/ONBOARDING_ALREADY_SUBMITTED/);
       expect(lifecycleService.transition).not.toHaveBeenCalled();
+    });
+
+    it('anexa el expediente del alta al caso del Motor DESPUÉS del envío, en el momento «envio»', async () => {
+      const { service, expediente, lifecycleService } = build();
+
+      await service.submitForReview(submitInput);
+
+      expect(expediente.publish).toHaveBeenCalledWith({ tenantId: 't1', customerId: 'c1', momento: 'envio' });
+      const orden = (lifecycleService.transition as jest.Mock).mock.invocationCallOrder[0]!;
+      expect((expediente.publish as jest.Mock).mock.invocationCallOrder[0]!).toBeGreaterThan(orden);
+    });
+
+    it('si el anexo al Motor no sale, el envío igual procede', async () => {
+      const { service, expediente } = build();
+      (expediente.publish as jest.Mock).mockResolvedValueOnce({
+        sent: false,
+        executionId: null,
+        result: null,
+        reason: 'HTTP 503',
+      } as never);
+
+      await expect(service.submitForReview(submitInput)).resolves.toMatchObject({ lifecycleStatus: 'active' });
+    });
+
+    it('un envío rechazado por incompleto no anexa nada', async () => {
+      const { service, expediente } = build({ ...completeAssessment, canSubmit: false });
+
+      await expect(service.submitForReview(submitInput)).rejects.toThrow(/ONBOARDING_INCOMPLETE/);
+      expect(expediente.publish).not.toHaveBeenCalled();
     });
 
     /** Desde `active`, `rejected` o `closed` el paquete ya no está en juego. */
