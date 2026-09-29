@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { SupportDeskService } from '../../../src/modules/support/application/support-desk.service.js';
-import type { SupportChannelRepository } from '../../../src/modules/support/support-channel.repository.js';
+import type { SupportDeskListRepository } from '../../../src/modules/support/support-desk-list.repository.js';
 import type { SupportAgentRepository } from '../../../src/modules/support/support-agent.repository.js';
 import type { SupportActorService, SupportActor } from '../../../src/modules/support/application/support-actor.service.js';
 import type { SupportCatalogRepository } from '../../../src/modules/support/support-catalog.repository.js';
@@ -32,7 +32,12 @@ const ALTA: Record<string, unknown> = {
 };
 
 describe('SupportDeskService', () => {
-  let channels: { listQueuedChannels: jest.Mock; listAssignedChannels: jest.Mock };
+  let channels: {
+    listQueuedChannels: jest.Mock;
+    listAssignedChannels: jest.Mock;
+    summarizeQueued: jest.Mock;
+    summarizeAssigned: jest.Mock;
+  };
   let agents: {
     setPresence: jest.Mock;
     listProfiles: jest.Mock;
@@ -48,7 +53,12 @@ describe('SupportDeskService', () => {
   let service: SupportDeskService;
 
   beforeEach(() => {
-    channels = { listQueuedChannels: jest.fn(async () => []), listAssignedChannels: jest.fn(async () => []) };
+    channels = {
+      listQueuedChannels: jest.fn(async () => ({ rows: [], count: 0 })),
+      listAssignedChannels: jest.fn(async () => ({ rows: [], count: 0 })),
+      summarizeQueued: jest.fn(async () => ({ total: 0, withoutCase: 0, oldestRequestedAt: null })),
+      summarizeAssigned: jest.fn(async () => ({ total: 0, waitingAgent: 0, withoutCase: 0 })),
+    };
     agents = {
       setPresence: jest.fn(async () => undefined),
       listProfiles: jest.fn(async () => []),
@@ -66,7 +76,7 @@ describe('SupportDeskService', () => {
       requireQueueByCode: jest.fn(async () => ({ id: 11 })),
     };
     service = new SupportDeskService(
-      channels as unknown as SupportChannelRepository,
+      channels as unknown as SupportDeskListRepository,
       agents as unknown as SupportAgentRepository,
       actors as unknown as SupportActorService,
       catalog as unknown as SupportCatalogRepository,
@@ -85,16 +95,17 @@ describe('SupportDeskService', () => {
 
     it('sin cola indicada se piden todas', async () => {
       await service.listQueuedChannels({ tenantId: 't1', actor: AGENTE });
-      expect(channels.listQueuedChannels).toHaveBeenCalledWith('t1', null);
+      expect(channels.listQueuedChannels).toHaveBeenCalledWith('t1', null, { limit: 50, offset: 0, q: undefined, channelType: undefined });
 
       await service.listQueuedChannels({ tenantId: 't1', actor: AGENTE, queueId: 'q-vip' });
-      expect(channels.listQueuedChannels).toHaveBeenCalledWith('t1', 'q-vip');
+      expect(channels.listQueuedChannels).toHaveBeenCalledWith('t1', 'q-vip', expect.objectContaining({ limit: 50 }));
     });
 
     it('los canales encolados salen mapeados y sin decir quién es el agente', async () => {
-      channels.listQueuedChannels.mockResolvedValueOnce([
-        { id: 5, status: 'QUEUED', channelType: 'CHAT', lastMessageSequence: 0, assignedAgentProfileId: null, caseId: null },
-      ] as never);
+      channels.listQueuedChannels.mockResolvedValueOnce({
+        rows: [{ id: 5, status: 'QUEUED', channelType: 'CHAT', lastMessageSequence: 0, assignedAgentProfileId: null, caseId: null }],
+        count: 1,
+      } as never);
 
       const cola = await service.listQueuedChannels({ tenantId: 't1', actor: AGENTE });
 
@@ -102,15 +113,50 @@ describe('SupportDeskService', () => {
       expect(cola.channels[0]).not.toHaveProperty('assignedAgentProfileId');
     });
 
+    it('la cola pagina, busca y filtra en el servidor y devuelve meta y el resumen de TODA la cola', async () => {
+      channels.listQueuedChannels.mockResolvedValueOnce({
+        rows: [{ id: 5, status: 'QUEUED', channelType: 'CHAT', lastMessageSequence: 0, assignedAgentProfileId: null, caseId: null }],
+        count: 45,
+      } as never);
+      channels.summarizeQueued.mockResolvedValueOnce({ total: 60, withoutCase: 3, oldestRequestedAt: null } as never);
+
+      const cola = await service.listQueuedChannels({
+        tenantId: 't1',
+        actor: AGENTE,
+        query: { page: 3, limit: 20, q: 'CHAT-9', channelType: 'CHAT' },
+      });
+
+      expect(channels.listQueuedChannels).toHaveBeenCalledWith('t1', null, { limit: 20, offset: 40, q: 'CHAT-9', channelType: 'CHAT' });
+      expect(cola.meta).toEqual({ page: 3, limit: 20, total: 45, totalPages: 3 });
+      expect(cola.summary).toEqual({ total: 60, withoutCase: 3, oldestRequestedAt: null });
+    });
+
+    it('mis conversaciones pagina y filtra por estado; el resumen es de todas las mías', async () => {
+      channels.summarizeAssigned.mockResolvedValueOnce({ total: 7, waitingAgent: 2, withoutCase: 1 } as never);
+
+      const mesa = await service.myDesk({ tenantId: 't1', actor: AGENTE, query: { page: 2, limit: 5, q: '40', status: 'WAITING_AGENT' } });
+
+      expect(channels.listAssignedChannels).toHaveBeenCalledWith('t1', 'ag-1', {
+        limit: 5,
+        offset: 5,
+        q: '40',
+        channelType: undefined,
+        status: 'WAITING_AGENT',
+      });
+      expect(mesa.meta).toMatchObject({ page: 2, limit: 5 });
+      expect(mesa.summary).toEqual({ total: 7, waitingAgent: 2, withoutCase: 1 });
+    });
+
     it('mi mesa trae la presencia REAL y las conversaciones que llevo', async () => {
       agents.findById.mockResolvedValueOnce({ id: 'ag-1', presenceState: 'OFFLINE' } as never);
-      channels.listAssignedChannels.mockResolvedValueOnce([
-        { id: 8, status: 'OPEN', channelType: 'CHAT', lastMessageSequence: 3, assignedAgentProfileId: 'ag-1', caseId: 40 },
-      ] as never);
+      channels.listAssignedChannels.mockResolvedValueOnce({
+        rows: [{ id: 8, status: 'OPEN', channelType: 'CHAT', lastMessageSequence: 3, assignedAgentProfileId: 'ag-1', caseId: 40 }],
+        count: 1,
+      } as never);
 
       const mesa = await service.myDesk({ tenantId: 't1', actor: AGENTE });
 
-      expect(channels.listAssignedChannels).toHaveBeenCalledWith('t1', 'ag-1');
+      expect(channels.listAssignedChannels).toHaveBeenCalledWith('t1', 'ag-1', expect.objectContaining({ limit: 50, offset: 0 }));
       expect(mesa).toMatchObject({ agentProfileId: 'ag-1', presenceState: 'OFFLINE' });
       expect(mesa.channels[0]).toMatchObject({ channelId: '8', caseId: '40', hasAgent: true });
     });

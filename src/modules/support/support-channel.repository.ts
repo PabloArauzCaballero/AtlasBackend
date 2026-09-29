@@ -98,39 +98,6 @@ export class SupportChannelRepository {
     return this.channels.findAll({ where: { caseId, deleted: false }, order: [['requested_at', 'DESC']] });
   }
 
-  /** La cola de espera: canales encolados sin agente, en orden de llegada. */
-  listQueuedChannels(tenantId: string, queueId: string | null, limit = 50): Promise<SupportChannelModel[]> {
-    return this.channels.findAll({
-      where: {
-        tenantId,
-        deleted: false,
-        status: { [Op.in]: ['REQUESTED', 'QUEUED'] },
-        ...(queueId ? { queueId } : {}),
-      },
-      order: [['requested_at', 'ASC']],
-      limit,
-    });
-  }
-
-  /**
-   * Las conversaciones vivas que lleva este agente.
-   *
-   * Sin esta lista, un chat que el enrutado asignó solo —agente en `AVAILABLE`— salía de «en espera»
-   * y no aparecía en ningún otro sitio de la consola: el agente lo tenía y no lo veía.
-   */
-  listAssignedChannels(tenantId: string, agentProfileId: string, limit = 50): Promise<SupportChannelModel[]> {
-    return this.channels.findAll({
-      where: {
-        tenantId,
-        deleted: false,
-        assignedAgentProfileId: agentProfileId,
-        status: { [Op.in]: ['OPEN', 'WAITING_USER', 'WAITING_AGENT', 'CLOSING'] },
-      },
-      order: [['last_activity_at', 'DESC']],
-      limit,
-    });
-  }
-
   addParticipant(
     values: CreationAttributes<SupportChannelParticipantModel>,
     options: RepositoryOptions = {},

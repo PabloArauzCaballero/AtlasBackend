@@ -40,6 +40,7 @@ import { ErpMerchantExpedienteService } from './application/erp-merchant-expedie
 import { PartnerOnboardingController } from './partner-onboarding.controller.js';
 import { PartnerOperationsController } from './partner-operations.controller.js';
 import { PartnerCommercialNetworkRepository } from './partner-commercial-network.repository.js';
+import { PartnerQrReviewRepository } from './partner-qr-review.repository.js';
 import { PartnerOnboardingRepository } from './partner-onboarding.repository.js';
 import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
 
@@ -84,6 +85,7 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
   providers: [
     PartnerOnboardingRepository,
     PartnerCommercialNetworkRepository,
+    PartnerQrReviewRepository,
     // Guard de propiedad de los controladores: Nest lo instancia por el contenedor porque
     // necesita el repositorio para resolver quién es el dueño del expediente.
     PartnerOwnershipGuard,

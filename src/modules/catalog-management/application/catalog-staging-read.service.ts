@@ -7,6 +7,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, WhereOptions } from 'sequelize';
 import { ContextCatalogModel, ContextStagingItemModel } from '../../../database/models/index.js';
+import { buildPaginationMeta, toOffset } from '../../../common/utils/pagination/pagination.util.js';
+import { withTextSearch } from '../../../common/utils/query/text-search.util.js';
 import { stagingItemDto } from '../catalog-management.mapper.js';
 import type { ListStagingItemsQueryDto } from '../catalog-staging.schemas.js';
 
@@ -21,21 +23,46 @@ export class CatalogStagingReadService {
     @InjectModel(ContextCatalogModel) private readonly catalogs: typeof ContextCatalogModel,
   ) {}
 
+  /**
+   * Una página de los ítems, filtrada y con el total del filtro (`meta`).
+   *
+   * `summary` cuenta el ALCANCE (el catálogo y, si se pidió, la ingesta) entero, sin el buscador ni
+   * el estado ni «sugerido por IA»: las cifras no cambian al buscar. `total`, `page` y `pageSize`
+   * se conservan tal cual para quien ya los leía.
+   */
   async list(query: ListStagingItemsQueryDto) {
-    const where: WhereOptions = {};
+    const scope: WhereOptions = {};
     if (query.catalogCode) {
       const catalog = await this.catalogs.findOne({ where: { catalogCode: query.catalogCode } } as FindOptions);
       if (!catalog) throw new NotFoundException({ code: 'CATALOG_NOT_FOUND', catalogCode: query.catalogCode });
-      Object.assign(where, { catalogId: catalog.id });
+      Object.assign(scope, { catalogId: catalog.id });
     }
-    if (query.reviewStatus) Object.assign(where, { reviewStatus: query.reviewStatus });
-    if (query.ingestionJobId) Object.assign(where, { ingestionJobId: query.ingestionJobId });
-    const { rows, count } = await this.items.findAndCountAll({
-      where,
-      order: [['_id', 'DESC']],
-      limit: query.pageSize,
-      offset: (query.page - 1) * query.pageSize,
-    } as FindOptions);
-    return { items: rows.map(stagingItemDto), total: count, page: query.page, pageSize: query.pageSize };
+    if (query.ingestionJobId) Object.assign(scope, { ingestionJobId: query.ingestionJobId });
+    const where: Record<string | symbol, unknown> = { ...scope };
+    if (query.reviewStatus) where.reviewStatus = query.reviewStatus;
+    if (query.aiSuggested !== undefined) where.aiSuggested = query.aiSuggested;
+    withTextSearch(where, query.q, ['proposedItemCode', 'proposedItemName'], ['_id']);
+    const limit = query.limit ?? query.pageSize;
+    const [{ rows, count }, total, pendingReview, approved, rejected, aiSuggested] = await Promise.all([
+      this.items.findAndCountAll({
+        where,
+        order: [['_id', 'DESC']],
+        limit,
+        offset: toOffset({ page: query.page, limit }),
+      } as FindOptions),
+      this.items.count({ where: scope } as FindOptions),
+      this.items.count({ where: { ...scope, reviewStatus: 'pending_review' } } as FindOptions),
+      this.items.count({ where: { ...scope, reviewStatus: 'approved' } } as FindOptions),
+      this.items.count({ where: { ...scope, reviewStatus: 'rejected' } } as FindOptions),
+      this.items.count({ where: { ...scope, aiSuggested: true } } as FindOptions),
+    ]);
+    return {
+      items: rows.map(stagingItemDto),
+      total: count,
+      page: query.page,
+      pageSize: limit,
+      meta: buildPaginationMeta({ page: query.page, limit }, count),
+      summary: { total, pendingReview, approved, rejected, aiSuggested },
+    };
   }
 }

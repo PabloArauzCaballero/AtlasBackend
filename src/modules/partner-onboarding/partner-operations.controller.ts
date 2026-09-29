@@ -80,9 +80,22 @@ export class PartnerOperationsController {
   @ApiOperation({
     summary: 'Los QR de cobro que esperan revisión',
     description:
-      'Una página de los QR en `pending_review` del tenant, el más antiguo primero, con el comercio al que pertenecen y `meta` con el total.',
+      'Una página de los QR en `pending_review` del tenant, el más antiguo primero, con el comercio y la sucursal a los que pertenecen, `meta` con el total del filtro y `summary` con el de toda la cola (por tipo y el más antiguo).',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description:
+      'Busca por partes en la razón social, el nombre comercial y el NIT del comercio; el nombre, código y ciudad de la sucursal; la entidad, la cuenta enmascarada y la huella del QR; y el n.º del QR y del comercio.',
+    schema: zodObjectPropertySchemas(listPendingQrQuerySchema).q,
+  })
+  @ApiQuery({
+    name: 'qrKind',
+    required: false,
+    description: 'Sólo el QR del negocio (`business`) o sólo el de una cuenta bancaria (`bank`).',
+    schema: zodObjectPropertySchemas(listPendingQrQuerySchema).qrKind,
+  })
   @ApiQuery({
     name: 'page',
     required: false,

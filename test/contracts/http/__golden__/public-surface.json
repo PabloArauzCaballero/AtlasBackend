@@ -4588,7 +4588,13 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "channelType",
+      "limit",
+      "page",
+      "q",
+      "status"
+    ],
     "path": [],
     "security": [
       "access-token"
@@ -4625,7 +4631,13 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "channelType",
+      "limit",
+      "page",
+      "q",
+      "queueId"
+    ],
     "path": [],
     "security": [
       "access-token"
@@ -6201,10 +6213,13 @@
     ],
     "headers": [],
     "query": [
+      "aiSuggested",
       "catalogCode",
       "ingestionJobId",
+      "limit",
       "page",
       "pageSize",
+      "q",
       "reviewStatus"
     ],
     "path": [],
@@ -8399,7 +8414,9 @@
     "headers": [],
     "query": [
       "limit",
-      "page"
+      "page",
+      "q",
+      "qrKind"
     ],
     "path": [],
     "security": [

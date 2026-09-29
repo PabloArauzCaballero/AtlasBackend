@@ -12643,6 +12643,37 @@ paths:
     get:
       operationId: InternalSupportDeskController_mine
       parameters:
+        - name: limit
+          required: false
+          in: query
+          description: Conversaciones por página, de 1 a 100 (50 si no se indica).
+          schema: {}
+        - name: page
+          required: false
+          in: query
+          description: Página, desde 1.
+          schema: {}
+        - name: channelType
+          required: false
+          in: query
+          description: >-
+            Sólo este tipo de canal: `CHAT`, `ASYNC_MESSAGING` o
+            `INTERNAL_BRIDGE`.
+          schema: {}
+        - name: status
+          required: false
+          in: query
+          description: >-
+            Sólo las conversaciones en este estado: `OPEN`, `WAITING_USER`,
+            `WAITING_AGENT` o `CLOSING`.
+          schema: {}
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Busca por partes en el código y el n.º de la conversación, el n.º
+            del expediente y el tipo de canal.
+          schema: {}
         - name: x-tenant-id
           in: header
           required: false
@@ -12656,8 +12687,9 @@ paths:
       responses:
         '200':
           description: >-
-            Presencia real del agente y sus conversaciones vivas, la más
-            reciente primero.
+            Presencia real del agente y una página de sus conversaciones vivas,
+            la más reciente primero, con `meta` (total del filtro) y `summary`
+            (todas las mías: vivas, esperando mi respuesta y sin expediente).
           content:
             application/json:
               schema:
@@ -12717,8 +12749,42 @@ paths:
         - Interno · Mesa de soporte
   /internal/support/desk/queue:
     get:
+      description: >-
+        Una página de las conversaciones sin agente, en orden de llegada, con
+        `meta` (total del filtro) y `summary` (cuántas esperan, cuántas sin
+        expediente y desde cuándo la más antigua, de TODA la cola). Sin `limit`
+        responde las 50 de siempre.
       operationId: InternalSupportDeskController_queue
       parameters:
+        - name: limit
+          required: false
+          in: query
+          description: Conversaciones por página, de 1 a 100 (50 si no se indica).
+          schema: {}
+        - name: page
+          required: false
+          in: query
+          description: Página, desde 1.
+          schema: {}
+        - name: channelType
+          required: false
+          in: query
+          description: >-
+            Sólo este tipo de canal: `CHAT`, `ASYNC_MESSAGING` o
+            `INTERNAL_BRIDGE`.
+          schema: {}
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Busca por partes en el código y el n.º de la conversación, el n.º
+            del expediente y el tipo de canal.
+          schema: {}
+        - name: queueId
+          required: false
+          in: query
+          description: Sólo la cola de atención con este id.
+          schema: {}
         - name: x-tenant-id
           in: header
           required: false
@@ -16416,12 +16482,29 @@ paths:
         - name: pageSize
           required: false
           in: query
-          description: Ítems por página (1 a 200; 50 por defecto).
+          description: Nombre antiguo de `limit`.
+          schema: {}
+        - name: limit
+          required: false
+          in: query
+          description: Ítems por página (1 a 200; 50 por defecto). Manda sobre `pageSize`.
           schema: {}
         - name: page
           required: false
           in: query
           description: Página, desde 1.
+          schema: {}
+        - name: aiSuggested
+          required: false
+          in: query
+          description: 'true: sólo los que propuso la IA; false: sólo los que no.'
+          schema: {}
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Busca por partes en el código y el nombre propuestos y en el n.º del
+            ítem.
           schema: {}
         - name: reviewStatus
           required: false
@@ -16441,7 +16524,10 @@ paths:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Ítems de staging paginados.
+          description: >-
+            Página de ítems de staging con `meta` (total del filtro) y `summary`
+            (el catálogo o la ingesta entera: total, pendientes, aprobados,
+            rechazados y sugeridos por IA).
           content:
             application/json:
               schema:
@@ -24142,7 +24228,9 @@ paths:
     get:
       description: >-
         Una página de los QR en `pending_review` del tenant, el más antiguo
-        primero, con el comercio al que pertenecen y `meta` con el total.
+        primero, con el comercio y la sucursal a los que pertenecen, `meta` con
+        el total del filtro y `summary` con el de toda la cola (por tipo y el
+        más antiguo).
       operationId: PartnerOperationsController_listQrPendingReview
       parameters:
         - name: limit
@@ -24163,6 +24251,29 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
+        - name: qrKind
+          required: false
+          in: query
+          description: >-
+            Sólo el QR del negocio (`business`) o sólo el de una cuenta bancaria
+            (`bank`).
+          schema:
+            type: string
+            enum:
+              - business
+              - bank
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Busca por partes en la razón social, el nombre comercial y el NIT
+            del comercio; el nombre, código y ciudad de la sucursal; la entidad,
+            la cuenta enmascarada y la huella del QR; y el n.º del QR y del
+            comercio.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:

@@ -9,6 +9,7 @@ import { buildPaginationMeta } from '../../../common/utils/pagination/pagination
 import { PartnerQrCodeModel } from '../../../database/models/index.js';
 import { toPartnerQrDto } from '../partner-onboarding.mapper.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
+import { PartnerQrReviewRepository } from '../partner-qr-review.repository.js';
 import { ReviewQrDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
 
@@ -26,6 +27,7 @@ export class PartnerQrReviewService {
 
   constructor(
     private readonly network: PartnerCommercialNetworkRepository,
+    private readonly queue: PartnerQrReviewRepository,
     private readonly profiles: PartnerProfileService,
     private readonly metrics: MetricsService,
   ) {}
@@ -71,36 +73,65 @@ export class PartnerQrReviewService {
     return reviewed;
   }
 
-  /** La cola de revisión: todos los QR del tenant que esperan a una persona, el más antiguo primero. */
   /**
-   * Una página de la cola de QR por revisar, cada uno con su comercio.
+   * Una página de la cola de QR por revisar, cada uno con su comercio y su sucursal.
    *
    * Antes devolvía TODOS los pendientes y resolvía los comercios de uno en uno y en serie
    * (`requireProfile` en un bucle): la cola crecía y la pantalla tardaba más con cada QR subido.
-   * Ahora es una página y sus comercios salen en una sola consulta.
+   * Ahora es una página, sus comercios y sucursales salen en una consulta cada uno, `meta` es el
+   * total del filtro y `summary` el de TODA la cola (por tipo y el más antiguo), para que las cifras
+   * no cambien al buscar.
    */
-  async listPendingReview(tenantId: string, query: { page: number; limit: number }) {
-    const { rows, count } = await this.network.listQrCodesPendingReview(tenantId, {
-      limit: query.limit,
-      offset: (query.page - 1) * query.limit,
-    });
-    const perfiles = await this.profiles.findManyByIds(
-      tenantId,
-      rows.map((qr) => String(qr.partnerProfileId)),
-    );
+  async listPendingReview(tenantId: string, query: { page: number; limit: number; q?: string; qrKind?: string }) {
+    const text = query.q?.trim();
+    const search = text
+      ? {
+          q: text,
+          partnerIds: await this.profiles.findIdsMatching(tenantId, text),
+          branchIds: await this.queue.findBranchIdsMatching(tenantId, text),
+        }
+      : undefined;
+    const [{ rows, count }, summary] = await Promise.all([
+      this.queue.listQrCodesPendingReview(tenantId, {
+        limit: query.limit,
+        offset: (query.page - 1) * query.limit,
+        qrKind: query.qrKind,
+        search,
+      }),
+      this.queue.summarizeQrPendingReview(tenantId),
+    ]);
+    const [perfiles, sucursales] = await Promise.all([
+      this.profiles.findManyByIds(
+        tenantId,
+        rows.map((qr) => String(qr.partnerProfileId)),
+      ),
+      this.queue.findBranchesByIds(
+        tenantId,
+        rows.flatMap((qr) => (qr.branchId ? [String(qr.branchId)] : [])),
+      ),
+    ]);
     const porId = new Map(perfiles.map((perfil) => [String(perfil.id), perfil]));
+    const sucursalPorId = new Map(sucursales.map((sucursal) => [String(sucursal.id), sucursal]));
     return {
       items: rows.map((qr) => {
         const perfil = porId.get(String(qr.partnerProfileId));
+        const sucursal = qr.branchId ? sucursalPorId.get(String(qr.branchId)) : undefined;
         return {
           ...toPartnerQrDto(qr),
           partnerId: String(qr.partnerProfileId),
           partner: perfil
-            ? { legalName: perfil.legalName ?? null, tradeName: perfil.tradeName ?? null, onboardingStatus: perfil.onboardingStatus }
+            ? {
+                legalName: perfil.legalName ?? null,
+                tradeName: perfil.tradeName ?? null,
+                taxId: perfil.taxId ?? null,
+                onboardingStatus: perfil.onboardingStatus,
+              }
             : null,
+          branch: sucursal ? { branchCode: sucursal.branchCode, name: sucursal.name, city: sucursal.city ?? null } : null,
         };
       }),
       meta: buildPaginationMeta({ page: query.page, limit: query.limit }, count),
+      summary,
     };
   }
 }

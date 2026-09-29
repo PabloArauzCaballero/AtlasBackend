@@ -161,6 +161,20 @@ export class PartnerOnboardingRepository {
     });
   }
 
+  /** Los comercios del tenant cuya razón social, nombre comercial o NIT contienen el texto (sólo sus ids, para el buscador de QR). */
+  async findProfileIdsMatching(tenantId: string, q: string): Promise<string[]> {
+    const pattern = containsLikePattern(q);
+    const rows = await this.profileModel.findAll({
+      attributes: ['id'],
+      where: {
+        tenantId,
+        deleted: false,
+        [Op.or]: [{ legalName: { [Op.iLike]: pattern } }, { tradeName: { [Op.iLike]: pattern } }, { taxId: { [Op.iLike]: pattern } }],
+      },
+    });
+    return rows.map((row) => String(row.id));
+  }
+
   /** Cuántos esperan y desde cuándo el más antiguo, de TODA la cola (sin búsqueda ni página). */
   async summarizeAwaitingDecision(tenantId: string): Promise<{ total: number; oldestSubmittedAt: Date | null }> {
     const where = { tenantId, onboardingStatus: 'under_review', deleted: false };

@@ -4,9 +4,10 @@
  * @system separado del ciclo de vida del canal: aquí no se abre ni se cierra nada, sólo se mira y se declara.
  */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { buildPaginationMeta, toOffset } from '../../../common/utils/pagination/pagination.util.js';
 import { SupportAgentRepository } from '../support-agent.repository.js';
 import { SupportCatalogRepository } from '../support-catalog.repository.js';
-import { SupportChannelRepository } from '../support-channel.repository.js';
+import { SupportDeskListRepository } from '../support-desk-list.repository.js';
 import {
   SUPPORT_CASE_TYPES,
   SUPPORT_IMPACTS,
@@ -19,24 +20,49 @@ import {
   SUPPORT_URGENCIES,
 } from '../support.constants.js';
 import type { CreateAgentProfileDto } from '../support-case.schemas.js';
+import { type ListDeskMineQueryDto, type ListDeskQueueQueryDto, SUPPORT_DESK_LEGACY_LIMIT } from '../support-desk-list.schemas.js';
 import { toChannelDto, toInternalCategoryTreeDto, toQueueDto } from '../support.mapper.js';
 import type { SupportActor } from './support-actor.service.js';
 import { SupportActorService } from './support-actor.service.js';
 
+type DeskPageQuery = { page: number; limit: number; q?: string; channelType?: string; status?: string; queueId?: string };
+
+/** Sin parámetros de página se sirve lo de siempre: la primera página, de 50. */
+function withDefaults(query: Partial<ListDeskQueueQueryDto & ListDeskMineQueryDto> | undefined): DeskPageQuery {
+  return { ...query, page: query?.page ?? 1, limit: query?.limit ?? SUPPORT_DESK_LEGACY_LIMIT };
+}
+
+const pageOf = (query: DeskPageQuery) => ({ limit: query.limit, offset: toOffset(query), q: query.q });
+
 @Injectable()
 export class SupportDeskService {
   constructor(
-    private readonly channels: SupportChannelRepository,
+    private readonly channels: SupportDeskListRepository,
     private readonly agents: SupportAgentRepository,
     private readonly actors: SupportActorService,
     private readonly catalog: SupportCatalogRepository,
   ) {}
 
-  /** La cola de espera del equipo: conversaciones sin agente, en orden de llegada. */
-  async listQueuedChannels(input: { tenantId: string; actor: SupportActor; queueId?: string | null }) {
+  /**
+   * La cola de espera del equipo: conversaciones sin agente, en orden de llegada.
+   *
+   * `channels` conserva su forma de siempre; `meta` es el total del filtro y `summary` el de TODA la
+   * cola, para que las cifras no cambien al buscar. Sin `limit` se sirven las 50 de antes.
+   */
+  async listQueuedChannels(input: {
+    tenantId: string;
+    actor: SupportActor;
+    queueId?: string | null;
+    query?: Partial<ListDeskQueueQueryDto>;
+  }) {
     this.actors.assertIsAgent(input.actor);
-    const rows = await this.channels.listQueuedChannels(input.tenantId, input.queueId ?? null);
-    return { channels: rows.map(toChannelDto) };
+    const query = withDefaults(input.query);
+    const queueId = input.queueId ?? query.queueId ?? null;
+    const [found, summary] = await Promise.all([
+      this.channels.listQueuedChannels(input.tenantId, queueId, { ...pageOf(query), channelType: query.channelType }),
+      this.channels.summarizeQueued(input.tenantId, queueId),
+    ]);
+    return { channels: found.rows.map(toChannelDto), meta: buildPaginationMeta(query, found.count), summary };
   }
 
   /**
@@ -45,13 +71,25 @@ export class SupportDeskService {
    * La presencia viaja aquí porque el selector de la consola no tenía de dónde leerla y enseñaba
    * «Disponible» a un agente que la base tenía en `OFFLINE`, y el enrutado no le mandaba nada.
    */
-  async myDesk(input: { tenantId: string; actor: SupportActor }) {
+  async myDesk(input: { tenantId: string; actor: SupportActor; query?: Partial<ListDeskMineQueryDto> }) {
     const agentProfileId = this.actors.assertIsAgent(input.actor);
-    const [profile, rows] = await Promise.all([
+    const query = withDefaults(input.query);
+    const [profile, found, summary] = await Promise.all([
       this.agents.findById(input.tenantId, agentProfileId),
-      this.channels.listAssignedChannels(input.tenantId, agentProfileId),
+      this.channels.listAssignedChannels(input.tenantId, agentProfileId, {
+        ...pageOf(query),
+        channelType: query.channelType,
+        status: query.status,
+      }),
+      this.channels.summarizeAssigned(input.tenantId, agentProfileId),
     ]);
-    return { agentProfileId, presenceState: profile?.presenceState ?? 'OFFLINE', channels: rows.map(toChannelDto) };
+    return {
+      agentProfileId,
+      presenceState: profile?.presenceState ?? 'OFFLINE',
+      channels: found.rows.map(toChannelDto),
+      meta: buildPaginationMeta(query, found.count),
+      summary,
+    };
   }
 
   /** Presencia del agente. Es efímera: si Redis o el proceso caen, el peor caso es no recibir chats. */

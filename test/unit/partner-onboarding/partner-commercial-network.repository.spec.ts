@@ -170,22 +170,6 @@ describe('PartnerCommercialNetworkRepository', () => {
       expect(where.branchId).toEqual({ [Op.is]: null });
     });
 
-    it('la cola de revisión es del tenant entero, el más antiguo primero y POR PÁGINAS (antes llegaba entera)', async () => {
-      await repo.listQrCodesPendingReview('t1', { limit: 10, offset: 20 });
-      const { where, order, limit, offset } = ultima(qrs.findAndCountAll) as {
-        where: unknown;
-        order: unknown;
-        limit: number;
-        offset: number;
-      };
-      expect(where).toEqual({ tenantId: 't1', status: 'pending_review' });
-      expect(order).toEqual([
-        ['_created_at', 'ASC'],
-        ['_id', 'ASC'],
-      ]);
-      expect({ limit, offset }).toEqual({ limit: 10, offset: 20 });
-    });
-
     it('revisar sella fecha, firma y nota, y el estado que decidió la persona', async () => {
       const update = jest.fn(async (_valores?: unknown, _opciones?: unknown) => undefined);
 

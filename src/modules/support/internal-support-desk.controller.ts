@@ -4,7 +4,7 @@
  * @system separa la mesa (canales y presencia) del expediente para no crecer un solo controlador.
  */
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -17,6 +17,12 @@ import { SupportChannelService } from './application/support-channel.service.js'
 import { SupportDeskService } from './application/support-desk.service.js';
 import { SupportMessageService } from './application/support-message.service.js';
 import { SupportSlaService } from './application/support-sla.service.js';
+import {
+  type ListDeskMineQueryDto,
+  type ListDeskQueueQueryDto,
+  listDeskMineQuerySchema,
+  listDeskQueueQuerySchema,
+} from './support-desk-list.schemas.js';
 import { type CreateAgentProfileDto, createAgentProfileSchema, type PresenceDto, presenceSchema } from './support-case.schemas.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
@@ -34,25 +40,67 @@ export class InternalSupportDeskController {
     private readonly sla: SupportSlaService,
   ) {}
 
-  @ApiOperation({ summary: 'Conversaciones en espera de agente' })
+  @ApiOperation({
+    summary: 'Conversaciones en espera de agente',
+    description:
+      'Una página de las conversaciones sin agente, en orden de llegada, con `meta` (total del filtro) y `summary` (cuántas esperan, cuántas sin expediente y desde cuándo la más antigua, de TODA la cola). Sin `limit` responde las 50 de siempre.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiQuery({ name: 'queueId', required: false, description: 'Sólo la cola de atención con este id.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Busca por partes en el código y el n.º de la conversación, el n.º del expediente y el tipo de canal.',
+  })
+  @ApiQuery({
+    name: 'channelType',
+    required: false,
+    description: 'Sólo este tipo de canal: `CHAT`, `ASYNC_MESSAGING` o `INTERNAL_BRIDGE`.',
+  })
+  @ApiQuery({ name: 'page', required: false, description: 'Página, desde 1.' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Conversaciones por página, de 1 a 100 (50 si no se indica).' })
   @Get('queue')
   async queue(
     @CurrentTenant() tenantId: string,
-    @Query('queueId') queueId: string | undefined,
+    @Query(new ZodValidationPipe(listDeskQueueQuerySchema)) query: ListDeskQueueQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     const actor = await this.actors.resolve(currentUser, tenantId);
-    return this.desk.listQueuedChannels({ tenantId, actor, queueId: queueId ?? null });
+    return this.desk.listQueuedChannels({ tenantId, actor, query });
   }
 
   @ApiOperation({ summary: 'Mi presencia y las conversaciones que llevo' })
   @ApiHeader({ name: 'x-tenant-id', required: false })
-  @ApiResponse({ status: 200, description: 'Presencia real del agente y sus conversaciones vivas, la más reciente primero.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Busca por partes en el código y el n.º de la conversación, el n.º del expediente y el tipo de canal.',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Sólo las conversaciones en este estado: `OPEN`, `WAITING_USER`, `WAITING_AGENT` o `CLOSING`.',
+  })
+  @ApiQuery({
+    name: 'channelType',
+    required: false,
+    description: 'Sólo este tipo de canal: `CHAT`, `ASYNC_MESSAGING` o `INTERNAL_BRIDGE`.',
+  })
+  @ApiQuery({ name: 'page', required: false, description: 'Página, desde 1.' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Conversaciones por página, de 1 a 100 (50 si no se indica).' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Presencia real del agente y una página de sus conversaciones vivas, la más reciente primero, con `meta` (total del filtro) y `summary` (todas las mías: vivas, esperando mi respuesta y sin expediente).',
+  })
   @Get('mine')
-  async mine(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
+  async mine(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(listDeskMineQuerySchema)) query: ListDeskMineQueryDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
     const actor = await this.actors.resolve(currentUser, tenantId);
-    return this.desk.myDesk({ tenantId, actor });
+    return this.desk.myDesk({ tenantId, actor, query });
   }
 
   /**

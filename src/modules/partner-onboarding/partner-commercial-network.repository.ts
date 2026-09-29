@@ -185,25 +185,6 @@ export class PartnerCommercialNetworkRepository {
     return this.qrModel.findOne({ where: { tenantId, partnerProfileId, id: qrId }, transaction: options.transaction });
   }
 
-  /** Los QR que esperan revisión en todo el tenant, el más antiguo primero: es la cola de una persona. */
-  /** Una página de la cola de QR por revisar, del tenant entero y el más antiguo primero, con el total. */
-  listQrCodesPendingReview(
-    tenantId: string,
-    page: { limit: number; offset: number },
-    options: RepositoryOptions = {},
-  ): Promise<{ rows: PartnerQrCodeModel[]; count: number }> {
-    return this.qrModel.findAndCountAll({
-      where: { tenantId, status: 'pending_review' },
-      order: [
-        ['_created_at', 'ASC'],
-        ['_id', 'ASC'],
-      ],
-      limit: page.limit,
-      offset: page.offset,
-      transaction: options.transaction,
-    });
-  }
-
   markQrReviewed(
     qr: PartnerQrCodeModel,
     review: { status: 'active' | 'rejected'; reviewedByInternalUserId: string | null; reviewNote: string | null },

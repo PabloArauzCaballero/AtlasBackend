@@ -110,23 +110,6 @@ describe('SupportChannelRepository', () => {
   });
 
   describe('cola y listados', () => {
-    it('la cola atiende por orden de llegada y sólo lo que aún no tiene agente', async () => {
-      await repo.listQueuedChannels('t1', null);
-
-      const condicion = ultima(channels.findAll).where;
-      expect((condicion.status as Record<symbol, string[]>)[Op.in]).toEqual(['REQUESTED', 'QUEUED']);
-      expect(condicion).not.toHaveProperty('queueId');
-      expect(ultima(channels.findAll).order).toEqual([['requested_at', 'ASC']]);
-      expect(ultima(channels.findAll).limit).toBe(50);
-    });
-
-    it('con cola indicada se acota a esa cola', async () => {
-      await repo.listQueuedChannels('t1', 'q-vip', 10);
-
-      expect(ultima(channels.findAll).where.queueId).toBe('q-vip');
-      expect(ultima(channels.findAll).limit).toBe(10);
-    });
-
     it('los canales de un caso salen del más reciente al más viejo y sin los borrados', async () => {
       await repo.listChannelsForCase('caso-1');
 
