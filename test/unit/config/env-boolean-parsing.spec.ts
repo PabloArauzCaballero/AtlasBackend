@@ -74,3 +74,21 @@ describe('esquemas de módulo', () => {
     expect(queueStressRunSchema.shape.dryRun.safeParse('false').success).toBe(false);
   });
 });
+
+/*
+ * `TWILIO_WHATSAPP_OTP_CONTENT_SID` vacío es «no configurado». Un compose que nombra la variable sin valor
+ * (`${VAR:-}`, lo único que puede entregar cuando el operador no la puso) no debe tumbar el arranque por no
+ * cumplir el formato `HX…`; un valor mal formado sigue rechazándose.
+ */
+describe('TWILIO_WHATSAPP_OTP_CONTENT_SID', () => {
+  const schema = envBaseSchema.shape.TWILIO_WHATSAPP_OTP_CONTENT_SID;
+
+  it.each(['', '   '])('%j -> no configurado', (value) => {
+    expect(schema.parse(value)).toBeUndefined();
+  });
+
+  it('acepta un Content SID real y rechaza uno mal formado', () => {
+    expect(schema.parse(`HX${'a'.repeat(32)}`)).toBe(`HX${'a'.repeat(32)}`);
+    expect(schema.safeParse('HX123').success).toBe(false);
+  });
+});

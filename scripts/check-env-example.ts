@@ -10,6 +10,7 @@ import { resolve } from 'node:path';
 import { applyEnvCrossChecks } from '../src/config/env-cross-checks.js';
 import { envBaseSchema } from '../src/config/env.schema.js';
 import { PRODUCTION_CREDENTIAL_REQUIREMENTS } from '../src/modules/external-data/application/external-data-policy.util.js';
+import { checkComposeFiles } from './compose-env-check.js';
 
 function templateKeys(source: string): string[] {
   return source
@@ -97,13 +98,16 @@ function main(): void {
   const repeated = duplicates(keys);
   const repeatedInProduction = duplicates(productionKeys);
   const productionBootProblems = checkProductionTemplateBoots(templateValues(readFileSync(productionExamplePath, 'utf-8')));
+  // Los composes de Coolify y de producción frente al esquema: lo que no nombran no llega al contenedor.
+  const composeFindings = checkComposeFiles();
 
   if (
     missing.length > 0 ||
     missingCredentials.length > 0 ||
     repeated.length > 0 ||
     repeatedInProduction.length > 0 ||
-    productionBootProblems.length > 0
+    productionBootProblems.length > 0 ||
+    composeFindings.length > 0
   ) {
     console.error('❌ Las plantillas de entorno no representan un contrato íntegro.');
     if (missing.length > 0) console.error(`   Faltan: ${missing.join(', ')}`);
@@ -121,12 +125,19 @@ function main(): void {
           productionBootProblems.map((problema) => `     - ${problema}`).join('\n'),
       );
     }
+    if (composeFindings.length > 0) {
+      console.error(
+        '   Los composes de despliegue no cuadran con el esquema (scripts/compose-env-check.ts):\n' +
+          composeFindings.map((finding) => `     - ${finding.file}: ${finding.message}`).join('\n'),
+      );
+    }
     process.exit(1);
   }
 
   console.log(
     `✅ .env.example cubre ${schemaKeys.length} variables tipadas y ${credentialKeys.length} credenciales de proveedor externo; ` +
-      'ambas plantillas están libres de duplicados, y .env.production.example sólo falla por los secretos que hay que rellenar.',
+      'ambas plantillas están libres de duplicados, .env.production.example sólo falla por los secretos que hay que rellenar, ' +
+      'y los composes de Coolify y de producción nombran todo el esquema (salvo lo exento con motivo) con valores por omisión que el esquema acepta.',
   );
 }
 
