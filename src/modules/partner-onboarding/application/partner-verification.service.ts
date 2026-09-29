@@ -187,12 +187,18 @@ export class PartnerVerificationService {
    * que traer el identificador del comercio desde otra pantalla, así que la carga de trabajo
    * pendiente no se veía en ninguna parte.
    */
-  async listAwaitingDecision(tenantId: string, query: { page: number; limit: number }) {
-    const { rows, count } = await this.repository.findProfilesAwaitingDecision(tenantId, {
-      limit: query.limit,
-      offset: (query.page - 1) * query.limit,
-    });
+  async listAwaitingDecision(tenantId: string, query: { page: number; limit: number; q?: string }) {
+    const [{ rows, count }, summary] = await Promise.all([
+      this.repository.findProfilesAwaitingDecision(tenantId, {
+        limit: query.limit,
+        offset: (query.page - 1) * query.limit,
+        ...(query.q ? { q: query.q } : {}),
+      }),
+      this.repository.summarizeAwaitingDecision(tenantId),
+    ]);
     return {
+      // De toda la cola: «el más antiguo» salía de la página cargada y mentía desde la página 2.
+      summary: { total: summary.total, oldestSubmittedAt: summary.oldestSubmittedAt?.toISOString() ?? null },
       items: rows.map(toPartnerProfileDto),
       meta: {
         page: query.page,

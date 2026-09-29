@@ -117,7 +117,23 @@ export const listLoansQuerySchema = z.object({
     .regex(/^[1-9][0-9]*$/)
     .optional(),
   loanCode: z.string().trim().min(1).max(40).optional(),
+  /** Parte del código del préstamo o del cliente; sólo dígitos: también el número exacto de cualquiera de los dos. */
+  q: z.string().trim().min(1).max(80).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });
 export type ListLoansQueryDto = z.infer<typeof listLoansQuerySchema>;
+
+/**
+ * Los desenlaces que agotaron los reintentos (`GET /operations/loans/outcome-backlog`), por páginas.
+ * `limit` conserva el tope de 500 que aceptaba antes para no romper a quien ya pedía lotes grandes.
+ */
+export const outcomeBacklogQuerySchema = z.object({
+  loanId: z
+    .string()
+    .regex(/^[1-9][0-9]*$/)
+    .optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(500).default(25),
+});
+export type OutcomeBacklogQueryDto = z.infer<typeof outcomeBacklogQuerySchema>;

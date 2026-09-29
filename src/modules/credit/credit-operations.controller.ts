@@ -19,6 +19,7 @@ import { CreditDecisionService } from './application/credit-decision.service.js'
 import { CreditLineService } from './application/credit-line.service.js';
 import { toCreditLineResponse } from './credit-line.mapper.js';
 import { CreditProductService } from './application/credit-product.service.js';
+import { CreditProductStatusService } from './application/credit-product-status.service.js';
 import {
   CreateCreditProductDto,
   CreditApplicationDecisionDto,
@@ -50,6 +51,7 @@ export class CreditOperationsController {
     private readonly decisionService: CreditDecisionService,
     private readonly businessAcceptance: CreditBusinessAcceptanceService,
     private readonly creditLines: CreditLineService,
+    private readonly productStatus: CreditProductStatusService,
   ) {}
 
   @ApiOperation({
@@ -82,7 +84,8 @@ export class CreditOperationsController {
 
   @ApiOperation({
     summary: 'Crear un producto crediticio',
-    description: 'El producto nace en `draft`: activarlo es una decisión aparte y auditable, no un efecto de haberlo creado.',
+    description:
+      'El producto nace en `draft`: activarlo es una decisión aparte (`PATCH …/status`, con motivo y registrada en la auditoría operativa), no un efecto de haberlo creado.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiBody({ schema: zodToApiSchema(createCreditProductSchema) })
@@ -98,12 +101,19 @@ export class CreditOperationsController {
     return this.productService.createProduct({ tenantId: tenantId, body, currentUser });
   }
 
-  @ApiOperation({ summary: 'Cambiar el estado de un producto (activar, suspender, retirar)' })
+  @ApiOperation({
+    summary: 'Cambiar el estado de un producto (activar, suspender, retirar)',
+    description:
+      'Transiciones permitidas: draft→active|retired, active→suspended|retired, suspended→active|retired; retired es terminal. ' +
+      'El cambio y su registro en la auditoría operativa (`credit.product.status_changed`: actor, estado anterior y nuevo, motivo) ' +
+      'se escriben en la misma transacción.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'productId', schema: zodToApiSchema(creditProductIdParamsSchema.shape.productId) })
   @ApiBody({ schema: zodToApiSchema(creditProductStatusSchema) })
   @ApiResponse({ status: 200, description: 'Estado actualizado.' })
   @ApiResponse({ status: 404, description: 'CREDIT_PRODUCT_NOT_FOUND.' })
+  @ApiResponse({ status: 409, description: 'CREDIT_PRODUCT_STATUS_TRANSITION_NOT_ALLOWED.' })
   @Patch('products/:productId/status')
   @HttpCode(HttpStatus.OK)
   changeProductStatus(
@@ -112,10 +122,11 @@ export class CreditOperationsController {
     @Body(new ZodValidationPipe(creditProductStatusSchema)) body: CreditProductStatusDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.productService.changeStatus({
+    return this.productStatus.changeStatus({
       tenantId: tenantId,
       productId: params.productId,
       status: body.status,
+      reasonCode: body.reasonCode,
       currentUser,
     });
   }

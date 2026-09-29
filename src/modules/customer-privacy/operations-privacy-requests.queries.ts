@@ -56,8 +56,11 @@ export function sqlSolicitudes(where: string, paginar: boolean): string {
      ${paginar ? 'LIMIT $limit OFFSET $offset' : ''}`;
 }
 
+/** El conteo lleva el JOIN al cliente porque `q` busca en su código: sin él, el total no respetaría la búsqueda. */
 export const SQL_CONTEO = (where: string): string =>
-  `SELECT COUNT(*)::text AS total FROM ${tabla('data_subject_requests')} d WHERE ${where}`;
+  `SELECT COUNT(*)::text AS total FROM ${tabla('data_subject_requests')} d
+     LEFT JOIN ${tabla('customers')} cu ON cu._id = d.customer_id AND cu._tenant_id = d._tenant_id
+    WHERE ${where}`;
 
 /** El resumen es de TODA la cola del tenant: dice si hay que ir a mirar, y no cambia con el filtro. */
 export const SQL_RESUMEN = `

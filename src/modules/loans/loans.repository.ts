@@ -5,7 +5,8 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, Transaction } from 'sequelize';
+import { FindOptions, Op, Sequelize, Transaction } from 'sequelize';
+import { customerCodesFor, loanSearchConditions } from './loan-staff-search.js';
 import {
   LoanEventModel,
   LoanInstallmentModel,
@@ -67,20 +68,45 @@ export class LoansRepository {
     } as FindOptions);
   }
 
-  /** Cartera para el personal: filtros exactos y paginación. Sin filtro, lo más reciente primero. */
+  /**
+   * Cartera para el personal: filtros exactos, buscador (`q`) y paginación. Sin filtro, lo más
+   * reciente primero. `q` es parcial y no exacto: antes el código se tenía que escribir completo.
+   */
   findLoansPage(
     tenantId: string,
-    filter: { status?: string; delinquencyBucket?: string; customerId?: string; creditApplicationId?: string; loanCode?: string },
+    filter: {
+      status?: string;
+      delinquencyBucket?: string;
+      customerId?: string;
+      creditApplicationId?: string;
+      loanCode?: string;
+      q?: string;
+    },
     page: { limit: number; offset: number },
   ): Promise<{ rows: LoanModel[]; count: number }> {
-    const where: Record<string, unknown> = { tenantId, deleted: false };
-    for (const [key, value] of Object.entries(filter)) if (value) where[key] = value;
+    const { q, ...exact } = filter;
+    const where: Record<string | symbol, unknown> = { tenantId, deleted: false };
+    for (const [key, value] of Object.entries(exact)) if (value) where[key] = value;
+    if (q) where[Op.or] = loanSearchConditions(tenantId, q, this.connection());
     return this.loanModel.findAndCountAll({
       where,
-      order: [['createdAtValue', 'DESC']],
+      order: [
+        ['createdAtValue', 'DESC'],
+        ['id', 'DESC'],
+      ],
       limit: page.limit,
       offset: page.offset,
     } as FindOptions);
+  }
+
+  /** El código de cliente de los préstamos de una página, para que la tabla enseñe lo que se busca. */
+  findCustomerCodes(tenantId: string, customerIds: readonly string[]): Promise<Map<string, string | null>> {
+    return customerCodesFor(this.connection(), tenantId, customerIds);
+  }
+
+  private connection(): Sequelize {
+    if (!this.loanModel.sequelize) throw new Error('El modelo de préstamos no tiene conexión.');
+    return this.loanModel.sequelize;
   }
 
   createLoan(values: Record<string, unknown>, options: RepositoryOptions = {}): Promise<LoanModel> {

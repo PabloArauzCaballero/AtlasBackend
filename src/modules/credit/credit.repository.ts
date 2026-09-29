@@ -41,10 +41,16 @@ export class CreditRepository {
     } as FindOptions);
   }
 
-  findProductById(tenantId: string, productId: string, options: RepositoryOptions = {}): Promise<CreditProductModel | null> {
+  findProductById(
+    tenantId: string,
+    productId: string,
+    options: RepositoryOptions & { lock?: boolean } = {},
+  ): Promise<CreditProductModel | null> {
     return this.productModel.findOne({
       where: { id: productId, tenantId, deleted: false },
       transaction: options.transaction,
+      // Con `lock`, dos cambios de estado simultáneos no validan contra el mismo estado anterior.
+      ...(options.lock && options.transaction ? { lock: options.transaction.LOCK.UPDATE } : {}),
     } as FindOptions);
   }
 
@@ -56,10 +62,15 @@ export class CreditRepository {
     return this.productModel.create(values as never, { transaction: options.transaction });
   }
 
-  async updateProductStatus(product: CreditProductModel, status: string, now: Date): Promise<CreditProductModel> {
+  async updateProductStatus(
+    product: CreditProductModel,
+    status: string,
+    now: Date,
+    options: RepositoryOptions = {},
+  ): Promise<CreditProductModel> {
     product.status = status;
     product.updatedAtValue = now;
-    return product.save();
+    return product.save({ transaction: options.transaction });
   }
 
   /**

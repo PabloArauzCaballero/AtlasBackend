@@ -4,7 +4,6 @@
  * @system gestiona colas y decisiones operativas mediante servicios transaccionales y repositorios aislados.
  */
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { buildPaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
@@ -16,20 +15,13 @@ import { CustomerLifecycleStatus } from '../customers/customer-lifecycle.constan
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
 import { RiskRepository } from '../risk/risk.repository.js';
-import { InvestigationSummaryResponseDto, PaginatedWorkQueueResponseDto } from './operations.dtos.js';
-import { toFraudWorkItem, toInvestigationSummaryResponse, toManualReviewWorkItem } from './operations.mapper.js';
+import { InvestigationSummaryResponseDto } from './operations.dtos.js';
+import { toInvestigationSummaryResponse } from './operations.mapper.js';
 import { OperationsRepository } from './operations.repository.js';
-import {
-  ManualReviewDecisionDto,
-  ManualReviewDecisionParamsDto,
-  OperationsCustomerIdParamsDto,
-  CursorWorkQueueQueryDto,
-  WorkQueueQueryDto,
-} from './operations.schemas.js';
+import { ManualReviewDecisionDto, ManualReviewDecisionParamsDto, OperationsCustomerIdParamsDto } from './operations.schemas.js';
 
 // La decisión de fraude vive en FraudService; OperationsController conserva la ruta compatible.
 
-import { OperationsQueueRepository } from './operations-queue.repository.js';
 import { assertDecidableFromPortal } from './manual-review-decision-guards.js';
 @Injectable()
 export class OperationsService {
@@ -48,69 +40,9 @@ export class OperationsService {
      */
     private readonly contactsSnapshot: CustomerContactsSnapshotService,
     @InjectConnection() private readonly sequelize: Sequelize,
-    private readonly cola: OperationsQueueRepository,
   ) {}
 
-  /**
-   * ATLAS-P11-T10: variantes por cursor de las colas individuales (no combinadas — ver la nota
-   * de alcance en `operations.repository.ts`). Pensadas para el panel de operaciones cuando el
-   * volumen de casos crezca lo suficiente para que `OFFSET` se vuelva costoso.
-   */
-  async getManualReviewCasesCursorPage(tenantId: string, query: CursorWorkQueueQueryDto) {
-    const result = await this.cola.findManualReviewCasesForQueueWithCursor(tenantId, query);
-    return { items: result.items.map(toManualReviewWorkItem), nextCursor: result.nextCursor };
-  }
-
-  async getFraudCasesCursorPage(tenantId: string, query: CursorWorkQueueQueryDto) {
-    const result = await this.cola.findFraudCasesForQueueWithCursor(tenantId, query);
-    return { items: result.items.map(toFraudWorkItem), nextCursor: result.nextCursor };
-  }
-
-  async getWorkQueue(tenantId: string, query: WorkQueueQueryDto): Promise<PaginatedWorkQueueResponseDto> {
-    if (query.queue === 'manual_review') {
-      const result = await this.cola.findManualReviewCasesForQueue(tenantId, query);
-      return {
-        items: result.rows.map(toManualReviewWorkItem),
-        meta: result.meta,
-      };
-    }
-
-    if (query.queue === 'fraud') {
-      const result = await this.cola.findFraudCasesForQueue(tenantId, query);
-      return {
-        items: result.rows.map(toFraudWorkItem),
-        meta: result.meta,
-      };
-    }
-
-    // queue === 'all': cada fuente se pagina con su propio OFFSET/LIMIT independiente, así que no
-    // se puede pedirle a cada una "la página N" y mezclar esos dos resultados ya recortados — el
-    // corte global de la unión ordenada no coincide con la unión de dos cortes locales (a partir
-    // de la página 2 esto salteaba o duplicaba casos según cómo se distribuyeran las dos colas).
-    // Fix: pedir a cada fuente sus primeros `page*limit` elementos (offset 0), que por definición
-    // contienen todo lo que puede aportar esa fuente al top-`page*limit` de la unión ordenada, y
-    // recién ahí mezclar, ordenar y cortar una sola vez en el rango [start, start+limit).
-    const topK = query.page * query.limit;
-    const topKQuery = { ...query, page: 1, limit: topK };
-    const [manualResult, fraudResult] = await Promise.all([
-      this.cola.findManualReviewCasesForQueue(tenantId, topKQuery),
-      this.cola.findFraudCasesForQueue(tenantId, topKQuery),
-    ]);
-
-    const allItems = [...manualResult.rows.map(toManualReviewWorkItem), ...fraudResult.rows.map(toFraudWorkItem)].sort((a, b) => {
-      const dateA = a.openedAt ?? a.createdAt;
-      const dateB = b.openedAt ?? b.createdAt;
-      return query.sortOrder === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
-    });
-
-    const totalCount = manualResult.meta.total + fraudResult.meta.total;
-    const start = (query.page - 1) * query.limit;
-
-    return {
-      items: allItems.slice(start, start + query.limit),
-      meta: buildPaginationMeta({ page: query.page, limit: query.limit }, totalCount),
-    };
-  }
+  // La COLA (por página y por cursor) vive en `OperationsWorkQueueService`.
 
   async getInvestigationSummary(tenantId: string, params: OperationsCustomerIdParamsDto): Promise<InvestigationSummaryResponseDto> {
     const customer = await this.customersRepository.findById(tenantId, params.customerId);

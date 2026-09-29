@@ -5,6 +5,13 @@
  */
 import { z } from 'zod';
 
+/**
+ * El buscador de la cola: código del cliente o del caso, por coincidencia parcial (ILIKE) y, si son
+ * sólo dígitos, también el número del caso o del cliente exacto. Antes la pantalla sólo aceptaba el
+ * número interno del cliente, que la persona de operaciones no ve en ninguna otra parte.
+ */
+const queueSearchSchema = z.string().trim().min(1).max(80);
+
 export const workQueueQuerySchema = z.object({
   queue: z.enum(['manual_review', 'fraud', 'all']).default('all'),
   status: z.string().trim().min(1).max(40).optional(),
@@ -13,11 +20,25 @@ export const workQueueQuerySchema = z.object({
     .string()
     .regex(/^[1-9][0-9]*$/)
     .optional(),
+  q: queueSearchSchema.optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   sortBy: z.enum(['createdAt', 'updatedAt']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
+
+/**
+ * La cola «contactos sin verificar», por páginas. Antes no tenía parámetros: devolvía los 200 más
+ * recientes y la pantalla contaba sobre esa lista, así que el 201 no existía para nadie.
+ */
+export const pendingContactsQuerySchema = z.object({
+  /** Código del cliente, dominio del correo o últimos 4 del teléfono/correo, por coincidencia parcial. */
+  q: z.string().trim().min(1).max(80).optional(),
+  contactType: z.enum(['email', 'phone']).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(25),
+});
+export type PendingContactsQueryDto = z.infer<typeof pendingContactsQuerySchema>;
 
 export const operationsCustomerIdParamsSchema = z.object({
   customerId: z.string().regex(/^[1-9][0-9]*$/),
@@ -39,6 +60,7 @@ export const cursorWorkQueueQuerySchema = z.object({
     .string()
     .regex(/^[1-9][0-9]*$/)
     .optional(),
+  q: queueSearchSchema.optional(),
   limit: z.coerce.number().int().positive().max(100).default(20),
   sortBy: z.enum(['createdAt', 'updatedAt']).default('createdAt'),
   cursor: z.string().trim().min(1).max(500).optional(),

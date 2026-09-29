@@ -51,10 +51,19 @@ export type SetMdrRateDto = z.infer<typeof setMdrRateSchema>;
  * sobre el que `decide()` acepta trabajar. Ver `PartnerOperationsController.listQueue`.
  */
 export const listPartnerQueueQuerySchema = z.object({
+  /** Parte del nombre legal, del nombre comercial o del NIT. */
+  q: z.string().trim().min(1).max(80).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(25),
 });
 export type ListPartnerQueueQueryDto = z.infer<typeof listPartnerQueueQuerySchema>;
+
+/** La cola de QR de cobro por revisar, por páginas: antes llegaba entera. */
+export const listPendingQrQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(50).default(10),
+});
+export type ListPendingQrQueryDto = z.infer<typeof listPendingQrQuerySchema>;
 
 /**
  * La búsqueda de un expediente por su lado del ERP.

@@ -34,11 +34,18 @@ export class LoanQueryService {
   async listForStaff(tenantId: string, query: ListLoansQueryDto) {
     const { page, pageSize, ...filter } = query;
     const { rows, count } = await this.loans.findLoansPage(tenantId, filter, { limit: pageSize, offset: (page - 1) * pageSize });
-    const merchants = await this.merchantsFor(tenantId, rows);
+    const [merchants, customerCodes] = await Promise.all([
+      this.merchantsFor(tenantId, rows),
+      this.loans.findCustomerCodes(
+        tenantId,
+        rows.map((loan) => String(loan.customerId)),
+      ),
+    ]);
     return {
       items: rows.map((loan) => ({
         ...this.summary(loan),
         customerId: String(loan.customerId),
+        customerCode: customerCodes.get(String(loan.customerId)) ?? null,
         merchant: this.merchantOf(loan, merchants),
       })),
       total: count,

@@ -5,7 +5,9 @@
  */
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
+import { buildPaginationMeta } from '../../../common/utils/pagination/pagination.util.js';
 import { PartnerQrCodeModel } from '../../../database/models/index.js';
+import { toPartnerQrDto } from '../partner-onboarding.mapper.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
 import { ReviewQrDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
@@ -70,7 +72,35 @@ export class PartnerQrReviewService {
   }
 
   /** La cola de revisión: todos los QR del tenant que esperan a una persona, el más antiguo primero. */
-  listPendingReview(tenantId: string): Promise<PartnerQrCodeModel[]> {
-    return this.network.listQrCodesPendingReview(tenantId);
+  /**
+   * Una página de la cola de QR por revisar, cada uno con su comercio.
+   *
+   * Antes devolvía TODOS los pendientes y resolvía los comercios de uno en uno y en serie
+   * (`requireProfile` en un bucle): la cola crecía y la pantalla tardaba más con cada QR subido.
+   * Ahora es una página y sus comercios salen en una sola consulta.
+   */
+  async listPendingReview(tenantId: string, query: { page: number; limit: number }) {
+    const { rows, count } = await this.network.listQrCodesPendingReview(tenantId, {
+      limit: query.limit,
+      offset: (query.page - 1) * query.limit,
+    });
+    const perfiles = await this.profiles.findManyByIds(
+      tenantId,
+      rows.map((qr) => String(qr.partnerProfileId)),
+    );
+    const porId = new Map(perfiles.map((perfil) => [String(perfil.id), perfil]));
+    return {
+      items: rows.map((qr) => {
+        const perfil = porId.get(String(qr.partnerProfileId));
+        return {
+          ...toPartnerQrDto(qr),
+          partnerId: String(qr.partnerProfileId),
+          partner: perfil
+            ? { legalName: perfil.legalName ?? null, tradeName: perfil.tradeName ?? null, onboardingStatus: perfil.onboardingStatus }
+            : null,
+        };
+      }),
+      meta: buildPaginationMeta({ page: query.page, limit: query.limit }, count),
+    };
   }
 }

@@ -17,6 +17,7 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { FraudService } from '../fraud/fraud.service.js';
 import { fraudDecisionParamsSchema, FraudDecisionParamsDto, fraudDecisionSchema, FraudDecisionDto } from '../fraud/fraud.schemas.js';
 import { OperationsService } from './operations.service.js';
+import { OperationsWorkQueueService } from './operations-work-queue.service.js';
 import { PendingContactVerificationService } from './pending-contact-verification.service.js';
 import { OnboardingBehaviorSummaryService } from '../customer-telemetry/application/onboarding-behavior-summary.service.js';
 import {
@@ -30,6 +31,8 @@ import {
   WorkQueueQueryDto,
   cursorWorkQueueQuerySchema,
   CursorWorkQueueQueryDto,
+  pendingContactsQuerySchema,
+  PendingContactsQueryDto,
 } from './operations.schemas.js';
 
 @ApiTags('operations')
@@ -40,6 +43,7 @@ import {
 export class OperationsController {
   constructor(
     private readonly operationsService: OperationsService,
+    private readonly workQueue: OperationsWorkQueueService,
     private readonly fraudService: FraudService,
     private readonly pendingContacts: PendingContactVerificationService,
     private readonly comportamiento: OnboardingBehaviorSummaryService,
@@ -76,16 +80,31 @@ export class OperationsController {
   @ApiOperation({
     summary: 'Cola de trabajo combinada (revisión manual + fraude)',
     description:
-      'Vista paginada por OFFSET que combina ambas colas ordenadas por fecha. Para volúmenes altos, usar las variantes por cursor (manual-review-cases / fraud-cases).',
+      'Vista paginada por OFFSET que combina ambas colas ordenadas por fecha, con `summary.byType` (cuántos casos de cada ' +
+      'cola cumplen los filtros, sin contar el de la cola). `fraud_analyst` entra sólo con `queue=fraud` (otra cola: 403 ' +
+      'WORK_QUEUE_FRAUD_ONLY) y su resumen no trae la revisión manual. Para volúmenes altos, usar las variantes por cursor ' +
+      '(manual-review-cases / fraud-cases).',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiQuery({ name: 'queue', required: false, schema: zodObjectPropertySchemas(workQueueQuerySchema).queue })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(workQueueQuerySchema).status })
   @ApiQuery({ name: 'priority', required: false, schema: zodObjectPropertySchemas(workQueueQuerySchema).priority })
-  @ApiResponse({ status: 200, description: 'Cola de trabajo paginada.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Código del cliente o del caso (coincidencia parcial); sólo dígitos: también el número del caso o del cliente.',
+    schema: zodObjectPropertySchemas(workQueueQuerySchema).q,
+  })
+  @ApiResponse({ status: 200, description: 'Cola de trabajo paginada, con `summary.byType`.' })
+  @ApiResponse({ status: 403, description: 'WORK_QUEUE_FRAUD_ONLY — `fraud_analyst` pidió una cola que no es la de fraude.' })
   @Get('work-queue')
-  getWorkQueue(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(workQueueQuerySchema)) query: WorkQueueQueryDto) {
-    return this.operationsService.getWorkQueue(tenantId, query);
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin', 'fraud_analyst')
+  getWorkQueue(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(workQueueQuerySchema)) query: WorkQueueQueryDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.workQueue.getWorkQueue(tenantId, query, currentUser.role);
   }
 
   /**
@@ -96,27 +115,39 @@ export class OperationsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(cursorWorkQueueQuerySchema).status })
   @ApiQuery({ name: 'cursor', required: false, schema: zodObjectPropertySchemas(cursorWorkQueueQuerySchema).cursor })
-  @ApiResponse({ status: 200, description: 'Página de casos de revisión manual.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Código del cliente o del caso (coincidencia parcial); sólo dígitos: también el número del caso o del cliente.',
+    schema: zodObjectPropertySchemas(cursorWorkQueueQuerySchema).q,
+  })
+  @ApiResponse({ status: 200, description: 'Página de casos de revisión manual, con `total` de los que cumplen los filtros.' })
   @Get('manual-review-cases')
   getManualReviewCasesCursorPage(
     @CurrentTenant() tenantId: string,
     @Query(new ZodValidationPipe(cursorWorkQueueQuerySchema)) query: CursorWorkQueueQueryDto,
   ) {
-    return this.operationsService.getManualReviewCasesCursorPage(tenantId, query);
+    return this.workQueue.getManualReviewCasesCursorPage(tenantId, query);
   }
 
   @ApiOperation({ summary: 'Cola de casos de fraude (paginada por cursor)' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(cursorWorkQueueQuerySchema).status })
   @ApiQuery({ name: 'cursor', required: false, schema: zodObjectPropertySchemas(cursorWorkQueueQuerySchema).cursor })
-  @ApiResponse({ status: 200, description: 'Página de casos de fraude.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Código del cliente o del caso (coincidencia parcial); sólo dígitos: también el número del caso o del cliente.',
+    schema: zodObjectPropertySchemas(cursorWorkQueueQuerySchema).q,
+  })
+  @ApiResponse({ status: 200, description: 'Página de casos de fraude, con `total` de los que cumplen los filtros.' })
   @Get('fraud-cases')
   @Roles('fraud_analyst', 'internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
   getFraudCasesCursorPage(
     @CurrentTenant() tenantId: string,
     @Query(new ZodValidationPipe(cursorWorkQueueQuerySchema)) query: CursorWorkQueueQueryDto,
   ) {
-    return this.operationsService.getFraudCasesCursorPage(tenantId, query);
+    return this.workQueue.getFraudCasesCursorPage(tenantId, query);
   }
 
   @ApiOperation({
@@ -126,10 +157,40 @@ export class OperationsController {
       'reenvía la verificación (POST /customer-onboarding/:customerId/contact-verification/request).',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiResponse({ status: 200, description: 'Lista de contactos sin verificar, del más reciente al más antiguo.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Código del cliente, dominio del correo o últimos 4 caracteres del contacto (coincidencia parcial).',
+    schema: zodObjectPropertySchemas(pendingContactsQuerySchema).q,
+  })
+  @ApiQuery({
+    name: 'contactType',
+    required: false,
+    description: 'Sólo correos (`email`) o sólo teléfonos (`phone`).',
+    schema: zodObjectPropertySchemas(pendingContactsQuerySchema).contactType,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Página (desde 1).',
+    schema: zodObjectPropertySchemas(pendingContactsQuerySchema).page,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Filas por página (máx. 100).',
+    schema: zodObjectPropertySchemas(pendingContactsQuerySchema).limit,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Contactos sin verificar del más reciente al más antiguo, con `meta` y `summary` {total, email, phone} de toda la cola.',
+  })
   @Get('customers/pending-contact-verification')
-  listPendingContactVerification(@CurrentTenant() tenantId: string) {
-    return this.pendingContacts.list(tenantId);
+  listPendingContactVerification(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(pendingContactsQuerySchema)) query: PendingContactsQueryDto,
+  ) {
+    return this.pendingContacts.list(tenantId, query);
   }
 
   @ApiOperation({

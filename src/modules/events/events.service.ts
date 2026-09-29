@@ -10,7 +10,7 @@ import { OutboxRelayService } from '../../platform/events/outbox-relay.service.j
 import { decodeCursor, paginateWithCursor } from '../../common/utils/pagination/cursor-pagination.util.js';
 import { listEventDefinitions, getEventDefinition } from './event-registry.js';
 import { EventsRepository } from './events.repository.js';
-import { ListEventsQueryDto, PublishEventDto } from './events.schemas.js';
+import { eventStatusSchema, ListEventsQueryDto, PublishEventDto } from './events.schemas.js';
 import { ProcessEventsInput, ProcessEventsResult, PublishEventInput } from './event-types.js';
 import { OutboxEventModel } from '../../database/models/index.js';
 import { NotificationOrchestratorService } from '../notifications/notification-orchestrator.service.js';
@@ -119,7 +119,7 @@ export class EventsService {
       };
     }
 
-    const result = await this.repository.list(tenantId, query);
+    const [result, byStatus] = await Promise.all([this.repository.list(tenantId, query), this.repository.countByStatus(tenantId, query)]);
     return {
       data: result.rows.map(eventToResponse),
       pagination: {
@@ -129,6 +129,8 @@ export class EventsService {
         total: result.count,
         totalPages: Math.ceil(result.count / query.limit),
       },
+      // Por estado con los mismos filtros salvo el de estado: las tarjetas dejan de contar la página.
+      summary: { byStatus: Object.fromEntries(eventStatusSchema.options.map((status) => [status, byStatus[status] ?? 0])) },
     };
   }
 
