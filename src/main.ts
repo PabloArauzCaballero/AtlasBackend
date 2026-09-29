@@ -29,6 +29,7 @@ import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encr
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
 import { assertDecoratorMetadataIsAvailable } from './common/bootstrap/decorator-metadata.guard.js';
+import { malwareScannerStartupNotice } from './common/storage/malware-scanner-startup-notice.js';
 
 /**
  * Las únicas rutas cuyo cuerpo crudo se conserva, porque quien llama firma esos bytes: el webhook de
@@ -62,6 +63,16 @@ async function bootstrap(): Promise<void> {
     setActiveEncryptionProvider(new KmsKeyProvider(env.KMS_KEY_ID, env.AWS_REGION));
     logger.log('KMS activado como proveedor de cifrado de PII (KMS_KEY_ID + AWS_REGION configurados).');
   }
+
+  // El antimalware está apagado salvo que se apunte a un clamd: que el log de arranque lo diga, porque con
+  // el escáner apagado la evidencia se acepta sin escanear y nada más lo muestra.
+  const scanner = malwareScannerStartupNotice({
+    host: env.MALWARE_SCAN_HOST,
+    port: env.MALWARE_SCAN_PORT,
+    failClosed: env.MALWARE_SCAN_FAIL_CLOSED,
+  });
+  if (scanner.level === 'warn') logger.warn(scanner.message);
+  else logger.log(scanner.message);
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: new AppFileLogger(),
