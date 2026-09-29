@@ -25,6 +25,20 @@ import {
 
 const PROVIDER = 'atlas_decision_engine';
 
+/** Un artefacto tal como lo lista el catálogo del motor (`GET /v1/artifacts`). */
+export type ArtifactSummary = {
+  artifactCode?: string;
+  code?: string;
+  name?: string;
+  artifactType?: string;
+  latestVersion?: string;
+  latestStatus?: string;
+};
+
+/** El máximo que el motor sirve por página (`paginationArgs`, tope 100). */
+const ARTIFACT_PAGE_SIZE = 100;
+const ARTIFACT_MAX_PAGES = 20;
+
 @Injectable()
 export class DecisionEngineClient {
   private readonly logger = new Logger(DecisionEngineClient.name);
@@ -200,28 +214,31 @@ export class DecisionEngineClient {
    * El catálogo sirve para poblar el desplegable de «qué artefacto decide cada cosa»; sin él se
    * escribía el código a mano, que es como se llegó a apuntar a uno inexistente.
    */
-  async listArtifacts(): Promise<
-    { artifactCode?: string; code?: string; name?: string; artifactType?: string; latestVersion?: string; latestStatus?: string }[]
-  > {
+  async listArtifacts(): Promise<ArtifactSummary[]> {
     if (!this.isConfigured) return [];
-    const url = `${this.transport.baseUrl()}/v1/artifacts`;
     const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_API_KEY ?? '';
-    const response = await fetch(url, { headers: { 'x-api-key': apiKey, 'x-tenant-id': env.DECISION_ENGINE_TENANT_ID } });
-    if (!response.ok) {
-      this.logger.warn(`El motor respondió ${response.status} al listar artefactos.`);
-      return [];
+    const headers = { 'x-api-key': apiKey, 'x-tenant-id': env.DECISION_ENGINE_TENANT_ID };
+    /*
+     * Se recorren las páginas: el motor pagina de 25 en 25 por defecto, y con sólo la primera un
+     * artefacto de la segunda salía como «no existe en el motor» en el portal y `assign` lo
+     * rechazaba con DECISION_ARTIFACT_NOT_PUBLISHED. Tope de páginas para no colgarse de un motor
+     * que diga `hasNextPage` para siempre.
+     */
+    const todos: ArtifactSummary[] = [];
+    for (let page = 1; page <= ARTIFACT_MAX_PAGES; page += 1) {
+      const url = `${this.transport.baseUrl()}/v1/artifacts?page=${page}&pageSize=${ARTIFACT_PAGE_SIZE}`;
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        this.logger.warn(`El motor respondió ${response.status} al listar artefactos.`);
+        return page === 1 ? [] : todos;
+      }
+      const body = (await response.json()) as { data?: unknown; items?: unknown; hasNextPage?: unknown };
+      const items = (body.data ?? body.items ?? body) as unknown;
+      if (!Array.isArray(items)) return todos;
+      todos.push(...(items as ArtifactSummary[]));
+      if (body.hasNextPage !== true) break;
     }
-    const body = (await response.json()) as { data?: unknown; items?: unknown };
-    const items = (body.data ?? body.items ?? body) as unknown;
-    if (!Array.isArray(items)) return [];
-    return items as {
-      artifactCode?: string;
-      code?: string;
-      name?: string;
-      artifactType?: string;
-      latestVersion?: string;
-      latestStatus?: string;
-    }[];
+    return todos;
   }
 
   /**

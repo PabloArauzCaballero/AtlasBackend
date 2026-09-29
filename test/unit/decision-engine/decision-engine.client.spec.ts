@@ -249,6 +249,29 @@ describe('DecisionEngineClient', () => {
       expect(await cliente().listArtifacts()).toEqual([{ code: 'c' }]);
     });
 
+    /*
+     * El motor pagina (25 por defecto). Con sólo la primera página, un artefacto de la segunda salía
+     * en el portal como «no existe en el motor» y `assign` lo rechazaba: se recorren todas.
+     */
+    it('el catálogo recorre todas las páginas del motor', async () => {
+      const { llamadas } = conFetch(
+        { status: 200, body: { items: [{ artifactCode: 'a' }], hasNextPage: true } },
+        { status: 200, body: { items: [{ artifactCode: 'b' }], hasNextPage: false } },
+      );
+
+      expect(await cliente().listArtifacts()).toEqual([{ artifactCode: 'a' }, { artifactCode: 'b' }]);
+      expect(llamadas.map((l) => l.url)).toEqual([
+        'https://motor.atlas.local/v1/artifacts?page=1&pageSize=100',
+        'https://motor.atlas.local/v1/artifacts?page=2&pageSize=100',
+      ]);
+    });
+
+    it('si falla una página intermedia se queda con lo leído, no lo tira', async () => {
+      conFetch({ status: 200, body: { items: [{ artifactCode: 'a' }], hasNextPage: true } }, { status: 503, body: {} });
+
+      expect(await cliente().listArtifacts()).toEqual([{ artifactCode: 'a' }]);
+    });
+
     it('el catálogo no revienta si el motor devuelve algo que no es una lista', async () => {
       conFetch({ status: 200, body: { data: { code: 'a' } } });
 

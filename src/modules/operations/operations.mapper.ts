@@ -130,6 +130,7 @@ export function toInvestigationSummaryResponse(input: {
         fraudRisk: enCero_uno(toNumberOrNull(input.latestIdentityAttempt.documentForensicsScore)),
         requestedAt: toIsoOrNull(input.latestIdentityAttempt.requestedAt),
         completedAt: toIsoOrNull(input.latestIdentityAttempt.completedAt),
+        ...sugerenciaDelMotor(input.latestIdentityAttempt.reasonCodesJson),
       }
     : null;
 
@@ -157,5 +158,15 @@ export function toInvestigationSummaryResponse(input: {
     addressBook: input.addressBook,
     manualReviewCases,
     fraudCases,
+  };
+}
+
+/** El veredicto que el Motor dio a un intento retenido por la política de revisión humana. */
+function sugerenciaDelMotor(motivos: Record<string, unknown> | null): Pick<IdentitySummaryDto, 'engineSuggestion' | 'engineReason'> {
+  if (!motivos || motivos.humanReviewPolicy !== true) return { engineSuggestion: null, engineReason: null };
+  const decision = motivos.engineDecision;
+  return {
+    engineSuggestion: decision === 'VERIFIED' || decision === 'REJECTED' ? decision : null,
+    engineReason: typeof motivos.reason === 'string' ? motivos.reason : null,
   };
 }
