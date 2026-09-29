@@ -151,6 +151,8 @@ export const uploadUrlRequestSchema = z
       'identity_front',
       'identity_back',
       'selfie',
+      'selfie_left',
+      'selfie_right',
       'proof_of_address',
       'bank_statement',
       'bank_qr_proof',

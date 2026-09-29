@@ -28,8 +28,26 @@ export type CaptureSource = (typeof CAPTURE_SOURCES)[number];
 /** Campo opcional de origen de captura, para los esquemas del borde. */
 export const captureSourceSchema = z.enum(CAPTURE_SOURCES);
 
-/** Las evidencias que el escáner del sistema NO puede producir: la selfie siempre es de la cámara. */
-const SIEMPRE_CON_CAMARA: ReadonlySet<string> = new Set(['selfie']);
+/**
+ * Las poses de la prueba de vida (2026-09-28): `selfie` es la de FRENTE —la que apunta
+ * `identity_verification_attempts.selfie_evidence_id`—; `selfie_left` y `selfie_right` son los
+ * perfiles. Una app vieja que manda sólo `selfie` sigue valiendo.
+ */
+export const SELFIE_EVIDENCE_TYPES = ['selfie', 'selfie_left', 'selfie_right'] as const;
+
+/** Los tipos de evidencia del paquete de identidad del alta (hasta 8 por paquete: anverso, reverso, tres poses y comprobantes). */
+export const IDENTITY_EVIDENCE_TYPES = [
+  'identity_front',
+  'identity_back',
+  ...SELFIE_EVIDENCE_TYPES,
+  'proof_of_address',
+  'bank_qr_proof',
+  'occupation_audio',
+  'other',
+] as const;
+
+/** Las evidencias que el escáner del sistema NO puede producir: las tres poses de la selfie siempre son de la cámara. */
+const SIEMPRE_CON_CAMARA: ReadonlySet<string> = new Set(SELFIE_EVIDENCE_TYPES);
 
 /**
  * Regla de un item de evidencia: `system_scanner` en una selfie es un error del cliente, no un dato.

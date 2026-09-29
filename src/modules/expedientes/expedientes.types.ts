@@ -40,6 +40,8 @@ export type ClaseNodo =
   | 'identity_front'
   | 'identity_back'
   | 'selfie'
+  | 'selfie_left'
+  | 'selfie_right'
   | 'bank_statement'
   | 'proof_of_address'
   | 'payment_proof'
@@ -116,6 +118,8 @@ export const CARPETA_POR_TIPO: Readonly<Record<string, { carpeta: string; clase:
   identity_front: { carpeta: 'auth', clase: 'identity_front', nombre: 'anverso' },
   identity_back: { carpeta: 'auth', clase: 'identity_back', nombre: 'reverso' },
   selfie: { carpeta: 'auth', clase: 'selfie', nombre: 'selfie' },
+  selfie_left: { carpeta: 'auth', clase: 'selfie_left', nombre: 'selfie perfil izquierdo' },
+  selfie_right: { carpeta: 'auth', clase: 'selfie_right', nombre: 'selfie perfil derecho' },
   bank_statement: { carpeta: 'extractos', clase: 'bank_statement', nombre: 'extracto' },
   proof_of_address: { carpeta: 'domicilio', clase: 'proof_of_address', nombre: 'comprobante' },
   payment_proof: { carpeta: 'pagos', clase: 'payment_proof', nombre: 'comprobante de pago' },

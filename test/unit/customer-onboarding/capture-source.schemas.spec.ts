@@ -87,3 +87,52 @@ describe('identityPackageSchema · evidence[].captureSource', () => {
     expect(evidenciaDe(paquete({ capturedWith: 'system_scanner' }))).not.toHaveProperty('capturedWith');
   });
 });
+
+/**
+ * La prueba de vida en TRES poses (2026-09-28): frente (`selfie`), perfil izquierdo (`selfie_left`)
+ * y perfil derecho (`selfie_right`). Las dos nuevas siguen la regla de la selfie —sólo cámara— y
+ * una app vieja que manda sólo `selfie` sigue valiendo.
+ */
+describe('selfie en tres poses', () => {
+  const vence = `${new Date().getUTCFullYear() + 5}-01-01`;
+  const item = (evidenceType: string, extra: Record<string, unknown> = {}) => ({
+    evidenceType,
+    storageKey: `t1/c1/${evidenceType}`,
+    mimeType: 'image/jpeg',
+    sha256Hash: 'b'.repeat(64),
+    ...extra,
+  });
+  const paquete = (evidence: unknown[]) => ({
+    identity: { documentType: 'ci', documentNumberHash: 'a'.repeat(64), documentLast4: '1234', expiresAt: vence },
+    evidence,
+  });
+
+  it('el paquete acepta anverso, reverso y las tres poses juntas', () => {
+    const tipos = ['identity_front', 'identity_back', 'selfie', 'selfie_left', 'selfie_right'];
+    const salida = validar(identityPackageSchema, paquete(tipos.map((tipo) => item(tipo)))) as {
+      evidence: Array<{ evidenceType: string }>;
+    };
+    expect(salida.evidence.map((e) => e.evidenceType)).toEqual(tipos);
+  });
+
+  it('una app vieja con sólo la selfie de frente sigue valiendo', () => {
+    expect(() => validar(identityPackageSchema, paquete([item('identity_front'), item('identity_back'), item('selfie')]))).not.toThrow();
+  });
+
+  it.each(['selfie_left', 'selfie_right'])('rechaza system_scanner en %s y acepta camera', (tipo) => {
+    expect(() => validar(identityPackageSchema, paquete([item(tipo, { captureSource: 'system_scanner' })]))).toThrow(BadRequestException);
+    expect(() => validar(identityPackageSchema, paquete([item(tipo, { captureSource: 'camera' })]))).not.toThrow();
+  });
+
+  it.each(['selfie_left', 'selfie_right'])('la subida con URL firmada acepta %s', (documentType) => {
+    const body = { documentType, contentType: 'image/jpeg', sizeBytes: 1_000, captureSource: 'camera' };
+    expect(validar(uploadUrlRequestSchema, body)).toEqual(body);
+  });
+
+  it('un tipo de pose inventado sigue siendo 400', () => {
+    expect(() => validar(identityPackageSchema, paquete([item('selfie_up')]))).toThrow(BadRequestException);
+    expect(() => validar(uploadUrlRequestSchema, { documentType: 'selfie_up', contentType: 'image/jpeg', sizeBytes: 1 })).toThrow(
+      BadRequestException,
+    );
+  });
+});

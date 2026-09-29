@@ -192,6 +192,8 @@ export class CustomerIdentityEvidenceRepository {
       finalResult: string;
       reasonCodesJson: Record<string, unknown> | null;
       requestedAt: Date;
+      /** La selfie de FRENTE. Los perfiles de la prueba de vida (`selfie_left`/`selfie_right`) no van aquí. */
+      selfieEvidenceId?: string | null;
     },
     options: RepositoryOptions,
   ): Promise<IdentityVerificationAttemptModel> {
@@ -209,7 +211,7 @@ export class CustomerIdentityEvidenceRepository {
         nameMatchScore: null,
         finalResult: values.finalResult,
         reasonCodesJson: values.reasonCodesJson,
-        selfieEvidenceId: null,
+        selfieEvidenceId: values.selfieEvidenceId ?? null,
         requestedAt: values.requestedAt,
         completedAt: null,
         manualReviewedBy: null,

@@ -169,6 +169,8 @@ export class CustomerIdentityPackageService {
           finalResult: 'pending_review',
           reasonCodesJson: { reasonCodes: ['identity_evidence_pending_review'] },
           requestedAt: now,
+          // Siempre la de frente, aunque lleguen también los perfiles de la prueba de vida en tres poses.
+          selfieEvidenceId: evidenceIds.selfie ?? null,
         },
         { transaction },
       );
