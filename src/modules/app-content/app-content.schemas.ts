@@ -4,6 +4,7 @@
  * @system valida el catálogo de contenidos de la app y sus acciones.
  */
 import { z } from 'zod';
+import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 
 /** A qué pantalla va la pieza. Cerrado a propósito: la app tiene que saber pintar cada superficie. */
 export const contentSurfaceSchema = z.enum(['onboarding', 'home', 'faq', 'help', 'legal', 'profile', 'credit']);
@@ -26,6 +27,16 @@ export const contentBulletSchema = z.object({
 export const listContentQuerySchema = z.object({
   surface: contentSurfaceSchema.optional(),
   locale: z.string().trim().min(2).max(10).default('es-BO'),
+});
+
+/** El listado del portal, paginado. La app pública sigue con `listContentQuerySchema`: no pagina. */
+export const listAdminContentQuerySchema = listContentQuerySchema.extend({
+  /** Por partes: clave, título, subtítulo, texto y botón de la pieza. Sólo el listado del portal lo usa. */
+  q: z.string().trim().min(1).max(120).optional(),
+  /** Sólo visibles (`true`) o sólo ocultas (`false`) en la app. */
+  active: queryBooleanSchema.optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
 export const upsertContentSchema = z
@@ -54,5 +65,6 @@ export const upsertContentSchema = z
 export const contentIdParamsSchema = z.object({ contentId: z.string().regex(/^[1-9][0-9]*$/) });
 
 export type ListContentQueryDto = z.infer<typeof listContentQuerySchema>;
+export type ListAdminContentQueryDto = z.infer<typeof listAdminContentQuerySchema>;
 export type UpsertContentDto = z.infer<typeof upsertContentSchema>;
 export type ContentIdParamsDto = z.infer<typeof contentIdParamsSchema>;

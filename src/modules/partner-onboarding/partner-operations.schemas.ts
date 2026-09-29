@@ -160,3 +160,17 @@ export const contractTemplateParamsSchema = z.object({
   templateId: z.string().regex(/^[1-9][0-9]{0,18}$/u, 'templateId debe ser un entero positivo.'),
 });
 export type ContractTemplateParamsDto = z.infer<typeof contractTemplateParamsSchema>;
+
+/**
+ * El listado del portal: buscador por partes, filtro por estado y paginación en el servidor.
+ * Las archivadas NO se ocultan por omisión: son la prueba de qué texto regía cada día.
+ */
+export const listContractTemplatesQuerySchema = z.object({
+  /** Por partes: código y nombre del contrato. */
+  q: z.string().trim().min(1).max(120).optional(),
+  /** `active` las vigentes de cada código; `archived` las que rigieron antes. */
+  status: z.enum(['active', 'archived']).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+});
+export type ListContractTemplatesQueryDto = z.infer<typeof listContractTemplatesQuerySchema>;

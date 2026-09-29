@@ -7,7 +7,10 @@ import { ConflictException, Injectable, Logger, NotFoundException } from '@nestj
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { InjectConnection } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
+import { buildPaginationMeta, toOffset } from '../../../common/utils/pagination/pagination.util.js';
 import { PartnerContractTemplateModel } from '../../../database/models/index.js';
+import { withTextSearch } from '../../../common/utils/query/text-search.util.js';
 
 export type ContractTemplateInput = {
   templateCode: string;
@@ -69,14 +72,34 @@ export class PartnerContractTemplateService {
     return (await this.findDefault(tenantId)) !== null;
   }
 
-  async list(tenantId: string): Promise<PartnerContractTemplateModel[]> {
-    return this.templateModel.findAll({
-      where: { tenantId, deleted: false },
-      order: [
-        ['template_code', 'ASC'],
-        ['version', 'DESC'],
-      ],
-    });
+  /**
+   * La página del portal: busca por partes, filtra por estado y pagina EN EL SERVIDOR. El `summary`
+   * cuenta todas las versiones del inquilino —vigentes y archivadas—, no la página ni el filtro, y
+   * trae la vigente por defecto (`current`), que ya no se puede deducir de una página.
+   */
+  async listPage(tenantId: string, query: { q?: string; status?: 'active' | 'archived'; page: number; limit: number }) {
+    const where: Record<string | symbol, unknown> = { tenantId, deleted: false };
+    if (query.status) where.status = query.status === 'active' ? 'active' : { [Op.ne]: 'active' };
+    withTextSearch(where, query.q, ['templateCode', 'name']);
+    const [found, active, total, current] = await Promise.all([
+      this.templateModel.findAndCountAll({
+        where,
+        order: [
+          ['templateCode', 'ASC'],
+          ['version', 'DESC'],
+        ],
+        limit: query.limit,
+        offset: toOffset(query),
+      }),
+      this.templateModel.count({ where: { tenantId, deleted: false, status: 'active' } }),
+      this.templateModel.count({ where: { tenantId, deleted: false } }),
+      this.findDefault(tenantId),
+    ]);
+    return {
+      rows: found.rows,
+      meta: buildPaginationMeta(query, found.count),
+      summary: { total, active, archived: total - active, current },
+    };
   }
 
   /**

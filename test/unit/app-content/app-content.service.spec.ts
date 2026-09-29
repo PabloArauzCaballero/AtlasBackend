@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
+import { Op } from 'sequelize';
 import { AppContentService } from '../../../src/modules/app-content/app-content.service.js';
 import type { AppContentEntryModel } from '../../../src/database/models/index.js';
 
@@ -47,12 +48,14 @@ function fila(overrides: Record<string, unknown> = {}) {
 }
 
 describe('AppContentService', () => {
-  let entries: { findAll: jest.Mock; findOne: jest.Mock; create: jest.Mock };
+  let entries: { findAll: jest.Mock; findAndCountAll: jest.Mock; count: jest.Mock; findOne: jest.Mock; create: jest.Mock };
   let service: AppContentService;
 
   beforeEach(() => {
     entries = {
       findAll: jest.fn(async () => []),
+      findAndCountAll: jest.fn(async () => ({ rows: [], count: 0 })),
+      count: jest.fn(async () => 0),
       findOne: jest.fn(async () => null),
       create: jest.fn(async (values: unknown) => fila(values as Record<string, unknown>)),
     };
@@ -100,12 +103,47 @@ describe('AppContentService', () => {
     });
 
     it('la vista de administración SÍ trae lo inactivo y sus campos de edición', async () => {
-      entries.findAll.mockResolvedValueOnce([fila({ isActive: false })] as never);
+      entries.findAndCountAll.mockResolvedValueOnce({ rows: [fila({ isActive: false })], count: 1 } as never);
 
-      const { items } = await service.listForAdmin('t1', {});
+      const { items } = await service.listForAdmin('t1', { page: 1, limit: 20 });
 
-      expect(ultima(entries.findAll).where).toEqual({ tenantId: 't1', deleted: false });
+      expect(ultima(entries.findAndCountAll).where).toEqual({ tenantId: 't1', deleted: false });
       expect(items[0]).toMatchObject({ contentId: 'c-1', isActive: false, locale: 'es-BO' });
+    });
+
+    it('el listado del portal pagina, filtra por visibilidad y busca por partes en el servidor', async () => {
+      entries.findAndCountAll.mockResolvedValueOnce({ rows: [fila()], count: 45 } as never);
+
+      const page = await service.listForAdmin('t1', { surface: 'faq', active: false, q: '50%_', page: 3, limit: 10 });
+
+      const options = entries.findAndCountAll.mock.calls[0]?.[0] as {
+        where: Record<string | symbol, unknown>;
+        limit: number;
+        offset: number;
+      };
+      expect(options.limit).toBe(10);
+      expect(options.offset).toBe(20);
+      expect(options.where).toMatchObject({ tenantId: 't1', deleted: false, surface: 'faq', isActive: false });
+      // Los comodines del usuario llegan ESCAPADOS: «50%_» no es «50 seguido de cualquier cosa».
+      const patron = '%50\\%\\_%';
+      expect(options.where[Op.and]).toEqual([
+        {
+          [Op.or]: ['contentKey', 'title', 'subtitle', 'bodyMd', 'actionLabel'].map((columna) => ({ [columna]: { [Op.iLike]: patron } })),
+        },
+      ]);
+      expect(page.meta).toEqual({ page: 3, limit: 10, total: 45, totalPages: 5 });
+    });
+
+    it('el resumen cuenta la pantalla entera, no la página ni el filtro', async () => {
+      entries.count.mockResolvedValueOnce(7 as never).mockResolvedValueOnce(2 as never);
+
+      const { summary } = await service.listForAdmin('t1', { surface: 'faq', q: 'nada', page: 1, limit: 20 });
+
+      expect(summary).toEqual({ total: 9, visible: 7, hidden: 2 });
+      expect(entries.count.mock.calls.map((call) => (call[0] as { where: Record<string, unknown> }).where)).toEqual([
+        { tenantId: 't1', deleted: false, surface: 'faq', isActive: true },
+        { tenantId: 't1', deleted: false, surface: 'faq', isActive: false },
+      ]);
     });
   });
 
