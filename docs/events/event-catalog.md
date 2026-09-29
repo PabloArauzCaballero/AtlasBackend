@@ -4,8 +4,8 @@
 > (`src/modules/events/event-registry.ts`) y desde los productores reales de `src/`; `yarn check:events-docs`
 > (CI) falla si difiere. Fuente: `scripts/docs/generate-event-contract.ts`.
 
-**117 códigos registrados en 12 familias. 28 tienen productor en el código;
-los 89 restantes están reservados**: registrarlos permite publicarlos sin cambiar el contrato, pero
+**117 códigos registrados en 12 familias. 29 tienen productor en el código;
+los 88 restantes están reservados**: registrarlos permite publicarlos sin cambiar el contrato, pero
 hoy ningún código los escribe y un consumidor no debe esperarlos. El contrato AsyncAPI
 (`asyncapi/asyncapi.yaml`) declara sólo los emitidos.
 
@@ -38,10 +38,10 @@ Agregados admitidos: `customer`, `user`, `session`, `device` · prioridad por de
 
 | Código | Emitido | Productor | Aviso |
 |---|---|---|---|
-| `user.registered` | no (reservado) | — | customer: in_app, email |
+| `user.registered` | no (reservado) | — | — |
 | `user.profile.completed` | no (reservado) | — | — |
-| `user.email.verified` | no (reservado) | — | customer: in_app |
-| `user.phone.verified` | no (reservado) | — | customer: in_app |
+| `user.email.verified` | no (reservado) | — | — |
+| `user.phone.verified` | no (reservado) | — | — |
 | `user.login.succeeded` | no (reservado) | — | — |
 | `user.login.failed` | no (reservado) | — | — |
 | `user.device.registered` | no (reservado) | — | — |
@@ -78,7 +78,7 @@ Agregados admitidos: `customer`, `score`, `risk_alert`, `fraud_case` · priorida
 | `score.rejected` | no (reservado) | — | — |
 | `score.manual_review_required` | no (reservado) | — | — |
 | `risk.signal.detected` | no (reservado) | — | — |
-| `risk.alert.created` | no (reservado) | — | operations: in_app |
+| `risk.alert.created` | no (reservado) | — | — |
 | `risk.alert.resolved` | no (reservado) | — | — |
 | `fraud.rule.triggered` | no (reservado) | — | — |
 | `fraud.case.opened` | no (reservado) | — | — |
@@ -115,11 +115,11 @@ Agregados admitidos: `customer`, `credit_line`, `credit_limit_movement` · prior
 | Código | Emitido | Productor | Aviso |
 |---|---|---|---|
 | `credit_line.created` | no (reservado) | — | — |
-| `credit_line.approved` | no (reservado) | — | customer: in_app, push, email |
-| `credit_line.rejected` | no (reservado) | — | customer: in_app, email |
+| `credit_line.approved` | no (reservado) | — | — |
+| `credit_line.rejected` | no (reservado) | — | — |
 | `credit_line.increased` | no (reservado) | — | — |
 | `credit_line.decreased` | no (reservado) | — | — |
-| `credit_line.suspended` | no (reservado) | — | customer: in_app, push, email |
+| `credit_line.suspended` | no (reservado) | — | — |
 | `credit_line.reactivated` | no (reservado) | — | — |
 | `credit_line.expired` | no (reservado) | — | — |
 | `credit_limit_movement.created` | no (reservado) | — | — |
@@ -130,11 +130,11 @@ Agregados admitidos: `purchase`, `customer`, `merchant` · prioridad por defecto
 
 | Código | Emitido | Productor | Aviso |
 |---|---|---|---|
-| `purchase.created` | no (reservado) | — | customer: in_app, push |
-| `purchase.awaiting_downpayment` | no (reservado) | — | customer: in_app, push |
-| `purchase.downpayment_confirmed` | no (reservado) | — | customer: in_app, push, email |
+| `purchase.created` | no (reservado) | — | — |
+| `purchase.awaiting_downpayment` | no (reservado) | — | — |
+| `purchase.downpayment_confirmed` | no (reservado) | — | — |
 | `purchase.downpayment_rejected` | no (reservado) | — | — |
-| `purchase.expired` | no (reservado) | — | customer: in_app, email |
+| `purchase.expired` | no (reservado) | — | — |
 | `purchase.cancelled` | no (reservado) | — | — |
 | `purchase.approved` | no (reservado) | — | — |
 | `purchase.completed` | no (reservado) | — | — |
@@ -147,16 +147,16 @@ Agregados admitidos: `installment`, `collection_case`, `customer`, `purchase` ·
 |---|---|---|---|
 | `installment.schedule.created` | no (reservado) | — | — |
 | `installment.created` | no (reservado) | — | — |
-| `installment.due_soon` | no (reservado) | — | customer: in_app, push, email |
-| `installment.due_today` | no (reservado) | — | customer: in_app, push, email |
+| `installment.due_soon` | no (reservado) | — | — |
+| `installment.due_today` | no (reservado) | — | — |
 | `installment.grace_period_started` | no (reservado) | — | — |
-| `installment.overdue` | no (reservado) | — | customer: in_app, push, email |
-| `installment.paid` | no (reservado) | — | customer: in_app, push |
+| `installment.overdue` | no (reservado) | — | — |
+| `installment.paid` | no (reservado) | — | — |
 | `installment.partially_paid` | no (reservado) | — | — |
 | `installment.defaulted` | no (reservado) | — | — |
 | `collection.case.created` | no (reservado) | — | — |
-| `collection.reminder.scheduled` | no (reservado) | — | customer: in_app |
-| `collection.reminder.sent` | no (reservado) | — | customer: in_app |
+| `collection.reminder.scheduled` | no (reservado) | — | — |
+| `collection.reminder.sent` | no (reservado) | — | — |
 | `collection.promise_to_pay.created` | no (reservado) | — | — |
 | `collection.case.resolved` | no (reservado) | — | — |
 
@@ -183,18 +183,18 @@ Agregados admitidos: `merchant`, `settlement`, `mdr_invoice`, `reconciliation` �
 | `merchant.sale.created` | no (reservado) | — | — |
 | `merchant.sale.confirmed` | no (reservado) | — | — |
 | `merchant.settlement.created` | no (reservado) | — | — |
-| `merchant.settlement.ready` | no (reservado) | — | merchant: in_app, email |
+| `merchant.settlement.ready` | no (reservado) | — | — |
 | `merchant.settlement.paid` | no (reservado) | — | — |
 | `merchant.mdr.invoice.created` | no (reservado) | — | — |
-| `merchant.mdr.invoice.due` | no (reservado) | — | merchant: in_app, email |
-| `merchant.mdr.invoice.overdue` | no (reservado) | — | merchant: in_app, email |
+| `merchant.mdr.invoice.due` | no (reservado) | — | — |
+| `merchant.mdr.invoice.overdue` | no (reservado) | — | — |
 | `reconciliation.started` | no (reservado) | — | — |
 | `reconciliation.matched` | no (reservado) | — | — |
 | `reconciliation.unmatched` | no (reservado) | — | — |
 
 ## `support_service_management`
 
-Agregados admitidos: `support_case`, `support_channel`, `support_message`, `knowledge_article`, `customer`, `partner` · prioridad por defecto: 20 · emitidos: 13 de 15.
+Agregados admitidos: `support_case`, `support_channel`, `support_message`, `knowledge_article`, `customer`, `partner` · prioridad por defecto: 20 · emitidos: 14 de 15.
 
 | Código | Emitido | Productor | Aviso |
 |---|---|---|---|
@@ -210,8 +210,8 @@ Agregados admitidos: `support_case`, `support_channel`, `support_message`, `know
 | `support.message.created` | sí | `src/modules/support/application/support-message.service.ts` | — |
 | `support.complaint.created` | sí | `src/modules/support/application/support-case-creation-events.service.ts` | — |
 | `support.security.escalated` | sí | `src/modules/support/application/support-case-creation-events.service.ts`<br>`src/modules/support/application/support-case-escalation.service.ts` | — |
-| `support.sla.warning` | no (reservado) | — | — |
-| `support.sla.breached` | sí | `src/modules/support/application/support-sla.service.ts` | — |
+| `support.sla.warning` | sí | `src/modules/support/application/support-sla.service.ts` | operations: in_app |
+| `support.sla.breached` | sí | `src/modules/support/application/support-sla.service.ts` | operations: in_app |
 | `support.knowledge.published` | sí | `src/modules/support/application/support-knowledge.service.ts` | — |
 
 ## `notifications`

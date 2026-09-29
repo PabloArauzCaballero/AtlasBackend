@@ -44,8 +44,8 @@ petición. Ver [Procesamiento en segundo plano](../architecture/background-proce
 ## 2. Catálogo
 
 **<!-- fig:events.codes -->117<!-- /fig --> códigos en <!-- fig:events.families -->12<!-- /fig --> familias, de los que
-<!-- fig:events.emitted -->28<!-- /fig --> tienen productor en el código.** Los otros
-<!-- fig:events.reserved -->89<!-- /fig --> están **reservados**: registrados en
+<!-- fig:events.emitted -->29<!-- /fig --> tienen productor en el código.** Los otros
+<!-- fig:events.reserved -->88<!-- /fig --> están **reservados**: registrados en
 [`event-registry.ts`](../../src/modules/events/event-registry.ts) para que el contrato no cambie cuando se
 implementen, pero hoy ningún código los escribe y un consumidor no debe esperarlos. El catálogo dice,
 familia por familia, cuántos se emiten.

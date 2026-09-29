@@ -10,7 +10,7 @@ info:
     Eventos de dominio que Atlas ESCRIBE hoy en el outbox transaccional (`outbox_events`, PostgreSQL).
 
     **Generado** por `yarn docs:events` desde `EVENT_REGISTRY` y los productores reales de `src/`; no se edita a mano.
-    Declara sólo los 28 códigos con productor de los 117 registrados: los reservados
+    Declara sólo los 29 códigos con productor de los 117 registrados: los reservados
     están en `docs/events/event-catalog.md` y un consumidor no debe esperarlos.
 
     **Garantía de entrega: at-least-once.** Un consumidor DEBE ser idempotente. El orden no está garantizado
@@ -101,6 +101,8 @@ channels:
         $ref: '#/components/messages/SupportComplaintCreated'
       supportSecurityEscalated:
         $ref: '#/components/messages/SupportSecurityEscalated'
+      supportSlaWarning:
+        $ref: '#/components/messages/SupportSlaWarning'
       supportSlaBreached:
         $ref: '#/components/messages/SupportSlaBreached'
       supportKnowledgePublished:
@@ -421,6 +423,13 @@ components:
         Familia support_service_management. Productor:
         src/modules/support/application/support-case-creation-events.service.ts,
         src/modules/support/application/support-case-escalation.service.ts.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OutboxEvent'
+    SupportSlaWarning:
+      name: support.sla.warning
+      title: support.sla.warning
+      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-sla.service.ts.'
       contentType: application/json
       payload:
         $ref: '#/components/schemas/OutboxEvent'
