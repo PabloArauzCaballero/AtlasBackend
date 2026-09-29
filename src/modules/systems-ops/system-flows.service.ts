@@ -16,6 +16,7 @@ import { SystemFlowsImportsRepository } from './system-flows.imports.repository.
 import { SystemFlowsRepository } from './system-flows.repository.js';
 import { SystemFlowsAsyncService } from './system-flows.async.service.js';
 import { SystemFlowsScreensService } from './system-flows.screens.service.js';
+import type { PendingWorkQueryDto, RbacDriftQueryDto } from './system-flows.list-query.js';
 import {
   FindingsListQueryDto,
   FlowsGraphQueryDto,
@@ -210,13 +211,13 @@ export class SystemFlowsService {
   }
 
   /** Qué deja encargado cada flujo y si alguien lo recoge. Ver el servicio. */
-  pendingWork(windowDays?: number) {
-    return this.asyncService.pendingWork(windowDays);
+  pendingWork(windowDays?: number, query?: PendingWorkQueryDto) {
+    return this.asyncService.pendingWork(windowDays, query);
   }
 
   /** Pantallas protegidas por permiso cuyos endpoints no exigen ninguno. Ver el servicio. */
-  rbacDrift() {
-    return this.screensService.rbacDrift();
+  rbacDrift(query?: RbacDriftQueryDto) {
+    return this.screensService.rbacDrift(query);
   }
 
   summary() {

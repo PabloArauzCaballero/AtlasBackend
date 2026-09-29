@@ -58,7 +58,19 @@ describe('SystemsActionLogRepository', () => {
     await repo.getTrafficLatencyByRoute(fromDate, null);
     const opts = (sequelize.query as jest.Mock).mock.calls[0][1] as { replacements: Record<string, unknown> };
     // El tope de rutas viaja como parámetro: el servicio lo contrasta con `routes_total` para avisar del corte.
-    expect(opts.replacements).toEqual({ fromDate, tenantId: null, routesLimit: 50 });
+    expect(opts.replacements).toEqual({ fromDate, tenantId: null, q: null, method: null, routesLimit: 50, routesOffset: 0 });
+  });
+
+  it('getTrafficLatencyByRoute escapa % y _ del buscador y pasa método, límite y desplazamiento', async () => {
+    const { repo, sequelize } = buildRepo();
+    (sequelize.query as jest.Mock).mockResolvedValue([] as never);
+    const fromDate = new Date('2026-01-01');
+    await repo.getTrafficLatencyByRoute(fromDate, 't1', { q: '50%_a', method: 'POST', limit: 20, offset: 40 });
+    const [sql, opts] = (sequelize.query as jest.Mock).mock.calls[0] as [string, { replacements: Record<string, unknown> }];
+    expect(opts.replacements).toEqual({ fromDate, tenantId: 't1', q: '%50\\%\\_a%', method: 'POST', routesLimit: 20, routesOffset: 40 });
+    // Buscar y filtrar acota la tabla, no los totales de la ventana: `overall` se calcula antes y aparte.
+    expect(sql).toMatch(/route_template ILIKE :q OR method ILIKE :q/);
+    expect(sql).toMatch(/FROM overall LEFT JOIN coincidentes/);
   });
 
   it('getTrafficLatencyTimeseries convierte bucketMinutes a segundos en el replacement', async () => {

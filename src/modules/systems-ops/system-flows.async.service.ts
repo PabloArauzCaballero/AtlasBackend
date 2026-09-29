@@ -13,6 +13,7 @@ import {
   type PendingWorkRow,
 } from './system-flows.async.repository.js';
 import { DOMAIN_EVENTS_LIMIT, PENDING_WORK_LIMIT } from './system-flows.sql.constants.js';
+import { containsText, slicePage, type PendingWorkQueryDto } from './system-flows.list-query.js';
 
 const DIA_MS = 86_400_000;
 /** Sin una corrida completada del consumidor en este margen, se da por ausente en este entorno. */
@@ -34,7 +35,7 @@ type Diagnostico = 'SIN_CONSUMIDOR' | 'SALTADOS' | 'AL_DIA';
 export class SystemFlowsAsyncService {
   constructor(private readonly repository: SystemFlowsAsyncRepository) {}
 
-  async pendingWork(windowDays = 30) {
+  async pendingWork(windowDays = 30, query: Partial<PendingWorkQueryDto> = {}) {
     // Más allá de la retención, `purge_processed_outbox` ya borró los procesados y sólo sobreviven
     // pendientes y fallidos: una ventana larga se inclinaría sola hacia «sin aviso».
     const ventanaDominio = Math.min(windowDays, env.RUNTIME_JOBS_OUTBOX_RETENTION_DAYS);
@@ -47,15 +48,26 @@ export class SystemFlowsAsyncService {
     const consumidorVivo = Boolean(ultimaCorrida && Date.now() - ultimaCorrida.getTime() <= CONSUMIDOR_VIVO_MS);
     // Se pide una fila de más: si llega, el informe está cortado y hay que decirlo. Antes el corte en
     // 500 era silencioso y «rutas que encolan» parecía el total.
-    const flows = filas.slice(0, PENDING_WORK_LIMIT).map((fila) => traducir(fila, consumidorVivo ? ultimaCorrida : null));
-    const atribuidos = flows.reduce((n, flujo) => n + flujo.pending, 0);
+    const todos = filas.slice(0, PENDING_WORK_LIMIT).map((fila) => traducir(fila, consumidorVivo ? ultimaCorrida : null));
+    // El diagnóstico, «saltados» y «fallan» miran TODOS los flujos: buscar o paginar no debe apagar una avería.
+    // La tabla: lo que pide el buscador y el filtro de estado, y la página. Sin `limit` sale entera, como antes.
+    const tabla = slicePage(
+      todos.filter(
+        (flujo) =>
+          (!query.state || coincideEstado(flujo, query.state)) &&
+          containsText(query.q, flujo.method, flujo.path, `${flujo.method} ${flujo.path}`, ...flujo.codes),
+      ),
+      query.page ?? 1,
+      query.limit,
+    );
+    const atribuidos = todos.reduce((n, flujo) => n + flujo.pending, 0);
     const pendientes = Number(salud?.pending ?? 0);
 
     return {
       windowDays,
       consumer: { lastRunAt: ultimaCorrida, running: consumidorVivo },
-      diagnosis: diagnosticar(consumidorVivo, flows),
-      flowsThatEnqueue: flows.length,
+      diagnosis: diagnosticar(consumidorVivo, todos),
+      flowsThatEnqueue: todos.length,
       truncated: filas.length > PENDING_WORK_LIMIT,
       limit: PENDING_WORK_LIMIT,
       pending: pendientes,
@@ -65,9 +77,17 @@ export class SystemFlowsAsyncService {
       pendingWithoutTenant: Number(salud?.pending_without_tenant ?? 0),
       failed: Number(salud?.failed ?? 0),
       oldestPending: salud?.oldest_pending ? new Date(salud.oldest_pending) : null,
-      skipped: flows.filter((flujo) => flujo.skippedByConsumer).map((flujo) => `${flujo.method} ${flujo.path}`),
-      failing: flows.filter((flujo) => flujo.failed > 0).map((flujo) => `${flujo.method} ${flujo.path}`),
-      flows,
+      skipped: todos.filter((flujo) => flujo.skippedByConsumer).map((flujo) => `${flujo.method} ${flujo.path}`),
+      failing: todos.filter((flujo) => flujo.failed > 0).map((flujo) => `${flujo.method} ${flujo.path}`),
+      flows: tabla.items,
+      meta: tabla.meta,
+      // Del conjunto SIN filtrar: cuántas rutas hay de cada clase, se busque lo que se busque.
+      summary: {
+        flows: todos.length,
+        withPending: todos.filter((flujo) => flujo.pending > 0).length,
+        withFailed: todos.filter((flujo) => flujo.failed > 0).length,
+        skipped: todos.filter((flujo) => flujo.skippedByConsumer).length,
+      },
       domainEvents: {
         windowDays: ventanaDominio,
         clampedByRetention: ventanaDominio < windowDays,
@@ -135,6 +155,12 @@ function consumo(registrado: boolean, procesados: number, conMensaje: number, sa
   if (conMensaje > 0) return salidos > 0 ? 'AVISA' : 'MENSAJE_SIN_SALIDA';
   if (procesados === 0) return 'SIN_PROCESAR';
   return registrado ? 'REGISTRADO_SIN_AVISOS' : 'SIN_REGISTRO';
+}
+
+function coincideEstado(flujo: ReturnType<typeof traducir>, estado: NonNullable<PendingWorkQueryDto['state']>): boolean {
+  if (estado === 'pending') return flujo.pending > 0;
+  if (estado === 'failed') return flujo.failed > 0;
+  return flujo.skippedByConsumer;
 }
 
 function diagnosticar(consumidorVivo: boolean, flows: ReturnType<typeof traducir>[]): Diagnostico {

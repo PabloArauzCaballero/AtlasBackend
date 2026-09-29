@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { FindAndCountOptions, FindOptions, QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
 import { SystemActionLogModel } from '../../database/models/index.js';
 import { SystemsActionLogQueryDto } from './systems-ops.schemas.js';
@@ -24,9 +25,19 @@ export type TrafficLatencyRow = {
   overall_avg_latency_ms: string | null;
   overall_p95_latency_ms: string | null;
   overall_error_count: string;
-  /** Cuántas rutas distintas hubo en la ventana, antes del corte en `TRAFFIC_ROUTES_LIMIT`. */
+  /** Cuántas rutas distintas hubo en la ventana, antes de buscar, filtrar y cortar. */
   routes_total: string;
+  /** Cuántas cumplen el buscador y el método: es el `total` que pagina la tabla. */
+  routes_matching?: string;
+  /**
+   * `false` en la fila que sólo trae los totales de la ventana: si el buscador no encuentra nada,
+   * la ventana no se queda sin resumen. Ausente equivale a `true` (versiones anteriores de la consulta).
+   */
+  route_present?: boolean;
 };
+
+/** Qué rutas y qué página de ellas. Sin nada, las `TRAFFIC_ROUTES_LIMIT` con más peticiones. */
+export type TrafficRoutesQuery = { q?: string; method?: string; limit?: number; offset?: number };
 
 /** Rutas que devuelve el informe de tráfico, ordenadas por volumen. */
 export const TRAFFIC_ROUTES_LIMIT = 50;
@@ -89,7 +100,7 @@ export class SystemsActionLogRepository {
     } as FindOptions);
   }
 
-  getTrafficLatencyByRoute(fromDate: Date, tenantId: string | null): Promise<TrafficLatencyRow[]> {
+  getTrafficLatencyByRoute(fromDate: Date, tenantId: string | null, routes: TrafficRoutesQuery = {}): Promise<TrafficLatencyRow[]> {
     return this.sequelize.query<TrafficLatencyRow>(
       `
       WITH filtered AS (
@@ -102,27 +113,54 @@ export class SystemsActionLogRepository {
                PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms)::text AS p95_latency_ms,
                COUNT(*) FILTER (WHERE response_status_code >= 500)::text AS error_count
           FROM filtered
+      ), por_ruta AS (
+        SELECT route_template,
+               method,
+               COUNT(*) AS requests,
+               AVG(duration_ms) AS avg_latency_ms,
+               PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) AS p95_latency_ms,
+               COUNT(*) FILTER (WHERE response_status_code >= 500) AS error_count,
+               MAX(occurred_at) AS last_seen_at
+          FROM filtered
+         GROUP BY route_template, method
+      ), coincidentes AS (
+        -- Buscar y filtrar sólo acota la tabla: los totales de arriba son de toda la ventana.
+        SELECT *, COUNT(*) OVER () AS matching
+          FROM por_ruta
+         WHERE (:method IS NULL OR method = :method)
+           AND (:q IS NULL OR route_template ILIKE :q OR method ILIKE :q)
+         ORDER BY requests DESC, route_template ASC NULLS LAST, method ASC
+         LIMIT :routesLimit OFFSET :routesOffset
       )
       SELECT
-        route_template,
-        method,
-        COUNT(*)::text AS total_requests,
-        AVG(duration_ms)::text AS avg_latency_ms,
-        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms)::text AS p95_latency_ms,
-        COUNT(*) FILTER (WHERE response_status_code >= 500)::text AS error_count,
-        MAX(occurred_at) AS last_seen_at,
+        c.route_template,
+        c.method,
+        c.requests::text AS total_requests,
+        c.avg_latency_ms::text AS avg_latency_ms,
+        c.p95_latency_ms::text AS p95_latency_ms,
+        c.error_count::text AS error_count,
+        c.last_seen_at,
+        (c.requests IS NOT NULL) AS route_present,
         overall.total_requests AS overall_total_requests,
         overall.avg_latency_ms AS overall_avg_latency_ms,
         overall.p95_latency_ms AS overall_p95_latency_ms,
         overall.error_count AS overall_error_count,
-        (COUNT(*) OVER ())::text AS routes_total
-      FROM filtered CROSS JOIN overall
-      GROUP BY route_template, method, overall.total_requests, overall.avg_latency_ms,
-               overall.p95_latency_ms, overall.error_count
-      ORDER BY COUNT(*) DESC
-      LIMIT :routesLimit;
+        (SELECT COUNT(*) FROM por_ruta)::text AS routes_total,
+        COALESCE(c.matching, 0)::text AS routes_matching
+      FROM overall LEFT JOIN coincidentes c ON TRUE
+      ORDER BY c.requests DESC NULLS LAST, c.route_template ASC NULLS LAST, c.method ASC;
       `,
-      { replacements: { fromDate, tenantId, routesLimit: TRAFFIC_ROUTES_LIMIT }, type: QueryTypes.SELECT },
+      {
+        replacements: {
+          fromDate,
+          tenantId,
+          q: routes.q ? containsLikePattern(routes.q) : null,
+          method: routes.method ?? null,
+          routesLimit: routes.limit ?? TRAFFIC_ROUTES_LIMIT,
+          routesOffset: routes.offset ?? 0,
+        },
+        type: QueryTypes.SELECT,
+      },
     );
   }
 

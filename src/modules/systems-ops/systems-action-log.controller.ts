@@ -13,11 +13,10 @@ import {
   SystemsActionLogQueryDto,
   systemsRequestParamsSchema,
   SystemsRequestParamsDto,
-  trafficLatencyQuerySchema,
-  TrafficLatencyQueryDto,
   trafficLatencyTimeseriesQuerySchema,
   TrafficLatencyTimeseriesQueryDto,
 } from './systems-ops.schemas.js';
+import { TRAFFIC_HTTP_METHODS, trafficLatencyQuerySchema, TrafficLatencyQueryDto } from './systems-traffic-report.schemas.js';
 import { SystemsActionLogQueryService } from './systems-action-log-query.service.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
@@ -91,13 +90,31 @@ export class SystemsActionLogController {
 
   @ApiOperation({ summary: 'Reporte de tráfico y latencia por ruta (derivado de system_action_logs)' })
   @ApiQuery({ name: 'windowHours', required: false, schema: zodObjectPropertySchemas(trafficLatencyQuerySchema).windowHours })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description:
+      'Texto libre: método y ruta de cada fila de `routes` (sin distinguir mayúsculas; `%` y `_` son texto). No cambia `summary`.',
+  })
+  @ApiQuery({
+    name: 'method',
+    required: false,
+    enum: TRAFFIC_HTTP_METHODS,
+    description: 'Sólo las rutas de ese método HTTP. No cambia `summary`.',
+  })
+  @ApiQuery({ name: 'page', required: false, description: 'Página de `routes` (1 por omisión).' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Filas por página (1 a 100). Sin él, `routes` trae las 50 rutas con más peticiones y `routesTruncated` avisa del corte.',
+  })
   @ApiResponse({ status: 200, description: 'Resumen de tráfico y latencia por ruta/método.' })
   @Get('reports/traffic-latency')
   getTrafficLatencyReport(
     @Query(new ZodValidationPipe(trafficLatencyQuerySchema)) query: TrafficLatencyQueryDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.getTrafficLatencyReport(query.windowHours, user);
+    return this.service.getTrafficLatencyReport(query.windowHours, user, query);
   }
 
   @ApiOperation({ summary: 'Serie de tiempo de tráfico y latencia agrupada en buckets fijos (derivado de system_action_logs)' })

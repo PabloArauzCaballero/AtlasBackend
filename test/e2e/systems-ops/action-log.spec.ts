@@ -125,7 +125,34 @@ describe('SystemsActionLogController (e2e/supertest)', () => {
         .get('/systems/reports/traffic-latency')
         .set(...authHeader('risk_analyst'))
         .expect(200);
-      expect(service.getTrafficLatencyReport).toHaveBeenCalledWith(24, expect.any(Object));
+      expect(service.getTrafficLatencyReport).toHaveBeenCalledWith(
+        24,
+        expect.any(Object),
+        expect.objectContaining({ windowHours: 24, page: 1 }),
+      );
+    });
+
+    it('declara q, method, page y limit: lo no declarado lo descartaría el esquema en silencio', async () => {
+      await request(app.getHttpServer())
+        .get('/systems/reports/traffic-latency?windowHours=6&q=auth&method=GET&page=2&limit=20')
+        .set(...authHeader('risk_analyst'))
+        .expect(200);
+      expect(service.getTrafficLatencyReport).toHaveBeenLastCalledWith(
+        6,
+        expect.any(Object),
+        expect.objectContaining({ q: 'auth', method: 'GET', page: 2, limit: 20 }),
+      );
+    });
+
+    it('rechaza un método que no existe y un limit por encima de 100', async () => {
+      await request(app.getHttpServer())
+        .get('/systems/reports/traffic-latency?method=FETCH')
+        .set(...authHeader('risk_analyst'))
+        .expect(400);
+      await request(app.getHttpServer())
+        .get('/systems/reports/traffic-latency?limit=101')
+        .set(...authHeader('risk_analyst'))
+        .expect(400);
     });
 
     it('rechaza windowHours por encima del máximo (24*30) con 400', async () => {

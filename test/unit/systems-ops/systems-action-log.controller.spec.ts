@@ -33,9 +33,11 @@ describe('SystemsActionLogController', () => {
 
   it('los reportes de tráfico pasan windowHours y user', async () => {
     const { controller, service } = build();
-    await controller.getTrafficLatencyReport({ windowHours: 24 } as never, user);
+    const query = { windowHours: 24, q: 'auth', method: 'GET', page: 2, limit: 20 };
+    await controller.getTrafficLatencyReport(query as never, user);
     await controller.getTrafficLatencyTimeseries({ windowHours: 6 } as never, user);
-    expect(service.getTrafficLatencyReport).toHaveBeenCalledWith(24, user);
+    // Buscador, método y página viajan al servicio: si el controlador los soltara, serían filtros muertos.
+    expect(service.getTrafficLatencyReport).toHaveBeenCalledWith(24, user, query);
     expect(service.getTrafficLatencyTimeseries).toHaveBeenCalledWith(6, user);
   });
 });
