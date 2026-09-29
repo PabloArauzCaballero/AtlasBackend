@@ -13,7 +13,7 @@ import { SupportSlaService } from '../../../src/modules/support/application/supp
 
 type Reloj = Record<string, unknown>;
 
-function montar(relojes: Reloj[] = []) {
+function montar(relojes: Reloj[] = [], umbrales: number[] = [50, 75, 90], versionPrevia: string | null = null) {
   const actualizaciones: Array<[string, Record<string, unknown>]> = [];
   const eventosDeCaso: Array<Record<string, unknown>> = [];
   const publicados: Array<Record<string, unknown>> = [];
@@ -25,14 +25,19 @@ function montar(relojes: Reloj[] = []) {
     updateClock: jest.fn(async (id: string, valores: Record<string, unknown>) => void actualizaciones.push([id, valores])),
     findBreachedClocks: jest.fn(async () => relojes),
     findWarningClocks: jest.fn(async () => relojes),
+    findRunningClocks: jest.fn(async () => relojes),
   };
   const cases = { appendEvent: jest.fn(async (e: never) => void eventosDeCaso.push(e as Record<string, unknown>)) };
-  const catalog = {};
+  const catalog = { findSlaPolicyById: jest.fn(async () => ({ warningPercentsJson: umbrales })) };
   const events = { publish: jest.fn(async (e: never) => void publicados.push(e as Record<string, unknown>)) };
-  const sequelize = { transaction: jest.fn(async (fn: (t: unknown) => Promise<unknown>) => fn({})) };
+  const sequelize = {
+    transaction: jest.fn(async (fn: (t: unknown) => Promise<unknown>) => fn({})),
+    // La versión siguiente del agregado en el outbox: MAX(aggregate_version) + 1.
+    query: jest.fn(async () => [{ version: versionPrevia }]),
+  };
 
   const service = new SupportSlaService(sequelize as never, timeline as never, cases as never, catalog as never, events as never);
-  return { service, timeline, cases, events, actualizaciones, eventosDeCaso, publicados };
+  return { service, timeline, cases, events, sequelize, actualizaciones, eventosDeCaso, publicados };
 }
 
 const politica = (over: Record<string, unknown> = {}) =>
@@ -244,5 +249,107 @@ describe('SupportSlaService · cancelación y barrido', () => {
 
     expect(resultado.breached).toBe(1);
     expect(actualizaciones[0][1].state).toBe('BREACHED');
+  });
+});
+
+/*
+ * El aviso PREVIO al incumplimiento. Hasta el 2026-09-29 sólo se escribía SLA_WARNING en la línea de
+ * tiempo del caso y `support.sla.warning` —registrado en el catálogo de eventos— no lo publicaba nadie:
+ * el aviso "a tiempo" no le llegaba a persona alguna. Lo que se fija aquí es que cada umbral cruzado
+ * sale al outbox, con versión de agregado e idempotencia, y que un fallo del outbox se reintenta.
+ */
+describe('SupportSlaService · aviso previo al incumplimiento', () => {
+  const inicio = '2026-09-09T12:00:00.000Z';
+  const objetivo = '2026-09-09T14:00:00.000Z'; // 120 min
+  const reloj = (over: Reloj = {}): Reloj => ({
+    id: '9',
+    caseId: '10',
+    metricType: 'RESOLUTION',
+    policyVersionId: '7',
+    startedAt: inicio,
+    targetAt: objetivo,
+    warnedPercentsJson: [],
+    ...over,
+  });
+
+  it('publica support.sla.warning con versión de agregado, idempotencia y el umbral, y lo anota en el reloj y en el caso', async () => {
+    const { service, publicados, actualizaciones, eventosDeCaso } = montar([reloj()], [50, 75, 90], '4');
+
+    // 12:00 + 96 min = 80 % del plazo: cruza el 50 y el 75, no el 90.
+    const resultado = await service.sweepWarnings('1', new Date('2026-09-09T13:36:00.000Z'));
+
+    expect(resultado.warned).toBe(1);
+    expect(publicados).toHaveLength(1);
+    expect(publicados[0]).toMatchObject({
+      tenantId: '1',
+      eventCode: 'support.sla.warning',
+      aggregateType: 'support_case',
+      aggregateId: '10',
+      aggregateVersion: 5,
+      idempotencyKey: 'support-sla-warning-9-75',
+      sourceModule: 'support',
+      sourceAction: 'sweep_sla_warnings',
+      payload: { caseId: '10', metricType: 'RESOLUTION', reachedPercents: [50, 75], minutesRemaining: 24 },
+    });
+    expect(actualizaciones[0][1]).toEqual({ warnedPercentsJson: [50, 75] });
+    expect(eventosDeCaso[0].eventType).toBe('SLA_WARNING');
+  });
+
+  it('la primera vez la versión del agregado es 1', async () => {
+    const { service, publicados } = montar([reloj()], [50], null);
+    await service.sweepWarnings('1', new Date('2026-09-09T13:10:00.000Z'));
+    expect(publicados[0].aggregateVersion).toBe(1);
+  });
+
+  /* En negativo: sin umbral nuevo cruzado, o sin política, no hay evento (no se repite el aviso cada minuto). */
+  it('no publica nada si el umbral ya se avisó, si aún no se cruza ninguno o si la política no tiene umbrales', async () => {
+    const yaAvisado = montar([reloj({ warnedPercentsJson: [50, 75] })], [50, 75, 90]);
+    await yaAvisado.service.sweepWarnings('1', new Date('2026-09-09T13:36:00.000Z'));
+    const temprano = montar([reloj()], [50, 75, 90]);
+    await temprano.service.sweepWarnings('1', new Date('2026-09-09T12:30:00.000Z'));
+    const sinUmbrales = montar([reloj()], []);
+    await sinUmbrales.service.sweepWarnings('1', new Date('2026-09-09T13:36:00.000Z'));
+
+    expect(yaAvisado.publicados).toHaveLength(0);
+    expect(temprano.publicados).toHaveLength(0);
+    expect(sinUmbrales.publicados).toHaveLength(0);
+  });
+
+  /*
+   * Si el outbox falla, el umbral NO se anota: la pasada siguiente lo reintenta. Anotarlo y perder el
+   * evento sería el mismo aviso que no llega a nadie, esta vez sin ni siquiera intentarlo de nuevo.
+   */
+  it('si el outbox falla no anota el umbral ni el caso, y no tumba el barrido: el reintento lo publica', async () => {
+    const { service, events, actualizaciones, eventosDeCaso, publicados } = montar([reloj(), reloj({ id: '11', caseId: '12' })], [50]);
+    events.publish.mockRejectedValueOnce(new Error('outbox caído') as never);
+    const ahora = new Date('2026-09-09T13:10:00.000Z');
+
+    const primera = await service.sweepWarnings('1', ahora);
+
+    expect(primera.warned).toBe(1); // el segundo reloj sí avanzó
+    expect(actualizaciones.map(([id]) => id)).toEqual(['11']);
+    expect(eventosDeCaso).toHaveLength(1);
+
+    const segunda = await service.sweepWarnings('1', ahora);
+    expect(segunda.warned).toBe(2);
+    expect(publicados.map((p) => p.idempotencyKey)).toEqual([
+      'support-sla-warning-11-50',
+      'support-sla-warning-9-50',
+      'support-sla-warning-11-50',
+    ]);
+  });
+
+  it('el incumplimiento también lleva versión de agregado', async () => {
+    const { service, publicados } = montar(
+      [{ id: '9', caseId: '10', metricType: 'RESOLUTION', targetAt: '2026-09-09T16:00:00.000Z' }],
+      [],
+      '2',
+    );
+    await service.sweepBreaches('1', new Date('2026-09-09T16:45:00.000Z'));
+    expect(publicados[0]).toMatchObject({
+      eventCode: 'support.sla.breached',
+      aggregateVersion: 3,
+      idempotencyKey: 'support-sla-breach-9',
+    });
   });
 });

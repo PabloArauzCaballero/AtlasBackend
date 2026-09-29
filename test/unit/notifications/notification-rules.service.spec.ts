@@ -1,13 +1,16 @@
 import { describe, expect, it } from '@jest/globals';
-import { NotificationRulesService } from '../../../src/modules/notifications/notification-rules.service.js';
+import {
+  NotificationRulesService,
+  POLICY_EVENT_CODES_WITHOUT_SENDER,
+} from '../../../src/modules/notifications/notification-rules.service.js';
 
 /**
- * ATLAS-P12 (plan `PLAN_RED_DE_PRUEBAS_ATLAS_P12.md`, Fase 3): primer test real de
- * `notifications`. Se empieza por
- * `NotificationRulesService` porque es lógica pura (una tabla de mapeo evento -> canales, sin
- * dependencias ni I/O), y porque un error de mapeo aquí es exactamente el tipo de bug que un
- * test detecta y una demo manual no: un evento de cliente que termina notificando al canal de
- * comercio o de operaciones por un typo en el código de evento.
+ * `NotificationRulesService` es una tabla de mapeo evento -> canales, sin dependencias ni I/O. Un
+ * error de mapeo aquí es exactamente el tipo de bug que un test detecta y una demo manual no: un
+ * evento de cliente que termina notificando a operaciones por un typo en el código de evento.
+ *
+ * Desde el 2026-09-29 la tabla sólo declara lo que alguien publica: las 19 reglas sin productor
+ * (mora, vencimientos, línea, compras, comercio…) se retiraron, y este archivo fija que siguen fuera.
  */
 describe('NotificationRulesService.getRulesForEvent', () => {
   const service = new NotificationRulesService();
@@ -18,21 +21,21 @@ describe('NotificationRulesService.getRulesForEvent', () => {
 
   describe('customer events', () => {
     it('resolves recipientType "customer" with recipientIdPath ["customerId"]', () => {
-      const [rule] = service.getRulesForEvent('user.registered');
+      const [rule] = service.getRulesForEvent('kyc.approved');
       expect(rule.recipientType).toBe('customer');
       expect(rule.recipientIdPath).toEqual(['customerId']);
     });
 
     it('resolves the exact channel list configured for that event, not a default', () => {
-      expect(service.getRulesForEvent('user.email.verified')[0].channels).toEqual(['in_app']);
+      expect(service.getRulesForEvent('payment.reported')[0].channels).toEqual(['in_app']);
       expect(service.getRulesForEvent('kyc.approved')[0].channels).toEqual(['in_app', 'push', 'email']);
+      expect(service.getRulesForEvent('kyc.rejected')[0].channels).toEqual(['in_app', 'email']);
     });
 
-    it('marks "installment.overdue" and "credit_line.suspended" as required, unlike other customer events', () => {
-      expect(service.getRulesForEvent('installment.overdue')[0].required).toBe(true);
-      expect(service.getRulesForEvent('credit_line.suspended')[0].required).toBe(true);
-      expect(service.getRulesForEvent('user.registered')[0].required).toBe(false);
-      expect(service.getRulesForEvent('purchase.created')[0].required).toBe(false);
+    it('only the account verification is required; a payment notice can be switched off by the customer', () => {
+      expect(service.getRulesForEvent('customer.lifecycle.active')[0].required).toBe(true);
+      expect(service.getRulesForEvent('kyc.approved')[0].required).toBe(false);
+      expect(service.getRulesForEvent('payment.confirmed')[0].required).toBe(false);
     });
 
     it('customer.lifecycle.active avisa «tu cuenta ha sido verificada» por app, push, correo y SMS, siempre', () => {
@@ -45,40 +48,21 @@ describe('NotificationRulesService.getRulesForEvent', () => {
     });
 
     it('derives templatePrefix by replacing every dot with an underscore', () => {
-      expect(service.getRulesForEvent('installment.due_soon')[0].templatePrefix).toBe('installment_due_soon');
+      expect(service.getRulesForEvent('payment.confirmed')[0].templatePrefix).toBe('payment_confirmed');
     });
   });
 
-  describe('merchant events', () => {
-    it('resolves recipientType "merchant" with recipientIdPath ["merchantId"], and is never a customer event even if the code looks similar', () => {
-      const [rule] = service.getRulesForEvent('merchant.settlement.ready');
-      expect(rule.recipientType).toBe('merchant');
-      expect(rule.recipientIdPath).toEqual(['merchantId']);
-    });
-
-    it('every merchant event is required: true, unconditionally', () => {
-      expect(service.getRulesForEvent('merchant.settlement.ready')[0].required).toBe(true);
-      expect(service.getRulesForEvent('merchant.mdr.invoice.due')[0].required).toBe(true);
-      expect(service.getRulesForEvent('merchant.mdr.invoice.overdue')[0].required).toBe(true);
-    });
-  });
-
-  describe('operations events', () => {
-    it('resolves recipientType "operations" with recipientIdPath ["assignedTeamId"]', () => {
-      const [rule] = service.getRulesForEvent('risk.alert.created');
-      expect(rule.recipientType).toBe('operations');
-      expect(rule.recipientIdPath).toEqual(['assignedTeamId']);
-      expect(rule.required).toBe(true);
-    });
-  });
-
-  it('an event code never matches more than one category — customer, merchant and operations event codes are disjoint sets', () => {
-    const allCustomerCodes = [
-      'user.registered',
-      'user.email.verified',
-      'user.phone.verified',
-      'kyc.approved',
-      'kyc.rejected',
+  /*
+   * La mora y el vencimiento NO avisan al deudor: es una decisión de producto y regulatoria sin tomar,
+   * y `LoanDelinquencyService` no publica ningún evento. Que una regla vuelva a declararlos sin
+   * productor es justo lo que este caso (y el guardián de productores) impiden.
+   */
+  it('no rule promises a notice that nobody sends: delinquency, due dates, credit line, purchases and merchant billing are out', () => {
+    const retired = [
+      'installment.due_soon',
+      'installment.due_today',
+      'installment.overdue',
+      'installment.paid',
       'credit_line.approved',
       'credit_line.rejected',
       'credit_line.suspended',
@@ -86,27 +70,49 @@ describe('NotificationRulesService.getRulesForEvent', () => {
       'purchase.awaiting_downpayment',
       'purchase.downpayment_confirmed',
       'purchase.expired',
-      'installment.due_soon',
-      'installment.due_today',
-      'installment.overdue',
-      'installment.paid',
-      'payment.reported',
-      'payment.confirmed',
-      'payment.rejected',
       'collection.reminder.scheduled',
       'collection.reminder.sent',
+      'merchant.settlement.ready',
+      'merchant.mdr.invoice.due',
+      'merchant.mdr.invoice.overdue',
+      'risk.alert.created',
+      'user.registered',
+      'user.email.verified',
+      'user.phone.verified',
     ];
-    const merchantCodes = ['merchant.settlement.ready', 'merchant.mdr.invoice.due', 'merchant.mdr.invoice.overdue'];
-    const operationsCodes = ['risk.alert.created'];
+    for (const code of retired) expect(service.getRulesForEvent(code)).toEqual([]);
+  });
 
-    for (const code of allCustomerCodes) {
-      expect(service.getRulesForEvent(code)[0].recipientType).toBe('customer');
-    }
-    for (const code of merchantCodes) {
-      expect(service.getRulesForEvent(code)[0].recipientType).toBe('merchant');
-    }
-    for (const code of operationsCodes) {
-      expect(service.getRulesForEvent(code)[0].recipientType).toBe('operations');
-    }
+  describe('operations events (aviso interno de plazos de soporte)', () => {
+    it.each(['support.sla.warning', 'support.sla.breached'])('%s va a operaciones, sólo por bandeja, y no se puede apagar', (eventCode) => {
+      const [rule] = service.getRulesForEvent(eventCode);
+      expect(rule.recipientType).toBe('operations');
+      expect(rule.recipientIdPath).toEqual(['assignedTeamId']);
+      expect(rule.channels).toEqual(['in_app']);
+      expect(rule.required).toBe(true);
+      expect(rule.templatePrefix).toBe(eventCode.replaceAll('.', '_'));
+    });
+  });
+
+  it('an event code never matches more than one category, and listRuleEventCodes lists exactly the codes that have a rule', () => {
+    const codes = service.listRuleEventCodes();
+    expect(new Set(codes).size).toBe(codes.length);
+    expect(codes.sort()).toEqual(
+      [
+        'customer.lifecycle.active',
+        'kyc.approved',
+        'kyc.rejected',
+        'payment.confirmed',
+        'payment.rejected',
+        'payment.reported',
+        'support.sla.breached',
+        'support.sla.warning',
+      ].sort(),
+    );
+    for (const code of codes) expect(service.getRulesForEvent(code)).toHaveLength(1);
+  });
+
+  it('the policy codes without a sender are the ones of the delinquency and due-date notices', () => {
+    expect([...POLICY_EVENT_CODES_WITHOUT_SENDER]).toEqual(['cuota_por_vencer', 'cuota_vencida']);
   });
 });

@@ -31,10 +31,10 @@ Este documento describe el flujo **tal como quedó implementado** tras corregir 
 | **Verificación** | El endpoint de SEGIP existía pero **su resultado no llegaba a ninguna parte**: el expediente seguía en `pending_review` para siempre. | **Corregido.** Verificación automática que traduce el veredicto del proveedor al expediente. Ver §9.4. |
 | **C9/C10/C13** | Identidad y evidencia se creaban en `pending_review` **sin camino de salida** y las listas restrictivas no se consultaban: nadie podía llegar a ser elegible. | **Corregido.** Vía automática (§9.4) y vía humana: resolución en bloque y screening idempotente. Ver §9.5. |
 | **Riesgo** | La decisión salía de seis constantes escritas a mano; las tablas de ruleset versionado existían, sembradas, y nadie las leía. | **Corregido.** Motor que evalúa el ruleset activo, con degradación a la heurística si no hay política cargada. Ver §9.7. |
-| **Antivirus** | La evidencia se almacenaba sin escanear. | **Corregido.** Escaneo `clamd` sobre el buffer ya descargado, con postura fail-closed configurable. Ver §9.8. |
+| **Antivirus** | La evidencia se almacenaba sin escanear. | **Código listo, escáner apagado en los despliegues.** El cliente `clamd` existe y funciona, pero ningún compose del repositorio incluye `clamd` ni nombra `MALWARE_SCAN_*` con valor: en Coolify y en producción los archivos se aceptan **sin escanear**. La API lo avisa en el log al arrancar. Ver §9.8. |
 | **Producto** | `min_monthly_income` estaba en el modelo y no se evaluaba: la elegibilidad era global. | **Corregido.** Capa de elegibilidad por producto en el catálogo y en la solicitud. Ver §9.9. |
 
-**Sigue pendiente:** nada de lo identificado en el diagnóstico. Lo que queda son decisiones de negocio —cargar el catálogo de productos, contratar los proveedores y calibrar el ruleset de riesgo— no de implementación. Ver §9.11.
+**Sigue pendiente:** el antivirus en los despliegues (fila «Antivirus» y §9.8) y las decisiones de negocio —cargar el catálogo de productos, contratar los proveedores y calibrar el ruleset de riesgo—. Ver §9.11.
 
 ---
 
@@ -479,7 +479,7 @@ Antes el cliente elegía la ruta del objeto y declaraba su hash; `s3_bucket` que
 
 **Configuración:** `STORAGE_S3_ENDPOINT`, `STORAGE_S3_BUCKET`, `STORAGE_S3_REGION`, `STORAGE_S3_ACCESS_KEY_ID`, `STORAGE_S3_SECRET_ACCESS_KEY`, `STORAGE_S3_FORCE_PATH_STYLE`, `STORAGE_UPLOAD_URL_TTL_SECONDS`. Sin configurar, los endpoints responden `503 DOCUMENT_STORAGE_NOT_CONFIGURED` en vez de aceptar evidencia inverificable.
 
-**Sigue pendiente:** antivirus. Requiere elegir un motor de escaneo (decisión con costo).
+**Sigue pendiente:** desplegar un `clamd` y apuntar `MALWARE_SCAN_HOST`/`MALWARE_SCAN_PORT` a él (ver §9.8). El código de escaneo existe; falta el servicio en los despliegues, y añadirlo es una decisión de capacidad del host.
 
 ### 9.3 Dominio de crédito — **existe**
 
@@ -582,7 +582,9 @@ Los puntajes por dimensión siguen siendo heurísticos y ahora viven en [`risk-h
 
 Se ejecuta al final de la verificación del objeto, sobre el mismo buffer ya descargado: es la comprobación más cara y no tiene sentido pagarla por un archivo que ya falló el hash o el tipo.
 
-**Postura ante fallos:** con el escáner apagado (`MALWARE_SCAN_HOST` vacío) la evidencia se acepta sin escanear — válido solo en desarrollo. Con el escáner **configurado**, un fallo de conexión rechaza la evidencia (`EVIDENCE_SCAN_UNAVAILABLE`) salvo que se apague explícitamente `MALWARE_SCAN_FAIL_CLOSED`. Un antivirus que se cae en silencio es peor que no tenerlo: genera confianza infundada.
+**Estado real de los despliegues (2026-09-29): apagado.** Ningún compose del repositorio incluye un servicio `clamd`, y `docker-compose.coolify.yml` y `docker-compose.prod.yml` nombran `MALWARE_SCAN_HOST` vacío: el escáner devuelve `skipped/scanner_disabled` y el carnet, la selfie y el extracto se aceptan **sin escanear**. Para encenderlo hace falta un `clamd` accesible por TCP y poner `MALWARE_SCAN_HOST`/`MALWARE_SCAN_PORT`; la API imprime en su log de arranque `Antimalware APAGADO…` o `Antimalware ACTIVO…` según el caso (`malware-scanner-startup-notice.ts`).
+
+**Postura ante fallos:** con el escáner apagado (`MALWARE_SCAN_HOST` vacío) la evidencia se acepta sin escanear — es el estado actual de los despliegues, y sólo es aceptable mientras no haya una decisión de capacidad que permita correr `clamd`. Con el escáner **configurado**, un fallo de conexión rechaza la evidencia (`EVIDENCE_SCAN_UNAVAILABLE`) salvo que se apague explícitamente `MALWARE_SCAN_FAIL_CLOSED`. Un antivirus que se cae en silencio es peor que no tenerlo: genera confianza infundada.
 
 ### 9.9 Elegibilidad por producto
 

@@ -70,6 +70,6 @@ export const EXPEDIENTE_NARRATIVES: EntityBusinessNarrative[] = [
     usageExample:
       'Un operador sube un extracto de 8 MB. El ticket firma tipo y tamaño; el navegador escribe directo en el almacén; el backend recalcula el SHA-256 y detecta que no coincide con el declarado. El objeto se borra y la pantalla pide subirlo de nuevo.',
     systemsExplanation:
-      'Ticket de vida corta (`EXPEDIENTES_UPLOAD_TICKET_TTL_SECONDS`) con la clave de destino y las cabeceras firmadas que el cliente debe repetir tal cual. Se consume al confirmar; los vencidos y su objeto huérfano los recoge el job de limpieza.',
+      'Ticket de vida corta (`EXPEDIENTES_UPLOAD_TICKET_TTL_SECONDS`) con la clave de destino y las cabeceras firmadas que el cliente debe repetir tal cual. Se consume al confirmar; los vencidos y su objeto huérfano los recoge el trabajo `limpiar-expedientes`, que se lanza a mano (no está en el planificador).',
   },
 ];

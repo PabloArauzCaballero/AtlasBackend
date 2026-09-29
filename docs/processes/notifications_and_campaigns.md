@@ -4,11 +4,11 @@
 
 `notifications_and_campaigns` · v1 · prioridad **P1** · tipo `back_office` · dueño `OPERATIONS_MANAGER` · bloques `ATLAS_BACKEND`, `ERP_BACKEND`
 
-Del hecho de negocio (cuota por vencer, pago confirmado) o de la campaña programada en el ERP hasta la entrega por canal (in-app, push, correo, SMS, WhatsApp) y el estado que devuelve cada proveedor.
+Del hecho de negocio (cuenta verificada, pago confirmado) o de la campaña programada en el ERP hasta la entrega por canal (in-app, push, correo, SMS, WhatsApp) y el estado que devuelve cada proveedor.
 
 ## Por qué existe
 
-El cliente tiene que enterarse de lo que pasa con su crédito sin abrir la app a buscarlo: cuota por vencer o vencida, pago confirmado o rechazado, línea aprobada o suspendida. Y operaciones necesita avisar a un segmento de clientes (como una campaña de anuncios: fecha, duración y audiencia) sabiendo cuántos lo recibieron y por qué canal.
+El cliente tiene que enterarse de lo que pasa con su crédito sin abrir la app a buscarlo: cuenta verificada, identidad aprobada o rechazada, pago reportado, confirmado o rechazado. Hoy NO se avisa de la mora ni de los vencimientos (nadie publica esos eventos: es una decisión de producto y regulatoria sin tomar). Y operaciones necesita avisar a un segmento de clientes (como una campaña de anuncios: fecha, duración y audiencia) sabiendo cuántos lo recibieron y por qué canal.
 
 ## Quién lo inicia y quién lo cierra
 
@@ -81,7 +81,7 @@ flowchart LR
 
 ### Hecho de negocio que genera el aviso (`notif_domain_trigger`)
 
-El consumidor de eventos aplica las reglas (notification-rules.service.ts): cada evento con canales (installment.overdue, payment.confirmed…) crea el mensaje para el cliente, el comercio o operaciones.
+El consumidor de eventos aplica las reglas (notification-rules.service.ts): cada evento con canales (payment.confirmed, kyc.approved, support.sla.warning…) crea el mensaje para el cliente o para operaciones. Sólo tienen regla los eventos que alguien publica; un guardián de pruebas lo comprueba.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|

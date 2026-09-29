@@ -64,11 +64,11 @@ export const COMMUNICATION_NARRATIVES: EntityBusinessNarrative[] = [
     whyExists:
       'Los mensajes al cliente deben ser consistentes, revisables por legal y traducibles. Esta tabla guarda las plantillas por canal e idioma, en lugar de tener textos incrustados en el código.',
     whyNotDelete:
-      'Sin plantillas versionadas no se puede probar qué texto exacto recibió un cliente, ni cambiar un mensaje sin desplegar, ni operar en más de un idioma. En comunicaciones con efecto legal (avisos de mora, cambios de condiciones), el texto es la obligación.',
+      'Sin plantillas versionadas no se puede probar qué texto exacto recibió un cliente, ni cambiar un mensaje sin desplegar, ni operar en más de un idioma. En comunicaciones con efecto legal (avisos de estado de la cuenta, cambios de condiciones), el texto es la obligación. Hoy no se envía ningún aviso de mora ni de vencimiento al deudor: esa decisión de producto y regulatoria sigue sin tomarse.',
     decisionContribution:
       'Permite decidir el contenido y el canal de cada comunicación sin ciclo de desarrollo, probar variantes y desactivar una plantilla problemática de inmediato. `payload_schema_json` evita enviar mensajes rotos por falta de variables.',
     usageExample:
-      'Legal exige cambiar la redacción del aviso de mora. Se publica la versión 3 de la plantilla `PAYMENT_OVERDUE` en español, se desactiva la anterior, y los mensajes ya enviados conservan la referencia a la versión con la que se generaron.',
+      'Legal exige cambiar la redacción del aviso de cuenta verificada. Se publica la versión 2 de la plantilla `customer_lifecycle_active_push` en español, se desactiva la anterior, y los mensajes ya enviados conservan la referencia a la versión con la que se generaron.',
     systemsExplanation:
       'Tabla en `messaging` con clave (`code`, `channel`, `locale`) y `version`. Guarda plantillas de título, asunto y cuerpo más el esquema de variables. El renderizado debe escapar las variables para no permitir inyección de contenido, y validar el payload contra `payload_schema_json` antes de enviar. Se cachea por su alta lectura.',
   },
@@ -77,11 +77,11 @@ export const COMMUNICATION_NARRATIVES: EntityBusinessNarrative[] = [
     whyExists:
       'Es el mensaje concreto dirigido a una persona: qué se le dijo, por qué canal, con qué prioridad y en qué estado está. Es la bandeja del cliente vista desde el negocio.',
     whyNotDelete:
-      'Es la prueba de que se comunicó algo. Sin ella no se puede demostrar que se notificó un vencimiento, un bloqueo o un cambio de condiciones, que en cobranza y en cumplimiento es exactamente lo que se exige. También se pierde el historial que soporte necesita para atender un reclamo.',
+      'Es la prueba de que se comunicó algo. Sin ella no se puede demostrar que se notificó la verificación de la cuenta, un pago o un cambio de condiciones, que en cumplimiento es exactamente lo que se exige. (Hoy no se avisa de mora ni de vencimientos al deudor: no hay quien los publique.) También se pierde el historial que soporte necesita para atender un reclamo.',
     decisionContribution:
-      'Los estados (`sent_at`, `delivered_at`, `read_at`, `failed_at`) permiten decidir si escalar a otro canal, si el cliente es alcanzable y qué mensajes efectivamente se leen. Eso afecta directamente la estrategia de cobranza y de retención.',
+      'Los estados (`sent_at`, `delivered_at`, `read_at`, `failed_at`) permiten decidir si reenviar a mano por otro canal, si el cliente es alcanzable y qué mensajes efectivamente se leen. No hay escalada automática de un canal a otro: cada evento con regla se envía de una vez por todos sus canales.',
     usageExample:
-      'Un cliente afirma no haber sido notificado de una mora. El mensaje muestra `channel = push`, `delivered_at` con fecha y `read_at` vacío; el sistema escala a SMS y el registro sostiene la posición del negocio.',
+      'Un cliente afirma no haber sido notificado de que su cuenta quedó verificada. El mensaje muestra `channel = push`, `delivered_at` con fecha y `read_at` vacío; el mismo evento generó también el SMS y el correo, y el registro sostiene la posición del negocio.',
     systemsExplanation:
       'Tabla en `messaging` con `_tenant_id`, enlace opcional al `outbox_event_id` que lo originó, destinatario polimórfico, plantilla, contenido renderizado, estados y `idempotency_key` para no enviar dos veces lo mismo. `correlation_id`/`causation_id` permiten seguir la cadena desde la petición original. El cuerpo puede contener datos personales: no debe loguearse ni exponerse sin control de acceso.',
   },

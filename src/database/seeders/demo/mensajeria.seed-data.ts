@@ -108,6 +108,9 @@ const POLITICAS: PoliticaSemilla[] = [
   },
 ];
 
+/** Avisos que ningún código envía (la mora y el vencimiento no se avisan al deudor): no se ofrecen al cliente. */
+const SIN_ENVIO = ['cuota_por_vencer', 'cuota_vencida'];
+
 const politicas = POLITICAS.map((p, indice) => ({
   _tenant_id: T,
   event_code: p.code,
@@ -119,7 +122,7 @@ const politicas = POLITICAS.map((p, indice) => ({
   default_enabled: p.obligatoria ? true : p.code !== 'novedades',
   mandatory_reason: p.razon ?? null,
   display_order: (indice + 1) * 10,
-  is_active: true,
+  is_active: !SIN_ENVIO.includes(p.code),
   updated_by_internal_user_id: ID_INTERNOS.cumplimiento,
   _created_at: F,
   _updated_at: F,

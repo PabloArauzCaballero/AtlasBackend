@@ -75,6 +75,20 @@ el modo explícitamente aprobaría identidades y calcularía riesgo sobre payloa
 - [ ] Verificar tras el arranque: el log lista cada proveedor bloqueado, y
       `GET /external-data/providers/readiness` los reporta con el blocker `*_MOCK_MODE_IN_PRODUCTION`.
 
+## 4-bis-bis. Evidencia y eventos hacia el ERP
+
+- [ ] **Antimalware apagado por defecto.** `docker-compose.prod.yml` nombra `MALWARE_SCAN_HOST` vacío: el escáner
+      devuelve `skipped/scanner_disabled` y carnets, selfies y extractos se aceptan sin escanear (la API lo avisa
+      en el log de arranque: `Antimalware APAGADO…`). Para escanear hay que desplegar un `clamd` accesible por TCP y
+      poner `MALWARE_SCAN_HOST` y `MALWARE_SCAN_PORT`; añadirlo a un host justo de memoria es una decisión de capacidad.
+- [ ] **Eventos `payment.*` y `credit.decision.recorded` hacia el ERP.** El trabajo `deliver_erp_events` sólo existe
+      con `ERP_EVENTS_DELIVERY_URL` **y** `ERP_EVENTS_DELIVERY_SECRET` (y `ERP_EVENTS_SIGNING_SECRET` para recibir).
+      Sin las dos primeras los eventos quedan `pending` para siempre y no hay error. Ambas están nombradas en el compose.
+- [ ] **Canales de notificación.** `TWILIO_*`, `BREVO_*`, `FCM_*`, `APNS_*`, `RESEND_*`, `SENDGRID_*` y
+      `META_WHATSAPP_*` están nombradas en el compose (vacías = canal apagado); un canal se enciende poniendo su
+      `NOTIFICATION_*_PROVIDER` **y** sus credenciales (el arranque rechaza un proveedor a medias).
+- [ ] **Limpieza de expedientes: manual.** No hay job programado; ver [operations/expedientes.md](../operations/expedientes.md).
+
 ## 4-ter. Trabajos de fondo
 
 Hallazgo A-03: sin planificador, el outbox no se despacha, las sesiones caducadas no expiran y las

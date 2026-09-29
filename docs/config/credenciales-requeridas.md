@@ -9,7 +9,7 @@ para los proveedores externos.
 
 Las plantillas a copiar son [`.env.example`](../../.env.example) (desarrollo) y
 [`.env.production.example`](../../.env.production.example) (producción). El gate
-`yarn check:env-example` comprueba tres cosas distintas, y conviene saber cuál cubre a cuál:
+`yarn check:env-example` comprueba cuatro cosas distintas, y conviene saber cuál cubre a cuál:
 
 1. **`.env.example` nombra TODAS las variables del esquema tipado.** Es la plantilla de referencia;
    si el código añade una variable y aquí no aparece, el gate falla.
@@ -19,6 +19,17 @@ Las plantillas a copiar son [`.env.example`](../../.env.example) (desarrollo) y
    exige que lo ÚNICO que falle sean los secretos por rellenar. Antes nadie comprobaba esa plantilla:
    traía una URL de Redis inválida y una variable vacía que el esquema rechaza, de modo que quien la
    copiaba recibía un error que hablaba de otra cosa.
+
+4. **Los composes de despliegue nombran el esquema.** `docker-compose.coolify.yml` y
+   `docker-compose.prod.yml` no leen `.env`: lo que no nombran en su `environment:` no existe dentro del
+   contenedor, por mucho que el operador lo ponga en Coolify o en el host (así estaban ausentes `TWILIO_*`,
+   `FCM_*`, `MALWARE_SCAN_*`, `EXPEDIENTES_*` y `ERP_EVENTS_DELIVERY_*`). El gate exige que cada variable del
+   esquema esté nombrada —salvo las perillas numéricas con valor por defecto, las rutas por defecto y una
+   lista corta con su motivo (`scripts/compose-env-check.ts`)—, que lo que el compose entrega cuando el
+   operador no pone nada pase el esquema, y que la cadena vacía signifique lo mismo que la ausencia
+   (`MALWARE_SCAN_FAIL_CLOSED=""` sería `false`, no el `true` por defecto). Por eso las variables nuevas se
+   nombran con `${VAR:-valor}` explícito y nunca con `${VAR:-}` si el campo rechaza el vacío. El escáner
+   antimalware queda **apagado** (`MALWARE_SCAN_HOST` vacío): ningún compose trae `clamd`.
 
 Lo que el gate NO exige es que la plantilla de producción nombre las ~257 variables del esquema: las
 que tienen un valor por omisión seguro no necesitan estar. Y desde el 2026-09-13, un arranque en

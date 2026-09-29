@@ -14,6 +14,7 @@ import { SupportCaseTimelineRepository } from '../support-case-timeline.reposito
 import { SupportCaseRepository } from '../support-case.repository.js';
 import { SupportCatalogRepository } from '../support-catalog.repository.js';
 import type { SupportCaseStatus } from '../support.constants.js';
+import { publishSlaClockEvent, recordSlaCaseEvent } from './support-sla-events.js';
 
 /** Los relojes que se abren con el caso. `CLOSE` se abre al resolver, no antes. */
 const INITIAL_METRICS = ['ACKNOWLEDGE', 'FIRST_RESPONSE', 'RESOLUTION'] as const;
@@ -29,6 +30,10 @@ export class SupportSlaService {
     private readonly catalog: SupportCatalogRepository,
     private readonly events: EventsService,
   ) {}
+
+  private get deps() {
+    return { events: this.events, cases: this.cases, sequelize: this.sequelize, logger: this.logger };
+  }
 
   /**
    * Arranca los relojes del caso con la política que le tocó.
@@ -173,12 +178,10 @@ export class SupportSlaService {
    * evento de integración va por outbox: si el motor de notificaciones está caído, el incumplimiento
    * igual queda marcado.
    *
-   * **El aviso, en cambio, no sale ni después, aunque este comentario decía que sí.** `support.sla.breached`
-   * está en `EVENT_REGISTRY` y lo toma `process_events`, pero no tiene canales en
-   * `notification-rules.service.ts`, así que el orquestador no genera ningún mensaje. Medido en el
-   * servidor el 2026-09-10 por `notification_messages.outbox_event_id`: 13 incumplimientos, 0 avisos. El
-   * incumplimiento sí queda en el expediente; a quién avisar —agente, supervisor— y por qué canal es una
-   * decisión pendiente.
+   * **El aviso interno sí sale**: `notification-rules.service.ts` le da a `support.sla.breached` una regla
+   * `operations`/`in_app` (plantilla `support_sla_breached_in_app`); hasta el 2026-09-29 no tenía canales y
+   * el 2026-09-10 se midieron 13 incumplimientos y 0 avisos. Va a `assignedTeamId` del payload o al buzón
+   * `operations`; a quién más avisar sigue siendo una decisión de operaciones.
    *
    * ## Por qué también se escribe en `support_case_events`
    *
@@ -196,28 +199,26 @@ export class SupportSlaService {
       await this.timeline.updateClock(String(clock.id), { state: 'BREACHED', breachedAt: now });
       breached += 1;
 
-      await this.recordClockEvent(tenantId, clock.caseId, 'SLA_BREACHED', {
-        metricType: clock.metricType,
-        targetAt: new Date(clock.targetAt).toISOString(),
-        breachedAt: now.toISOString(),
-        minutesLate: Math.round((now.getTime() - new Date(clock.targetAt).getTime()) / 60_000),
+      await recordSlaCaseEvent(this.deps, {
+        tenantId,
+        caseId: clock.caseId,
+        eventType: 'SLA_BREACHED',
+        payload: {
+          metricType: clock.metricType,
+          targetAt: new Date(clock.targetAt).toISOString(),
+          breachedAt: now.toISOString(),
+          minutesLate: Math.round((now.getTime() - new Date(clock.targetAt).getTime()) / 60_000),
+        },
       });
 
-      try {
-        await this.events.publish({
-          tenantId,
-          eventCode: 'support.sla.breached',
-          aggregateType: 'support_case',
-          aggregateId: String(clock.caseId),
-          payload: { caseId: String(clock.caseId), metricType: clock.metricType, targetAt: clock.targetAt },
-          idempotencyKey: `support-sla-breach-${clock.id}`,
-          sourceModule: 'support',
-          sourceAction: 'sweep_sla_breaches',
-        });
-      } catch (error) {
-        // El evento es un aviso; la marca de incumplimiento ya está escrita y no debe perderse por él.
-        this.logger.warn(`No se pudo publicar support.sla.breached para el reloj ${clock.id}: ${String(error)}`);
-      }
+      await publishSlaClockEvent(this.deps, {
+        tenantId,
+        eventCode: 'support.sla.breached',
+        clock,
+        payload: { caseId: String(clock.caseId), metricType: clock.metricType, targetAt: clock.targetAt },
+        idempotencyKey: `support-sla-breach-${clock.id}`,
+        sourceAction: 'sweep_sla_breaches',
+      });
     }
 
     return { breached };
@@ -235,6 +236,10 @@ export class SupportSlaService {
    * anota en el reloj al emitirse: por eso una pasada cada minuto no repite el aviso del 75 % sesenta
    * veces por hora. El avance se calcula en tiempo real, no hábil, a propósito — el aviso interno
    * debe llegar aunque el vencimiento caiga fuera de horario, que es justo cuando nadie mira.
+   *
+   * **El aviso llega a alguien**: cada umbral cruzado publica `support.sla.warning` y la regla
+   * `operations`/`in_app` lo convierte en un mensaje interno (antes sólo quedaba `SLA_WARNING` en la
+   * historia del caso, que nadie mira a tiempo, y el evento no tenía productor).
    */
   async sweepWarnings(tenantId: string, now: Date = new Date()): Promise<{ warned: number }> {
     const clocks = await this.timeline.findRunningClocks(tenantId, now);
@@ -255,44 +260,45 @@ export class SupportSlaService {
       const due = thresholds.filter((percent) => elapsedPercent >= percent && !already.includes(percent));
       if (due.length === 0) continue;
 
+      const minutesRemaining = Math.round((targetAt - now.getTime()) / 60_000);
+
+      // Se publica ANTES de anotar el umbral: si el outbox falla, la pasada siguiente lo reintenta, y la
+      // clave (con el umbral más alto cruzado) evita duplicar el aviso si el fallo fue a medias.
+      const published = await publishSlaClockEvent(this.deps, {
+        tenantId,
+        eventCode: 'support.sla.warning',
+        clock,
+        payload: {
+          caseId: String(clock.caseId),
+          metricType: clock.metricType,
+          targetAt: new Date(clock.targetAt).toISOString(),
+          reachedPercents: due,
+          reachedPercent: Math.max(...due),
+          minutesRemaining,
+        },
+        idempotencyKey: `support-sla-warning-${clock.id}-${Math.max(...due)}`,
+        sourceAction: 'sweep_sla_warnings',
+      });
+      if (!published) continue;
+
       await this.timeline.updateClock(String(clock.id), { warnedPercentsJson: [...already, ...due].sort((a, b) => a - b) });
       warned += 1;
 
       // Un solo evento por pasada aunque se crucen dos umbrales: la historia registra hasta dónde
       // llegó el reloj, no cuántas veces se comprobó.
-      await this.recordClockEvent(tenantId, clock.caseId, 'SLA_WARNING', {
-        metricType: clock.metricType,
-        targetAt: new Date(clock.targetAt).toISOString(),
-        reachedPercents: due,
-        minutesRemaining: Math.round((targetAt - now.getTime()) / 60_000),
+      await recordSlaCaseEvent(this.deps, {
+        tenantId,
+        caseId: clock.caseId,
+        eventType: 'SLA_WARNING',
+        payload: {
+          metricType: clock.metricType,
+          targetAt: new Date(clock.targetAt).toISOString(),
+          reachedPercents: due,
+          minutesRemaining,
+        },
       });
     }
 
     return { warned };
-  }
-
-  /**
-   * Escribe el evento del reloj en la historia del caso, con su propia transacción.
-   *
-   * El actor es `SYSTEM` porque nadie decidió esto: lo decidió el tiempo. Un fallo al escribir no
-   * puede tumbar el barrido —el resto de relojes tiene que seguir revisándose—, así que se registra
-   * y se continúa; la marca en el reloj ya está puesta y es la que sostiene la medición.
-   */
-  private async recordClockEvent(
-    tenantId: string,
-    caseId: string,
-    eventType: 'SLA_BREACHED' | 'SLA_WARNING',
-    payload: Record<string, unknown>,
-  ): Promise<void> {
-    try {
-      await this.sequelize.transaction(async (transaction) => {
-        await this.cases.appendEvent(
-          { tenantId, caseId: String(caseId), eventType, actorType: 'SYSTEM', actorId: 'system', payload },
-          transaction,
-        );
-      });
-    } catch (error) {
-      this.logger.warn(`No se pudo escribir ${eventType} en el caso ${caseId}: ${String(error)}`);
-    }
   }
 }

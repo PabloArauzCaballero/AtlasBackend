@@ -1,6 +1,6 @@
 /**
  * @file Proceso declarado en código: Notificaciones transaccionales y campañas masivas.
- * @business Este proceso hace que el cliente se entere a tiempo de lo que pasa con su crédito (cuota por vencer, pago confirmado, línea aprobada) y que operaciones pueda enviar campañas a un segmento, sabiendo por canal y proveedor qué llegó y qué no.
+ * @business Este proceso hace que el cliente se entere a tiempo de lo que pasa con su crédito (verificación de la cuenta, pago confirmado o rechazado) y que operaciones pueda enviar campañas a un segmento, sabiendo por canal y proveedor qué llegó y qué no.
  * @system fixture que `syncWorkflowCatalog` vuelca a `workflow_*`; sale de `src/modules/notifications/` (reglas, orquestador, callbacks y `campaigns/`), del job `run_notification_campaigns` y de la pasarela `admin/notification-campaigns` del ERP.
  */
 import type { WorkflowDefinitionFixture } from '../workflow-definition.types.js';
@@ -41,7 +41,7 @@ export const NOTIFICATIONS_AND_CAMPAIGNS: WorkflowDefinitionFixture = {
   version: 'v1',
   name: 'Notificaciones transaccionales y campañas masivas',
   description:
-    'Del hecho de negocio (cuota por vencer, pago confirmado) o de la campaña programada en el ERP hasta la entrega por canal (in-app, push, correo, SMS, WhatsApp) y el estado que devuelve cada proveedor.',
+    'Del hecho de negocio (cuenta verificada, pago confirmado) o de la campaña programada en el ERP hasta la entrega por canal (in-app, push, correo, SMS, WhatsApp) y el estado que devuelve cada proveedor.',
   processType: 'back_office',
   ownerDomain: 'notifications',
   ownerRole: 'OPERATIONS_MANAGER',
@@ -49,7 +49,7 @@ export const NOTIFICATIONS_AND_CAMPAIGNS: WorkflowDefinitionFixture = {
   systems: ['ATLAS_BACKEND', 'ERP_BACKEND'],
   narrative: {
     whyExists:
-      'El cliente tiene que enterarse de lo que pasa con su crédito sin abrir la app a buscarlo: cuota por vencer o vencida, pago confirmado o rechazado, línea aprobada o suspendida. Y operaciones necesita avisar a un segmento de clientes (como una campaña de anuncios: fecha, duración y audiencia) sabiendo cuántos lo recibieron y por qué canal.',
+      'El cliente tiene que enterarse de lo que pasa con su crédito sin abrir la app a buscarlo: cuenta verificada, identidad aprobada o rechazada, pago reportado, confirmado o rechazado. Hoy NO se avisa de la mora ni de los vencimientos (nadie publica esos eventos: es una decisión de producto y regulatoria sin tomar). Y operaciones necesita avisar a un segmento de clientes (como una campaña de anuncios: fecha, duración y audiencia) sabiendo cuántos lo recibieron y por qué canal.',
     whoStartsAndCloses:
       'Los avisos transaccionales los inicia el sistema al ocurrir un hecho de negocio y los cierra el proveedor (Twilio, SendGrid, Brevo, Firebase) al confirmar la entrega. Las campañas las crea y programa un administrador del ERP desde Control › Notificaciones masivas y las cierra el planificador al agotar la audiencia o la ventana.',
     startAndEnd:
@@ -97,6 +97,7 @@ export const NOTIFICATIONS_AND_CAMPAIGNS: WorkflowDefinitionFixture = {
       'El portal admin observa y pausa/reanuda/cancela campañas (/internal/notifications/campaigns), pero crearlas y programarlas sólo se hace desde el ERP.',
       'La pantalla del ERP /operaciones/admin/notificaciones está oculta del menú desde el 2026-09-26 (NOTIFICACIONES_MASIVAS_VISIBLE = false, memoria atlas-campanas-notificacion).',
       'Los eventos notification.* están en event-registry.ts pero ningún código los emite.',
+      'No se avisa al deudor de la mora ni de los vencimientos: los eventos installment.* y otros 15 de las reglas antiguas no los publica nadie (LoanDelinquencyService.sweep no emite nada) y sus reglas se retiraron el 2026-09-29. Qué avisar y cuándo es una decisión de producto y regulatoria sin tomar; la pantalla de avisos del cliente ya no ofrece cuota_por_vencer ni cuota_vencida.',
       'WhatsApp por Brevo no tiene webhook de estado: se queda en «sent».',
       'deliver_pending_notifications sólo existe con NOTIFICATIONS_DELIVERY_MODE=deferred (optional-jobs.catalog.ts); por defecto la entrega es en línea.',
     ],
@@ -106,7 +107,7 @@ export const NOTIFICATIONS_AND_CAMPAIGNS: WorkflowDefinitionFixture = {
       code: 'notif_domain_trigger',
       name: 'Hecho de negocio que genera el aviso',
       description:
-        'El consumidor de eventos aplica las reglas (notification-rules.service.ts): cada evento con canales (installment.overdue, payment.confirmed…) crea el mensaje para el cliente, el comercio o operaciones.',
+        'El consumidor de eventos aplica las reglas (notification-rules.service.ts): cada evento con canales (payment.confirmed, kyc.approved, support.sla.warning…) crea el mensaje para el cliente o para operaciones. Sólo tienen regla los eventos que alguien publica; un guardián de pruebas lo comprueba.',
       module: 'notifications',
       actor: 'system',
       client: 'BLOCK',
@@ -116,7 +117,7 @@ export const NOTIFICATIONS_AND_CAMPAIGNS: WorkflowDefinitionFixture = {
           code: 'notif.process_events',
           name: 'Convertir eventos de dominio en mensajes',
           description:
-            'El job consume el outbox de eventos; los que tienen canales en las reglas se convierten en mensajes con sus canales. Los eventos de soporte no tienen canales y no generan mensaje.',
+            'El job consume el outbox de eventos; los que tienen canales en las reglas se convierten en mensajes con sus canales. De soporte sólo generan mensaje los avisos de plazo (support.sla.warning y support.sla.breached, bandeja interna de operaciones); el resto de eventos de soporte no tienen canales.',
           kind: 'job',
           job: 'process_events',
         },

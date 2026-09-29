@@ -22,7 +22,7 @@ SELECT _id, event_id, locked_by, locked_at FROM platform_ops.outbox_events
 ## 2. Lease vencido
 
 Un relay murió con eventos `processing`. **No** cambies el estado a mano: el job `reclaim_stuck_events`
-(`POST /api/v1/runtime-jobs/reclaim-stuck-events`, o el reclaim del planificador) los devuelve a `pending` o `failed`
+(`POST /api/v1/operations/jobs/reclaim-stuck-events` con las cabeceras `x-tenant-id` y `x-idempotency-key`, o el reclaim del planificador) los devuelve a `pending` o `failed`
 según intentos. El testigo `owner_token` hace que, si el relay viejo despierta, su cierre no escriba
 (`OUTBOX_LEASE_LOST` en el log): es esperado, no un error.
 

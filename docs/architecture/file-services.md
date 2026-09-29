@@ -20,7 +20,7 @@ Separarlos es lo que permite que añadir Cloudinary no toque nada del camino mul
 HTTP multipart ──▶ MulterIngestAdapter ──┐
                                           ├──▶ FileService (verifica) ──▶ FileStorageAdapter ──▶ disco / objetos
 ticket firmado ──▶ el cliente sube ──────┘        │
-                                                   └── tamaño · allowlist · firma mágica · SHA-256 · antimalware
+                                                   └── tamaño · allowlist · firma mágica · SHA-256 · antimalware (si hay clamd)
 ```
 
 ### Adaptadores disponibles
@@ -51,7 +51,14 @@ pagarlo por un archivo que ya falló el tipo.
 | 2 | No excede `FILE_UPLOAD_MAX_BYTES` | `FILE_TOO_LARGE` |
 | 3 | El tipo declarado está en la allowlist | `FILE_CONTENT_TYPE_NOT_ALLOWED` |
 | 4 | Los primeros bytes respaldan el tipo declarado | `FILE_CONTENT_TYPE_MISMATCH` |
-| 5 | `clamd` no lo marca (o el escáner está apagado) | `FILE_MALWARE_DETECTED` / `FILE_SCAN_UNAVAILABLE` |
+| 5 | `clamd` no lo marca. **Sólo si el escáner está encendido**: con `MALWARE_SCAN_HOST` vacío el paso se salta y el archivo pasa | `FILE_MALWARE_DETECTED` / `FILE_SCAN_UNAVAILABLE` |
+
+**El antimalware está apagado en los despliegues de hoy.** Ningún compose del repositorio incluye
+`clamd`; Coolify y producción nombran `MALWARE_SCAN_HOST` vacío, así que el paso 5 devuelve
+`skipped/scanner_disabled` y los archivos —carnets, selfies, extractos— se aceptan sin escanear. Los
+pasos 1 a 4 sí corren siempre. Al arrancar, la API lo dice en su log (`Antimalware APAGADO…`). Encenderlo
+es apuntar `MALWARE_SCAN_HOST` y `MALWARE_SCAN_PORT` a un `clamd` por TCP; sumar ese servicio a un host
+justo de memoria es una decisión de capacidad que no se ha tomado.
 
 La tabla de firmas mágicas vive en
 [`file-content-type.util.ts`](../../src/common/files/file-content-type.util.ts) y la **comparte** el
@@ -87,7 +94,7 @@ despliegue que solo usa multipart— pero si se define debe tener 32+ caracteres
 
 El flujo de **evidencia documental KYC** de [`src/common/storage/`](../../src/common/storage/) sigue
 intacto: URL prefirmada de S3, el cliente sube directo al bucket y el backend descarga después para
-recalcular el SHA-256, comprobar bytes mágicos y escanear. Lo consume `customer-onboarding` y
+recalcular el SHA-256, comprobar bytes mágicos y escanear (este último sólo con `clamd` configurado). Lo consume `customer-onboarding` y
 conserva sus mismas garantías y sus mismas variables `STORAGE_S3_*`.
 
 Este módulo es una vía **alterna y aditiva**, no un reemplazo.
