@@ -145,3 +145,9 @@ export const publishContractTemplateSchema = z
   })
   .strict();
 export type PublishContractTemplateDto = z.infer<typeof publishContractTemplateSchema>;
+
+/** El id de una plantilla es el BIGINT de la tabla; otra cosa es un 400, no un 500 de PostgreSQL. */
+export const contractTemplateParamsSchema = z.object({
+  templateId: z.string().regex(/^[1-9][0-9]{0,18}$/u, 'templateId debe ser un entero positivo.'),
+});
+export type ContractTemplateParamsDto = z.infer<typeof contractTemplateParamsSchema>;

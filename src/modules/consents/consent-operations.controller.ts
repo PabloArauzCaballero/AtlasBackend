@@ -4,7 +4,7 @@
  * @system expone a operaciones el catálogo de documentos de consentimiento y su edición.
  */
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -14,10 +14,14 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
+import { InternalPermissions } from '../internal-users/internal-permissions.decorator.js';
 import { ConsentDocumentAdminService } from './consent-document-admin.service.js';
 import {
+  ConsentDocumentParamsDto,
   CreateConsentDocumentDto,
   UpdateConsentDocumentDto,
+  consentDocumentParamsSchema,
   createConsentDocumentSchema,
   updateConsentDocumentSchema,
 } from './consents.schemas.js';
@@ -36,12 +40,21 @@ import {
  *
  * Es lo que se le opone a una persona cuando reclama. Sólo personal interno lo edita, y cada cambio
  * queda con quién lo publicó y cuándo.
+ *
+ * ## El rol de sesión es grueso: manda el permiso fino
+ *
+ * El rol de sesión sólo dice «es personal interno»: `internal_operator` lo comparten el agente de
+ * soporte y el de cobranza. Hasta ahora bastaba con eso para PUBLICAR el texto legal que acepta el
+ * cliente. El menú del portal ya pedía `governance.policies.read` para enseñar la pantalla; el backend
+ * no lo exigía. Ahora leer pide `governance.policies.read` y publicar o corregir pide
+ * `governance.policies.manage`. `readonly_auditor` entra al rol porque el auditor tiene el permiso de
+ * lectura y recibía 403 en una pantalla que su menú le enseñaba.
  */
 @ApiTags('consents')
 @ApiBearerAuth('access-token')
 @Controller('operations/consent-documents')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-@Roles('internal_operator', 'compliance_analyst', 'risk_analyst', 'admin', 'platform_admin')
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, InternalPermissionsGuard)
+@Roles('internal_operator', 'compliance_analyst', 'risk_analyst', 'readonly_auditor', 'admin', 'platform_admin')
 export class ConsentOperationsController {
   constructor(private readonly admin: ConsentDocumentAdminService) {}
 
@@ -51,6 +64,8 @@ export class ConsentOperationsController {
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Catálogo completo, el más reciente primero.' })
+  @ApiResponse({ status: 403, description: 'Sin el permiso governance.policies.read.' })
+  @InternalPermissions('governance.policies.read')
   @Get()
   list(@CurrentTenant() tenantId: string) {
     return this.admin.list(tenantId);
@@ -65,7 +80,9 @@ export class ConsentOperationsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiBody({ schema: zodToApiSchema(createConsentDocumentSchema) })
   @ApiResponse({ status: 201, description: 'Versión publicada.' })
+  @ApiResponse({ status: 403, description: 'Sin el permiso governance.policies.manage.' })
   @ApiResponse({ status: 409, description: 'CONSENT_VERSION_ALREADY_EXISTS.' })
+  @InternalPermissions('governance.policies.manage')
   @Post()
   create(
     @CurrentTenant() tenantId: string,
@@ -84,14 +101,17 @@ export class ConsentOperationsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiBody({ schema: zodToApiSchema(updateConsentDocumentSchema) })
   @ApiResponse({ status: 200, description: 'Documento actualizado.' })
+  @ApiParam({ name: 'documentId', schema: zodToApiSchema(consentDocumentParamsSchema.shape.documentId), description: 'Id del documento.' })
+  @ApiResponse({ status: 403, description: 'Sin el permiso governance.policies.manage.' })
   @ApiResponse({ status: 404, description: 'CONSENT_DOCUMENT_NOT_FOUND.' })
+  @InternalPermissions('governance.policies.manage')
   @Patch(':documentId')
   update(
     @CurrentTenant() tenantId: string,
-    @Param('documentId') documentId: string,
+    @Param(new ZodValidationPipe(consentDocumentParamsSchema)) params: ConsentDocumentParamsDto,
     @Body(new ZodValidationPipe(updateConsentDocumentSchema)) body: UpdateConsentDocumentDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.admin.update(tenantId, documentId, body, currentUser.internalUserId ?? null);
+    return this.admin.update(tenantId, params.documentId, body, currentUser.internalUserId ?? null);
   }
 }

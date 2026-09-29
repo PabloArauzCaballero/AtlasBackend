@@ -16929,7 +16929,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Sin el permiso governance.policies.read.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -17010,7 +17010,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Sin el permiso governance.policies.manage.
         '409':
           description: CONSENT_VERSION_ALREADY_EXISTS.
         '429':
@@ -17035,9 +17035,8 @@ paths:
           in: path
           schema:
             type: string
-          description: >-
-            Identificador de ruta `documentId` del recurso direccionado por la
-            operación.
+            pattern: ^[1-9][0-9]{0,18}$
+          description: Id del documento.
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       requestBody:
@@ -17082,7 +17081,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Sin el permiso governance.policies.manage.
         '404':
           description: CONSENT_DOCUMENT_NOT_FOUND.
         '409':
@@ -18170,7 +18169,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Sin el permiso governance.policies.read.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -18466,7 +18465,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Sin el permiso governance.policies.manage.
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
@@ -23093,7 +23092,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Sin el permiso governance.policies.manage.
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
@@ -23149,7 +23148,8 @@ paths:
           in: path
           schema:
             type: string
-          description: Identificador de la plantilla de notificación.
+            pattern: ^[1-9][0-9]{0,18}$
+          description: Id de la plantilla.
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -23164,7 +23164,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Sin el permiso governance.policies.manage.
         '404':
           description: PARTNER_CONTRACT_TEMPLATE_NOT_FOUND.
         '409':
