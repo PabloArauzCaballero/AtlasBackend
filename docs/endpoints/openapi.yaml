@@ -15918,11 +15918,40 @@ paths:
     get:
       operationId: AppContentOperationsController_list
       parameters:
+        - name: limit
+          required: false
+          in: query
+          description: Piezas por página, de 1 a 100 (20 por omisión).
+          schema: {}
+        - name: page
+          required: false
+          in: query
+          description: Página, desde 1.
+          schema: {}
+        - name: active
+          required: false
+          in: query
+          description: '`true` sólo las visibles en la app, `false` sólo las ocultas.'
+          schema: {}
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Busca por partes en la clave, el título, el subtítulo, el texto y la
+            etiqueta del botón.
+          schema: {}
+        - name: surface
+          required: false
+          in: query
+          description: Sólo las piezas de esta pantalla de la app.
+          schema: {}
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Piezas de contenido con su estado de publicación.
+          description: >-
+            Página de piezas con su estado de publicación, `meta` y `summary`
+            (total, visibles y ocultas de la pantalla).
           content:
             application/json:
               schema:
@@ -17436,11 +17465,36 @@ paths:
         ver lo que aún no publicó y lo que ya retiró.
       operationId: ConsentOperationsController_list
       parameters:
+        - name: limit
+          required: false
+          in: query
+          description: Documentos por página, de 1 a 100 (20 por omisión).
+          schema: {}
+        - name: page
+          required: false
+          in: query
+          description: Página, desde 1.
+          schema: {}
+        - name: status
+          required: false
+          in: query
+          description: >-
+            Sólo los documentos en este estado: `draft`, `published` o
+            `retired`.
+          schema: {}
+        - name: q
+          required: false
+          in: query
+          description: Busca por partes en el código, el título y el resumen del documento.
+          schema: {}
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Catálogo completo, el más reciente primero.
+          description: >-
+            Página del catálogo, por código y luego el más reciente primero, con
+            `meta` y `summary` (vigentes, borradores y retirados del catálogo
+            entero).
           content:
             application/json:
               schema:
@@ -23870,11 +23924,33 @@ paths:
       description: 'Las archivadas NO se ocultan: son la prueba de qué texto regía cada día.'
       operationId: PartnerContractTemplatesController_list
       parameters:
+        - name: limit
+          required: false
+          in: query
+          description: Versiones por página, de 1 a 100 (20 por omisión).
+          schema: {}
+        - name: page
+          required: false
+          in: query
+          description: Página, desde 1.
+          schema: {}
+        - name: status
+          required: false
+          in: query
+          description: '`active` sólo las vigentes, `archived` sólo las que rigieron antes.'
+          schema: {}
+        - name: q
+          required: false
+          in: query
+          description: Busca por partes en el código y el nombre del contrato.
+          schema: {}
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Listado por código y versión descendente.
+          description: >-
+            Página por código y versión descendente, con `meta` y `summary`
+            (total, vigentes y archivadas de todo el inquilino).
           content:
             application/json:
               schema:
