@@ -20,10 +20,15 @@ import type {
  * reescribirla al reactivarlo borra justo el tramo que una investigación necesita mirar. La tercera:
  * el número de serie se busca ignorando los retirados, que es lo que permite reutilizarlo.
  */
-type Doble = { create: jest.Mock; findOne: jest.Mock; findAll: jest.Mock };
+type Doble = { create: jest.Mock; findOne: jest.Mock; findAll: jest.Mock; findAndCountAll: jest.Mock };
 
 function doble(): Doble {
-  return { create: jest.fn(async () => ({ id: 'x' })), findOne: jest.fn(async () => null), findAll: jest.fn(async () => []) };
+  return {
+    create: jest.fn(async () => ({ id: 'x' })),
+    findOne: jest.fn(async () => null),
+    findAll: jest.fn(async () => []),
+    findAndCountAll: jest.fn(async () => ({ rows: [], count: 0 })),
+  };
 }
 
 function ultima(mock: jest.Mock): { where: Record<string | symbol, unknown>; order?: unknown[]; transaction?: unknown } {
@@ -165,11 +170,20 @@ describe('PartnerCommercialNetworkRepository', () => {
       expect(where.branchId).toEqual({ [Op.is]: null });
     });
 
-    it('la cola de revisión es del tenant entero, el más antiguo primero: es la bandeja de una persona', async () => {
-      await repo.listQrCodesPendingReview('t1');
-      const { where, order } = ultima(qrs.findAll);
+    it('la cola de revisión es del tenant entero, el más antiguo primero y POR PÁGINAS (antes llegaba entera)', async () => {
+      await repo.listQrCodesPendingReview('t1', { limit: 10, offset: 20 });
+      const { where, order, limit, offset } = ultima(qrs.findAndCountAll) as {
+        where: unknown;
+        order: unknown;
+        limit: number;
+        offset: number;
+      };
       expect(where).toEqual({ tenantId: 't1', status: 'pending_review' });
-      expect(order).toEqual([['_created_at', 'ASC']]);
+      expect(order).toEqual([
+        ['_created_at', 'ASC'],
+        ['_id', 'ASC'],
+      ]);
+      expect({ limit, offset }).toEqual({ limit: 10, offset: 20 });
     });
 
     it('revisar sella fecha, firma y nota, y el estado que decidió la persona', async () => {

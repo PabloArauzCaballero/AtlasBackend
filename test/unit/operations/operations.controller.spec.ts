@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { OperationsController } from '../../../src/modules/operations/operations.controller.js';
 import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.js';
+import { ROLES_KEY } from '../../../src/common/decorators/roles.decorator.js';
 
 /**
  * `OperationsController` combina la cola de revisión manual (OperationsService) y la de fraude
@@ -10,39 +11,50 @@ import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.
 describe('OperationsController', () => {
   function build() {
     const operationsService = {
+      getInvestigationSummary: jest.fn(async (..._args: unknown[]) => ({ customer: {} })),
+      decideManualReviewCase: jest.fn(async (..._args: unknown[]) => ({ resolved: true })),
+    };
+    const workQueue = {
       getWorkQueue: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
       getManualReviewCasesCursorPage: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
       getFraudCasesCursorPage: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
-      getInvestigationSummary: jest.fn(async (..._args: unknown[]) => ({ customer: {} })),
-      decideManualReviewCase: jest.fn(async (..._args: unknown[]) => ({ resolved: true })),
     };
     const fraudService = { decideFraudCase: jest.fn(async (..._args: unknown[]) => ({ resolved: true })) };
     return {
       controller: new OperationsController(
         operationsService as never,
+        workQueue as never,
         fraudService as never,
         { list: jest.fn() } as never,
         { calcular: jest.fn(), ultimo: jest.fn() } as never,
       ),
       operationsService,
+      workQueue,
       fraudService,
     };
   }
   const user = { role: 'internal_operator', tenantId: '1', internalUserId: 'u1' } as never;
 
-  it('getWorkQueue delega con el tenant parseado y la query', async () => {
-    const { controller, operationsService } = build();
-    await controller.getWorkQueue('1', { queue: 'all' } as never);
-    expect(operationsService.getWorkQueue).toHaveBeenCalledWith(tenantIdFromHeader('1'), { queue: 'all' });
+  it('getWorkQueue delega con el tenant parseado, la query y el ROL de quien pide (acota a fraude)', async () => {
+    const { controller, workQueue } = build();
+    await controller.getWorkQueue('1', { queue: 'all' } as never, user);
+    expect(workQueue.getWorkQueue).toHaveBeenCalledWith(tenantIdFromHeader('1'), { queue: 'all' }, 'internal_operator');
+  });
+
+  it('work-queue admite a fraud_analyst en @Roles (el servicio lo acota a queue=fraud); la decisión manual no', () => {
+    const roles = (name: keyof OperationsController) =>
+      Reflect.getMetadata(ROLES_KEY, OperationsController.prototype[name] as object) as string[] | undefined;
+    expect(roles('getWorkQueue')).toContain('fraud_analyst');
+    expect(roles('decideManualReviewCase')).not.toContain('fraud_analyst');
   });
 
   it('las variantes por cursor y el resumen de investigación delegan con el tenant', async () => {
-    const { controller, operationsService } = build();
+    const { controller, operationsService, workQueue } = build();
     await controller.getManualReviewCasesCursorPage('1', { cursor: 'c' } as never);
     await controller.getFraudCasesCursorPage('1', { cursor: 'c' } as never);
     await controller.getInvestigationSummary('1', { customerId: '9' } as never);
-    expect(operationsService.getManualReviewCasesCursorPage).toHaveBeenCalledWith(tenantIdFromHeader('1'), { cursor: 'c' });
-    expect(operationsService.getFraudCasesCursorPage).toHaveBeenCalledWith(tenantIdFromHeader('1'), { cursor: 'c' });
+    expect(workQueue.getManualReviewCasesCursorPage).toHaveBeenCalledWith(tenantIdFromHeader('1'), { cursor: 'c' });
+    expect(workQueue.getFraudCasesCursorPage).toHaveBeenCalledWith(tenantIdFromHeader('1'), { cursor: 'c' });
     expect(operationsService.getInvestigationSummary).toHaveBeenCalledWith(tenantIdFromHeader('1'), { customerId: '9' });
   });
 

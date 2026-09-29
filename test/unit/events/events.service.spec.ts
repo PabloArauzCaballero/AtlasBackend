@@ -14,6 +14,7 @@ describe('EventsService', () => {
       createEvent: asyncMock(),
       listWithCursor: asyncMock(),
       list: asyncMock(),
+      countByStatus: jest.fn(async (..._args: unknown[]) => ({}) as Record<string, number>),
       getById: asyncMock(),
       listPending: asyncMock(),
       claimPending: asyncMock(),
@@ -131,6 +132,16 @@ describe('EventsService', () => {
       const result = await service.listEvents('t1', { pagination: 'offset', page: 1, limit: 20 } as never);
       expect(result.pagination.mode).toBe('offset');
       expect((result.pagination as { total: number }).total).toBe(1);
+    });
+
+    it('trae summary.byStatus del servidor, con todos los estados (cero incluidos), no contado sobre la página', async () => {
+      const { service, repository } = buildService();
+      (repository.list as jest.Mock).mockResolvedValueOnce({ rows: [fakeOutboxEvent()], count: 1 } as never);
+      repository.countByStatus.mockResolvedValueOnce({ failed: 7, pending: 120 });
+      const query = { pagination: 'offset', page: 1, limit: 20, q: 'loan' } as never;
+      const result = (await service.listEvents('t1', query)) as { summary: { byStatus: Record<string, number> } };
+      expect(repository.countByStatus).toHaveBeenCalledWith('t1', query);
+      expect(result.summary.byStatus).toEqual({ pending: 120, processing: 0, processed: 0, failed: 7, cancelled: 0 });
     });
   });
 

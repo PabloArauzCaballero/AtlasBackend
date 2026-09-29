@@ -179,20 +179,7 @@ describe('CreditProductService', () => {
       }),
     );
   });
-
-  it('cambia estado conservando el estado anterior y falla si no existe', async () => {
-    const found = buildProductService();
-    await expect(
-      found.service.changeStatus({ tenantId: '7', productId: '21', status: 'suspended', currentUser: operatorUser }),
-    ).resolves.toEqual({ productId: '21', previousStatus: 'active', status: 'suspended' });
-    expect(found.creditRepository.updateProductStatus).toHaveBeenCalledWith(found.product, 'suspended', expect.any(Date));
-
-    const missing = buildProductService();
-    (missing.creditRepository.findProductById as jest.Mock).mockResolvedValueOnce(null as never);
-    await expect(
-      missing.service.changeStatus({ tenantId: '7', productId: '404', status: 'retired', currentUser: operatorUser }),
-    ).rejects.toThrow(NotFoundException);
-  });
+  // Activar/suspender/retirar: `credit-product-status.service.spec.ts` (transiciones y auditoría).
 });
 
 function buildDecisionService(application: Record<string, unknown> | null = { id: '31', status: 'under_review' }) {

@@ -113,6 +113,17 @@ describe('OperationsPrivacyRequestsService.list', () => {
     expect((opciones.bind.overdueCutoff as Date).toISOString()).toBe('2026-09-12T12:00:00.000Z');
   });
 
+  it('q busca por parte en el código de la solicitud y del cliente, y el CONTEO lleva el join al cliente', async () => {
+    const { service, query } = montar();
+    await service.list('1', consulta({ q: 'DSR_1' }), AHORA);
+    const [sql, opciones] = query.mock.calls[0]!;
+    expect(sql).toContain('(d.request_code ILIKE $q OR cu.customer_code ILIKE $q)');
+    expect(opciones.bind.q).toBe('%DSR\\_1%');
+    const conteo = query.mock.calls.find(([texto]) => texto.includes('COUNT(*)::text AS total'))!;
+    expect(conteo[0]).toContain('LEFT JOIN');
+    expect(conteo[0]).toContain('$q');
+  });
+
   it('PRUEBA EN NEGATIVO — z.coerce no convierte «false» en true', () => {
     expect(consulta({ overdue: 'false' }).overdue).toBe('false');
     expect(() => consulta({ overdue: 'si' })).toThrow();

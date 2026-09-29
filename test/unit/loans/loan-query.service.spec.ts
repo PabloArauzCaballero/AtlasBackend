@@ -45,6 +45,7 @@ describe('LoanQueryService', () => {
   let loans: {
     findLoansByCustomer: jest.Mock;
     findLoansPage: jest.Mock;
+    findCustomerCodes: jest.Mock;
     findLoanById: jest.Mock;
     findInstallments: jest.Mock;
     findPaymentsByLoan: jest.Mock;
@@ -59,6 +60,7 @@ describe('LoanQueryService', () => {
     loans = {
       findLoansByCustomer: jest.fn(async () => []),
       findLoansPage: jest.fn(async () => ({ rows: [prestamo({ partnerProfileId: 'pp-1' })], count: 31 })),
+      findCustomerCodes: jest.fn(async () => new Map([['c1', 'CUS-1']])),
       findLoanById: jest.fn(async () => prestamo()),
       findInstallments: jest.fn(async () => []),
       findPaymentsByLoan: jest.fn(async () => []),
@@ -237,8 +239,14 @@ describe('LoanQueryService', () => {
       const page = await service.listForStaff('7', { status: 'active', page: 2, pageSize: 10 });
       expect(loans.findLoansPage).toHaveBeenCalledWith('7', { status: 'active' }, { limit: 10, offset: 10 });
       expect(page).toMatchObject({ total: 31, page: 2, pageSize: 10 });
-      expect(page.items[0]).toMatchObject({ customerId: 'c1', merchant: { displayName: 'Ferretería Sur' } });
+      expect(page.items[0]).toMatchObject({ customerId: 'c1', customerCode: 'CUS-1', merchant: { displayName: 'Ferretería Sur' } });
       expect(partnerDirectory.describeMany).toHaveBeenCalledTimes(1);
+      expect(loans.findCustomerCodes).toHaveBeenCalledWith('7', ['c1']);
+    });
+
+    it('el buscador `q` viaja al repositorio (antes sólo existía loanCode exacto)', async () => {
+      await service.listForStaff('7', { q: 'CUS-1', page: 1, pageSize: 25 });
+      expect(loans.findLoansPage).toHaveBeenCalledWith('7', { q: 'CUS-1' }, { limit: 25, offset: 0 });
     });
   });
 });

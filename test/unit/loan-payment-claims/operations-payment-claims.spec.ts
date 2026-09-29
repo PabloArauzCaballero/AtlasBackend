@@ -53,6 +53,20 @@ function montar(filas: Record<string, unknown>[] = [fila()], total = '1') {
 
 const consulta = (over: Record<string, unknown> = {}) => operationsClaimsQuerySchema.parse(over);
 
+describe('OperationsPaymentClaimsService · buscador', () => {
+  it('q busca por parte en código del aviso, código del cliente y nombre del comercio; el conteo también', async () => {
+    const { service, query } = montar();
+    await service.list('1', consulta({ q: 'Tienda' }), AHORA);
+    const pagina = query.mock.calls.find(([sql]) => sql.includes('LIMIT'))!;
+    expect(pagina[0]).toContain('(c.claim_code ILIKE $q OR cu.customer_code ILIKE $q OR p.trade_name ILIKE $q OR p.legal_name ILIKE $q)');
+    expect(pagina[1].bind.q).toBe('%Tienda%');
+    const conteo = query.mock.calls.find(([sql]) => sql.includes('COUNT(*)::text AS total'))!;
+    // Sin los JOIN en el conteo, el total no respetaría la búsqueda.
+    expect(conteo[0]).toContain('partner_profiles');
+    expect(conteo[0]).toContain('$q');
+  });
+});
+
 describe('OperationsPaymentClaimsService', () => {
   it('pagina, resume toda la cola y marca como atrasado el pendiente de más de 48 h', async () => {
     const { service } = montar();
