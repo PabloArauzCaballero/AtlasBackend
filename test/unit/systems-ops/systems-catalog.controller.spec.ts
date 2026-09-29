@@ -28,12 +28,15 @@ describe('SystemsCatalogController', () => {
         totals: { tables: 0, endpoints: 0, testSuites: 0 },
       })),
     };
+    const catalogSummaryService = { summary: jest.fn(async (..._args: unknown[]) => ({ tables: { total: 3 } })) };
     return {
+      catalogSummaryService,
       controller: new SystemsCatalogController(
         service as never,
         toolInferenceService as never,
         dataImpactInferenceService as never,
         domainOverviewService as never,
+        catalogSummaryService as never,
       ),
       service,
       toolInferenceService,
@@ -41,6 +44,13 @@ describe('SystemsCatalogController', () => {
       domainOverviewService,
     };
   }
+
+  it('las cifras del catálogo salen de su servicio de agregados, no del listado paginado', async () => {
+    const { controller, catalogSummaryService, service } = build();
+    await expect(controller.getCatalogSummary()).resolves.toEqual({ tables: { total: 3 } });
+    expect(catalogSummaryService.summary).toHaveBeenCalledTimes(1);
+    expect(service.listEndpoints).not.toHaveBeenCalled();
+  });
 
   it('las inferencias rutean a su motor propio (no al catálogo)', async () => {
     const { controller, toolInferenceService, dataImpactInferenceService } = build();

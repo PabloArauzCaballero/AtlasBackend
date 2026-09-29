@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { SchemaManagementController } from '../../../src/modules/schema-management/schema-management.controller.js';
 import { SchemaManagementService } from '../../../src/modules/schema-management/services/schema-management.service.js';
 import { InternalPortalController } from '../../../src/modules/internal-portal/internal-portal.controller.js';
+import { InternalMetadataController } from '../../../src/modules/internal-portal/internal-metadata.controller.js';
 import { InternalPortalService } from '../../../src/modules/internal-portal/internal-portal.service.js';
 import { InternalAuthController } from '../../../src/modules/internal-users/internal-auth.controller.js';
 import { InternalAuthService } from '../../../src/modules/internal-users/internal-auth.service.js';
@@ -42,6 +43,7 @@ describe('final block — OpenAPI document generation (8 controllers, 7 modules)
       controllers: [
         SchemaManagementController,
         InternalPortalController,
+        InternalMetadataController,
         InternalAuthController,
         InternalAccessCatalogController,
         InternalUsersController,

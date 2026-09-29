@@ -17,6 +17,12 @@ const fields = z
 
 const baseListShape = { page, limit, fields };
 
+/*
+ * `q` en TODAS las vistas: antes sólo «Clientes» lo declaraba y, como los esquemas son `.strict()`,
+ * mandarlo a otra vista era un 400; la pantalla deshabilitaba el buscador en seis de siete vistas.
+ * Las columnas donde busca cada una están en `admin-read.views.ts` (`search`).
+ */
+
 export const customerViewQuerySchema = z
   .object({
     ...baseListShape,
@@ -29,6 +35,7 @@ export const customerViewQuerySchema = z
 export const riskViewQuerySchema = z
   .object({
     ...baseListShape,
+    q: textFilter,
     customerId: z.coerce.number().int().positive().optional(),
     status: textFilter,
     riskBand: textFilter,
@@ -39,6 +46,7 @@ export const riskViewQuerySchema = z
 export const workQueueViewQuerySchema = z
   .object({
     ...baseListShape,
+    q: textFilter,
     type: textFilter,
     status: textFilter,
     priority: textFilter,
@@ -50,6 +58,7 @@ export const workQueueViewQuerySchema = z
 export const providerHealthViewQuerySchema = z
   .object({
     ...baseListShape,
+    q: textFilter,
     healthStatus: textFilter,
     providerStatus: textFilter,
   })
@@ -58,6 +67,7 @@ export const providerHealthViewQuerySchema = z
 export const notificationViewQuerySchema = z
   .object({
     ...baseListShape,
+    q: textFilter,
     status: textFilter,
     channel: textFilter,
     category: textFilter,
@@ -67,6 +77,7 @@ export const notificationViewQuerySchema = z
 export const endpointCoverageViewQuerySchema = z
   .object({
     ...baseListShape,
+    q: textFilter,
     module: textFilter,
     riskLevel: textFilter,
     reviewStatus: textFilter,
@@ -80,12 +91,28 @@ export const endpointCoverageViewQuerySchema = z
 export const auditEventViewQuerySchema = z
   .object({
     ...baseListShape,
+    q: textFilter,
     eventType: textFilter,
     actorType: textFilter,
     targetType: textFilter,
   })
   .strict();
 
+export const governedViewParamSchema = z
+  .object({
+    view: z.enum([
+      'customers',
+      'risk-assessments',
+      'work-queue',
+      'provider-health',
+      'notification-deliveries',
+      'endpoint-coverage',
+      'audit-events',
+    ]),
+  })
+  .strict();
+
+export type GovernedViewParamDto = z.infer<typeof governedViewParamSchema>;
 export type CustomerViewQueryDto = z.infer<typeof customerViewQuerySchema>;
 export type RiskViewQueryDto = z.infer<typeof riskViewQuerySchema>;
 export type WorkQueueViewQueryDto = z.infer<typeof workQueueViewQuerySchema>;

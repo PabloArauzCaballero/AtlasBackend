@@ -2,11 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 import { ForbiddenException } from '@nestjs/common';
 import { Sequelize } from 'sequelize-typescript';
 import { InternalPortalController } from '../../../src/modules/internal-portal/internal-portal.controller.js';
+import { InternalMetadataController } from '../../../src/modules/internal-portal/internal-metadata.controller.js';
 import { InternalPortalService } from '../../../src/modules/internal-portal/internal-portal.service.js';
 import { PortalDataQualityService } from '../../../src/modules/internal-portal/application/portal-data-quality.service.js';
 import { PortalGlossaryService } from '../../../src/modules/internal-portal/application/portal-glossary.service.js';
 import { PortalGovernanceService } from '../../../src/modules/internal-portal/application/portal-governance.service.js';
 import { PortalLineageService } from '../../../src/modules/internal-portal/application/portal-lineage.service.js';
+import { PortalLineageImpactService } from '../../../src/modules/internal-portal/application/portal-lineage-impact.service.js';
 import { PortalOperationsService } from '../../../src/modules/internal-portal/application/portal-operations.service.js';
 import { PortalReportsService } from '../../../src/modules/internal-portal/application/portal-reports.service.js';
 import { PortalSearchService } from '../../../src/modules/internal-portal/application/portal-search.service.js';
@@ -63,6 +65,7 @@ describe('cableado del portal interno', () => {
     it('el glosario va al servicio de glosario', async () => {
       await delegaEn(PortalGlossaryService.prototype, 'listBusinessTerms', () => service.listBusinessTerms(CONSULTA), [CONSULTA]);
       await delegaEn(PortalGlossaryService.prototype, 'getBusinessTerm', () => service.getBusinessTerm('t-1'), ['t-1']);
+      await delegaEn(PortalGlossaryService.prototype, 'listBusinessTermFacets', () => service.listBusinessTermFacets(), []);
     });
 
     it('exports, reportes y release readiness van al servicio de reportes', async () => {
@@ -97,10 +100,11 @@ describe('cableado del portal interno', () => {
       await delegaEn(PortalGovernanceService.prototype, 'getGovernancePolicy', () => service.getGovernancePolicy('p-1'), ['p-1']);
     });
 
-    it('las tres vistas de linaje van al servicio de linaje y no se cruzan entre sí', async () => {
+    it('las tres vistas de linaje van a su servicio y no se cruzan entre sí', async () => {
       await delegaEn(PortalLineageService.prototype, 'getLineage', () => service.getLineage(CONSULTA), [CONSULTA]);
-      await delegaEn(PortalLineageService.prototype, 'getLineageNode', () => service.getLineageNode('n-1'), ['n-1']);
-      await delegaEn(PortalLineageService.prototype, 'getLineageImpact', () => service.getLineageImpact(CONSULTA), [CONSULTA]);
+      // La ficha y la lista de impactos ya no salen del grafo recortado: tienen su propio servicio SQL.
+      await delegaEn(PortalLineageImpactService.prototype, 'getLineageNode', () => service.getLineageNode('n-1'), ['n-1']);
+      await delegaEn(PortalLineageImpactService.prototype, 'getLineageImpact', () => service.getLineageImpact(CONSULTA), [CONSULTA]);
     });
 
     it('alertas y jobs van al servicio de operaciones, cada uno al suyo', async () => {
@@ -127,11 +131,13 @@ describe('cableado del portal interno', () => {
   describe('controlador → fachada', () => {
     let service: Record<string, jest.Mock>;
     let controller: InternalPortalController;
+    let metadata: InternalMetadataController;
 
     beforeEach(() => {
       service = Object.fromEntries(
         [
           'listBusinessTerms',
+          'listBusinessTermFacets',
           'getBusinessTerm',
           'listExports',
           'getExport',
@@ -153,18 +159,20 @@ describe('cableado del portal interno', () => {
         ].map((nombre) => [nombre, jest.fn(() => `resultado:${nombre}`)]),
       );
       controller = new InternalPortalController(service as unknown as InternalPortalService);
+      metadata = new InternalMetadataController(service as unknown as InternalPortalService);
     });
 
     it('cada ruta llama al método que dice su nombre y devuelve su resultado sin tocarlo', () => {
       const rutas: Array<[string, unknown, string]> = [
-        ['listBusinessTerms', controller.listBusinessTerms(CONSULTA), 'listBusinessTerms'],
-        ['getBusinessTerm', controller.getBusinessTerm({ termId: 't-1' }), 'getBusinessTerm'],
+        ['listBusinessTerms', metadata.listBusinessTerms(CONSULTA), 'listBusinessTerms'],
+        ['listBusinessTermFacets', metadata.listBusinessTermFacets(), 'listBusinessTermFacets'],
+        ['getBusinessTerm', metadata.getBusinessTerm({ termId: 't-1' }), 'getBusinessTerm'],
         ['listExports', controller.listExports(CONSULTA), 'listExports'],
         ['getExport', controller.getExport({ exportId: 'e-1' }), 'getExport'],
         ['getGovernancePolicy', controller.getGovernancePolicy({ policyId: 'p-1' }), 'getGovernancePolicy'],
-        ['getLineage', controller.getLineage(CONSULTA), 'getLineage'],
-        ['getLineageNode', controller.getLineageNode({ nodeId: 'n-1' }), 'getLineageNode'],
-        ['getLineageImpact', controller.getLineageImpact(CONSULTA), 'getLineageImpact'],
+        ['getLineage', metadata.getLineage(CONSULTA), 'getLineage'],
+        ['getLineageNode', metadata.getLineageNode({ nodeId: 'n-1' }), 'getLineageNode'],
+        ['getLineageImpact', metadata.getLineageImpact(CONSULTA), 'getLineageImpact'],
         ['listReports', controller.listReports(CONSULTA), 'listReports'],
         ['getReport', controller.getReport({ reportId: 'r-1' }), 'getReport'],
         ['search', controller.search(CONSULTA), 'search'],
@@ -177,9 +185,9 @@ describe('cableado del portal interno', () => {
     });
 
     it('los identificadores viajan desenvueltos del parámetro de ruta, no el objeto entero', () => {
-      controller.getBusinessTerm({ termId: 't-1' });
+      metadata.getBusinessTerm({ termId: 't-1' });
       controller.getExport({ exportId: 'e-1' });
-      controller.getLineageNode({ nodeId: 'n-1' });
+      metadata.getLineageNode({ nodeId: 'n-1' });
       controller.getReport({ reportId: 'r-1' });
 
       expect(service.getBusinessTerm).toHaveBeenCalledWith('t-1');
@@ -209,9 +217,9 @@ describe('cableado del portal interno', () => {
     });
 
     it('las rutas de catálogo de plataforma NO reciben alcance: son iguales para todos los tenants', () => {
-      controller.listBusinessTerms(CONSULTA);
+      metadata.listBusinessTerms(CONSULTA);
       controller.listExports(CONSULTA);
-      controller.getLineage(CONSULTA);
+      metadata.getLineage(CONSULTA);
       controller.search(CONSULTA);
 
       for (const metodo of ['listBusinessTerms', 'listExports', 'getLineage', 'search']) {

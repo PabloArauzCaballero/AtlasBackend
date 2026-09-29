@@ -9,20 +9,20 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`admin-read.service.ts`](./admin-read.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| Documento o código                                                   | Responsabilidad                                                           |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [`admin-read.service.ts`](./admin-read.service.ts)                   | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`portal-data-quality.service.ts`](./portal-data-quality.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`portal-format.util.ts`](./portal-format.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
-| [`portal-glossary.service.ts`](./portal-glossary.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`portal-governance.service.ts`](./portal-governance.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`portal-lineage.service.ts`](./portal-lineage.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`portal-operations.service.ts`](./portal-operations.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`portal-query.base.ts`](./portal-query.base.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`portal-report-definitions.ts`](./portal-report-definitions.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`portal-reports.service.ts`](./portal-reports.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`portal-scope.util.ts`](./portal-scope.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
-| [`portal-search.service.ts`](./portal-search.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`portal-format.util.ts`](./portal-format.util.ts)                   | Utilidad pura o acotada reutilizable dentro de su capa.                   |
+| [`portal-glossary.service.ts`](./portal-glossary.service.ts)         | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`portal-governance.service.ts`](./portal-governance.service.ts)     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`portal-lineage.service.ts`](./portal-lineage.service.ts)           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`portal-operations.service.ts`](./portal-operations.service.ts)     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`portal-query.base.ts`](./portal-query.base.ts)                     | Artefacto de soporte específico de esta carpeta.                          |
+| [`portal-report-definitions.ts`](./portal-report-definitions.ts)     | Artefacto de soporte específico de esta carpeta.                          |
+| [`portal-reports.service.ts`](./portal-reports.service.ts)           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`portal-scope.util.ts`](./portal-scope.util.ts)                     | Utilidad pura o acotada reutilizable dentro de su capa.                   |
+| [`portal-search.service.ts`](./portal-search.service.ts)             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento
 

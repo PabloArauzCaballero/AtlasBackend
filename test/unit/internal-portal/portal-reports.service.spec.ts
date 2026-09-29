@@ -184,6 +184,26 @@ describe('PortalReportsService', () => {
       expect(resultado.items[0]).not.toHaveProperty('filters');
     });
 
+    it('`domain` y `status` filtran de verdad (antes Zod los descartaba y los desplegables no hacían nada)', async () => {
+      const todos = await service.listReports({ page: 1, limit: 50 });
+      const deRiesgo = await service.listReports({ page: 1, limit: 50, domain: 'RISK' });
+      const inactivos = await service.listReports({ page: 1, limit: 50, status: 'RETIRED' });
+
+      expect(todos.meta.total).toBeGreaterThan(1);
+      expect(deRiesgo.items.map((item) => item.domain)).toEqual(['risk']);
+      expect(inactivos.meta.total).toBe(0);
+    });
+
+    it('las opciones salen del catálogo entero y las cifras de lo filtrado, no de la página', async () => {
+      const pagina = await service.listReports({ page: 2, limit: 1, domain: 'risk' });
+
+      expect(pagina.facets.domains).toEqual(['governance', 'operations', 'risk', 'systems']);
+      expect(pagina.facets.statuses).toEqual(['ACTIVE']);
+      // «Activos» se comparaba con `active` en minúscula y el catálogo dice ACTIVE: salía siempre 0.
+      expect(pagina.summary).toEqual({ total: 1, active: 1, critical: 1 });
+      expect(pagina.items).toEqual([]);
+    });
+
     it('un reporte se encuentra por su identificador o por su clave', () => {
       expect(service.getReport('operations-overview').reportId).toBe('operations-overview');
       expect(service.getReport('operations_overview').reportId).toBe('operations-overview');

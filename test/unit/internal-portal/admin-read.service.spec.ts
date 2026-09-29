@@ -51,6 +51,52 @@ describe('AdminReadService', () => {
   });
 });
 
+describe('AdminReadService: buscador y valores de filtro', () => {
+  it('todas las vistas buscan con `q` en sus columnas declaradas, con el patrón escapado', async () => {
+    const { service, select } = buildService();
+
+    await service.listRiskAssessments('9', { page: 1, limit: 20, q: 'v2_%' });
+
+    const [rowSql, replacements] = select.mock.calls.find(([sql]) => !String(sql).includes('COUNT(')) ?? [];
+    expect(String(rowSql)).toContain("COALESCE(model_version_code::text, '') ILIKE :search");
+    expect(replacements).toMatchObject({ search: '%v2\\_\\%%', tenantId: '9' });
+  });
+
+  it('los filtros declarados se comparan sin distinguir mayúsculas y los exactos tal cual', async () => {
+    const { service, select } = buildService();
+
+    await service.listWorkQueue('9', { page: 1, limit: 20, status: 'OPEN', assignedTo: 5 });
+
+    const rowSql = String(select.mock.calls.find(([sql]) => !String(sql).includes('COUNT('))?.[0]);
+    expect(rowSql).toContain('lower(status::text) = lower(:filter_status)');
+    expect(rowSql).toContain('assigned_to = :filter_assignedTo');
+  });
+
+  it('los valores de cada filtro salen de la vista entera, acotada al tenant', async () => {
+    const select = jest.fn<ReadQueryService['select']>(
+      async (sql: string) => (sql.includes('lifecycle_status') ? [{ value: 'ACTIVE' }, { value: 'BLOCKED' }] : [{ value: 'LOW' }]) as never,
+    );
+    const service = new AdminReadService({ select } as unknown as ReadQueryService);
+
+    const result = await service.listFacets('customers', '9');
+
+    expect(result).toEqual({ view: 'customers', facets: { status: ['ACTIVE', 'BLOCKED'], riskBand: ['LOW'] } });
+    for (const [sql, replacements] of select.mock.calls) {
+      expect(String(sql)).toContain('tenant_id = :tenantId');
+      expect(replacements).toMatchObject({ tenantId: '9', limit: 200 });
+    }
+  });
+
+  it('una vista por tenant sin tenant falla antes de consultar; una global no lo necesita', async () => {
+    const { service, select } = buildService();
+
+    await expect(service.listFacets('work-queue')).rejects.toBeInstanceOf(BadRequestException);
+    expect(select).not.toHaveBeenCalled();
+    await service.listFacets('provider-health');
+    expect(String(select.mock.calls[0]?.[0])).not.toContain('tenant_id');
+  });
+});
+
 describe('customerViewQuerySchema', () => {
   it('normaliza fields, límites y rechaza parámetros no soportados', () => {
     expect(customerViewQuerySchema.parse({ fields: 'customerId,displayName,customerId', limit: '25' })).toMatchObject({

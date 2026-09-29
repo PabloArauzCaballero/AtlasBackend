@@ -10132,10 +10132,31 @@ paths:
   /internal/business-metadata/glossary:
     get:
       description: >-
-        Unifica dominios, tablas y campos para dar contexto semántico, ownership
-        y trazabilidad a las decisiones.
+        Dominios, tablas y campos catalogados, paginados en la base sobre el
+        catálogo entero. `q` busca en clave, nombre, definición, dominio y
+        dueño.
       operationId: InternalPortalController_listBusinessTerms
       parameters:
+        - name: type
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - domain
+              - table
+              - field
+          description: 'Tipo de término: dominio, tabla o campo.'
+        - name: domain
+          required: false
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+          description: >-
+            Dominio exacto del término (sin distinguir mayúsculas); valores en
+            `/business-metadata/glossary/facets`.
         - name: q
           required: false
           in: query
@@ -10265,6 +10286,36 @@ paths:
       security:
         - access-token: []
       summary: Listar términos del glosario de negocio
+      tags:
+        - internal-portal
+  /internal/business-metadata/glossary/facets:
+    get:
+      description: >-
+        Dominios y tipos con su número de términos, contados sobre el catálogo
+        entero y no sobre una página.
+      operationId: InternalMetadataController_listBusinessTermFacets
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: '`domains` y `types`, cada uno `{ value, total }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Valores de los filtros del glosario
       tags:
         - internal-portal
   /internal/business-metadata/terms/{termId}:
@@ -11013,10 +11064,46 @@ paths:
     get:
       operationId: InternalPortalController_getLineage
       parameters:
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: Texto en nombre, tabla, esquema, ruta o módulo (ILIKE).
+        - name: domain
+          required: false
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+          description: >-
+            Módulo exacto (sin distinguir mayúsculas) de los nodos o de alguno
+            de los dos extremos.
+        - name: nodeType
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - table
+              - endpoint
+          description: 'Sólo nodos de este tipo: `table` o `endpoint`.'
+        - name: nodeLimit
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+          description: Tope de nodos de cada tipo (1-2000, por defecto 1000).
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Grafo de linaje de datos.
+          description: >-
+            Grafo de linaje de datos; `summary` dice cuánto se muestra de cuánto
+            cumple el filtro.
           content:
             application/json:
               schema:
@@ -11038,12 +11125,73 @@ paths:
         - internal-portal
   /internal/lineage/impact:
     get:
+      description: >-
+        Aristas endpoint→tabla (con severidad) y tabla→tabla (sin severidad),
+        paginadas en la base sobre el catálogo entero. `summary.bySeverity` y
+        `summary.byFamily` cuentan todo lo filtrado.
       operationId: InternalPortalController_getLineageImpact
       parameters:
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: Texto en origen, destino, tipo, descripción o tabla (ILIKE).
+        - name: domain
+          required: false
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+          description: >-
+            Módulo exacto (sin distinguir mayúsculas) de los nodos o de alguno
+            de los dos extremos.
+        - name: severity
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - LOW
+              - MEDIUM
+              - HIGH
+              - CRITICAL
+          description: >-
+            Severidad de la arista endpoint→tabla (LOW, MEDIUM, HIGH, CRITICAL).
+            Las relaciones entre tablas no tienen.
+        - name: family
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - impact
+              - relationship
+          description: >-
+            Familia de arista: `impact` (endpoint→tabla) o `relationship`
+            (tabla→tabla).
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 9007199254740991
+          description: Página solicitada, desde 1.
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Elementos por página (1-100).
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Análisis de impacto de linaje.
+          description: Lista paginada de impactos de linaje.
           content:
             application/json:
               schema:
@@ -11060,7 +11208,7 @@ paths:
           $ref: '#/components/responses/InternalError'
       security:
         - access-token: []
-      summary: Analizar impacto de linaje de datos (aguas abajo/arriba)
+      summary: Listar impactos y relaciones del linaje
       tags:
         - internal-portal
   /internal/lineage/nodes/{nodeId}:
@@ -11070,12 +11218,12 @@ paths:
         - name: nodeId
           required: true
           in: path
+          description: '`table:<id>` o `endpoint:<id>`.'
           schema: {}
-          description: Identificador del nodo de linaje de datos.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Detalle del nodo de linaje.
+          description: Detalle del nodo de linaje con sus aristas de entrada y salida.
           content:
             application/json:
               schema:
@@ -11087,7 +11235,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: LINEAGE_NODE_NOT_FOUND.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -11376,8 +11524,63 @@ paths:
         - internal-portal
   /internal/reports:
     get:
+      description: >-
+        Definiciones declaradas en código. `facets` y `summary` cuentan el
+        catálogo entero y lo filtrado, no la página.
       operationId: InternalPortalController_listReports
       parameters:
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 60
+          description: Estado exacto del reporte (ACTIVE…).
+        - name: domain
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 60
+          description: Dominio exacto del reporte (operations, systems, governance, risk…).
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: >-
+            Filtro de texto libre; se aplica sobre los campos descriptivos del
+            recurso.
+        - name: page
+          required: false
+          in: query
+          schema:
+            default: 1
+            type: integer
+            minimum: 1
+            maximum: 9007199254740991
+          description: Página solicitada, desde 1.
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 20
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Elementos por página (1-100).
+        - name: pageSize
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          deprecated: true
+          description: >-
+            Alias legado de `limit`, conservado por compatibilidad con el Admin
+            Portal.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -12917,6 +13120,13 @@ paths:
     get:
       operationId: AdminReadController_listAuditEvents
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Busca (ILIKE) en tipo de evento, tipo o id de destino, tabla de
+            origen.
+          schema: {}
         - name: fields
           required: false
           in: query
@@ -12949,6 +13159,11 @@ paths:
     get:
       operationId: AdminReadController_listCustomers
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: Busca (ILIKE) en código o nombre del cliente.
+          schema: {}
         - name: fields
           required: false
           in: query
@@ -12981,6 +13196,11 @@ paths:
     get:
       operationId: AdminReadController_listEndpointCoverage
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: Busca (ILIKE) en ruta o método.
+          schema: {}
         - name: fields
           required: false
           in: query
@@ -13013,6 +13233,11 @@ paths:
     get:
       operationId: AdminReadController_listNotificationDeliveries
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: Busca (ILIKE) en plantilla o último error.
+          schema: {}
         - name: fields
           required: false
           in: query
@@ -13045,6 +13270,11 @@ paths:
     get:
       operationId: AdminReadController_listProviderHealth
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: Busca (ILIKE) en código, nombre o error del proveedor.
+          schema: {}
         - name: fields
           required: false
           in: query
@@ -13077,6 +13307,11 @@ paths:
     get:
       operationId: AdminReadController_listRiskAssessments
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: Busca (ILIKE) en tipo de evaluación, versión de modelo o de reglas.
+          schema: {}
         - name: fields
           required: false
           in: query
@@ -13109,6 +13344,11 @@ paths:
     get:
       operationId: AdminReadController_listWorkQueue
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: Busca (ILIKE) en motivo o id del elemento.
+          schema: {}
         - name: fields
           required: false
           in: query
@@ -13135,6 +13375,43 @@ paths:
       security:
         - access-token: []
       summary: Cola operativa unificada y paginada
+      tags:
+        - internal-admin-views
+  /internal/views/{view}/facets:
+    get:
+      description: >-
+        Valores distintos de cada filtro sobre la vista entera (acotada al
+        tenant si la vista lo es), hasta 200 por filtro.
+      operationId: AdminReadController_listFacets
+      parameters:
+        - name: view
+          required: true
+          in: path
+          description: Clave de la vista (customers, risk-assessments, work-queue…).
+          schema: {}
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Valores de los filtros de una vista gobernada
       tags:
         - internal-admin-views
   /kyc/segip/verify:
@@ -27874,6 +28151,36 @@ paths:
       summary: Refederar el catálogo de un bloque concreto
       tags:
         - systems-ops
+  /systems/catalog/summary:
+    get:
+      description: >-
+        Contadas en la base sobre el catálogo entero: sensibilidad,
+        documentación, cobertura QA y pendientes de revisión.
+      operationId: SystemsCatalogController_getCatalogSummary
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: '`tables`, `endpoints` y `testSuites` con sus contadores.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Cifras del catálogo de tablas, rutas y suites
+      tags:
+        - systems-ops
   /systems/dashboard:
     get:
       operationId: SystemsCatalogController_getDashboard
@@ -27905,6 +28212,13 @@ paths:
     get:
       operationId: SystemsCatalogController_listDataEntities
       parameters:
+        - name: personalData
+          required: false
+          in: query
+          schema: {}
+          description: >-
+            `true`: sólo tablas con datos personales, legales, de ubicación o de
+            dispositivo; `false`: las demás.
         - name: limit
           required: false
           in: query
@@ -28424,6 +28738,13 @@ paths:
     get:
       operationId: SystemsCatalogController_listEndpoints
       parameters:
+        - name: personalData
+          required: false
+          in: query
+          schema: {}
+          description: >-
+            `true`: sólo rutas marcadas con datos personales o con campos
+            personales; `false`: las demás.
         - name: limit
           required: false
           in: query

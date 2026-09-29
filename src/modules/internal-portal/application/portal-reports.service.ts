@@ -163,12 +163,31 @@ export class PortalReportsService extends PortalQueryBase {
     };
   }
 
+  /**
+   * Las definiciones viven en código (`portal-report-definitions.ts`), así que se filtran enteras en
+   * memoria sin cortar nada. `domain` y `status` antes no estaban declarados y Zod los descartaba:
+   * los dos desplegables no filtraban. Las opciones (`facets`) y las cifras (`summary`) salen del
+   * catálogo completo y del resultado filtrado, no de la página que se esté viendo.
+   */
   listReports(query: Query) {
     const q = clean(query.q, '').toLowerCase();
-    const items = reportDefinitions()
-      .filter((item) => containsQuery(item, q))
-      .map(({ widgets: _widgets, filters: _filters, ...item }) => item);
-    return paginate(items, query);
+    const domain = clean(query.domain, '').toLowerCase();
+    const status = clean(query.status, '').toLowerCase();
+    const all = reportDefinitions().map(({ widgets: _widgets, filters: _filters, ...item }) => item);
+    const filtered = all.filter(
+      (item) =>
+        containsQuery(item, q) && (!domain || item.domain.toLowerCase() === domain) && (!status || item.status.toLowerCase() === status),
+    );
+    const distinct = (values: string[]) => [...new Set(values)].sort((a, b) => a.localeCompare(b));
+    return {
+      ...paginate(filtered, query),
+      facets: { domains: distinct(all.map((item) => item.domain)), statuses: distinct(all.map((item) => item.status)) },
+      summary: {
+        total: filtered.length,
+        active: filtered.filter((item) => item.status.toUpperCase() === 'ACTIVE').length,
+        critical: filtered.filter((item) => ['HIGH', 'CRITICAL'].includes(item.criticality.toUpperCase())).length,
+      },
+    };
   }
 
   getReport(reportId: string) {
