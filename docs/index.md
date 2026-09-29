@@ -4,10 +4,10 @@ Backend fintech de **identidad, onboarding KYC, elegibilidad, crédito, riesgo y
 NestJS 11, PostgreSQL 16 y TypeScript estricto.
 
 !!! info "Versión documentada"
-    Contrato **0.3.0** · OpenAPI **3.1** · <!-- fig:openapi.paths -->534<!-- /fig --> rutas /
-    <!-- fig:openapi.operations -->570<!-- /fig --> operaciones en el contrato ·
-    <!-- fig:code.modules -->44<!-- /fig --> módulos · Node ≥ 22 · <!-- fig:tests.specFiles -->735<!-- /fig -->
-    archivos de prueba, que CI corre completos con el umbral de cobertura en cada PR (job `coverage`).
+    Contrato **0.3.0** · OpenAPI **3.1** · <!-- fig:openapi.paths -->539<!-- /fig --> rutas /
+    <!-- fig:openapi.operations -->575<!-- /fig --> operaciones en el contrato ·
+    <!-- fig:code.modules -->44<!-- /fig --> módulos · Node ≥ 22 · pruebas que CI corre completas
+    con el umbral de cobertura en cada PR (job `coverage`).
     Estas cifras las vigila `yarn check:docs-figures`; más en [Arquitectura](architecture/index.md).
     Línea base histórica en [reports/baseline.md](reports/baseline.md).
 

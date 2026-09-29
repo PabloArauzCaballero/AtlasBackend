@@ -125,7 +125,6 @@ source_files:
 | `MONGO_LOGS_COLLECTION` | string | No | `archivo_log_updates` | — |
 | `MONGO_LOGS_DB_NAME` | string | No | `atlas_logs` | — |
 | `NODE_ENV` | enum (`development, test, production`) | No | `development` | — |
-| `NOTIFICATION_DEFAULT_LOCALE` | string | No | `es-BO` | — |
 | `NOTIFICATION_EMAIL_PROVIDER` | enum (`disabled, resend, sendgrid, gmail_api, webhook`) | No | `disabled` | — |
 | `NOTIFICATION_EMAIL_WEBHOOK_URL` | string | No | — | — |
 | `NOTIFICATION_PHONE_PROVIDER` | enum (`disabled, webhook`) | No | `disabled` | — |

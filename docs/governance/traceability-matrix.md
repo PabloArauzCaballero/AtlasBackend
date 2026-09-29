@@ -46,7 +46,7 @@ Las rutas van sin el prefijo `/api/v1` y salen de `docs/endpoints/openapi.yaml`;
 
 | Propiedad | Dónde | Prueba | Si se rompiera |
 |---|---|---|---|
-| Con `APP_ROLE=api` no arranca ningún trabajo de fondo | `config/app-role.ts` + los tres servicios gateados | `runtime-jobs-scheduler.roles.spec.ts`, `app-role.spec.ts` | El trabajo de fondo correría duplicado en cada réplica de API |
+| Con `APP_ROLE=api` no arranca ningún trabajo de fondo | `src/config/app-role.ts` + los tres servicios gateados | `runtime-jobs-scheduler.roles.spec.ts`, `app-role.spec.ts` | El trabajo de fondo correría duplicado en cada réplica de API |
 | El worker no monta rutas de negocio | `worker.ts` (`createApplicationContext`) | `worker-probe-server.spec.ts` | La API quedaría expuesta en un contenedor tratado como interno |
 | Readiness responde 503 durante el drenado | `graceful-shutdown.service.ts`, sonda del worker | `worker-probe-server.spec.ts` | Cada despliegue tiraría las peticiones de esa ventana |
 | En modo diferido la API no entrega notificaciones | `notification-broadcast.service.ts` | `notification-broadcast.deferred.spec.ts` | La entrega correría en el proceso equivocado, sin que nada fallara |

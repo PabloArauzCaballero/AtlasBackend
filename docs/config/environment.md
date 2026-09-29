@@ -220,6 +220,27 @@ responde un error explícito, simulado respondía un dato falso. Al arrancar, el
 proveedor bloqueado y `GET /admin/external-providers/readiness` los reporta con el blocker
 `*_MOCK_MODE_IN_PRODUCTION`.
 
+## Variables que el código lee fuera del esquema
+
+Estas variables las lee el código directamente de `process.env` y no pasan por `env.schema.ts`: un valor
+mal escrito no falla el arranque, se usa el valor por defecto. Se documentan aquí porque no hay otro
+sitio donde un operador pueda encontrarlas.
+
+| Variable | Quién la lee | Efecto y valor por defecto |
+|---|---|---|
+| `AUTH_BROKER_BASE_URL`, `AUTH_BROKER_SERVICE_TOKEN` | `auth-broker.client.ts` | Origen y token de servicio del broker de autorización de proveedores. Sin ellas, el cliente responde `AUTH_BROKER_NOT_CONFIGURED`. |
+| `AUTH_BROKER_TIMEOUT_MS` | `auth-broker.client.ts` | Tiempo máximo por llamada al broker. Por defecto `8000`. |
+| `SEGIP_ALWAYS_VERIFIED` | `segip.adapter.ts` | Sólo en los modos de prueba del adaptador SEGIP: vacío o cualquier valor distinto de `false`, `0`, `no`, `off` fuerza «verificado». Con `false` responde por escenario. En modo `production` no tiene efecto. |
+| `FACEBOOK_META_MODE` (o `META_FACEBOOK_MODE`) | `external-provider-convenience.service.ts` | Modo del conector de Facebook/Meta en el enlace de conexión. Por defecto `mock_local`. |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | `telemetry.config.ts` | Estándar de OpenTelemetry con la ruta completa; gana sobre `OTEL_EXPORTER_OTLP_ENDPOINT`. |
+| `OTEL_METRICS_EXPORTER`, `OTEL_LOGS_EXPORTER` | `tracing.ts` | Si no se declaran, se fijan a `none` (el SDK usaría `otlp` y arrancaría exportadores que no queremos). |
+| `APP_VERSION` / `GIT_SHA` | `qa-journey-consumer.service.ts`, `qa-run-closing.ts` | Sólo rotulan la versión del backend en la evidencia de las corridas de QA; `APP_VERSION` gana. |
+
+Ya no existen las variables `NOTIFICATION_DEFAULT_LOCALE` (declarada en el esquema pero sin lector) ni
+`INFOCENTER_ALLOW_AUTOMATIC_QUERIES` (en `.env.example` pero ni en el esquema ni en el código): se
+quitaron para que nadie las cambie esperando un efecto que no tienen. `EXPEDIENTES_KEY_PREFIX` sigue
+declarada sin lector; su destino lo decide el paquete de expedientes.
+
 ## Trabajos de fondo programados
 
 Los cinco jobs de `POST /operations/jobs/*` **también corren solos** desde el hallazgo A-03. Es
@@ -348,7 +369,6 @@ si queda desactivada en ese caso).
 ## Configuración común de notificaciones
 
 ```env
-NOTIFICATION_DEFAULT_LOCALE=es-BO
 NOTIFICATION_TOKEN_ENCRYPTION_KEY=change-this-32-plus-character-key-for-device-tokens
 NOTIFICATION_PROVIDER_HTTP_TIMEOUT_MS=15000
 NOTIFICATION_PROVIDER_HTTP_RETRIES=1

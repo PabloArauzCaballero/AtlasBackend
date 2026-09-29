@@ -4,8 +4,8 @@
 > diseño. Metodología y cifras completas en
 > [graphify-audit.md](../reports/graphify-audit.md).
 
-Una arista `A → B` significa que algún archivo de `src/modules/A/` importa o llama a algo de
-`src/modules/B/`. **32 aristas dirigidas entre 27 módulos.**
+Una arista `A → B` significa que algún archivo de `src/modules/<A>/` importa o llama a algo de
+`src/modules/<B>/`. **32 aristas dirigidas entre 27 módulos.**
 
 ---
 

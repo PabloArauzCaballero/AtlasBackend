@@ -79,7 +79,7 @@ relay la reclama minutos después, en **otro proceso**. El contexto de OpenTelem
 
 | Pieza | Archivo | Veredicto |
 | --- | --- | --- |
-| Arranque temprano del SDK | `src/observability/tracing-bootstrap.ts` | **Se conserva el patrón**, se reescribe el contenido |
+| Arranque temprano del SDK | `src/observability/tracing-bootstrap.ts` (retirado después, ver el informe de implementación) | **Se conserva el patrón**, se reescribe el contenido |
 | `startTracing` / `shutdownTracing` | `src/observability/tracing.ts` | Se reescribe: le faltan sampler, propagadores, recurso y exclusiones |
 | Config OTLP | `src/common/observability/observability.config.ts` | Se conserva para métricas; la parte OTel se sustituye |
 | `trace_id` en cada log | `src/common/logging/request-context.ts` | **Ya correcto.** Falta `span_id` y `trace_flags` |

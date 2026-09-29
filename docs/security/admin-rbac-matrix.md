@@ -24,12 +24,12 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (120 controladores) | 579 |
+| Total montadas (121 controladores) | 584 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 9 |
 | Sin sesión de usuario (`@Public`) | 28 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 3 |
-| Con `@Roles` | 524 |
-| Con permiso fino `@InternalPermissions` (además del rol) | 75 |
+| Con `@Roles` | 529 |
+| Con permiso fino `@InternalPermissions` (además del rol) | 78 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
 ## `app-content`
@@ -86,6 +86,7 @@
 | `POST` | `/operations/catalogs/:catalogCode/versions/:versionId/decision` | `admin`, `platform_admin` | — | `CatalogManagementController.decideCatalogVersion` | guards: `TenantGuard` |
 | `POST` | `/operations/catalogs/:catalogCode/versions/:versionId/submit-for-approval` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `CatalogManagementController.submitCatalogVersion` | guards: `TenantGuard` |
 | `GET` | `/operations/data-governance/policies` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `readonly_auditor`, `admin`, `platform_admin` | `governance.policies.read` | `CatalogGovernanceController.getDataGovernancePolicies` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `GET` | `/operations/data-governance/policies/search` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `readonly_auditor`, `admin`, `platform_admin` | `governance.policies.read` | `CatalogGovernanceController.searchDataGovernancePolicies` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `POST` | `/operations/data-governance/policy-package` | `internal_operator`, `admin`, `platform_admin` | `governance.policies.manage` | `CatalogGovernanceController.upsertDataGovernancePackage` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `GET` | `/operations/definitions` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `CatalogManagementController.listDefinitions` | guards: `TenantGuard` |
 | `POST` | `/operations/definitions/package` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `CatalogManagementController.upsertDefinitionsPackage` | guards: `TenantGuard` |
@@ -231,8 +232,8 @@
 
 | Método | Ruta | Acceso | Permiso fino | Handler | Notas |
 |---|---|---|---|---|---|
-| `GET` | `/operations/data-quality/issues` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `DataQualityController.listIssues` | guards: `TenantGuard` |
-| `POST` | `/operations/data-quality/issues/:issueId/resolve` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `DataQualityController.resolveIssue` | guards: `TenantGuard` |
+| `GET` | `/operations/data-quality/issues` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `readonly_auditor`, `admin`, `platform_admin` | `dataQuality.issues.read` | `DataQualityController.listIssues` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `POST` | `/operations/data-quality/issues/:issueId/resolve` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | `dataQuality.issues.resolve` | `DataQualityController.resolveIssue` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 
 ## `decision-engine`
 
@@ -354,8 +355,9 @@
 |---|---|---|---|---|---|
 | `GET` | `/internal/alerts` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.listAlerts` | guards: `TenantGuard` |
 | `POST` | `/internal/alerts/:alertId/acknowledge` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.acknowledgeAlert` | guards: `TenantGuard` |
-| `GET` | `/internal/business-metadata/glossary` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.listBusinessTerms` | guards: `TenantGuard` |
-| `GET` | `/internal/business-metadata/terms/:termId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.getBusinessTerm` | guards: `TenantGuard` |
+| `GET` | `/internal/business-metadata/glossary` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalMetadataController.listBusinessTerms` | guards: `TenantGuard` |
+| `GET` | `/internal/business-metadata/glossary/facets` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalMetadataController.listBusinessTermFacets` | guards: `TenantGuard` |
+| `GET` | `/internal/business-metadata/terms/:termId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalMetadataController.getBusinessTerm` | guards: `TenantGuard` |
 | `GET` | `/internal/data-quality/rules` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.listDataQualityRules` | guards: `TenantGuard` |
 | `GET` | `/internal/data-quality/rules/:ruleId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.getDataQualityRule` | guards: `TenantGuard` |
 | `GET` | `/internal/exports` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.listExports` | guards: `TenantGuard` |
@@ -363,14 +365,15 @@
 | `GET` | `/internal/governance/policies/:policyId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.getGovernancePolicy` | guards: `TenantGuard` |
 | `GET` | `/internal/jobs` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.listJobs` | guards: `TenantGuard` |
 | `GET` | `/internal/jobs/:jobRunId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.getJob` | guards: `TenantGuard` |
-| `GET` | `/internal/lineage` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.getLineage` | guards: `TenantGuard` |
-| `GET` | `/internal/lineage/impact` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.getLineageImpact` | guards: `TenantGuard` |
-| `GET` | `/internal/lineage/nodes/:nodeId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.getLineageNode` | guards: `TenantGuard` |
+| `GET` | `/internal/lineage` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalMetadataController.getLineage` | guards: `TenantGuard` |
+| `GET` | `/internal/lineage/impact` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalMetadataController.getLineageImpact` | guards: `TenantGuard` |
+| `GET` | `/internal/lineage/nodes/:nodeId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalMetadataController.getLineageNode` | guards: `TenantGuard` |
 | `GET` | `/internal/release-readiness` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.getReleaseReadiness` | guards: `TenantGuard` |
 | `GET` | `/internal/reports` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.listReports` | guards: `TenantGuard` |
 | `GET` | `/internal/reports/:reportId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.getReport` | guards: `TenantGuard` |
 | `POST` | `/internal/reports/:reportId/run` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.runReport` | guards: `TenantGuard` |
 | `GET` | `/internal/search` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `InternalPortalController.search` | guards: `TenantGuard` |
+| `GET` | `/internal/views/:view/facets` | `internal_operator`, `risk_analyst`, `fraud_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `AdminReadController.listFacets` | guards: `TenantGuard` |
 | `GET` | `/internal/views/audit-events` | `internal_operator`, `risk_analyst`, `fraud_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `AdminReadController.listAuditEvents` | guards: `TenantGuard` |
 | `GET` | `/internal/views/customers` | `internal_operator`, `risk_analyst`, `fraud_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `AdminReadController.listCustomers` | guards: `TenantGuard` |
 | `GET` | `/internal/views/endpoint-coverage` | `internal_operator`, `risk_analyst`, `fraud_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor` | — | `AdminReadController.listEndpointCoverage` | guards: `TenantGuard` |
@@ -527,7 +530,7 @@
 | `POST` | `/operations/fraud-cases/:caseId/decision` | `fraud_analyst`, `admin`, `platform_admin` | — | `OperationsController.decideFraudCase` | guards: `TenantGuard` |
 | `GET` | `/operations/manual-review-cases` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `OperationsController.getManualReviewCasesCursorPage` | guards: `TenantGuard` |
 | `POST` | `/operations/manual-review-cases/:caseId/decision` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `OperationsController.decideManualReviewCase` | guards: `TenantGuard` |
-| `GET` | `/operations/work-queue` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `OperationsController.getWorkQueue` | guards: `TenantGuard` |
+| `GET` | `/operations/work-queue` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin`, `fraud_analyst` | — | `OperationsController.getWorkQueue` | guards: `TenantGuard` |
 
 ## `partner-onboarding`
 
@@ -736,6 +739,7 @@
 | `GET` | `/systems/blocks` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsNetworkController.listBlocks` | — |
 | `POST` | `/systems/blocks/:systemCode/federate` | `system_admin`, `platform_admin`, `admin` | — | `SystemsNetworkController.federateBlock` | — |
 | `POST` | `/systems/blocks/federate` | `system_admin`, `platform_admin`, `admin` | — | `SystemsNetworkController.federateAll` | — |
+| `GET` | `/systems/catalog/summary` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsCatalogController.getCatalogSummary` | — |
 | `GET` | `/systems/dashboard` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsCatalogController.getDashboard` | — |
 | `GET` | `/systems/data-entities` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsCatalogController.listDataEntities` | — |
 | `GET` | `/systems/data-entities/:entityId` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsCatalogController.getDataEntity` | — |
@@ -787,6 +791,7 @@
 | `GET` | `/systems/stress-profiles/:profileId` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsStressController.getStressProfile` | — |
 | `POST` | `/systems/stress-profiles/:profileId/queue-run` | `system_admin`, `platform_admin`, `qa_engineer`, `devops` | — | `SystemsStressController.queueStressRun` | — |
 | `GET` | `/systems/stress-runs` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsStressController.listStressRuns` | — |
+| `GET` | `/systems/stress-runs/capabilities` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsStressController.getStressRunCapabilities` | — |
 | `GET` | `/systems/test-runs` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsTestController.listTestRuns` | — |
 | `GET` | `/systems/test-runs/:runId` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsTestController.getTestRun` | — |
 | `GET` | `/systems/test-suites` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsTestController.listTestSuites` | — |

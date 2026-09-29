@@ -22,8 +22,10 @@ decisión.
 
 Delimitarlo importa tanto como describirlo:
 
-- **No es un core bancario.** Compras, cuotas, comercios y liquidación quedan fuera del alcance
-  actual. El dominio `credit` cubre el catálogo de productos y el ciclo de solicitud y decisión.
+- **No es un core bancario ni un sistema contable.** Sí lleva los préstamos y sus cuotas (`loans`), los
+  avisos de pago que confirma el comercio (`loan-payment-claims`), la línea de crédito y sus
+  movimientos, y el alta de comercios (`partner-onboarding`); la contabilidad y la facturación viven
+  en el ERP. El dominio `credit` cubre el catálogo de productos y el ciclo de solicitud y decisión.
 - **No es un motor de scoring financiero certificado.** `RiskService` calcula con reglas heurísticas
   versionadas y se identifica como tal: cada evaluación reporta `modelCode: risk_heuristic_v0`. Está
   documentado como decisión abierta (ATLAS-RISK-001), no presentado como lo que no es.

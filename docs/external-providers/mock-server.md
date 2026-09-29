@@ -49,7 +49,7 @@ Si acá se cambia `mockBaseUrlFor`, un path de adapter o un campo consumido en
 `AtlasExternalProvidersMock/src/providers/`.
 
 Desde el 21-sep-2026 eso ya no depende de que alguien se acuerde. El emulador tiene
-`npm test` y `test/contract.test.mjs` de verdad —este documento los describía desde
+`npm test` y `AtlasExternalProvidersMock/test/contract.test.mjs` de verdad —este documento los describía desde
 antes de que existieran—, y de este lado hay una suite que los cruza:
 `test/contracts/external-data/providers-mock-server.contract.spec.ts` levanta el
 emulador REAL del repositorio hermano y ejecuta los ocho adaptadores contra él, sin

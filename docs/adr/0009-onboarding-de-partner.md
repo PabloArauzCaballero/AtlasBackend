@@ -134,7 +134,7 @@ No se da por terminado con pruebas unitarias:
   paso responde distinto de lo que su contrato declara.
 - **Playwright sobre Chromium** contra el portal
   (`AtlasERPFrontend/e2e/partner-dossier.spec.ts`), recorriendo el trámite entero y dejando
-  capturas en `docs/visual-evidence/expediente/`. El doble del backend tiene ESTADO a propósito:
+  capturas en `visual-evidence/expediente/` de la raíz de Atlas. El doble del backend tiene ESTADO a propósito:
   lo que se afirma es que el embudo de requisitos encoge paso a paso, y con respuestas fijas la
   pantalla parecería avanzar sin que nada avance.
 

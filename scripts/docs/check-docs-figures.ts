@@ -24,7 +24,7 @@ import { codeSnippets, trackedMarkdown } from './lib/markdown.js';
 
 /** Marcas que cada documento vigilado DEBE contener. */
 const REQUIRED_MARKERS: Readonly<Record<string, readonly string[]>> = {
-  'docs/index.md': ['fig:openapi.paths', 'fig:openapi.operations', 'fig:tests.specFiles', 'fig:code.modules'],
+  'docs/index.md': ['fig:openapi.paths', 'fig:openapi.operations', 'fig:code.modules'],
   'docs/architecture/index.md': [
     'fig:code.modules',
     'fig:code.controllers',

@@ -27,6 +27,16 @@ Además de estas siete piezas, <!-- fig:jobs.intervalSources -->8<!-- /fig --> a
 `setInterval` fuera del planificador (tabla generada; la columna dice qué variable lo enciende o condiciona):
 
 <!-- gen:interval-sources -->
+| Archivo | Variables que lo encienden o condicionan |
+|---|---|
+| `src/bootstrap/messaging-relay-loop.service.ts` | — (sin variable propia: ver el archivo) |
+| `src/modules/log-sync/log-sync.service.ts` | `MONGO_DB_URL_CONNECTION` |
+| `src/modules/qa-orchestration/application/qa-journey-consumer.service.ts` | — (sin variable propia: ver el archivo) |
+| `src/modules/qa-orchestration/application/qa-run-execution.service.ts` | — (sin variable propia: ver el archivo) |
+| `src/modules/runtime-jobs/runtime-jobs-scheduler.service.ts` | `RUNTIME_JOBS_SCHEDULER_ENABLED` |
+| `src/modules/systems-ops/systems-catalog-auto-sync.service.ts` | `SYSTEMS_CATALOG_AUTO_SYNC_ENABLED` |
+| `src/modules/systems-ops/systems-health-monitor.service.ts` | `SYSTEM_HEALTH_MONITOR_ENABLED` |
+| `src/modules/systems-ops/systems-stress-consumer.service.ts` | — (sin variable propia: ver el archivo) |
 <!-- /gen:interval-sources -->
 
 - `systems-catalog-auto-sync` pone al día el catálogo de sistemas cada cierto tiempo si
@@ -48,6 +58,29 @@ Corren **siempre** que el planificador está encendido (`RUNTIME_JOBS_SCHEDULER_
 con trabajo de fondo:
 
 <!-- gen:jobs-always -->
+| `jobCode` | Intervalo (variable · default) | Catálogo |
+|---|---|---|
+| `process_outbox` | `RUNTIME_JOBS_OUTBOX_INTERVAL_MS` · 30 s | `scheduled-jobs.catalog.ts` |
+| `process_events` | `RUNTIME_JOBS_EVENTS_INTERVAL_MS` · 30 s | `scheduled-jobs.catalog.ts` |
+| `expire_stale_sessions` | `RUNTIME_JOBS_SESSIONS_INTERVAL_MS` · 5 min | `scheduled-jobs.catalog.ts` |
+| `apply_retention_policies` | `RUNTIME_JOBS_RETENTION_INTERVAL_MS` · 24 h | `scheduled-jobs.catalog.ts` |
+| `retry_stuck_notifications` | `RUNTIME_JOBS_NOTIFICATION_RETRY_INTERVAL_MS` · 5 min | `scheduled-jobs.catalog.ts` |
+| `purge_idempotency_keys` | `RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS` · 24 h | `scheduled-jobs.catalog.ts` |
+| `purge_processed_outbox` | `RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS` · 24 h | `scheduled-jobs.catalog.ts` |
+| `mark_abandoned_onboardings` | `RUNTIME_JOBS_ONBOARDING_ABANDONMENT_INTERVAL_MS` · 24 h | `scheduled-jobs.catalog.ts` |
+| `recalculate_data_quality` | `RUNTIME_JOBS_DATA_QUALITY_INTERVAL_MS` · 1 h | `scheduled-jobs.catalog.ts` |
+| `sweep_support_sla` | `RUNTIME_JOBS_SUPPORT_SLA_INTERVAL_MS` · 1 min | `scheduled-jobs.catalog.ts` |
+| `sweep_loan_delinquency` | `RUNTIME_JOBS_DELINQUENCY_SWEEP_INTERVAL_MS` · 1 h | `scheduled-jobs.catalog.ts` |
+| `dispatch_loan_outcomes` | `RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS` · 15 min | `scheduled-jobs.catalog.ts` |
+| `register_engine_facilities` | `RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS` · 15 min | `scheduled-jobs.catalog.ts` |
+| `sync_engine_consents` | `RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS` · 15 min | `scheduled-jobs.catalog.ts` |
+| `sweep_debt_ratings` | `RUNTIME_JOBS_RATING_SWEEP_INTERVAL_MS` · 6 h | `scheduled-jobs.catalog.ts` |
+| `sync_partner_kyb_reviews` | `RUNTIME_JOBS_PARTNER_KYB_SYNC_INTERVAL_MS` · 5 min | `scheduled-jobs.catalog.ts` |
+| `refresh_credit_lines` | `RUNTIME_JOBS_CREDIT_LINE_REFRESH_INTERVAL_MS` · 1 h | `scheduled-jobs.catalog.ts` |
+| `process_bank_statement_reviews` | `RUNTIME_JOBS_BANK_STATEMENT_INTERVAL_MS` · 15 min | `scheduled-jobs.catalog.ts` |
+| `reclaim_stuck_events` | `RUNTIME_JOBS_STUCK_EVENTS_INTERVAL_MS` · 5 min | `scheduled-jobs.catalog.ts` |
+| `run_notification_campaigns` | `RUNTIME_JOBS_NOTIFICATION_CAMPAIGNS_INTERVAL_MS` · 30 s | `scheduled-jobs.catalog.ts` |
+| `reconcile_submitted_credit_applications` | `RUNTIME_JOBS_CREDIT_RECONCILE_INTERVAL_MS` · 5 min | `scheduled-jobs.credit.ts` |
 <!-- /gen:jobs-always -->
 
 **Opcionales**: sólo existen si se cumple la condición (el mismo `if` que los crea en
@@ -56,6 +89,13 @@ con trabajo de fondo:
 imagen actual):
 
 <!-- gen:jobs-optional -->
+| `jobCode` | Intervalo (variable · default) | Sólo existe si | Catálogo |
+|---|---|---|---|
+| `deliver_pending_notifications` | `RUNTIME_JOBS_NOTIFICATION_DELIVERY_INTERVAL_MS` · 10 s | `env.NOTIFICATIONS_DELIVERY_MODE === 'deferred'` | `optional-jobs.catalog.ts` |
+| `retry_deferred_underwriting` | `RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS` · 15 min | `deps.creditUnderwriting` | `optional-jobs.catalog.ts` |
+| `consume_systems_stress_runs` | `RUNTIME_JOBS_STRESS_CONSUMER_INTERVAL_MS` · 30 s | `env.RUNTIME_JOBS_STRESS_CONSUMER_ENABLED` | `optional-jobs.catalog.ts` |
+| `deliver_erp_events` | `RUNTIME_JOBS_ERP_EVENTS_INTERVAL_MS` · 5 s | `env.ERP_EVENTS_DELIVERY_URL && env.ERP_EVENTS_DELIVERY_SECRET && deps.erpEvents` | `optional-jobs.catalog.ts` |
+| `consume_qa_journey_runs` | `RUNTIME_JOBS_QA_CONSUMER_INTERVAL_MS` · 5 s | `env.RUNTIME_JOBS_QA_CONSUMER_ENABLED` | `optional-jobs.catalog.ts` |
 <!-- /gen:jobs-optional -->
 
 Las variables `RUNTIME_JOBS_*` de cada intervalo están en [Variables de entorno](../config/environment.md).
