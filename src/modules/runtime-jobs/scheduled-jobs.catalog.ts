@@ -169,10 +169,6 @@ export function buildScheduledJobs(deps: {
      * evitar el incumplimiento y `sweepBreaches` lo registra cuando ya no se pudo. El aviso va
      * primero para que un reloj que cruza los dos umbrales en la misma pasada deje primero el aviso
      * y luego la marca, y la historia se lea en el orden en que ocurrió.
-     *
-     * Los dos publican su evento (`support.sla.warning`, `support.sla.breached`) y `notification-rules.service.ts`
-     * los convierte en un mensaje de bandeja para operaciones (`operations`/`in_app`): sin esa regla el aviso
-     * previo se quedaba en la línea de tiempo del caso, donde nadie lo mira a tiempo.
      */
     {
       jobCode: 'sweep_support_sla',

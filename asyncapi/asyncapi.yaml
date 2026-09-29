@@ -429,14 +429,18 @@ components:
     SupportSlaWarning:
       name: support.sla.warning
       title: support.sla.warning
-      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-sla.service.ts.'
+      summary: >-
+        Familia support_service_management. Productor: src/modules/support/application/support-sla-events.ts,
+        src/modules/support/application/support-sla.service.ts.
       contentType: application/json
       payload:
         $ref: '#/components/schemas/OutboxEvent'
     SupportSlaBreached:
       name: support.sla.breached
       title: support.sla.breached
-      summary: 'Familia support_service_management. Productor: src/modules/support/application/support-sla.service.ts.'
+      summary: >-
+        Familia support_service_management. Productor: src/modules/support/application/support-sla-events.ts,
+        src/modules/support/application/support-sla.service.ts.
       contentType: application/json
       payload:
         $ref: '#/components/schemas/OutboxEvent'

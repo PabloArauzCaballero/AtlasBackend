@@ -210,8 +210,8 @@ Agregados admitidos: `support_case`, `support_channel`, `support_message`, `know
 | `support.message.created` | sí | `src/modules/support/application/support-message.service.ts` | — |
 | `support.complaint.created` | sí | `src/modules/support/application/support-case-creation-events.service.ts` | — |
 | `support.security.escalated` | sí | `src/modules/support/application/support-case-creation-events.service.ts`<br>`src/modules/support/application/support-case-escalation.service.ts` | — |
-| `support.sla.warning` | sí | `src/modules/support/application/support-sla.service.ts` | operations: in_app |
-| `support.sla.breached` | sí | `src/modules/support/application/support-sla.service.ts` | operations: in_app |
+| `support.sla.warning` | sí | `src/modules/support/application/support-sla-events.ts`<br>`src/modules/support/application/support-sla.service.ts` | operations: in_app |
+| `support.sla.breached` | sí | `src/modules/support/application/support-sla-events.ts`<br>`src/modules/support/application/support-sla.service.ts` | operations: in_app |
 | `support.knowledge.published` | sí | `src/modules/support/application/support-knowledge.service.ts` | — |
 
 ## `notifications`

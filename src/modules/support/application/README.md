@@ -30,6 +30,7 @@
 | [`support-message.service.ts`](./support-message.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`support-realtime.service.ts`](./support-realtime.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`support-sla.service.ts`](./support-sla.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-sla-events.ts`](./support-sla-events.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento
 
