@@ -23950,7 +23950,8 @@ paths:
         '200':
           description: >-
             Página por código y versión descendente, con `meta` y `summary`
-            (total, vigentes y archivadas de todo el inquilino).
+            (total, vigentes y archivadas de todo el inquilino, y la versión
+            vigente por defecto).
           content:
             application/json:
               schema:
