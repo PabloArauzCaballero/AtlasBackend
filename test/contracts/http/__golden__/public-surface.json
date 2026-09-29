@@ -3573,11 +3573,31 @@
     ],
     "headers": [],
     "query": [
+      "domain",
       "limit",
       "page",
       "pageSize",
-      "q"
+      "q",
+      "type"
     ],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /internal/business-metadata/glossary/facets": {
+    "operationId": "InternalMetadataController_listBusinessTermFacets",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
     "path": [],
     "security": [
       "access-token"
@@ -3845,7 +3865,12 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "domain",
+      "nodeLimit",
+      "nodeType",
+      "q"
+    ],
     "path": [],
     "security": [
       "access-token"
@@ -3863,7 +3888,14 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "domain",
+      "family",
+      "limit",
+      "page",
+      "q",
+      "severity"
+    ],
     "path": [],
     "security": [
       "access-token"
@@ -4046,7 +4078,14 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "domain",
+      "limit",
+      "page",
+      "pageSize",
+      "q",
+      "status"
+    ],
     "path": [],
     "security": [
       "access-token"
@@ -4746,7 +4785,8 @@
     ],
     "headers": [],
     "query": [
-      "fields"
+      "fields",
+      "q"
     ],
     "path": [],
     "security": [
@@ -4766,7 +4806,8 @@
     ],
     "headers": [],
     "query": [
-      "fields"
+      "fields",
+      "q"
     ],
     "path": [],
     "security": [
@@ -4786,7 +4827,8 @@
     ],
     "headers": [],
     "query": [
-      "fields"
+      "fields",
+      "q"
     ],
     "path": [],
     "security": [
@@ -4806,7 +4848,8 @@
     ],
     "headers": [],
     "query": [
-      "fields"
+      "fields",
+      "q"
     ],
     "path": [],
     "security": [
@@ -4826,7 +4869,8 @@
     ],
     "headers": [],
     "query": [
-      "fields"
+      "fields",
+      "q"
     ],
     "path": [],
     "security": [
@@ -4846,7 +4890,8 @@
     ],
     "headers": [],
     "query": [
-      "fields"
+      "fields",
+      "q"
     ],
     "path": [],
     "security": [
@@ -4866,9 +4911,31 @@
     ],
     "headers": [],
     "query": [
-      "fields"
+      "fields",
+      "q"
     ],
     "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /internal/views/{view}/facets": {
+    "operationId": "AdminReadController_listFacets",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "view"
+    ],
     "security": [
       "access-token"
     ],
@@ -9886,6 +9953,24 @@
     ],
     "body": false
   },
+  "GET /systems/catalog/summary": {
+    "operationId": "SystemsCatalogController_getCatalogSummary",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
   "GET /systems/dashboard": {
     "operationId": "SystemsCatalogController_getDashboard",
     "responses": [
@@ -9919,6 +10004,7 @@
       "limit",
       "module",
       "page",
+      "personalData",
       "q",
       "status"
     ],
@@ -10129,6 +10215,7 @@
       "limit",
       "module",
       "page",
+      "personalData",
       "q",
       "reviewStatus",
       "riskLevel",

@@ -37,9 +37,12 @@ import {
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles(...INTERNAL_PORTAL_ROLES)
 export class InternalMetadataController {
+  // Las rutas que vinieron de InternalPortalController conservan su `operationId`: un cliente
+  // generado a partir del contrato no debe cambiar por mover el código de archivo.
   constructor(private readonly service: InternalPortalService) {}
 
   @ApiOperation({
+    operationId: 'InternalPortalController_listBusinessTerms',
     summary: 'Listar términos del glosario de negocio',
     description:
       'Dominios, tablas y campos catalogados, paginados en la base sobre el catálogo entero. `q` busca en clave, nombre, ' +
@@ -75,6 +78,7 @@ export class InternalMetadataController {
   }
 
   @ApiOperation({
+    operationId: 'InternalPortalController_getBusinessTerm',
     summary: 'Obtener un término del glosario de negocio',
     description: 'Incluye sinónimos, restricciones, relaciones de datos y evidencia mínima de auditoría.',
   })
@@ -91,7 +95,7 @@ export class InternalMetadataController {
     return this.service.getBusinessTerm(params.termId);
   }
 
-  @ApiOperation({ summary: 'Consultar el grafo de linaje de datos' })
+  @ApiOperation({ operationId: 'InternalPortalController_getLineage', summary: 'Consultar el grafo de linaje de datos' })
   @ApiLineageQuery({ impact: false })
   @ApiResponse({ status: 200, description: 'Grafo de linaje de datos; `summary` dice cuánto se muestra de cuánto cumple el filtro.' })
   @Get('lineage')
@@ -99,7 +103,7 @@ export class InternalMetadataController {
     return this.service.getLineage(query);
   }
 
-  @ApiOperation({ summary: 'Obtener un nodo de linaje de datos' })
+  @ApiOperation({ operationId: 'InternalPortalController_getLineageNode', summary: 'Obtener un nodo de linaje de datos' })
   @ApiParam({ name: 'nodeId', description: '`table:<id>` o `endpoint:<id>`.' })
   @ApiResponse({ status: 200, description: 'Detalle del nodo de linaje con sus aristas de entrada y salida.' })
   @ApiResponse({ status: 404, description: 'LINEAGE_NODE_NOT_FOUND.' })
@@ -109,6 +113,7 @@ export class InternalMetadataController {
   }
 
   @ApiOperation({
+    operationId: 'InternalPortalController_getLineageImpact',
     summary: 'Listar impactos y relaciones del linaje',
     description:
       'Aristas endpoint→tabla (con severidad) y tabla→tabla (sin severidad), paginadas en la base sobre el catálogo entero. ' +
