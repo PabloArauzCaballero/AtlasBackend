@@ -1,6 +1,8 @@
 # Migraciones y seeds
 
-**61 migraciones** con Umzug 3, todas reversibles, y seeders repartidos en cuatro perfiles.
+Migraciones versionadas con Umzug 3 (el número actual está en
+[Cifras reales](../architecture/index.md), que comprueba un gate) y semillas que ya **no** son código
+del repositorio: se traen de una base aparte.
 
 ---
 
@@ -59,51 +61,58 @@ node dist/src/database/migrate.js up
 
 ## Seeds
 
-### Perfiles
+Los seeders versionados por perfil (`production`/`development`/`demo`/`test`) y sus comandos
+(`db:seed:up|down|dev|prod|reseed:dev`, `db:seed:verify-prod-idempotency`, `check:seed-profiles`) **ya
+no existen**. Hoy hay dos fuentes de datos, y ninguna depende de un argumento `--profile`:
 
-| Perfil | Contiene | Cuándo |
-|---|---|---|
-| `production` | **Sólo catálogos de referencia.** Nunca datos ficticios | Todo despliegue |
-| `development` | Credenciales mínimas y datos para trabajar en local | Desarrollo |
-| `demo` | Grafo completo de un cliente de demostración | Demos |
-| `test` | Fixtures deterministas | Pruebas |
+### 1. La base de semillas (dato maestro y, en desarrollo, usuarios de prueba)
 
-`yarn check:seed-profiles` rechaza cualquier seeder del directorio `production/` cuyo nombre contenga
-`demo`, `dev`, `fixture`, `mock` o `sample`. Es defensa en profundidad: el guard de arranque
-(`assertProductionStageIsClean`) vuelve a comprobarlo en ejecución.
-
-### Ejecución
+El conjunto ya materializado vive en una base aparte y se trae con un comando. Qué base es —la de
+desarrollo trae también usuarios y comercios de prueba; la de producción sólo dato maestro— lo decide
+`SEED_SOURCE_DATABASE_URL` o `SEED_SOURCE_HOST` + `SEED_SOURCE_DB` + `SEED_SOURCE_USER` +
+`SEED_SOURCE_PASSWORD`. Detalle en [Semillas](../database/seeds.md).
 
 ```bash
-yarn db:seed:prod           # sólo catálogos de referencia
-yarn db:seed:dev            # + datos de desarrollo
-yarn db:seed:demo           # + el grafo de demostración
-yarn db:seed:reseed:dev     # trunca y recarga (PROHIBIDO en production)
+yarn db:seed:pull             # trae lo publicado. DESTRUCTIVO sobre las tablas del manifiesto
+yarn db:seed:pull --if-empty  # igual, pero no hace nada si la base ya trajo una carga
+yarn db:seed:status           # compara lo publicado con lo que hay aquí, sin escribir
 ```
 
-### Idempotencia
+### 2. La siembra demostrativa del repositorio
 
-Los seeders de producción deben poder correr dos veces sin cambiar nada. Lo verifica
-`yarn db:seed:verify-prod-idempotency`.
+`src/database/seeders/demo/` define un conjunto propio, con upserts por identificador dentro del bloque
+reservado 900000+. Correrla dos veces deja el mismo estado y no vacía ninguna tabla.
 
-!!! warning "Ids literales entre perfiles: la trampa"
-    Dos seeders de producción referenciaban políticas de retención por **id numérico literal**
-    (`1` y `102`). Esas filas sólo las crea el perfil `development`/`demo`, así que sobre una base
-    vacía con el perfil `production` la clave foránea reventaba y **provisionar un entorno productivo
-    era imposible**. Peor aún: en desarrollo sí existían, y los nueve proveedores quedaban atados en
-    silencio a una política etiquetada `dev_testing_only`.
+```bash
+yarn db:seed:demo                        # escribe o actualiza el conjunto completo
+yarn db:seed:demo --fundamental          # sólo configuración (colas, catálogos, políticas), sin pisar filas
+yarn db:seed:demo --dry-run              # imprime qué escribiría
+yarn db:seed:demo --solo ecosistema,soporte  # sólo esos dominios
+```
 
-    Ambos seeders resuelven ahora **por código** (`policy_code`) y crean su propia entrada de
-    catálogo. Registrado como ATLAS-DEPLOY-004.
+La parte fundamental corre en cada despliegue (job `migrate` de `docker-compose.coolify.yml`); la
+completa sólo con `DEMO_SEED_ENABLED=true`.
 
-    La regla general: **un id numérico compartido entre seeders de perfiles distintos es una
-    dependencia invisible** que sólo falla al provisionar desde cero.
+### Gates y comprobaciones
 
-### Seeding automático al arrancar
+| Comando | Qué comprueba |
+|---|---|
+| `yarn check:seed-references` | Que la siembra demostrativa no lleve identificadores numéricos de otra base en columnas que apuntan fuera de lo que ella misma crea (se resuelven por clave natural con `refA`). |
+| `yarn db:seed:verify-graph` | Consulta una base ya sembrada y falla si una relación padre → hijo del cliente de demostración quedó sin filas. |
 
-`DATABASE_SEED_ON_STARTUP=true` aplica los seeders pendientes del perfil al arrancar, de forma
-idempotente. Corre **sólo en el proceso que ejecuta trabajo de fondo** (`worker` o `all`): sembrar es
-mutar, y con N réplicas de API sería una carrera.
+!!! warning "Ids literales entre bases: la trampa"
+    Una fila exportada de una base lleva el `_id` que su referencia tenía ALLÍ; en cualquier otra base
+    ese número es otro o no existe. Entre el 2026-09-17 y el 18 cuatro despliegues murieron por esa
+    causa con cuatro claves foráneas distintas. Por eso `check:seed-references` existe, y por eso
+    antes, con los seeders por perfil, dos seeders de producción que apuntaban a políticas de retención
+    por id literal impedían provisionar desde cero (ATLAS-DEPLOY-004).
 
-El camino recomendado en producción sigue siendo el job one-shot `migrate` del compose, que termina
+### Siembra automática al arrancar
+
+`DATABASE_SEED_ON_STARTUP=true` hace, al arrancar, lo mismo que `yarn db:seed:pull --if-empty`: trae el
+conjunto sólo si la base aún no lo trajo. Corre **sólo en el proceso que ejecuta trabajo de fondo**
+(`worker` o `all`): sembrar es mutar, y con N réplicas de API sería una carrera. Sin `SEED_SOURCE_*`
+no hace nada. Ver [Variables de entorno](../config/environment.md).
+
+El camino recomendado en despliegue sigue siendo el job one-shot `migrate` del compose, que termina
 antes de que la API y el worker arranquen.

@@ -94,7 +94,7 @@ estados del cliente.
 Renombrar una ruta deja de ser un cambio silencioso: el informe de consistencia lo detecta antes que
 un cliente. Estado verificado el 2026-07-28: `in_sync`, 0 errores.
 
-Complemento estático: `test/unit/workflow-catalog/customer-credit-workflow.seed-data.spec.ts`, que
+Complemento estático: `test/unit/workflow-catalog/process-gates.spec.ts`, que
 corre sin base de datos.
 
 ---

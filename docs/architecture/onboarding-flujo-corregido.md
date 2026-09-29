@@ -643,4 +643,4 @@ Todos son constantes con nombre en un único archivo por dominio. Cambiar un req
 
 Tests nuevos: máquina de estados y transiciones prohibidas · evaluador de elegibilidad (18 casos) · orquestación y evidencia del motor · decisión administrativa y excepciones · guardas de admisión del registro · estado/envío/observaciones · perfil personal y económico · emisión y verificación del OTP · firma SigV4 y validación de bytes mágicos · creación de solicitud de crédito con reevaluación · resolución de identidad y screening de cumplimiento. Tests actualizados con regresión explícita para H1, H3, H4, V1, V2, V6 y el bypass del código `'123456'`.
 
-**Migraciones aplicadas** (`20260728090000` estados + elegibilidad, `20260728120000` crédito) y catálogo de atributos económicos sembrado con `yarn db:seed:prod`. Reversibilidad verificada con `up → down → up`.
+**Migraciones aplicadas** (`20260728090000` estados + elegibilidad, `20260728120000` crédito) y catálogo de atributos económicos sembrado con `db:seed:prod` (comando de entonces, retirado; hoy llega con la base de semillas, `yarn db:seed:pull`). Reversibilidad verificada con `up → down → up`.

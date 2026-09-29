@@ -21,7 +21,6 @@ Todos verificados contra `package.json` en la revisión 80fc741.
 | Comando | Qué hace |
 |---|---|
 | `yarn start:dev` | Compila y arranca forzando `NODE_ENV=development` |
-| `yarn start:dev:tsx` | `tsx watch` sobre `src/main.ts` |
 | `yarn start:prod` | Compila y arranca con configuración de producción |
 | `yarn start` | Arranca `dist/src/main.js` tal cual esté el entorno |
 | `yarn build` | Compila a `dist/` |
@@ -43,8 +42,9 @@ Todos verificados contra `package.json` en la revisión 80fc741.
 |---|---|
 | `yarn db:migration:up` / `down` / `status` | Migraciones |
 | `yarn db:migration:create` | Nueva migración |
-| `yarn db:seed:up` / `down` / `status` / `reseed` | Seeds |
-| `yarn db:seed:prod` / `dev` / `demo` / `test` | Seeds por perfil |
+| `yarn db:seed:pull` / `db:seed:status` | Trae (destructivo; `--if-empty`) o compara la base de semillas `SEED_SOURCE_*` |
+| `yarn db:seed:demo` | Siembra demostrativa del repositorio (`--fundamental`, `--dry-run`, `--solo`) |
+| `yarn db:seed:admin-e2e` / `db:reset:admin-e2e` | Alta y retirada de la identidad QA sintética del portal (exige `ALLOW_E2E_SEED`) |
 | `yarn db:roles:bootstrap` | Aprovisiona los roles PostgreSQL |
 | `yarn db:provision:dev` | Roles + verificación de privilegios |
 | `yarn db:capture-query-baseline` | Captura el baseline de consultas |
@@ -64,7 +64,7 @@ Todos verificados contra `package.json` en la revisión 80fc741.
 | `yarn check:read-api-views` | Modelo de lectura |
 | `yarn check:entity-narratives` | Narrativa de entidades |
 | `yarn check:openapi` | Contrato ↔ código |
-| `yarn check:seed-profiles` | Perfiles de seed |
+| `yarn check:seed-references` | La siembra demostrativa no lleva ids de otra base |
 | `yarn check:no-env-file` · `check:env-example` | Entorno y secretos |
 | `yarn check:db-privileges` | Privilegios del rol de runtime |
 

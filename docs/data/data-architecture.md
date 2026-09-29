@@ -8,23 +8,28 @@ pueda reconstruir.
 
 ## 1. Separación por esquemas de dominio
 
-**138 tablas en 12 esquemas**, más `public`, reservado para el tracking de Umzug y compatibilidad de
-infraestructura. Ningún modelo de negocio resuelve en `public`.
+Las tablas de negocio viven en esquemas de dominio (el recuento vigente está en
+[Cifras reales](../architecture/index.md), que comprueba un gate), más `public`, reservado para el
+tracking de Umzug y compatibilidad de infraestructura. Ningún modelo de negocio resuelve en `public`.
+El inventario exacto, tabla por tabla, es [`domain-tables.ts`](../../src/database/domain-tables.ts).
 
-| Esquema | Tablas | Qué contiene |
-|---|---:|---|
-| `platform_ops` | 31 | Catálogo del propio sistema, jobs, workflows, gobierno de esquema |
-| `telemetry` | 18 | Señales de dispositivo, comportamiento y sesión |
-| `catalog` | 17 | Catálogos versionados y definiciones semánticas |
-| `risk` | 14 | Features, rulesets, evaluaciones y políticas de riesgo |
-| `customer` | 12 | Cliente, documentos, contactos, direcciones, elegibilidad |
-| `privacy` | 11 | Consentimientos, finalidades, retención y clasificación |
-| `iam` | 10 | Tenants, usuarios de plataforma e internos, credenciales, tokens |
-| `case_management` | 6 | Casos de fraude, observaciones y revisión |
-| `integrations` | 6 | Proveedores externos, peticiones, respuestas y salud |
-| `audit` | 5 | Registro operativo y de acciones HTTP |
-| `messaging` | 5 | Notificaciones, plantillas, preferencias y entregas |
-| `credit` | 3 | Productos, solicitudes y decisiones |
+| Esquema | Qué contiene |
+|---|---|
+| `platform_ops` | Catálogo del propio sistema, jobs, workflows, outbox, gobierno de esquema |
+| `telemetry` | Señales de dispositivo, comportamiento y sesión |
+| `catalog` | Catálogos versionados y definiciones semánticas |
+| `risk` | Features, rulesets, evaluaciones y políticas de riesgo |
+| `customer` | Cliente, documentos, contactos, direcciones, elegibilidad |
+| `privacy` | Consentimientos, finalidades, retención y clasificación |
+| `iam` | Tenants, usuarios de plataforma e internos, credenciales, tokens |
+| `case_management` | Casos de fraude, observaciones y revisión |
+| `integrations` | Proveedores externos, peticiones, respuestas y salud |
+| `audit` | Registro operativo y de acciones HTTP |
+| `messaging` | Notificaciones, plantillas, políticas, preferencias, entregas, tokens de dispositivo y campañas |
+| `credit` | Productos, solicitudes y decisiones; líneas de crédito; préstamos, cuotas, pagos y avisos de pago; mora y calificación; revisión de extractos; reservas de exposición |
+| `support` | Casos de soporte, colas, SLA, canales y mensajes, base de conocimiento |
+| `partner` | Comercios: perfil, representantes, sucursales, QR, terminales POS y plantillas de contrato |
+| `expedientes` | Expediente documental por cliente/comercio: nodos, concesiones, actividad y tickets de subida |
 
 El mapa tabla → esquema vive en un único sitio
 ([`domain-schemas.ts`](../../src/database/domain-schemas.ts)) que comparten los decoradores de los

@@ -28,7 +28,7 @@
 | Endpoint                                   | p50 (ms) | p95 (ms) | p99 (ms) | payload prom. | payload máx. |
 | ------------------------------------------ | -------- | -------- | -------- | ------------- | ------------ |
 | `GET /operations/work-queue`               |          |          |          |               |              |
-| `GET /customers/:id`                       |          |          |          |               |              |
+| `GET /internal/views/customers`            |          |          |          |               |              |
 | `GET /operations/audit/customer/:id/feed`  |          |          |          |               |              |
 
 ## Objetivos iniciales (§39, recalibrables)

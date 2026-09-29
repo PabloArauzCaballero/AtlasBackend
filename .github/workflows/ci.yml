@@ -808,12 +808,52 @@ jobs:
           fi
           echo "✅ Todas las migraciones nuevas están dentro del límite de tamaño recomendado."
 
+  # Documentación verdadera (WP9): la documentación no puede citar lo que el código no tiene. Cinco
+  # comprobaciones, sin base de datos ni build: cifras marcadas (rutas, módulos, migraciones, eventos,
+  # trabajos) recalculadas del código; comandos `yarn` citados que existan en package.json; rutas HTTP
+  # citadas que existan en el contrato; rutas de archivo citadas que existan en el árbol; y los
+  # documentos GENERADOS (catálogo de eventos, AsyncAPI, matriz RBAC) idénticos a lo que produce el código.
+  # Cada una se arregla con su generador (`yarn docs:figures`, `docs:events`, `docs:rbac-matrix`) o
+  # corrigiendo el texto; ver «Documentación» en CONTRIBUTING.md.
+  docs-drift:
+    name: documentación sin deriva (cifras, comandos, rutas, eventos, RBAC)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Figures and cited yarn commands
+        run: yarn check:docs-figures
+
+      - name: Event catalog and AsyncAPI match the event registry
+        run: yarn check:events-docs
+
+      - name: Admin RBAC matrix matches the controllers
+        run: yarn check:rbac-matrix
+
+      - name: Cited HTTP routes exist
+        run: yarn check:doc-routes
+
+      - name: Cited file paths exist
+        run: yarn check:doc-paths
+
   # ÚNICO trabajo que se exige como check requerido en dev/test/main. Corre siempre y sólo es verde
   # si TODOS los trabajos obligatorios lo son: `skipped` o `cancelled` en cualquiera es rojo aquí.
   release-gate:
     name: release-gate
     if: always()
-    needs: [backend, contract-and-docs, coverage, db-and-cache-integration, docker-image, dependency-audit, codeql, secret-scan, sbom, migration-check]
+    needs: [backend, contract-and-docs, docs-drift, coverage, db-and-cache-integration, docker-image, dependency-audit, codeql, secret-scan, sbom, migration-check]
     runs-on: ubuntu-latest
     steps:
       - name: Todos los trabajos obligatorios en success

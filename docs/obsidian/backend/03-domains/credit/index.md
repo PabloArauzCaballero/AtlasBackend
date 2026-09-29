@@ -101,7 +101,6 @@ Roles que alcanzan este módulo: `internal_operator`, `risk_analyst`, `admin`, `
 - `test/unit/credit/credit-product-eligibility.spec.ts`
 - `test/unit/credit/credit.controllers.spec.ts`
 - `test/unit/credit/credit.repository.spec.ts`
-- `test/unit/workflow-catalog/customer-credit-workflow.seed-data.spec.ts`
 
 ## Referencias al código
 

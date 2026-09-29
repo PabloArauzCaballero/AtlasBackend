@@ -28,7 +28,7 @@
 - **Observabilidad:** OpenTelemetry (`@opentelemetry/sdk-node` + auto-instrumentations + OTLP), `prom-client`.
 - **OpenAPI:** `@nestjs/swagger` (`yarn docs:openapi`).
 - **Testing:** Jest + ts-jest, supertest; smokes en `tsx`.
-- **CI/CD:** GitHub Actions (`.github/workflows/ci.yml`), 8 jobs.
+- **CI/CD:** GitHub Actions (`.github/workflows/ci.yml`, más `deploy-dev.yml` y `smoke-test.yml`); el número de jobs cambia, míralo en el propio archivo.
 - **IaC:** no detectada (sin `terraform/`, sin toolkit AWS confirmado).
 - **Observabilidad desplegada:** Prometheus/Grafana self-hosted (`ops/observability/`).
 

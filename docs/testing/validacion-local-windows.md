@@ -54,7 +54,7 @@ yarn env:doctor
 
 ```powershell
 yarn db:migration:up
-yarn db:seed:up
+yarn db:seed:pull --if-empty   # o yarn db:seed:demo si no tienes base de semillas (ver database/seeds.md)
 yarn start:dev
 ```
 
@@ -94,7 +94,7 @@ Ejecutada de punta a punta contra PostgreSQL real (instancia local `postgresql-x
 | Paso                              | Resultado                                                                                                                                                                                                                       |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `yarn db:migration:status` / `up` | ✅ 1 migración pendiente aplicada limpio sobre base ya existente                                                                                                                                                                |
-| `yarn db:seed:up`                 | ✅ sin pendientes                                                                                                                                                                                                               |
+| `db:seed:up` (retirado; hoy `db:seed:pull`) | ✅ sin pendientes                                                                                                                                                                                                               |
 | `yarn start:dev`                  | ✅ `Nest application successfully started`, puerto 3005                                                                                                                                                                         |
 | `yarn smoke` (suite completa)     | ✅ 69 llamadas, 100% OK — auth, internal-rbac, onboarding, sesiones, telemetría, riesgo, eventos, notificaciones, proveedores externos, KYC, buró. Ningún 403 inesperado de `TenantGuard` en ningún endpoint con `x-tenant-id`. |
 | `yarn test:coverage`              | ✅ 82 test suites / 773 tests, 0 fallos                                                                                                                                                                                         |

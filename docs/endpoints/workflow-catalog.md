@@ -10,7 +10,9 @@ Ahora es dato consultable, versionado y verificable contra el propio backend.
 
 ## Modelo de datos
 
-Cinco tablas en el schema `platform_ops` (migración `20260728140000-create-workflow-catalog`):
+Cinco tablas en el schema `platform_ops` (migración `20260728140000-create-workflow-catalog`),
+ampliadas por `20260926170000-workflow-catalog-v2` (narrativa, dueño, prioridad, cliente por etapa,
+naturaleza del paso) con una sexta, `workflow_definitions_sync`, que guarda la huella de lo volcado:
 
 | Tabla                        | Qué modela                                                                                                                                                                                                       | Clave natural                               |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
@@ -40,35 +42,47 @@ Cinco tablas en el schema `platform_ops` (migración `20260728140000-create-work
    "dónde va el cliente". Una etapa sin señal automática se declara `manual` y se reporta como
    `not_applicable`, en lugar de fingir que el sistema sabe si un analista la resolvió.
 
-## Los cinco flujos sembrados
+## Los procesos declarados en código
 
-| Flujo                          | Etapas | Pasos | Actores                     | Qué cubre                                                                                                                                                                                                                                                                          |
-| ------------------------------ | ------ | ----- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `customer_full_lifecycle` v1   | 21     | 70    | cliente, operador, sistema  | **Todo** el recorrido del cliente: de los textos legales al cierre de sesión, pasando por identidad, domicilio, perfil financiero, referencias, encuesta, evidencia externa, revisión, riesgo, elegibilidad, crédito, línea, préstamos, avisos de pago y derechos sobre los datos. |
-| `customer_partner_commerce` v1 | 13     | 51    | comercio, operador, cliente | El comercio de punta a punta y su cruce con el cliente: alta, KYB, sucursales, terminales, QR, usuarios, el escaneo en la caja, la solicitud en el punto de venta, la aceptación, el aviso de pago con comprobante, la verificación y la cartera.                                  |
-| `customer_credit_journey` v1   | 22     | 57    | cliente, operador           | El recorrido histórico de crédito, con sus subetapas de captura.                                                                                                                                                                                                                   |
-| `account_signup_to_login` v1   | 8      | 15    | cliente                     | El alta y el acceso, aislados.                                                                                                                                                                                                                                                     |
-| `post_login_first_screen` v1   | 4      | 15    | cliente                     | El arranque de la app tras el login.                                                                                                                                                                                                                                               |
+Desde el 2026-09-26 el catálogo **no se siembra**: cada proceso se declara en código en
+`src/modules/workflow-catalog/definitions/processes/*.process.fixtures.ts`, la lista única es
+`WORKFLOW_DEFINITIONS` (`workflow-definitions.registry.ts`) y llega a la base por las migraciones
+`sync-workflow-catalog-N`, que llaman a `syncWorkflowCatalog` (upsert idempotente por clave natural,
+en una transacción). Hoy hay **42 procesos**: cuatro recorridos compuestos (`C-01`…`C-04`) y los 38
+procesos del inventario (`P-01`…`P-38`). Su ficha legible se genera en `docs/processes/`
+(`yarn docs:processes`); no se escribe a mano.
 
-Los dos primeros se agregaron el 21-sep-2026. Antes el catálogo tenía tres flujos y 87 pasos, y
-dejaba fuera al comercio entero —37 rutas entre `partner-onboarding` y `merchant`, más 8 de
-`operations/partners`— y la mitad del recorrido del cliente. Un flujo que no está en el catálogo no
-lo pinta el tablero del portal, no lo recorre el motor de QA y no aparece cuando alguien pregunta
-qué hace el producto.
+Los cuatro recorridos compuestos:
 
-### Cómo se declaran
+| Proceso                        | Id     | Etapas | Pasos | Qué cubre                                                                                                                              |
+| ------------------------------ | ------ | ------ | ----- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `customer_credit_journey` v1   | `C-01` | 22     | 57    | El recorrido de crédito del cliente, con sus subetapas de captura (tabla de abajo).                                                    |
+| `post_login_first_screen` v1   | `C-02` | 4      | 15    | El arranque de la app tras el login.                                                                                                   |
+| `customer_full_lifecycle` v1   | `C-03` | 21     | 70    | Todo el recorrido del cliente, de los textos legales al cierre, pasando por identidad, riesgo, crédito, préstamos y avisos de pago.    |
+| `customer_partner_commerce` v1 | `C-04` | 13     | 51    | El comercio de punta a punta y su cruce con el cliente: alta, KYB, sucursales, QR, venta en caja, aceptación y aviso de pago.          |
 
-Los dos nuevos se escriben como ÁRBOL en `src/database/seeders/demo/flujo-cliente-completo.ts` y
-`flujo-cliente-partner.ts`, y `workflow-catalog-flujos.ts` deriva las cuatro tablas: la definición,
-las etapas, los pasos con su `execution_order`, y las dependencias de precedencia. A mano serían
-unas cuatro mil líneas donde el noventa por ciento es la misma referencia al padre copiada.
+Las cifras de etapas y pasos son las de las fixtures el 2026-09-29; la fuente es el código, no esta
+tabla.
 
-`test/unit/database/flujos-documentados.spec.ts` comprueba, sin levantar nada, que **cada ruta
-declarada existe en un controlador**. Es el candado que importa: un flujo que apunta a un endpoint
-inexistente manda a alguien a probar lo que nadie sirve, y eso es peor que no documentarlo. También
-comprueba que el encuentro en la caja lo ejecute el cliente y que la aceptación de la compra sea del
-comercio — que el cliente pudiera aceptar su propia compra sería el defecto de autorización más caro
-de este producto.
+### Cómo se declaran y qué los protege
+
+`C-03` y `C-04` envuelven los árboles `FLUJO_CLIENTE_COMPLETO` y `FLUJO_CLIENTE_PARTNER`
+(`src/database/seeders/demo/flujo-cliente-*.seed-data.ts`) con `stagesFromTree`; esos árboles ya no
+se siembran, se conservan porque QA los recorre tal cual. El resto se escribe directamente como
+fixture.
+
+Los gates que corren en CI (job `backend`) sin levantar nada:
+
+| Gate                             | Qué exige                                                                                                                     |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `yarn check:process-narratives`  | Que cada proceso conteste sus cinco preguntas y tenga dueño.                                                                  |
+| `yarn check:process-steps`       | Que cada paso apunte a algo que existe: ruta del Backend por decoradores, ruta de Motor/ERP/Tableros, evento o job registrado. |
+| `yarn check:process-sync`        | Que la última migración `sync-workflow-catalog-N` vuelque lo mismo que dice el código (candado `workflow-catalog.sync-lock.json`). |
+| `yarn check:process-docs`        | Que `docs/processes/` coincida con lo que se generaría.                                                                       |
+
+`test/unit/database/flujos-documentados.spec.ts` comprueba además, contra el inventario de
+controladores, que cada ruta de los árboles de `C-03` y `C-04` existe, que el encuentro en la caja lo
+ejecute el cliente y que la aceptación de la compra sea del comercio.
 
 ### El actor `merchant_user`
 
@@ -80,24 +94,25 @@ reconoce desde siempre (`POST /merchant/auth/login`). Documentar el flujo del co
 el comercio es personal de Atlas y borraría justo lo que ese flujo tiene de particular, que son tres
 autorizaciones distintas.
 
-## Flujo sembrado: `customer_credit_journey` v1
+## Recorrido `customer_credit_journey` v1 (`C-01`)
 
-Sembrado por `src/database/seeders/production/20260728140000-seed-standard-customer-credit-workflow.ts`
-a partir de `src/database/seed-data/customer-credit-workflow.seed-data.ts`. Es el recorrido REAL:
-cada ruta corresponde a un endpoint implementado hoy.
+Declarado en `src/modules/workflow-catalog/definitions/processes/customer-credit-journey.process.fixtures.ts`.
+Cada ruta corresponde a un endpoint implementado hoy (`yarn check:process-steps` lo comprueba).
+Desde la regla eligibility-v2 (migración `sync-workflow-catalog-8`) las referencias personales son
+opcionales y no bloquean la captura de datos.
 
 | Orden | Etapa                          | Módulo              | Actor   | Regla de completitud                                    |
 | ----- | ------------------------------ | ------------------- | ------- | ------------------------------------------------------- |
 | 5     | `credit_catalog` (opcional)    | credit              | interno | manual                                                  |
 | 10    | `registration`                 | customer_onboarding | cliente | sin bloqueador `NO_CREDENTIALS`                         |
 | 20    | `session_bootstrap` (opcional) | sessions            | cliente | manual                                                  |
-| 30    | `data_capture`                 | customer_onboarding | cliente | sin bloqueadores de las 6 secciones + consentimientos   |
+| 30    | `data_capture`                 | customer_onboarding | cliente | sin bloqueadores de 5 secciones + consentimientos       |
 | 30.10 | ↳ `contact_verification`       | customer_onboarding | cliente | sección `contact_verification`                          |
 | 30.20 | ↳ `personal_data`              | customer_onboarding | cliente | sección `personal_data`                                 |
 | 30.30 | ↳ `financial_profile`          | customer_onboarding | cliente | sección `financial_profile`                             |
 | 30.40 | ↳ `address`                    | customer_onboarding | cliente | sección `address`                                       |
 | 30.50 | ↳ `identity_documents`         | customer_onboarding | cliente | sección `identity_documents`                            |
-| 30.60 | ↳ `reference_contacts`         | customer_onboarding | cliente | sección `reference_contacts`                            |
+| 30.60 | ↳ `reference_contacts` (opc.)  | customer_onboarding | cliente | sección `reference_contacts`                            |
 | 30.70 | ↳ `privacy_consents`           | customer_privacy    | cliente | sin bloqueador `CONSENT_MISSING`                        |
 | 40    | `external_evidence` (opcional) | external_data       | sistema | manual                                                  |
 | 50    | `submission`                   | customer_onboarding | cliente | estado ∈ {under_review, active, suspended, rejected}    |
@@ -172,37 +187,43 @@ ninguna petición).
 | `ROUTE_NOT_MAPPED`             | aviso     | Ruta de un dominio que el flujo cubre, sin ningún paso que la represente. |
 
 `status` es `drift_detected` si hay al menos un error. El alcance de `ROUTE_NOT_MAPPED` se limita al
-primer segmento de las rutas ya mapeadas: comparar contra las 250+ rutas del backend produciría un
+primer segmento de las rutas ya mapeadas: comparar contra todas las rutas del backend produciría un
 informe con más ruido que señal.
 
-Complemento estático: `test/unit/workflow-catalog/customer-credit-workflow.seed-data.spec.ts` cruza
-la definición contra los controladores reales, la máquina de estados y los códigos de la regla de
-habilitación en cada corrida de tests, sin base de datos.
+Complemento estático: `yarn check:process-steps` cruza cada paso declarado contra los controladores
+reales, los eventos registrados y los jobs del planificador en cada PR, sin base de datos.
 
 ## Operación
 
 ```bash
-yarn db:migration:up                      # crea las cinco tablas
-yarn db:seed:prod                         # siembra el árbol estándar
-yarn db:seed:verify-prod-idempotency      # verifica que reejecutarlo no duplique filas
-yarn smoke:workflow                       # contra una API levantada: árbol, grafo, transiciones y drift
+yarn db:migration:up        # crea las tablas y vuelca los procesos (migraciones sync-workflow-catalog-N)
+yarn workflows:sync         # sólo en local: vuelca las fixtures sin esperar a una migración nueva
+yarn check:process-sync     # el código y la última migración de procesos dicen lo mismo
+yarn smoke:workflow         # contra una API levantada: árbol, grafo, transiciones y drift
 ```
 
 `yarn smoke:workflow` falla si el informe de consistencia devuelve algún error, de modo que una
 divergencia entre el árbol y los endpoints desplegados rompe el pipeline en vez de pasar inadvertida.
 
-El seeder es idempotente por clave natural y mantiene identificadores estables. Una etapa o paso que
-sale de la definición se marca `_deleted` (no se elimina: si alguien lo referenció, la referencia
-sigue resolviendo); transiciones y dependencias sí se eliminan físicamente, porque son aristas sin
-identidad propia y dejarlas marcadas obligaría a filtrar por `_deleted` en cada recorrido del grafo.
-Nada de esto toca datos de clientes: el seeder solo escribe en las cinco tablas del catálogo.
+El volcado es idempotente por clave natural y mantiene identificadores estables. Una etapa o paso que
+sale de la fixture se marca `_deleted` (no se elimina: si alguien lo referenció, la referencia sigue
+resolviendo); transiciones y dependencias sí se eliminan y se reescriben, porque son aristas sin
+identidad propia. Nada de esto toca datos de clientes: sólo escribe filas del catálogo `workflow_*`.
+En los entornos desplegados los procesos llegan **sólo** por migración; `workflows:sync` es para ver
+en el portal local un proceso que se está escribiendo.
 
-## Cómo publicar una versión nueva
+## Cómo cambiar un proceso
 
-1. Editar `customer-credit-workflow.seed-data.ts` con `version: 'v2'` e `isDefault: false`.
-2. Correr el seeder (o crear uno nuevo si `v1` debe quedar congelada tal cual está sembrada).
-3. Revisar el árbol con `GET /workflows/customer_credit_journey?version=v2` y el informe de
-   consistencia.
-4. Marcar `v1` como `deprecated` y `v2` como `is_default` cuando la revisión termine.
+1. Editar su fixture en `src/modules/workflow-catalog/definitions/processes/`.
+2. Crear una migración `sync-workflow-catalog-N` nueva (mismo patrón que las anteriores) y fijar el
+   candado con `yarn check:process-sync --update <migración>`.
+3. Regenerar la ficha con `yarn docs:processes` y pasar `yarn check:process-narratives`,
+   `yarn check:process-steps` y `yarn check:process-docs`.
+4. Revisar el árbol desplegado con `GET /workflows/:workflowCode` (p. ej. `workflowCode` =
+   `customer_credit_journey`) y el informe `GET /operations/workflows/:workflowCode/consistency`.
 
-Los recorridos históricos siguen siendo explicables: `v1` conserva sus filas intactas.
+El volcado escribe la versión que declara la fixture como `active` y predeterminada
+(`is_default = true`), y el índice único parcial de `workflow_definitions` impide dos predeterminadas
+del mismo código. Por eso hoy **no** se publican dos versiones a la vez: todas las fixtures son `v1`
+y un cambio se edita en su sitio. La historia de un proceso está en git y en la huella de
+`workflow_definitions_sync`. Mantener una `v2` en paralelo exigiría antes cambiar `syncWorkflowCatalog`.

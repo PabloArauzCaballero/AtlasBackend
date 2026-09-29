@@ -53,7 +53,7 @@ Es un contrato por endpoint, no una garantía global. Al añadir un comando nuev
 | Mecanismo | Dónde |
 |---|---|
 | Entrega al menos una vez | El consumidor debe tolerar duplicados |
-| Seeds idempotentes | `yarn db:seed:verify-prod-idempotency` |
+| Seeds idempotentes | `yarn db:seed:pull --if-empty` no repite una carga (marca `atlas_seed.load_log`); `yarn db:seed:demo` son upserts por identificador. No hay gate automático de idempotencia |
 | Migraciones idempotentes | `constraintExists()` + `IF NOT EXISTS` |
 | Reclamo de lote | `pending → processing` evita que dos workers tomen el mismo evento |
 

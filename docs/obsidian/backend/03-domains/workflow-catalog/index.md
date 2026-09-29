@@ -102,7 +102,6 @@ Roles que alcanzan este módulo: `...WORKFLOW_CATALOG_READ_ROLES`, `...WORKFLOW_
 
 - `test/e2e/workflow-catalog/workflow-catalog.spec.ts`
 - `test/e2e/workflow-catalog/workflow-progress-and-operations.spec.ts`
-- `test/unit/workflow-catalog/customer-credit-workflow.seed-data.spec.ts`
 - `test/unit/workflow-catalog/exposed-route-scanner.service.spec.ts`
 - `test/unit/workflow-catalog/workflow-bundle-filter.util.spec.ts`
 - `test/unit/workflow-catalog/workflow-catalog.mapper.spec.ts`
@@ -112,7 +111,6 @@ Roles que alcanzan este módulo: `...WORKFLOW_CATALOG_READ_ROLES`, `...WORKFLOW_
 - `test/unit/workflow-catalog/workflow-consistency.service.spec.ts`
 - `test/unit/workflow-catalog/workflow-graph.builder.spec.ts`
 - `test/unit/workflow-catalog/workflow-progress.service.spec.ts`
-- `test/unit/workflow-catalog/workflow-seeder.spec.ts`
 - `test/unit/workflow-catalog/workflow-stage-order.util.spec.ts`
 - `test/unit/workflow-catalog/workflow-transition.service.spec.ts`
 

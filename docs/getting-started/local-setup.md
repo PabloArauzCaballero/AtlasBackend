@@ -19,7 +19,8 @@ cp .env.example .env          # los valores por defecto ya apuntan a los contene
 
 # 3. Esquema y datos de desarrollo
 yarn db:migration:up
-yarn db:seed:dev
+yarn db:seed:pull --if-empty  # base de semillas de desarrollo (SEED_SOURCE_*; ver database/seeds.md)
+yarn db:seed:demo             # o, sin base de semillas, la siembra demostrativa del repositorio
 
 # 4. Arranque con recarga
 yarn start:dev                # http://localhost:3005
@@ -65,7 +66,8 @@ graph LR
     MIG -->|"exit 0"| WRK["worker<br/>APP_ROLE=worker"]
 ```
 
-`migrate` aplica migraciones y seeders y termina. `api` y `worker` **no arrancan** hasta que sale con
+`migrate` aplica migraciones, trae las semillas si la base aún no las tiene
+(`seed.js pull --if-empty`) y termina. `api` y `worker` **no arrancan** hasta que sale con
 código 0: una API sirviendo contra un esquema a medio migrar es peor que una API que no arranca.
 
 ### Verificación

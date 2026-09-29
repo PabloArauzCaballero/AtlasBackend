@@ -4,7 +4,8 @@
 
 Esta fase implementa el ORM de migraciones, la migración inicial del schema `Atlas_User_Intelligence_Fraud_Schema_v5_2_1` y seeders mínimos de desarrollo.
 
-Se crearon 86 tablas persistentes a partir del PUML.
+En esta entrega se crearon las primeras tablas persistentes a partir del PUML (el inventario vigente
+está en [Cifras reales](../architecture/index.md)).
 
 ## Convención de nombres
 
@@ -21,28 +22,31 @@ yarn db:migration:down
 yarn db:migration:status
 ```
 
-## Comandos de seeders
+## Semillas
+
+Los seeders versionados de esta entrega (`db:seed:create|up|down`, tabla `SequelizeDataSeeders`) ya no
+existen: el dato de semilla vive en una base aparte y se trae con `yarn db:seed:pull`; la siembra
+demostrativa del repositorio es `yarn db:seed:demo`. Ver [Semillas](seeds.md).
 
 ```bash
-yarn db:seed:create -- seed-minimal-dev-credentials
-yarn db:seed:up
-yarn db:seed:down
-yarn db:seed:status
+yarn db:seed:pull     # trae el conjunto publicado (destructivo sobre sus tablas; --if-empty para no pisar)
+yarn db:seed:status   # compara lo publicado con esta base, sin escribir
 ```
 
 ## Decisiones aplicadas
 
 - Se usa Umzug como runner de migraciones TypeScript.
-- Se usa Umzug también para seeders, con una tabla de tracking separada: `SequelizeDataSeeders`.
+- (Histórico) Umzug también corría los seeders, con la tabla de tracking `SequelizeDataSeeders`; hoy las semillas se traen de otra base.
 - La migración inicial crea primero tablas, luego foreign keys, luego checks e índices.
 - No se usa `sequelize.sync`.
 - La nulabilidad es conservadora para evitar bloquear flujos pre-registro y datos capturados progresivamente.
 - Se implementan índices críticos por tenant, hashes, sesiones, dispositivos, features, riesgo, fraude y auditoría.
 - Las tablas `event` quedan documentadas como candidatas a particionamiento mensual, pero no se particionan aún para no sobrecomplicar la primera migración.
 
-## Seed mínimo incluido
+## Seed mínimo incluido (histórico)
 
-El seeder mínimo crea registros para probar una cadena base de uso:
+El seeder mínimo de esta entrega creaba registros para probar una cadena base de uso (hoy los publica
+la base de semillas de desarrollo):
 
 - Tenant.
 - Usuarios internos y plataforma.

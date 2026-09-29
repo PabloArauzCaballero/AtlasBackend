@@ -80,12 +80,32 @@ yarn audit --level high
 - **CVEs:** un `high`/`critical` bloquea el merge. Un falso positivo se documenta en
   `docs/pending/pending-items.md` con el ID del advisory antes de silenciarlo.
 
+## Documentación
+
+CI (job `docs-drift`, exigido por `release-gate`) falla si la documentación cita algo que el código no
+tiene. Córrelo entero en local con `yarn check:docs-drift`:
+
+- **Cifras** (rutas, módulos, migraciones, eventos, trabajos de fondo, pruebas): van entre marcas
+  `<!-- fig:clave -->N<!-- /fig -->` y se reescriben con `yarn docs:figures`. No escribas un número
+  calculable a mano.
+- **Comandos `yarn`** citados en `.md` (spans y bloques de código): tienen que existir en `package.json`.
+- **Rutas HTTP** citadas como `` `GET /ruta` `` en `docs/api`, `endpoints`, `governance`, `security` y
+  `events`: tienen que existir en el contrato; las de otro servicio, con el servicio delante.
+- **Rutas de archivo** citadas como código (`src/…`, `test/…`, `scripts/…`…): tienen que existir; si el
+  texto la cita para decir que se retiró, dilo en la misma línea («retirado»).
+- **Documentos generados**: `yarn docs:events` (catálogo de eventos y AsyncAPI) y `yarn docs:rbac-matrix`.
+  No se editan a mano; el gate compara byte a byte.
+
+Quedan fuera, por ser registros fechados: `docs/audit/`, `evidencia/`, `CHANGELOG.md` y `.claude/`.
+
 ## Migraciones y seeders
 
-- Crea migraciones con `yarn db:migration:create` y seeders con `yarn db:seed:create`.
-- Mantén las migraciones **pequeñas** y acotadas por dominio (el gate `migration-check`
-  las limita). Los seeders de `production/` deben ser **idempotentes** y **sin datos
-  ficticios**.
+- Crea migraciones con `yarn db:migration:create`. Mantén las migraciones **pequeñas** y acotadas
+  por dominio (el gate `yarn check:migrations` bloquea colisiones contra una base vacía).
+- Ya no hay seeders versionados ni `db:seed:create`. El dato de semilla vive en una base aparte y se
+  trae con `yarn db:seed:pull` (ver `docs/database/seeds.md`). La siembra demostrativa del repositorio
+  es `src/database/seeders/demo/` (`yarn db:seed:demo`): upserts por clave natural, sin identificadores
+  de otra base — `yarn check:seed-references` lo exige.
 
 ## Decisiones de arquitectura
 

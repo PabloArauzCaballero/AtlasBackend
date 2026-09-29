@@ -82,5 +82,5 @@ tocar las tablas compartidas.
 
 ## Pruebas
 
-- `test/merchant-identity.spec.ts`: resolución del actor (activo, suspendido, inexistente, rol
+- `test/unit/merchant-identity/merchant-identity.spec.ts`: resolución del actor (activo, suspendido, inexistente, rol
   desconocido), claim `merchantUserId` del token, y las reglas de alta y de cambio de estado.

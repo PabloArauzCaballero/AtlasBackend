@@ -101,9 +101,9 @@ yarn smoke:core && yarn smoke:auth
 > [!info] Verificado — lo que sí es reproducible desde el repositorio
 > | Capacidad | Cómo |
 > |---|---|
-> | Reconstruir el esquema desde cero | `yarn db:migration:up` (61 migraciones idempotentes) |
-> | Datos maestros mínimos | `yarn db:seed:prod`, idempotente y verificable |
-> | Verificar integridad de seeds | `yarn db:seed:verify-graph` |
+> | Reconstruir el esquema desde cero | `yarn db:migration:up` (todas las migraciones versionadas) |
+> | Datos maestros mínimos | `yarn db:seed:pull` apuntando a la base de semillas de producción (sólo dato maestro); `yarn db:seed:status` compara sin escribir |
+> | Verificar integridad de seeds | `yarn db:seed:verify-graph` (relaciones padre → hijo del cliente de demostración; sólo en bases con datos de desarrollo) |
 > | Reproducir el artefacto | Imagen determinista desde CI |
 >
 > **El esquema y los datos maestros no necesitan copia**: se regeneran. Lo que hay que respaldar son los datos de negocio y la clave que los descifra.

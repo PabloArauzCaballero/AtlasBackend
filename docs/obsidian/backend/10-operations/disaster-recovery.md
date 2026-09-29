@@ -24,8 +24,8 @@ related: []
 
 | Capacidad | Cómo |
 |---|---|
-| Reconstruir el esquema | 61 migraciones idempotentes (`yarn db:migration:up`) |
-| Sembrar datos maestros | `yarn db:seed:prod`, idempotente y verificable |
+| Reconstruir el esquema | Migraciones versionadas (`yarn db:migration:up`) |
+| Sembrar datos maestros | `yarn db:seed:pull` contra la base de semillas de producción (sólo dato maestro); `yarn db:seed:status` para comparar |
 | Reproducir el artefacto | Imagen determinista desde CI |
 | Reanudar el trabajo pendiente | Los jobs retoman `pending`; `reclaim_stuck_events` rescata lo atascado |
 | Saber qué versión corre | `GET /health` devuelve versión, commit y fecha de build |

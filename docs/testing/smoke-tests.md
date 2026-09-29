@@ -1,6 +1,6 @@
 # Proyecto ATLAS — Smoke tests locales
 
-Este backend ya trae smoke tests ejecutables para validar que el servidor responde contra PostgreSQL real, usando las migraciones y el seed mínimo de desarrollo.
+Este backend ya trae smoke tests ejecutables para validar que el servidor responde contra PostgreSQL real, usando las migraciones y las semillas de desarrollo.
 
 ## Valores por defecto del seed local
 
@@ -16,7 +16,7 @@ INTERNAL_USER_ID=1
 PLATFORM_USER_ID=1
 ```
 
-El seed local crea esos registros base: tenant demo, usuario interno, cliente demo, dispositivo demo, sesión demo, consentimiento, evaluación de riesgo demo, caso de revisión manual y caso de fraude demo.
+La base de semillas de desarrollo (traída con `yarn db:seed:pull`, ver [Semillas](../database/seeds.md)) publica esos registros base: tenant demo, usuario interno, cliente demo, dispositivo demo, sesión demo, consentimiento, evaluación de riesgo demo, caso de revisión manual y caso de fraude demo.
 
 ## Requisitos previos
 
@@ -25,7 +25,7 @@ En una terminal:
 ```powershell
 yarn install
 yarn db:migration:up
-yarn db:seed:up
+yarn db:seed:pull --if-empty
 yarn type-check
 yarn build
 yarn start:dev

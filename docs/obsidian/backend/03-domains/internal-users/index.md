@@ -120,7 +120,6 @@ Sin rutas HTTP: no aplica autorización de transporte.
 - `test/unit/internal-users/internal-permissions.guard.spec.ts`
 - `test/unit/internal-users/internal-rbac-repository-active-ids.spec.ts`
 - `test/unit/internal-users/internal-rbac.repository.spec.ts`
-- `test/unit/internal-users/internal-rbac.seed-data.spec.ts`
 - `test/unit/internal-users/internal-users.controller.spec.ts`
 - `test/unit/internal-users/internal-users.service.spec.ts`
 

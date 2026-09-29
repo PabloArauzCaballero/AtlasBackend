@@ -19,7 +19,7 @@ efecto es cerrar la ventana en la que un relay v2 muerto podía cerrar una fila 
 ## Línea base local medida (2026-09-12)
 
 Guion: `ATLAS_TEST_DATABASE_ISOLATED=true yarn perf:transition --n 100 --concurrency 10`
-(`scripts/performance/transition-journey-bench.ts`). Evidencia: `docs/testing/evidence/transition-performance-2026-09-12.json`.
+(`test/performance/transition-journey-bench.ts`). Evidencia: `docs/testing/evidence/transition-performance-2026-09-12.json`.
 Máquina de desarrollo (darwin/arm64, Node 22, PostgreSQL local en docker), misma fachada de admisión que la API (sin HTTP),
 relay v2 con consumidor de prueba. **No es una línea base de producción**: fija el método y el orden de magnitud.
 

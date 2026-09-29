@@ -1,15 +1,18 @@
 # Catálogo de entidades
 
-138 tablas en 12 esquemas de dominio. Esta página es el índice navegable; el catálogo **vivo y
+Tablas de negocio en esquemas de dominio (recuento vigente en [Cifras reales](../architecture/index.md)).
+Esta página es un índice navegable **parcial**: se escribió cuando había doce esquemas y no cubre
+`support`, `partner` ni `expedientes`, ni todas las tablas que crecieron después en `credit`,
+`messaging` o `platform_ops`. El inventario completo, tabla por tabla, es
+[`domain-tables.ts`](../../src/database/domain-tables.ts); el catálogo **vivo y
 consultable** vive en la propia base (`system_data_entity_catalog` y tablas hermanas de
-`platform_ops`) y se expone por `GET /operations/systems/data-catalog`.
+`platform_ops`) y se expone por `GET /systems/data-entities` (y `GET /systems/data-entities/:entityId`).
 
-Los dos no compiten: la base tiene el detalle campo a campo y su narrativa de negocio (139 de 139
-entidades catalogadas tienen la suya); esta página dice **dónde mirar** y qué esperar de cada zona.
+Los dos no compiten: la base tiene el detalle campo a campo y su narrativa de negocio (el gate `check:entity-narratives` exige narrativa a toda tabla con modelo ORM); esta página dice **dónde mirar** y qué esperar de cada zona.
 
 ---
 
-## `iam` · Identidad y acceso — 10 tablas
+## `iam` · Identidad y acceso
 
 | Tabla | Propósito | Sensibilidad |
 |---|---|---|
@@ -21,7 +24,7 @@ entidades catalogadas tienen la suya); esta página dice **dónde mirar** y qué
 | `auth_refresh_tokens` | Tokens opacos de refresco | **Secreto** |
 | `auth_one_time_codes` | Códigos de un solo uso (PIN, recuperación) | **Secreto**, TTL corto |
 
-## `customer` · Cliente — 12 tablas
+## `customer` · Cliente
 
 | Tabla | Propósito | Sensibilidad |
 |---|---|---|
@@ -35,34 +38,34 @@ entidades catalogadas tienen la suya); esta página dice **dónde mirar** y qué
 | `customer_reference_contacts` | Referencias personales declaradas | **PII de terceros** |
 | `customer_eligibility_evaluations` | Evidencia persistida de cada cálculo de elegibilidad | Media |
 
-## `privacy` · Privacidad — 11 tablas
+## `privacy` · Privacidad
 
 Consentimientos, finalidades de tratamiento, políticas de retención, clasificación de datos y reglas
 de campos sensibles. Es el esquema que hace auditable el tratamiento de PII: ver
 [Retención y clasificación](retention.md).
 
-## `risk` · Riesgo — 14 tablas
+## `risk` · Riesgo
 
 Definiciones de features, versiones de ruleset, reglas de política, ejecuciones de cálculo y
 evaluaciones. Cada evaluación guarda **qué versión de modelo y de ruleset usó**: sin eso, una decisión
 crediticia no es explicable meses después.
 
-## `catalog` · Catálogos — 17 tablas
+## `catalog` · Catálogos
 
 Catálogos versionados, definiciones semánticas, glosario de negocio y mapeos de riesgo que consume el
 motor de decisión. Es dato de referencia: se siembra en el perfil `production`.
 
-## `telemetry` · Telemetría — 18 tablas
+## `telemetry` · Telemetría
 
 Señales de dispositivo, comportamiento durante el onboarding y sesión. Alimentan features de riesgo y
 fraude.
 
-## `case_management` · Casos — 6 tablas
+## `case_management` · Casos
 
 Casos de fraude, observaciones de back office y su ciclo de revisión. Un caso abierto bloquea la
 elegibilidad (`FRAUD_CASE_OPEN`).
 
-## `integrations` · Proveedores externos — 6 tablas
+## `integrations` · Proveedores externos
 
 | Tabla | Propósito |
 |---|---|
@@ -72,22 +75,22 @@ elegibilidad (`FRAUD_CASE_OPEN`).
 | `provider_health_logs` | Salud e histórico de latencia por proveedor |
 | `external_oauth_connections` | Conexiones OAuth voluntarias |
 
-## `messaging` · Notificaciones — 5 tablas
+## `messaging` · Notificaciones
 
 `notification_messages` (el mensaje y su estado), `notification_deliveries` (cada intento por canal),
 plantillas, preferencias y reglas. `notification_messages` es la cola real de la entrega diferida.
 
-## `audit` · Auditoría — 5 tablas
+## `audit` · Auditoría
 
 `operational_audit_logs` (toda acción de un actor sobre un recurso, con payload redactado) y el
 registro de acciones HTTP. Es lo que permite responder «quién hizo esto y cuándo».
 
-## `credit` · Crédito — 3 tablas
+## `credit` · Crédito
 
 Productos, solicitudes y decisiones. Deliberadamente pequeño: compras, cuotas y comercios están fuera
 del alcance actual.
 
-## `platform_ops` · Plataforma — 31 tablas
+## `platform_ops` · Plataforma
 
 El esquema más grande, y el que no es de negocio: catálogo del propio sistema (endpoints, entidades,
 narrativas), `system_job_runs`, `outbox_events`, `idempotency_keys`, las cinco tablas de

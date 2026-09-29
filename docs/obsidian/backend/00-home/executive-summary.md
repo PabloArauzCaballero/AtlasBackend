@@ -16,6 +16,14 @@ related: []
 
 # Resumen ejecutivo
 
+> [!warning] Instantánea congelada — las cifras NO son las de hoy
+> Esta bóveda describe la revisión `80fc741` (2026-08-06) y no se ha regenerado desde entonces. Sus
+> recuentos (rutas, tablas, esquemas, módulos, migraciones, jobs, eventos) y parte de sus comandos
+> corresponden a esa revisión: el código ha crecido mucho después (más esquemas, módulos y rutas;
+> las semillas salieron del repositorio). Las cifras vigentes están en
+> [Cifras reales](../../../architecture/index.md), que un gate compara con el código, y los comandos
+> vigentes en `package.json`. Úsala para entender el diseño, no como inventario.
+
 ## Qué es Atlas
 
 Un backend de **originación de crédito al consumo** que cubre el ciclo desde que una persona se registra hasta que se decide si se le concede crédito: onboarding con verificación de identidad (KYC), captura de consentimientos, telemetría de dispositivo, enriquecimiento con proveedores de datos externos, cálculo de *features*, evaluación de riesgo, revisión manual de casos y detección de fraude.

@@ -5,32 +5,32 @@ Seguimiento de la implementación del `PLAN_MEJORA_MODELO_DATOS_POSTGRES_ATLAS.m
 | Fase  | Alcance                                                                | Estado                                   | Artefactos                                                                                                                                                                                                                 |
 | ----- | ---------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **0** | Inventario de workload + baseline p50/p95/p99                          | ◑ Scaffolding listo; faltan datos reales | Docs plantilla (`read-workload-inventory.md`, `query-baseline.md`, `view-candidates.md`) + scripts `db:extract-read-workload` y `db:capture-query-baseline`. Los números se llenan desde staging con `pg_stat_statements`. |
-| **1** | Perfiles de seeds (production/development/demo/test) + runner + guards | ✅ Implementada                          | `src/database/seed.ts`, `seed-profiles.ts`, `seeders/{production,development,demo,test}/`, `scripts/check-seed-profile.ts`, tests.                                                                                         |
+| **1** | Perfiles de seeds (production/development/demo/test) + runner + guards | ⤳ Reemplazada                            | Los perfiles y su runner se retiraron: las semillas se traen de una base aparte (`yarn db:seed:pull`, `src/database/seed.ts`) y la base elegida hace de perfil. Ver `docs/database/seeds.md`.                            |
 | **2** | Roles PostgreSQL (owner/migrator/rw/ro) + grants + verificación        | ✅ Implementada                          | `ops/postgres/*.sql`, `docs/database/postgres-roles.md`, `scripts/check-db-privileges.ts`, `DB_READ_*` en env.                                                                                                             |
 | **3** | Schema `read_api` + primera ola de 7 vistas versionadas                | ✅ Implementada                          | `migrations/20260715120000-create-read-api-schema-and-views-v1.ts`, `docs/database/read-models.md`.                                                                                                                        |
 | **4** | Migración de repositorios a las vistas + deprecación de rutas offset   | ◑ Portal admin cubierto                  | Siete endpoints `/internal/views/*` consumen `ReadQueryService`, aplican field picking por allowlist y tenant scope. La migración de rutas públicas/legadas continúa por módulo con medición.                              |
 | **5** | Conexión read-only opcional (segundo pool)                             | ✅ Implementada (opt-in)                 | `read-database.module.ts`, `common/database/read-query.service.ts`, `DB_READ_ENABLED`.                                                                                                                                     |
 | **6** | Materialized views (`mv_*`)                                            | ⏳ Solo con evidencia                    | El plan (§22) exige justificarlas con métricas + job de refresh; no se crean por defecto.                                                                                                                                  |
-| **7** | Gates de CI (seeds, privilegios, vistas, overfetching)                 | ✅ Implementada                          | `scripts/check-*.ts`, `verify-prod-seed-idempotency.ts`, `.github/workflows/ci.yml`.                                                                                                                                       |
+| **7** | Gates de CI (seeds, privilegios, vistas, overfetching)                 | ✅ Implementada                          | `scripts/check-*.ts`, `.github/workflows/ci.yml` (el gate de idempotencia de seeds se retiró con los perfiles).                                                                                                                                       |
 | **8** | Separación física del modelo de escritura por dominio                  | ✅ Implementada                          | 11 schemas de dominio, mapa único `domain-schemas.ts`, migración `20260717120000-*`, modelos ORM explícitos y gate `check:domain-schemas`.                                                                                 |
 
 ## Verificación local ya realizada
 
 - `yarn type-check`, `yarn lint`, `yarn test:unit` (895 tests) en verde.
-- `yarn check:seed-profiles`, `yarn check:overfetching` en verde.
-- Tests unitarios nuevos: `test/unit/database/seed-profile.spec.ts`, `read-query.service.spec.ts`.
+- `yarn check:overfetching` en verde. (`check:seed-profiles` y `seed-profile.spec.ts` se retiraron con los perfiles de seeds.)
+- Tests unitarios nuevos: `read-query.service.spec.ts`.
 
 ## Verificación pendiente contra Postgres real (la corre CI, job `db-and-cache-integration`)
 
 - `yarn db:migration:up` aplica la migración de `read_api` sin error.
-- `yarn db:seed:demo` carga el dataset completo (production + development + demo).
+- `yarn db:seed:demo` carga la siembra demostrativa del repositorio (bloque 900000+).
 - `yarn check:read-api-views` confirma existencia + smoke SELECT + EXPLAIN.
-- `yarn db:seed:verify-prod-idempotency` confirma que los seeders de producción no duplican.
 - `ops/postgres/*.sql` + `yarn check:db-privileges` validan la matriz de privilegios.
 
 ## Notas de decisiones no triviales
 
-- El seeder combinado `internal-rbac-and-pablo` se **dividió**: catálogo RBAC → `production/`, usuario
+- (Histórico, de cuando existían los seeders por perfil; hoy esas filas llegan con la base de
+  semillas.) El seeder combinado `internal-rbac-and-pablo` se **dividió**: catálogo RBAC → `production/`, usuario
   Pablo → `development/`.
 - El ruleset/modelo de riesgo `_id = 101` (del que depende el baseline BNPL productivo) se **movió**
   del seeder demo a un seeder productivo (`production/20260711085000-seed-risk-baseline-ruleset.ts`),

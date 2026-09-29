@@ -229,7 +229,6 @@ export const envBaseSchema = z.object({
   NOTIFICATION_PROVIDER_HTTP_RETRIES: z.coerce.number().int().min(0).max(5).default(1),
   NOTIFICATION_PROVIDER_HTTP_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().max(10_000).default(250),
   NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION: booleanEnvSchema,
-  NOTIFICATION_DEFAULT_LOCALE: z.string().min(2).default('es-BO'),
   /** El país que se le supone a un teléfono sin prefijo: Twilio sólo acepta E.164 y ATLAS guarda muchos nacionales (ver `toE164`). */
   NOTIFICATION_DEFAULT_COUNTRY_CODE: z
     .string()

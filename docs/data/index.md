@@ -1,7 +1,8 @@
 # Datos
 
-PostgreSQL 16 es la fuente de verdad: **138 tablas en 12 esquemas de dominio**, 61 migraciones
-reversibles y 131 modelos Sequelize.
+PostgreSQL 16 es la fuente de verdad: tablas en esquemas de dominio, migraciones versionadas y modelos
+Sequelize. Los recuentos vigentes están en [Cifras reales](../architecture/index.md), que comprueba un
+gate contra el código.
 
 | Si buscas | Ve a |
 |---|---|
