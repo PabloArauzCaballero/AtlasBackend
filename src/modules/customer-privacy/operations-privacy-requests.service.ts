@@ -8,6 +8,7 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import { CustomerPrivacyRepository } from './customer-privacy.repository.js';
 import { allowedTransitions, DATA_SUBJECT_REQUEST_DUE_DAYS, evaluateTransition } from './data-subject-request.state.js';
 import type { OperationsPrivacyRequestsQueryDto, PrivacyRequestTransitionDto } from './operations-privacy-requests.schemas.js';
@@ -57,6 +58,10 @@ export class OperationsPrivacyRequestsService {
     if (query.customerId) {
       bind.customerId = query.customerId;
       filtros.push('d.customer_id = $customerId');
+    }
+    if (query.q) {
+      bind.q = containsLikePattern(query.q.trim());
+      filtros.push('(d.request_code ILIKE $q OR cu.customer_code ILIKE $q)');
     }
     if (query.overdue) {
       bind.overdueCutoff = overdueCutoff;

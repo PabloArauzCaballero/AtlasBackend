@@ -146,6 +146,11 @@ export class PartnerProfileService {
     return this.repository.updateProfile(profile, { mdrRatePercent: mdrRatePercent.toFixed(2) });
   }
 
+  /** Varios expedientes en UNA consulta: la cola de QR los necesitaba uno a uno y en serie. */
+  findManyByIds(tenantId: string, partnerIds: readonly string[]): Promise<PartnerProfileModel[]> {
+    return this.repository.findProfilesByIds(tenantId, partnerIds);
+  }
+
   async requireProfile(tenantId: string, partnerId: string): Promise<PartnerProfileModel> {
     const profile = await this.repository.findProfileById(tenantId, partnerId);
     if (!profile) throw new NotFoundException('Expediente de partner no encontrado.');

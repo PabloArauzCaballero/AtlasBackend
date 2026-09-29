@@ -4,7 +4,7 @@
  * @system expone a operaciones la decisión sobre el expediente del partner.
  */
 import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -13,7 +13,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { InternalPermissions } from '../internal-users/internal-permissions.decorator.js';
 import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
-import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
@@ -27,6 +27,8 @@ import {
   linkErpAccountSchema,
   ListPartnerQueueQueryDto,
   listPartnerQueueQuerySchema,
+  ListPendingQrQueryDto,
+  listPendingQrQuerySchema,
   PartnerDecisionDto,
   partnerDecisionSchema,
   RequestKybReviewDto,
@@ -77,31 +79,29 @@ export class PartnerOperationsController {
    */
   @ApiOperation({
     summary: 'Los QR de cobro que esperan revisión',
-    description: 'Todos los QR en `pending_review` del tenant, el más antiguo primero, con el comercio al que pertenecen.',
+    description:
+      'Una página de los QR en `pending_review` del tenant, el más antiguo primero, con el comercio al que pertenecen y `meta` con el total.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiResponse({ status: 200, description: 'Lista de QR pendientes.' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Página (desde 1).',
+    schema: zodObjectPropertySchemas(listPendingQrQuerySchema).page,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'QR por página (máx. 50): cada tarjeta descarga su imagen.',
+    schema: zodObjectPropertySchemas(listPendingQrQuerySchema).limit,
+  })
+  @ApiResponse({ status: 200, description: 'Página de QR pendientes.' })
   @Get('qr-codes/pending')
-  async listQrPendingReview(@CurrentTenant() tenantId: string) {
-    const pendientes = await this.qr.listPendingReview(tenantId);
-    const perfiles = new Map<string, { legalName: string | null; tradeName: string | null; onboardingStatus: string }>();
-    for (const qr of pendientes) {
-      const partnerId = String(qr.partnerProfileId);
-      if (perfiles.has(partnerId)) continue;
-      const profile = await this.profiles.requireProfile(tenantId, partnerId).catch(() => null);
-      perfiles.set(partnerId, {
-        legalName: profile?.legalName ?? null,
-        tradeName: profile?.tradeName ?? null,
-        onboardingStatus: profile?.onboardingStatus ?? 'unknown',
-      });
-    }
-    return {
-      items: pendientes.map((qr) => ({
-        ...toPartnerQrDto(qr),
-        partnerId: String(qr.partnerProfileId),
-        partner: perfiles.get(String(qr.partnerProfileId)) ?? null,
-      })),
-    };
+  listQrPendingReview(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(listPendingQrQuerySchema)) query: ListPendingQrQueryDto,
+  ) {
+    return this.qr.listPendingReview(tenantId, query);
   }
 
   /**
@@ -145,7 +145,28 @@ export class PartnerOperationsController {
       'Expedientes en `under_review`, el más antiguo primero. Sin esto la pantalla de verificación obligaba a TECLEAR el identificador del comercio, sacado de otra vista.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiResponse({ status: 200, description: 'Lista paginada de expedientes pendientes.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Parte del nombre legal, del nombre comercial o del NIT del comercio.',
+    schema: zodObjectPropertySchemas(listPartnerQueueQuerySchema).q,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Página (desde 1).',
+    schema: zodObjectPropertySchemas(listPartnerQueueQuerySchema).page,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Filas por página (máx. 100).',
+    schema: zodObjectPropertySchemas(listPartnerQueueQuerySchema).limit,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista paginada de expedientes pendientes, con `summary` {total, oldestSubmittedAt} de toda la cola.',
+  })
   @Get('queue')
   listQueue(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listPartnerQueueQuerySchema)) query: ListPartnerQueueQueryDto) {
     return this.verification.listAwaitingDecision(tenantId, query);

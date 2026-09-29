@@ -71,7 +71,10 @@ describe('OutcomeDispatchService', () => {
         }));
       }),
     };
-    const reportModel = { findAll: jest.fn(async (..._args: unknown[]) => rows) };
+    const reportModel = {
+      findAll: jest.fn(async (..._args: unknown[]) => rows),
+      findAndCountAll: jest.fn(async (..._args: unknown[]) => ({ rows, count: rows.length + 40 })),
+    };
     const loanModel = { findAll: jest.fn(async (..._args: unknown[]) => loans) };
     for (const prestamo of loans) {
       (prestamo as Record<string, unknown>).save ??= jest.fn(async () => prestamo);
@@ -87,6 +90,7 @@ describe('OutcomeDispatchService', () => {
       ),
       client,
       rows,
+      reportModel,
     };
   }
 
@@ -168,12 +172,16 @@ describe('OutcomeDispatchService', () => {
     expect(client.recordFacilityOutcomes).not.toHaveBeenCalled();
   });
 
-  it('lista los desenlaces que agotaron los reintentos', async () => {
-    const { service } = build({ rows: [report({ status: 'failed', attempts: 6, lastError: 'HTTP 500' })] });
-    const result = await service.listExhausted('1', 50);
+  it('lista los desenlaces que agotaron los reintentos, paginados y con el total (antes: 100 sin total)', async () => {
+    const { service, reportModel } = build({ rows: [report({ status: 'failed', attempts: 6, lastError: 'HTTP 500' })] });
+    const result = await service.listExhausted('1', { page: 3, limit: 20, loanId: '77' });
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({ decisionExecutionId: '88001', windowDays: 90, attempts: 6 });
+    expect(result.meta).toEqual({ page: 3, limit: 20, total: 41, totalPages: 3 });
+    const options = reportModel.findAndCountAll.mock.calls[0]?.[0] as { where: Record<string, unknown>; limit: number; offset: number };
+    expect(options.where).toMatchObject({ tenantId: '1', loanId: '77', status: 'failed' });
+    expect(options).toMatchObject({ limit: 20, offset: 40 });
   });
 
   /*

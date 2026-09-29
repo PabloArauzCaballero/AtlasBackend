@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction } from 'sequelize';
+import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import {
   PartnerBranchModel,
   PartnerLegalRepresentativeModel,
@@ -140,15 +141,34 @@ export class PartnerOnboardingRepository {
    */
   findProfilesAwaitingDecision(
     tenantId: string,
-    options: { limit: number; offset: number } & RepositoryOptions,
+    options: { limit: number; offset: number; q?: string } & RepositoryOptions,
   ): Promise<{ rows: PartnerProfileModel[]; count: number }> {
+    const where: Record<string | symbol, unknown> = { tenantId, onboardingStatus: 'under_review', deleted: false };
+    if (options.q) {
+      // Nombre legal, nombre comercial o NIT, por parte: la persona busca el comercio como lo conoce.
+      const pattern = containsLikePattern(options.q.trim());
+      where[Op.or] = [{ legalName: { [Op.iLike]: pattern } }, { tradeName: { [Op.iLike]: pattern } }, { taxId: { [Op.iLike]: pattern } }];
+    }
     return this.profileModel.findAndCountAll({
-      where: { tenantId, onboardingStatus: 'under_review', deleted: false },
-      order: [['submittedAt', 'ASC']],
+      where,
+      order: [
+        ['submittedAt', 'ASC'],
+        ['id', 'ASC'],
+      ],
       limit: options.limit,
       offset: options.offset,
       transaction: options.transaction,
     });
+  }
+
+  /** Cuántos esperan y desde cuándo el más antiguo, de TODA la cola (sin búsqueda ni página). */
+  async summarizeAwaitingDecision(tenantId: string): Promise<{ total: number; oldestSubmittedAt: Date | null }> {
+    const where = { tenantId, onboardingStatus: 'under_review', deleted: false };
+    const [total, oldest] = await Promise.all([
+      this.profileModel.count({ where }),
+      this.profileModel.min<Date | null, PartnerProfileModel>('submittedAt', { where }),
+    ]);
+    return { total, oldestSubmittedAt: oldest ?? null };
   }
 
   /**

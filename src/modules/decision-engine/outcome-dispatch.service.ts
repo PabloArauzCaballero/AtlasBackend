@@ -6,6 +6,7 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
+import { buildPaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 import { LoanModel, LoanOutcomeReportModel } from '../../database/models/index.js';
 import { DecisionEngineClient } from './decision-engine.client.js';
 import { FacilityRegistrationService } from './facility-registration.service.js';
@@ -240,15 +241,23 @@ export class OutcomeDispatchService {
    * la medida del modelo, y el equipo de riesgo tiene que poder verlo antes de recalibrar sobre una
    * muestra incompleta.
    */
-  async listExhausted(tenantId: string | null, limit: number) {
-    const rows = await this.reportModel.findAll({
-      where: {
-        status: 'failed',
-        attempts: { [Op.gte]: MAX_ATTEMPTS },
-        ...(tenantId ? { tenantId } : {}),
-      },
-      order: [['observedAt', 'ASC']],
-      limit,
+  async listExhausted(tenantId: string | null, query: { page: number; limit: number; loanId?: string }) {
+    const where = {
+      status: 'failed',
+      attempts: { [Op.gte]: MAX_ATTEMPTS },
+      ...(tenantId ? { tenantId } : {}),
+      ...(query.loanId ? { loanId: query.loanId } : {}),
+    };
+    // Paginado y CONTADO: antes devolvía los 100 más antiguos sin total, y quien recalibraba veía
+    // «100» sin saber si eran todos o sólo el primer corte.
+    const { rows, count } = await this.reportModel.findAndCountAll({
+      where,
+      order: [
+        ['observedAt', 'ASC'],
+        ['id', 'ASC'],
+      ],
+      limit: query.limit,
+      offset: (query.page - 1) * query.limit,
     } as FindOptions);
 
     return {
@@ -261,6 +270,7 @@ export class OutcomeDispatchService {
         lastError: report.lastError,
         observedAt: report.observedAt,
       })),
+      meta: buildPaginationMeta({ page: query.page, limit: query.limit }, count),
     };
   }
 }

@@ -61,6 +61,7 @@ export class OperationsPrivacyRequestsController {
     description: '`true`: sólo las abiertas con el plazo vencido; `false`: todas las demás.',
   })
   @ApiQuery({ name: 'customerId', required: false, schema: filtros.customerId, description: 'Sólo las solicitudes de este cliente.' })
+  @ApiQuery({ name: 'q', required: false, schema: filtros.q, description: 'Parte del código de la solicitud o del código del cliente.' })
   @ApiQuery({ name: 'page', required: false, schema: filtros.page, description: 'Página, desde 1.' })
   @ApiQuery({ name: 'pageSize', required: false, schema: filtros.pageSize, description: 'Solicitudes por página (máximo 100).' })
   @ApiResponse({ status: 200, description: 'Página de solicitudes, metadatos de paginación y resumen de abiertas y vencidas.' })

@@ -51,12 +51,17 @@ function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr 
     createQrCode: jest.fn(async (values: Record<string, unknown>) => ({ ...values, id: '99', status: 'pending_review' })),
     markQrReplaced: jest.fn(async (viejo: Qr, nuevoId: string) => ({ ...viejo, status: 'replaced', replacedById: nuevoId })),
     markQrReviewed: jest.fn(async (target: Qr, review: Record<string, unknown>) => ({ ...target, ...review, verifiedAt: new Date() })),
-    listQrCodesPendingReview: jest.fn(async () => []),
+    listQrCodesPendingReview: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], count: 0 })),
     findBranchById: jest.fn(async () => null),
     listQrCodes: jest.fn(async () => []),
     findPosById: jest.fn(async () => ({ id: '9', status: 'active', partnerProfileId: '7', branchId: '3' })),
   };
-  const profiles = { requireProfile: jest.fn(async () => ({ id: '7', onboardingStatus: 'approved' })) };
+  const profiles = {
+    requireProfile: jest.fn(async () => ({ id: '7', onboardingStatus: 'approved' })),
+    findManyByIds: jest.fn(async (..._args: unknown[]) => [
+      { id: '7', legalName: 'Ferretería Sur SRL', tradeName: 'Ferretería Sur', onboardingStatus: 'approved' },
+    ]),
+  };
   const storage = {
     isConfigured: () => true,
     readObjectMetadata: jest.fn(async () => ({ contentType: 'image/png', sizeBytes: PNG.byteLength, sha256Hex: 'b'.repeat(64) })),
@@ -68,6 +73,34 @@ function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr 
   const revision = new PartnerQrReviewService(network as never, profiles as never, metrics as never);
   return { service, revision, network, profiles, storage, metrics, hooks };
 }
+
+describe('PartnerQrReviewService · cola de QR pendientes', () => {
+  it('pagina en el servidor y resuelve los comercios en UNA consulta, no uno a uno en serie', async () => {
+    const { revision, network, profiles } = construir();
+    network.listQrCodesPendingReview.mockResolvedValueOnce({
+      rows: [
+        qr({ id: '5', partnerProfileId: '7', createdAtValue: new Date() } as unknown as Partial<Qr>),
+        qr({ id: '6', partnerProfileId: '7', createdAtValue: new Date() } as unknown as Partial<Qr>),
+        qr({ id: '8', partnerProfileId: '404', createdAtValue: new Date() } as unknown as Partial<Qr>),
+      ],
+      count: 23,
+    } as never);
+
+    const pagina = await revision.listPendingReview('t1', { page: 3, limit: 10 });
+
+    expect(network.listQrCodesPendingReview).toHaveBeenCalledWith('t1', { limit: 10, offset: 20 });
+    expect(profiles.findManyByIds).toHaveBeenCalledTimes(1);
+    expect(profiles.requireProfile).not.toHaveBeenCalled();
+    expect(pagina.meta).toEqual({ page: 3, limit: 10, total: 23, totalPages: 3 });
+    expect(pagina.items[0]?.partner).toEqual({
+      legalName: 'Ferretería Sur SRL',
+      tradeName: 'Ferretería Sur',
+      onboardingStatus: 'approved',
+    });
+    // Un comercio que ya no existe no se inventa: `partner` es null.
+    expect(pagina.items[2]?.partner).toBeNull();
+  });
+});
 
 describe('PartnerQrReviewService · revisión', () => {
   let ahora: number;

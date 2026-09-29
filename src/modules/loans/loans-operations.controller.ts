@@ -4,18 +4,25 @@
  * @system expone el barrido de mora y la entrega de desenlaces como operaciones explícitas.
  */
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
-import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { OutcomeDispatchService } from '../decision-engine/outcome-dispatch.service.js';
 import { LoanDelinquencyService } from './application/loan-delinquency.service.js';
 import { LoanQueryService } from './application/loan-query.service.js';
-import { type ListLoansQueryDto, listLoansQuerySchema, LoanSweepDto, loanSweepSchema } from './loans.schemas.js';
+import {
+  type ListLoansQueryDto,
+  listLoansQuerySchema,
+  LoanSweepDto,
+  loanSweepSchema,
+  type OutcomeBacklogQueryDto,
+  outcomeBacklogQuerySchema,
+} from './loans.schemas.js';
 
 /**
  * Operación del libro: recalcular mora y entregar desenlaces al motor.
@@ -71,7 +78,14 @@ export class LoansOperationsController {
       'podía abrir un préstamo por número o desde la ficha del cliente.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiResponse({ status: 200, description: 'Préstamos con su comercio, paginados.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description:
+      'Parte del código del préstamo o del código del cliente (sin distinguir mayúsculas); sólo dígitos: también el número exacto del préstamo o del cliente.',
+    schema: zodObjectPropertySchemas(listLoansQuerySchema).q,
+  })
+  @ApiResponse({ status: 200, description: 'Préstamos con su comercio y el código de su cliente, paginados.' })
   @Get()
   list(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listLoansQuerySchema)) query: ListLoansQueryDto) {
     return this.loansQuery.listForStaff(tenantId, query);
@@ -99,11 +113,27 @@ export class LoansOperationsController {
       'quien recalibra sepa que su muestra está incompleta antes de sacar conclusiones de ella.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiResponse({ status: 200, description: 'Observaciones sin entregar.' })
+  @ApiQuery({
+    name: 'loanId',
+    required: false,
+    description: 'Sólo los desenlaces de este préstamo (número interno).',
+    schema: zodObjectPropertySchemas(outcomeBacklogQuerySchema).loanId,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Página (desde 1).',
+    schema: zodObjectPropertySchemas(outcomeBacklogQuerySchema).page,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Filas por página (máx. 500).',
+    schema: zodObjectPropertySchemas(outcomeBacklogQuerySchema).limit,
+  })
+  @ApiResponse({ status: 200, description: 'Observaciones sin entregar, del más antiguo al más reciente, con `meta` y el total.' })
   @Get('outcome-backlog')
-  backlog(@CurrentTenant() tenantId: string, @Query('limit') limit?: string) {
-    const parsed = Number.parseInt(limit ?? '100', 10);
-    const safeLimit = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 500) : 100;
-    return this.outcomes.listExhausted(tenantId, safeLimit);
+  backlog(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(outcomeBacklogQuerySchema)) query: OutcomeBacklogQueryDto) {
+    return this.outcomes.listExhausted(tenantId, query);
   }
 }

@@ -48,6 +48,12 @@ export class OperationsPaymentClaimsController {
     schema: propiedades.olderThanHours,
     description: 'Sólo los avisos con más de estas horas desde que se reportaron.',
   })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    schema: propiedades.q,
+    description: 'Parte del código del aviso, del código del cliente o del nombre (comercial o legal) del comercio.',
+  })
   @ApiQuery({ name: 'page', required: false, schema: propiedades.page, description: 'Página, desde 1.' })
   @ApiQuery({ name: 'pageSize', required: false, schema: propiedades.pageSize, description: 'Avisos por página.' })
   @ApiResponse({ status: 200, description: 'Página de avisos, metadatos de paginación y resumen de la cola.' })

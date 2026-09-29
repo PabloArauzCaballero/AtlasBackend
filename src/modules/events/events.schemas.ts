@@ -38,6 +38,8 @@ export const listEventsQuerySchema = z.object({
   eventCode: z.string().trim().min(1).max(160).optional(),
   aggregateType: z.string().trim().min(1).max(120).optional(),
   correlationId: z.string().trim().min(1).max(120).optional(),
+  /** Parte del código del evento, del tipo de agregado o de la correlación (sin distinguir mayúsculas). */
+  q: z.string().trim().min(1).max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   // Modo de paginación alternativo por cursor (keyset), recomendado sobre

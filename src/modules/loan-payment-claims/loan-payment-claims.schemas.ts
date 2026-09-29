@@ -92,6 +92,8 @@ export const operationsClaimsQuerySchema = z.object({
   partnerId: optionalPositiveId,
   customerId: optionalPositiveId,
   olderThanHours: z.coerce.number().int().positive().max(8760).optional(),
+  /** Parte del código del aviso, del código del cliente o del nombre (comercial o legal) del comercio. */
+  q: z.string().trim().min(1).max(80).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(25),
 });

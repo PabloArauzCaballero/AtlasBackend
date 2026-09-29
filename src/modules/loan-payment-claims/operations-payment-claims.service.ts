@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import type { OperationsClaimsQueryDto } from './loan-payment-claims.schemas.js';
 import { PENDIENTE } from './payment-claims.shared.js';
@@ -22,6 +23,14 @@ export const PAYMENT_CLAIM_STALE_AFTER_HOURS = 48;
 const HORA_MS = 3_600_000;
 
 const tabla = (nombre: string): string => `${atlasSchemaFor(nombre)}.${nombre}`;
+
+/**
+ * Las dos tablas por las que busca `q` (cliente y comercio). Van en la página Y en el conteo: si el
+ * conteo no las tuviera, el total no respetaría la búsqueda y la paginación mentiría.
+ */
+const JOINS_BUSCABLES = `
+        LEFT JOIN ${tabla('customers')} cu ON cu._id = c.customer_id AND cu._tenant_id = c._tenant_id
+        LEFT JOIN ${tabla('partner_profiles')} p ON p._id = c.partner_profile_id AND p._tenant_id = c._tenant_id`;
 
 interface FilaDeAviso {
   claimId: string;
@@ -89,6 +98,10 @@ export class OperationsPaymentClaimsService {
       bind.olderThan = new Date(now.getTime() - query.olderThanHours * HORA_MS);
       filtros.push('c.submitted_at < $olderThan');
     }
+    if (query.q) {
+      bind.q = containsLikePattern(query.q.trim());
+      filtros.push('(c.claim_code ILIKE $q OR cu.customer_code ILIKE $q OR p.trade_name ILIKE $q OR p.legal_name ILIKE $q)');
+    }
     const where = ['c._tenant_id = $tenantId', 'c._deleted = false', ...filtros].join(' AND ');
 
     const [filas, totales, resumen] = await Promise.all([
@@ -96,10 +109,13 @@ export class OperationsPaymentClaimsService {
         type: QueryTypes.SELECT,
         bind: { ...bind, limit: query.pageSize, offset: (query.page - 1) * query.pageSize },
       }),
-      this.sequelize.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM ${tabla('loan_payment_claims')} c WHERE ${where}`, {
-        type: QueryTypes.SELECT,
-        bind,
-      }),
+      this.sequelize.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total FROM ${tabla('loan_payment_claims')} c ${JOINS_BUSCABLES} WHERE ${where}`,
+        {
+          type: QueryTypes.SELECT,
+          bind,
+        },
+      ),
       this.sequelize.query<{ pending: string; stale: string }>(
         `SELECT COUNT(*) FILTER (WHERE c.status = $pendiente)::text AS pending,
                 COUNT(*) FILTER (WHERE c.status = $pendiente AND c.submitted_at < $staleCutoff)::text AS stale
@@ -142,9 +158,8 @@ export class OperationsPaymentClaimsService {
         FROM ${tabla('loan_payment_claims')} c
         LEFT JOIN ${tabla('loans')} l ON l._id = c.loan_id AND l._tenant_id = c._tenant_id
         LEFT JOIN ${tabla('loan_installments')} i ON i._id = c.installment_id AND i._tenant_id = c._tenant_id
-        LEFT JOIN ${tabla('customers')} cu ON cu._id = c.customer_id AND cu._tenant_id = c._tenant_id
+        ${JOINS_BUSCABLES}
         LEFT JOIN ${tabla('customer_profile_versions')} pv ON pv._id = cu.current_profile_version_id AND pv._tenant_id = c._tenant_id
-        LEFT JOIN ${tabla('partner_profiles')} p ON p._id = c.partner_profile_id AND p._tenant_id = c._tenant_id
        WHERE ${where}
        ORDER BY (c.status = $pendiente) DESC,
                 CASE WHEN c.status = $pendiente THEN c.submitted_at END ASC,

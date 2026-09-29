@@ -13,6 +13,7 @@ import { OutboxEventModel } from '../../database/models/index.js';
 import { getEventDefinition, listEventDefinitions } from './event-registry.js';
 import { CLAIM_PENDING_EVENTS_SQL, EVENT_LOCK_EXPIRED_MESSAGE, RECLAIM_STUCK_EVENTS_SQL } from './outbox-queries.constants.js';
 import { ListEventsQueryDto } from './events.schemas.js';
+import { eventListWhere } from './events-list.where.js';
 import { PublishEventInput } from './event-types.js';
 import { destinationsFor, enqueueOutboundDeliveries } from '../../platform/events/outbound-subscriptions.js';
 
@@ -118,13 +119,8 @@ export class EventsRepository {
   }
 
   async list(tenantId: string, query: ListEventsQueryDto): Promise<{ rows: OutboxEventModel[]; count: number }> {
-    const where: WhereOptions = { tenantId } as never;
-    if (query.status) (where as Record<string, unknown>).status = query.status;
-    if (query.eventCode) (where as Record<string, unknown>).eventCode = query.eventCode;
-    if (query.aggregateType) (where as Record<string, unknown>).aggregateType = query.aggregateType;
-    if (query.correlationId) (where as Record<string, unknown>).correlationId = query.correlationId;
     return this.outboxModel.findAndCountAll({
-      where,
+      where: eventListWhere(tenantId, query) as WhereOptions,
       order: [
         ['createdAtValue', 'DESC'],
         ['id', 'DESC'],
@@ -146,17 +142,13 @@ export class EventsRepository {
     query: ListEventsQueryDto,
     cursorKey: { createdAt: string; id: string } | null,
   ): Promise<OutboxEventModel[]> {
-    const where: Record<string, unknown> = { tenantId };
-    if (query.status) where.status = query.status;
-    if (query.eventCode) where.eventCode = query.eventCode;
-    if (query.aggregateType) where.aggregateType = query.aggregateType;
-    if (query.correlationId) where.correlationId = query.correlationId;
+    const where = eventListWhere(tenantId, query);
 
     if (cursorKey) {
       // Comparación de tupla: equivalente a "más viejo que la última fila de la página
       // anterior", sin importar cuántas filas haya antes — el índice compuesto
       // (created_at DESC, id DESC) hace este filtro directo, no un escaneo.
-      where[Op.and as unknown as string] = [
+      where[Op.and] = [
         {
           [Op.or]: [
             { createdAtValue: { [Op.lt]: new Date(cursorKey.createdAt) } },
@@ -178,6 +170,18 @@ export class EventsRepository {
       ],
       limit: query.limit + 1,
     });
+  }
+
+  /** Cuántos eventos hay en cada estado con los MISMOS filtros menos el de estado (`summary.byStatus`). */
+  async countByStatus(tenantId: string, query: ListEventsQueryDto): Promise<Record<string, number>> {
+    const rows = (await this.outboxModel.count({
+      where: eventListWhere(tenantId, query, false) as WhereOptions,
+      group: ['status'],
+    })) as unknown as {
+      status: string;
+      count: number | string;
+    }[];
+    return Object.fromEntries(rows.map((row) => [row.status, Number(row.count)]));
   }
 
   async getById(tenantId: string, eventId: string): Promise<OutboxEventModel> {

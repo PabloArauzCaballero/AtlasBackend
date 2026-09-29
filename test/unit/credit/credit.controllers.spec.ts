@@ -79,7 +79,10 @@ describe('CreditOperationsController', () => {
     const businessAcceptance = { decide: jest.fn(async (input: unknown) => input) };
     // Operaciones puede pedir a mano el recalculo de una linea; el motor es quien decide.
     const creditLines = { recalculate: jest.fn(async (..._args: unknown[]) => ({ id: '1' })) };
+    // Activar, suspender o retirar un producto: transición válida y auditoría, en su propio servicio.
+    const productStatus = { changeStatus: jest.fn(async (input: unknown) => input) };
     return {
+      productStatus,
       productService,
       decisionService,
       businessAcceptance,
@@ -89,6 +92,7 @@ describe('CreditOperationsController', () => {
         decisionService as never,
         businessAcceptance as never,
         creditLines as never,
+        productStatus as never,
       ),
     };
   }
@@ -115,13 +119,14 @@ describe('CreditOperationsController', () => {
     expect(productService.createProduct).toHaveBeenCalledWith({ tenantId: '7', body, currentUser: operatorUser });
   });
 
-  it('delega el cambio de estado usando solo el estado validado', async () => {
-    const { controller, productService } = build();
+  it('delega el cambio de estado CON el motivo (antes se descartaba) al servicio que valida y audita', async () => {
+    const { controller, productStatus } = build();
     await controller.changeProductStatus('7', { productId: '21' }, { status: 'active', reasonCode: 'approved' }, operatorUser);
-    expect(productService.changeStatus).toHaveBeenCalledWith({
+    expect(productStatus.changeStatus).toHaveBeenCalledWith({
       tenantId: '7',
       productId: '21',
       status: 'active',
+      reasonCode: 'approved',
       currentUser: operatorUser,
     });
   });

@@ -19,6 +19,7 @@ import {
   OperationalAuditLogModel,
 } from '../../database/models/index.js';
 import { WorkQueueQueryDto } from './operations.schemas.js';
+import { fraudQueueWhere, manualReviewQueueWhere, QueueFilter, SqlEscape } from './operations-queue.where.js';
 
 /**
  * Repositorio de operaciones.
@@ -46,14 +47,30 @@ export class OperationsQueueRepository {
     private readonly identityAttemptModel: typeof IdentityVerificationAttemptModel,
   ) {}
 
-  async findManualReviewCasesForQueue(tenantId: string, query: WorkQueueQueryDto) {
-    const where: WhereOptions = {
-      tenantId,
-      deleted: { [Op.ne]: true },
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.priority ? { priority: query.priority } : {}),
-      ...(query.customerId ? { customerId: query.customerId } : {}),
+  /** El `escape` de la conexión; sólo se pide cuando hay texto que buscar. */
+  private escapeWith(model: { sequelize?: { escape: (value: string) => string } | null }): SqlEscape {
+    return (value) => {
+      if (!model.sequelize) throw new Error('La cola necesita la conexión del modelo para escapar la búsqueda.');
+      return model.sequelize.escape(value);
     };
+  }
+
+  /** Cuántos casos de revisión manual cumplen los filtros: el `summary.byType` de la cola. */
+  countManualReviewCases(tenantId: string, filter: QueueFilter): Promise<number> {
+    return this.manualReviewCaseModel.count({
+      where: manualReviewQueueWhere(tenantId, filter, this.escapeWith(this.manualReviewCaseModel)) as WhereOptions,
+    });
+  }
+
+  /** Cuántos casos de fraude cumplen los filtros: el `summary.byType` de la cola. */
+  countFraudCases(tenantId: string, filter: QueueFilter): Promise<number> {
+    return this.fraudCaseModel.count({
+      where: fraudQueueWhere(tenantId, filter, this.escapeWith(this.fraudCaseModel)) as WhereOptions,
+    });
+  }
+
+  async findManualReviewCasesForQueue(tenantId: string, query: WorkQueueQueryDto) {
+    const where = manualReviewQueueWhere(tenantId, query, this.escapeWith(this.manualReviewCaseModel)) as WhereOptions;
 
     const orderField = query.sortBy === 'updatedAt' ? 'updatedAtValue' : 'createdAtValue';
     const orderDir = query.sortOrder.toUpperCase() as 'ASC' | 'DESC';
@@ -97,21 +114,15 @@ export class OperationsQueueRepository {
    */
   async findManualReviewCasesForQueueWithCursor(
     tenantId: string,
-    query: { status?: string; priority?: string; customerId?: string; sortBy: 'createdAt' | 'updatedAt'; limit: number; cursor?: string },
+    query: QueueFilter & { sortBy: 'createdAt' | 'updatedAt'; limit: number; cursor?: string },
   ): Promise<{ items: ManualReviewCaseModel[]; nextCursor: string | null }> {
     const orderField = query.sortBy === 'updatedAt' ? 'updatedAtValue' : 'createdAtValue';
 
-    const where: Record<string, unknown> = {
-      tenantId,
-      deleted: { [Op.ne]: true },
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.priority ? { priority: query.priority } : {}),
-      ...(query.customerId ? { customerId: query.customerId } : {}),
-    };
+    const where: Record<string | symbol, unknown> = manualReviewQueueWhere(tenantId, query, this.escapeWith(this.manualReviewCaseModel));
 
     const cursorKey = decodeCursor(query.cursor);
     if (cursorKey) {
-      where[Op.and as unknown as string] = [
+      where[Op.and] = [
         {
           [Op.or]: [
             { [orderField]: { [Op.lt]: new Date(cursorKey.createdAt) } },
@@ -140,13 +151,7 @@ export class OperationsQueueRepository {
   }
 
   async findFraudCasesForQueue(tenantId: string, query: WorkQueueQueryDto) {
-    const where: WhereOptions = {
-      tenantId,
-      deleted: { [Op.ne]: true },
-      ...(query.status ? { caseStatus: query.status } : {}),
-      ...(query.priority ? { severity: query.priority } : {}),
-      ...(query.customerId ? { customerId: query.customerId } : {}),
-    };
+    const where = fraudQueueWhere(tenantId, query, this.escapeWith(this.fraudCaseModel)) as WhereOptions;
 
     const orderField = query.sortBy === 'updatedAt' ? 'updatedAtValue' : 'createdAtValue';
     const orderDir = query.sortOrder.toUpperCase() as 'ASC' | 'DESC';
@@ -173,21 +178,15 @@ export class OperationsQueueRepository {
    */
   async findFraudCasesForQueueWithCursor(
     tenantId: string,
-    query: { status?: string; priority?: string; customerId?: string; sortBy: 'createdAt' | 'updatedAt'; limit: number; cursor?: string },
+    query: QueueFilter & { sortBy: 'createdAt' | 'updatedAt'; limit: number; cursor?: string },
   ): Promise<{ items: FraudCaseModel[]; nextCursor: string | null }> {
     const orderField = query.sortBy === 'updatedAt' ? 'updatedAtValue' : 'createdAtValue';
 
-    const where: Record<string, unknown> = {
-      tenantId,
-      deleted: { [Op.ne]: true },
-      ...(query.status ? { caseStatus: query.status } : {}),
-      ...(query.priority ? { severity: query.priority } : {}),
-      ...(query.customerId ? { customerId: query.customerId } : {}),
-    };
+    const where: Record<string | symbol, unknown> = fraudQueueWhere(tenantId, query, this.escapeWith(this.fraudCaseModel));
 
     const cursorKey = decodeCursor(query.cursor);
     if (cursorKey) {
-      where[Op.and as unknown as string] = [
+      where[Op.and] = [
         {
           [Op.or]: [
             { [orderField]: { [Op.lt]: new Date(cursorKey.createdAt) } },

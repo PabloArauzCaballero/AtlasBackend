@@ -10,6 +10,8 @@ export type WorkQueueItemDto = {
   caseId: string;
   caseCode: string | null;
   customerId: string | null;
+  /** El código del cliente (`CUS-…`), que es lo que la persona de operaciones reconoce y busca. */
+  customerCode: string | null;
   priority: string | null;
   status: string | null;
   reasonCode: string | null;
@@ -26,9 +28,25 @@ export type WorkQueueItemDto = {
   createdAt: string;
 };
 
+/**
+ * Cuántos casos de cada cola cumplen los filtros (sin el de la cola): las cifras de las pestañas.
+ * Una cola que el rol no puede ver NO aparece —ni como cero—: `fraud_analyst` sólo recibe `fraud`.
+ */
+export type WorkQueueSummaryDto = {
+  byType: Partial<Record<WorkQueueItemDto['workItemType'], number>>;
+};
+
 export type PaginatedWorkQueueResponseDto = {
   items: WorkQueueItemDto[];
   meta: PaginationMeta;
+  summary: WorkQueueSummaryDto;
+};
+
+/** Una página por cursor, con el total que cumple los filtros (antes no había forma de saberlo). */
+export type CursorWorkQueueResponseDto = {
+  items: WorkQueueItemDto[];
+  nextCursor: string | null;
+  total: number;
 };
 
 /** Una fila de la cola «contactos sin verificar»: quién, qué contacto y desde cuándo espera. */

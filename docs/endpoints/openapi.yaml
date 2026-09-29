@@ -17943,8 +17943,9 @@ paths:
         - credit
     post:
       description: >-
-        El producto nace en `draft`: activarlo es una decisión aparte y
-        auditable, no un efecto de haberlo creado.
+        El producto nace en `draft`: activarlo es una decisión aparte (`PATCH
+        …/status`, con motivo y registrada en la auditoría operativa), no un
+        efecto de haberlo creado.
       operationId: CreditOperationsController_createProduct
       parameters:
         - $ref: '#/components/parameters/TenantId'
@@ -18045,6 +18046,11 @@ paths:
         - credit
   /operations/credit/products/{productId}/status:
     patch:
+      description: >-
+        Transiciones permitidas: draft→active|retired, active→suspended|retired,
+        suspended→active|retired; retired es terminal. El cambio y su registro
+        en la auditoría operativa (`credit.product.status_changed`: actor,
+        estado anterior y nuevo, motivo) se escriben en la misma transacción.
       operationId: CreditOperationsController_changeProductStatus
       parameters:
         - name: productId
@@ -18094,7 +18100,7 @@ paths:
         '404':
           description: CREDIT_PRODUCT_NOT_FOUND.
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: CREDIT_PRODUCT_STATUS_TRANSITION_NOT_ALLOWED.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -18112,11 +18118,50 @@ paths:
         /customer-onboarding/:customerId/contact-verification/request).
       operationId: OperationsController_listPendingContactVerification
       parameters:
+        - name: limit
+          required: false
+          in: query
+          description: Filas por página (máx. 100).
+          schema:
+            default: 25
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+        - name: page
+          required: false
+          in: query
+          description: Página (desde 1).
+          schema:
+            default: 1
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 9007199254740991
+        - name: contactType
+          required: false
+          in: query
+          description: Sólo correos (`email`) o sólo teléfonos (`phone`).
+          schema:
+            type: string
+            enum:
+              - email
+              - phone
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Código del cliente, dominio del correo o últimos 4 caracteres del
+            contacto (coincidencia parcial).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Lista de contactos sin verificar, del más reciente al más antiguo.
+          description: >-
+            Contactos sin verificar del más reciente al más antiguo, con `meta`
+            y `summary` {total, email, phone} de toda la cola.
           content:
             application/json:
               schema:
@@ -20109,7 +20154,8 @@ paths:
     get:
       description: >-
         Soporta paginación por offset (page/limit) o por cursor
-        (pagination=cursor).
+        (pagination=cursor). Por offset trae `summary.byStatus`: cuántos eventos
+        hay en cada estado con los mismos filtros salvo `status`.
       operationId: EventsController_listEvents
       parameters:
         - name: cursor
@@ -20154,6 +20200,16 @@ paths:
             exclusiveMinimum: 0
             maximum: 9007199254740991
           description: Página solicitada, empezando en 1.
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Parte del código del evento, del tipo de agregado o de la
+            correlación (sin distinguir mayúsculas).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
         - name: correlationId
           required: false
           in: query
@@ -20469,6 +20525,16 @@ paths:
     get:
       operationId: OperationsController_getFraudCasesCursorPage
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Código del cliente o del caso (coincidencia parcial); sólo dígitos:
+            también el número del caso o del cliente.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
         - name: cursor
           required: false
           in: query
@@ -20494,7 +20560,9 @@ paths:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Página de casos de fraude.
+          description: >-
+            Página de casos de fraude, con `total` de los que cumplen los
+            filtros.
           content:
             application/json:
               schema:
@@ -21328,11 +21396,22 @@ paths:
         número o desde la ficha del cliente.
       operationId: LoansOperationsController_list
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Parte del código del préstamo o del código del cliente (sin
+            distinguir mayúsculas); sólo dígitos: también el número exacto del
+            préstamo o del cliente.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Préstamos con su comercio, paginados.
+          description: Préstamos con su comercio y el código de su cliente, paginados.
           content:
             application/json:
               schema:
@@ -21410,18 +21489,37 @@ paths:
       operationId: LoansOperationsController_backlog
       parameters:
         - name: limit
-          required: true
+          required: false
           in: query
+          description: Filas por página (máx. 500).
+          schema:
+            default: 25
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: page
+          required: false
+          in: query
+          description: Página (desde 1).
+          schema:
+            default: 1
+            type: integer
+            minimum: 1
+            maximum: 9007199254740991
+        - name: loanId
+          required: false
+          in: query
+          description: Sólo los desenlaces de este préstamo (número interno).
           schema:
             type: string
-          description: >-
-            Tamaño de página. El backend impone un máximo por endpoint; pedir
-            más lo recorta en vez de fallar.
+            pattern: ^[1-9][0-9]*$
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Observaciones sin entregar.
+          description: >-
+            Observaciones sin entregar, del más antiguo al más reciente, con
+            `meta` y el total.
           content:
             application/json:
               schema:
@@ -21563,6 +21661,16 @@ paths:
     get:
       operationId: OperationsController_getManualReviewCasesCursorPage
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Código del cliente o del caso (coincidencia parcial); sólo dígitos:
+            también el número del caso o del cliente.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
         - name: cursor
           required: false
           in: query
@@ -21588,7 +21696,9 @@ paths:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Página de casos de revisión manual.
+          description: >-
+            Página de casos de revisión manual, con `total` de los que cumplen
+            los filtros.
           content:
             application/json:
               schema:
@@ -23828,15 +23938,33 @@ paths:
   /operations/partners/qr-codes/pending:
     get:
       description: >-
-        Todos los QR en `pending_review` del tenant, el más antiguo primero, con
-        el comercio al que pertenecen.
+        Una página de los QR en `pending_review` del tenant, el más antiguo
+        primero, con el comercio al que pertenecen y `meta` con el total.
       operationId: PartnerOperationsController_listQrPendingReview
       parameters:
+        - name: limit
+          required: false
+          in: query
+          description: 'QR por página (máx. 50): cada tarjeta descarga su imagen.'
+          schema:
+            default: 10
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 50
+        - name: page
+          required: false
+          in: query
+          description: Página (desde 1).
+          schema:
+            default: 1
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 9007199254740991
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Lista de QR pendientes.
+          description: Página de QR pendientes.
           content:
             application/json:
               schema:
@@ -23864,11 +23992,39 @@ paths:
         comercio, sacado de otra vista.
       operationId: PartnerOperationsController_listQueue
       parameters:
+        - name: limit
+          required: false
+          in: query
+          description: Filas por página (máx. 100).
+          schema:
+            default: 25
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+        - name: page
+          required: false
+          in: query
+          description: Página (desde 1).
+          schema:
+            default: 1
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 9007199254740991
+        - name: q
+          required: false
+          in: query
+          description: Parte del nombre legal, del nombre comercial o del NIT del comercio.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Lista paginada de expedientes pendientes.
+          description: >-
+            Lista paginada de expedientes pendientes, con `summary` {total,
+            oldestSubmittedAt} de toda la cola.
           content:
             application/json:
               schema:
@@ -24177,6 +24333,16 @@ paths:
             exclusiveMinimum: 0
             maximum: 9007199254740991
           description: Página, desde 1.
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
+          description: >-
+            Parte del código del aviso, del código del cliente o del nombre
+            (comercial o legal) del comercio.
         - name: olderThanHours
           required: false
           in: query
@@ -24262,6 +24428,14 @@ paths:
             exclusiveMinimum: 0
             maximum: 9007199254740991
           description: Página, desde 1.
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
+          description: Parte del código de la solicitud o del código del cliente.
         - name: customerId
           required: false
           in: query
@@ -25478,11 +25652,24 @@ paths:
   /operations/work-queue:
     get:
       description: >-
-        Vista paginada por OFFSET que combina ambas colas ordenadas por fecha.
-        Para volúmenes altos, usar las variantes por cursor (manual-review-cases
-        / fraud-cases).
+        Vista paginada por OFFSET que combina ambas colas ordenadas por fecha,
+        con `summary.byType` (cuántos casos de cada cola cumplen los filtros,
+        sin contar el de la cola). `fraud_analyst` entra sólo con `queue=fraud`
+        (otra cola: 403 WORK_QUEUE_FRAUD_ONLY) y su resumen no trae la revisión
+        manual. Para volúmenes altos, usar las variantes por cursor
+        (manual-review-cases / fraud-cases).
       operationId: OperationsController_getWorkQueue
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Código del cliente o del caso (coincidencia parcial); sólo dígitos:
+            también el número del caso o del cliente.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
         - name: priority
           required: false
           in: query
@@ -25516,7 +25703,7 @@ paths:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Cola de trabajo paginada.
+          description: Cola de trabajo paginada, con `summary.byType`.
           content:
             application/json:
               schema:
@@ -25526,7 +25713,9 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: >-
+            WORK_QUEUE_FRAUD_ONLY — `fraud_analyst` pidió una cola que no es la
+            de fraude.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':

@@ -40,13 +40,20 @@ export class EventsController {
 
   @ApiOperation({
     summary: 'Listar eventos de dominio (outbox)',
-    description: 'Soporta paginación por offset (page/limit) o por cursor (pagination=cursor).',
+    description:
+      'Soporta paginación por offset (page/limit) o por cursor (pagination=cursor). Por offset trae `summary.byStatus`: cuántos eventos hay en cada estado con los mismos filtros salvo `status`.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(listEventsQuerySchema).status })
   @ApiQuery({ name: 'eventCode', required: false, schema: zodObjectPropertySchemas(listEventsQuerySchema).eventCode })
   @ApiQuery({ name: 'aggregateType', required: false, schema: zodObjectPropertySchemas(listEventsQuerySchema).aggregateType })
   @ApiQuery({ name: 'correlationId', required: false, schema: zodObjectPropertySchemas(listEventsQuerySchema).correlationId })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Parte del código del evento, del tipo de agregado o de la correlación (sin distinguir mayúsculas).',
+    schema: zodObjectPropertySchemas(listEventsQuerySchema).q,
+  })
   @ApiQuery({ name: 'page', required: false, schema: zodObjectPropertySchemas(listEventsQuerySchema).page })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(listEventsQuerySchema).limit })
   @ApiQuery({ name: 'pagination', required: false, schema: zodObjectPropertySchemas(listEventsQuerySchema).pagination })

@@ -19,6 +19,8 @@ export const operationsPrivacyRequestsQuerySchema = z.object({
   type: z.enum(DATA_SUBJECT_REQUEST_TYPES).optional(),
   overdue: z.enum(['true', 'false']).optional(),
   customerId: positiveId.optional(),
+  /** Parte del código de la solicitud o del código del cliente. */
+  q: z.string().trim().min(1).max(80).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(25),
 });

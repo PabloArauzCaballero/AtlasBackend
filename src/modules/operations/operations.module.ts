@@ -24,6 +24,7 @@ import { OperationsController } from './operations.controller.js';
 import { OperationsRepository } from './operations.repository.js';
 import { OperationsQueueRepository } from './operations-queue.repository.js';
 import { OperationsService } from './operations.service.js';
+import { OperationsWorkQueueService } from './operations-work-queue.service.js';
 import { PendingContactVerificationService } from './pending-contact-verification.service.js';
 
 @Module({
@@ -47,6 +48,12 @@ import { PendingContactVerificationService } from './pending-contact-verificatio
     CustomerTelemetryModule,
   ],
   controllers: [OperationsController],
-  providers: [OperationsRepository, OperationsQueueRepository, OperationsService, PendingContactVerificationService],
+  providers: [
+    OperationsRepository,
+    OperationsQueueRepository,
+    OperationsService,
+    OperationsWorkQueueService,
+    PendingContactVerificationService,
+  ],
 })
 export class OperationsModule {}

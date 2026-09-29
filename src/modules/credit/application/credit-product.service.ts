@@ -3,7 +3,7 @@
  * @business Esta pieza materializa la oferta y solicitud de crédito solo para clientes habilitados y con decisiones explicables.
  * @system coordina productos, solicitudes, transiciones y eventos inmutables del ciclo de crédito.
  */
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
@@ -88,7 +88,7 @@ export class CreditProductService {
       annualInterestRate: input.body.annualInterestRate?.toFixed(4) ?? null,
       minMonthlyIncome: input.body.minMonthlyIncome?.toFixed(2) ?? null,
       requiresManualReview: input.body.requiresManualReview,
-      // Nace en `draft`: activarlo es una decisión aparte y auditable, no un efecto de crearlo.
+      // Nace en `draft`: activarlo es una decisión aparte (con motivo, en la auditoría operativa), no un efecto de crearlo.
       status: 'draft',
       effectiveFrom: input.body.effectiveFrom ? new Date(input.body.effectiveFrom) : null,
       effectiveUntil: input.body.effectiveUntil ? new Date(input.body.effectiveUntil) : null,
@@ -101,12 +101,5 @@ export class CreditProductService {
     return { productId: String(product.id), productCode: product.productCode, status: product.status };
   }
 
-  async changeStatus(input: { tenantId: string; productId: string; status: string; currentUser: AuthenticatedUser }) {
-    const product = await this.creditRepository.findProductById(input.tenantId, input.productId);
-    if (!product) throw new NotFoundException('CREDIT_PRODUCT_NOT_FOUND');
-
-    const previousStatus = product.status;
-    await this.creditRepository.updateProductStatus(product, input.status, new Date());
-    return { productId: input.productId, previousStatus, status: input.status };
-  }
+  // Activar, suspender y retirar viven en `CreditProductStatusService`: transición válida y auditoría.
 }

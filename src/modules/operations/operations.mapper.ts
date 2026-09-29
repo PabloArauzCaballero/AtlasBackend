@@ -33,6 +33,8 @@ export function toManualReviewWorkItem(caseModel: ManualReviewCaseModel): WorkQu
     caseId: String(caseModel.id),
     caseCode: caseModel.caseCode,
     customerId: caseModel.customerId === null ? null : String(caseModel.customerId),
+    // Lo resuelve el servicio de la cola, de una vez para toda la página.
+    customerCode: null,
     priority: caseModel.priority,
     status: caseModel.status,
     reasonCode: caseModel.caseType,
@@ -48,6 +50,7 @@ export function toFraudWorkItem(caseModel: FraudCaseModel): WorkQueueItemDto {
     caseId: String(caseModel.id),
     caseCode: caseModel.caseCode,
     customerId: caseModel.customerId === null ? null : String(caseModel.customerId),
+    customerCode: null,
     priority: caseModel.severity,
     status: caseModel.caseStatus,
     reasonCode: caseModel.patternDetected,

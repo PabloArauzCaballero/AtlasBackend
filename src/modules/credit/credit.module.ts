@@ -19,6 +19,7 @@ import {
   LoanInstallmentModel,
   LoanModel,
   ManualReviewCaseModel,
+  OperationalAuditLogModel,
 } from '../../database/models/index.js';
 import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboarding.module.js';
 import { CustomersModule } from '../customers/customers.module.js';
@@ -40,6 +41,8 @@ import { CreditLineService } from './application/credit-line.service.js';
 import { CreditLineRecalculationService } from './application/credit-line-recalculation.service.js';
 import { CreditApplicationAdmissionService } from './application/credit-application-admission.service.js';
 import { CreditProductService } from './application/credit-product.service.js';
+import { CreditProductStatusService } from './application/credit-product-status.service.js';
+import { CreditProductAuditRepository } from './credit-product-audit.repository.js';
 import { CreditProductUsuryCheckService } from './application/credit-product-usury-check.service.js';
 import { PaymentCapacityService } from './application/payment-capacity.service.js';
 import { MerchantCreditController } from './merchant-credit.controller.js';
@@ -90,6 +93,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
       CustomerModel,
       // El caso PROPIO de Atlas para una solicitud que el Motor mandó a revisión sin abrir el suyo (C-1).
       ManualReviewCaseModel,
+      // La huella de activar, suspender o retirar un producto (quién, de qué a qué y por qué).
+      OperationalAuditLogModel,
     ]),
     CustomersModule,
     DecisionEngineModule,
@@ -117,6 +122,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     CreditRepository,
     CreditReviewCaseRepository,
     CreditProductService,
+    CreditProductStatusService,
+    CreditProductAuditRepository,
     CreditApplicationService,
     CreditDecisionService,
     CreditLineService,
