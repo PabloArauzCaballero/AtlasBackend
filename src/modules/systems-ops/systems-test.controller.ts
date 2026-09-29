@@ -60,6 +60,12 @@ export class SystemsTestController {
   @ApiQuery({ name: 'module', required: false, schema: zodObjectPropertySchemas(systemsSuiteQuerySchema).module })
   @ApiQuery({ name: 'suiteType', required: false, schema: zodObjectPropertySchemas(systemsSuiteQuerySchema).suiteType })
   @ApiQuery({ name: 'enabled', required: false, schema: zodObjectPropertySchemas(systemsSuiteQuerySchema).enabled })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    schema: zodObjectPropertySchemas(systemsSuiteQuerySchema).q,
+    description: 'Código, nombre o módulo de la suite (contiene, sin distinguir mayúsculas).',
+  })
   @ApiQuery({ name: 'page', required: false, schema: zodObjectPropertySchemas(systemsSuiteQuerySchema).page })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(systemsSuiteQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Lista paginada de suites.' })
@@ -153,6 +159,12 @@ export class SystemsTestController {
   @ApiQuery({ name: 'suiteId', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).suiteId })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).status })
   @ApiQuery({ name: 'environment', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).environment })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    schema: zodObjectPropertySchemas(systemsRunsQuerySchema).q,
+    description: 'Código o nombre de la suite (contiene), o número exacto de la corrida.',
+  })
   @ApiQuery({ name: 'page', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).page })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Lista paginada de corridas.' })

@@ -4145,6 +4145,7 @@
     ],
     "headers": [],
     "query": [
+      "kind",
       "limit",
       "page",
       "pageSize",
@@ -11231,9 +11232,29 @@
       "environment",
       "limit",
       "page",
+      "profileId",
+      "q",
       "status",
       "suiteId"
     ],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /systems/stress-runs/capabilities": {
+    "operationId": "SystemsStressController_getStressRunCapabilities",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
     "path": [],
     "security": [
       "access-token"
@@ -11255,6 +11276,7 @@
       "environment",
       "limit",
       "page",
+      "q",
       "status",
       "suiteId"
     ],
@@ -11301,6 +11323,7 @@
       "limit",
       "module",
       "page",
+      "q",
       "suiteType"
     ],
     "path": [],

@@ -42,6 +42,13 @@ export const portalJobsQuerySchema = portalListQuerySchema.extend({
 
 export type PortalJobsQueryDto = z.infer<typeof portalJobsQuerySchema>;
 
+/** Búsqueda global: `kind` pagina UN tipo (endpoint, tabla, regla de calidad o reporte). */
+export const portalSearchQuerySchema = portalListQuerySchema.extend({
+  kind: z.enum(['endpoint', 'table', 'quality_rule', 'report']).optional(),
+});
+
+export type PortalSearchQueryDto = z.infer<typeof portalSearchQuerySchema>;
+
 export const portalAlertsQuerySchema = portalListQuerySchema.extend({
   status: facetFilter,
   severity: facetFilter,
@@ -120,4 +127,19 @@ export function ApiPortalListQuery(): MethodDecorator {
 /** Documenta un filtro exacto (sin distinguir mayúsculas) de una lista del portal. */
 export function ApiPortalFacetQuery(name: string, description: string): MethodDecorator {
   return ApiQuery({ name, required: false, schema: { type: 'string', maxLength: 60 }, description });
+}
+
+/** La lista paginada de siempre más `kind`, con lo que busca en cada tipo dicho con exactitud. */
+export function ApiPortalSearchQuery(): MethodDecorator {
+  return applyDecorators(
+    ApiPortalListQuery(),
+    ApiQuery({
+      name: 'kind',
+      required: false,
+      schema: zodObjectPropertySchemas(portalSearchQuerySchema).kind,
+      description:
+        'Tipo a paginar. Endpoints: ruta, nombre de ruta o módulo; tablas: tabla, entidad o módulo; reglas: código, nombre o ' +
+        'tabla objetivo; reportes: cualquier texto de su definición. Sin `kind` trae hasta `limit` de cada tipo.',
+    }),
+  );
 }

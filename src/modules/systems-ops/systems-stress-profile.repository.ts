@@ -5,8 +5,9 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindAndCountOptions, FindOptions, WhereOptions } from 'sequelize';
+import { FindAndCountOptions, FindOptions, Op, WhereOptions } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
+import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import { SystemEndpointCatalogModel, SystemStressProfileModel } from '../../database/models/index.js';
 import { SystemsListQueryDto, SystemsStressProfileQueryDto, UpsertStressProfileDto } from './systems-ops.schemas.js';
 import { buildEndpointTextWhere, buildStressProfileWhere } from './systems-repository-where.util.js';
@@ -19,8 +20,9 @@ export class SystemsStressProfileRepository {
   ) {}
 
   async listStressProfiles(query: SystemsStressProfileQueryDto) {
+    const endpointIds = query.q ? await this.findEndpointIdsByPath(query.q) : [];
     const result = await this.stressProfileModel.findAndCountAll({
-      where: buildStressProfileWhere(query),
+      where: buildStressProfileWhere(query, endpointIds),
       order: [
         ['status', 'ASC'],
         ['code', 'ASC'],
@@ -29,6 +31,15 @@ export class SystemsStressProfileRepository {
       offset: toOffset(query),
     } as FindAndCountOptions);
     return { rows: result.rows, meta: buildPaginationMeta(query, result.count) };
+  }
+
+  /** Endpoints cuya ruta contiene `q`: el lado «endpoint» del buscador de perfiles. */
+  private async findEndpointIdsByPath(q: string): Promise<string[]> {
+    const rows = await this.endpointModel.findAll({
+      attributes: ['id'],
+      where: { fullPath: { [Op.iLike]: containsLikePattern(q) } },
+    } as FindOptions);
+    return rows.map((row) => String(row.id));
   }
 
   findStressProfileById(profileId: string): Promise<SystemStressProfileModel | null> {
