@@ -186,6 +186,21 @@ export class QaRunsController {
 
   @ApiOperation({ summary: 'Personas de una corrida, paginadas y sin tokens' })
   @ApiParam({ name: 'runId' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (desde 1).' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Personas por página (1–200, por omisión 50).' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    type: String,
+    description: 'Sólo las personas con este desenlace: PENDING, RUNNING, PASSED, FAILED, BLOCKED, INDETERMINATE o CANCELLED.',
+  })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    type: String,
+    description:
+      'Texto que la persona contiene en su clave, arquetipo, categoría del caso, paso que falló o motivo (sin distinguir mayúsculas); un número o #número casa además con su orden en la corrida.',
+  })
   @ApiResponse({ status: 200, description: 'Página de personas con su estado y paso fallido.' })
   @InternalPermissions('systems.qa.read')
   @Get('runs/:runId/personas')
