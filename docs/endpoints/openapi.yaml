@@ -11522,6 +11522,7 @@ paths:
         - internal-access-catalog
   /internal/search:
     get:
+      description: '`totals` es un COUNT real por tipo.'
       operationId: InternalPortalController_search
       parameters:
         - name: q
@@ -11562,6 +11563,21 @@ paths:
           description: >-
             Alias legado de `limit`, conservado por compatibilidad con el Admin
             Portal.
+        - name: kind
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - endpoint
+              - table
+              - quality_rule
+              - report
+          description: >-
+            Tipo a paginar. Endpoints: ruta, nombre de ruta o módulo; tablas:
+            tabla, entidad o módulo; reglas: código, nombre o tabla objetivo;
+            reportes: cualquier texto de su definición. Sin `kind` trae hasta
+            `limit` de cada tipo.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -31102,8 +31118,12 @@ paths:
   /systems/stress-profiles/{profileId}/queue-run:
     post:
       description: >-
-        Requiere aprobación (approvalTicket) para entornos distintos de LOCAL
-        cuando el perfil lo exige.
+        Inserta la corrida en `system_job_runs` (`queued`). La ejecuta el
+        consumidor de Core `consume_systems_stress_runs`, que sólo corre con
+        `RUNTIME_JOBS_STRESS_CONSUMER_ENABLED=true`; la respuesta dice
+        `consumerEnabled` y, si es `false`, la corrida se queda en cola
+        (consúltalo antes en `GET /systems/stress-runs/capabilities`). Una
+        corrida real exige `approvalTicket` cuando el perfil pide aprobación.
       operationId: SystemsStressController_queueStressRun
       parameters:
         - name: profileId
@@ -31199,9 +31219,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
-          description: >-
-            Tamaño de página. El backend impone un máximo por endpoint; pedir
-            más lo recorta en vez de fallar.
+          description: Elementos por página (1-100).
         - name: page
           required: false
           in: query
@@ -31210,7 +31228,15 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 9007199254740991
-          description: Página solicitada, empezando en 1.
+          description: Página solicitada, desde 1.
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+          description: Código del perfil (contiene) o número exacto de la corrida.
         - name: environment
           required: false
           in: query
@@ -31220,9 +31246,7 @@ paths:
               - LOCAL
               - STAGING
               - PRODUCTION_READONLY
-          description: >-
-            Entorno de ejecución sobre el que aplica la consulta (`LOCAL`,
-            `STAGING`, `PRODUCTION_READONLY`).
+          description: Ambiente con el que se encoló.
         - name: status
           required: false
           in: query
@@ -31231,19 +31255,26 @@ paths:
             enum:
               - QUEUED
               - RUNNING
-              - PASSED
+              - COMPLETED
               - FAILED
+              - PASSED
               - CANCELLED
-          description: >-
-            Filtra por estado del recurso. Los valores admitidos son los del
-            dominio de ese recurso.
+          description: Estado en la cola; `PASSED` equivale a `COMPLETED`.
         - name: suiteId
           required: false
           in: query
           schema:
             type: string
             pattern: ^[1-9][0-9]*$
-          description: Filtra por suite de pruebas.
+          deprecated: true
+          description: 'Obsoleto: alias de `profileId`.'
+        - name: profileId
+          required: false
+          in: query
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: Sólo las corridas de este perfil.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -31265,6 +31296,36 @@ paths:
       security:
         - access-token: []
       summary: Listar corridas de pruebas de estrés
+      tags:
+        - systems-ops
+  /systems/stress-runs/capabilities:
+    get:
+      description: >-
+        `consumerEnabled: false` significa que lo que se encole se queda en
+        `queued`: el portal deshabilita el botón con `disabledReason`.
+      operationId: SystemsStressController_getStressRunCapabilities
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Estado del consumidor de corridas de estrés.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: ¿Se ejecutan las corridas de estrés en este entorno?
       tags:
         - systems-ops
   /systems/test-runs:
@@ -31291,6 +31352,16 @@ paths:
             exclusiveMinimum: 0
             maximum: 9007199254740991
           description: Página solicitada, empezando en 1.
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+          description: >-
+            Código o nombre de la suite (contiene), o número exacto de la
+            corrida.
         - name: environment
           required: false
           in: query
@@ -31407,6 +31478,16 @@ paths:
             exclusiveMinimum: 0
             maximum: 9007199254740991
           description: Página solicitada, empezando en 1.
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+          description: >-
+            Código, nombre o módulo de la suite (contiene, sin distinguir
+            mayúsculas).
         - name: enabled
           required: false
           in: query
