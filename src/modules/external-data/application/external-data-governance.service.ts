@@ -6,6 +6,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ExternalDataRepository } from '../external-data.repository.js';
 import { ExternalProviderRegistryService } from './external-provider-registry.service.js';
+import { requireAwaitingApproval } from './external-request-approval.js';
 import {
   envNumber,
   mockBaseUrlFor,
@@ -37,14 +38,12 @@ export class ExternalDataGovernanceService {
   ) {}
 
   async approveRequest(input: { tenantId: string; requestId: string; approvedByAdminId: string | undefined; approvalReason?: string }) {
-    const now = new Date();
-    const request = await this.repository.findProviderRequestByIdAndTenant(input.tenantId, input.requestId);
-    if (!request) throw new NotFoundException('Solicitud de provider externo no encontrada.');
+    const request = requireAwaitingApproval(await this.repository.findProviderRequestByIdAndTenant(input.tenantId, input.requestId));
     await this.repository.updateProviderRequest(request, {
       responseStatus: request.responseStatus ?? 'PENDING',
       responseCode: request.responseCode ?? 'APPROVED_FOR_MANUAL_EXECUTION',
       respondedAt: request.respondedAt ?? undefined,
-      metadataJson: { ...(request.metadataJson ?? {}), approvalReason: input.approvalReason ?? null, approvedAt: now.toISOString() },
+      metadataJson: { ...(request.metadataJson ?? {}), approvalReason: input.approvalReason ?? null, approvedAt: new Date().toISOString() },
     });
     await request.update({ approvalStatus: 'approved', approvedByAdminId: input.approvedByAdminId ?? null });
     return { requestId: String(request.id), approvalStatus: 'approved' };

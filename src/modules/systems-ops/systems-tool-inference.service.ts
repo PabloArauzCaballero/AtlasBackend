@@ -7,7 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { mapWithConcurrency } from '../../common/utils/concurrency.util.js';
 import { SystemEndpointCatalogModel, SystemToolCatalogModel } from '../../database/models/index.js';
 import { SystemsToolInferenceRepository } from './systems-tool-inference.repository.js';
-import { readSourcesForEndpoint } from './systems-source-scan.util.js';
+import { assertSourceTreeAvailable, readSourcesForEndpoint } from './systems-source-scan.util.js';
 
 /** Cuántos upserts `endpoint x herramienta` se disparan en paralelo contra la BD por lote. */
 const UPSERT_CONCURRENCY = 20;
@@ -145,6 +145,7 @@ export class SystemsToolInferenceService {
   constructor(private readonly repository: SystemsToolInferenceRepository) {}
 
   async infer(input: { persist: boolean }) {
+    await assertSourceTreeAvailable('Inferir herramientas por endpoint');
     const [endpoints, tools] = await Promise.all([this.repository.listActiveEndpoints(), this.repository.listTools()]);
     const toolsByCode = new Map(tools.map((tool) => [tool.code, tool]));
     const inferences: ToolInference[] = [];

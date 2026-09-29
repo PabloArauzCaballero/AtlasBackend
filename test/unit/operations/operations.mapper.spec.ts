@@ -115,4 +115,42 @@ describe('operations.mapper', () => {
     expect(withoutData.profile).toBeNull();
     expect(withoutData.latestRiskAssessment).toBeNull();
   });
+  /*
+   * Con IDENTITY_REQUIRE_HUMAN_REVIEW el intento queda IN_REVIEW y el veredicto del Motor se guarda
+   * como SUGERENCIA en `reason_codes_json`. El expediente lo publica: es el dato que la persona que
+   * revisa necesita, y sin esto sólo veía «IN_REVIEW».
+   */
+  it('publica la sugerencia del Motor sólo cuando la política retuvo el intento', () => {
+    const base = {
+      customer: { id: 5, customerCode: 'C1', lifecycleStatus: 'under_review', createdAtValue: new Date(0) } as never,
+      profile: null,
+      contacts: [] as never,
+      consents: [] as never,
+      latestRiskResult: null,
+      manualReviewCases: [] as never,
+      fraudCases: [] as never,
+      addressBook: {
+        available: false,
+        totalContacts: 0,
+        uniqueRatio: 0,
+        bolivianRatio: 0,
+        referencesFoundInAddressBook: 0,
+        riskMatches: 0,
+      },
+    };
+    const intento = (reasonCodesJson: unknown) =>
+      ({ id: 3, verificationChannel: 'MOBILE_APP', finalResult: 'IN_REVIEW', reasonCodesJson }) as never;
+
+    const retenido = toInvestigationSummaryResponse({
+      ...base,
+      latestIdentityAttempt: intento({ reason: 'ROSTRO_COINCIDE', engineDecision: 'VERIFIED', humanReviewPolicy: true }),
+    });
+    expect(retenido.latestIdentityVerification).toMatchObject({ engineSuggestion: 'VERIFIED', engineReason: 'ROSTRO_COINCIDE' });
+
+    const sinPolitica = toInvestigationSummaryResponse({ ...base, latestIdentityAttempt: intento({ reason: 'X' }) });
+    expect(sinPolitica.latestIdentityVerification).toMatchObject({ engineSuggestion: null, engineReason: null });
+
+    const sinMotivos = toInvestigationSummaryResponse({ ...base, latestIdentityAttempt: intento(null) });
+    expect(sinMotivos.latestIdentityVerification).toMatchObject({ engineSuggestion: null });
+  });
 });

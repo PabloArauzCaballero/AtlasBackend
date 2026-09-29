@@ -11,6 +11,7 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { ContactosService } from './application/contactos.service.js';
 import { ExpedienteService } from './application/expediente.service.js';
 import { ExpedienteAccesoGuard, NivelRequerido, type RequestConExpediente } from './guards/expediente-acceso.guard.js';
+import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { contactosQuerySchema, expedienteParamsSchema, type ContactosQueryDto, type ExpedienteParamsDto } from './expedientes.schemas.js';
 
 /**
@@ -25,7 +26,7 @@ import { contactosQuerySchema, expedienteParamsSchema, type ContactosQueryDto, t
 @ApiBearerAuth('access-token')
 @Controller('expedientes/:id/contactos')
 @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin')
-@UseGuards(ExpedienteAccesoGuard)
+@UseGuards(TenantGuard, ExpedienteAccesoGuard)
 export class ExpedientesContactosController {
   constructor(
     private readonly contactos: ContactosService,

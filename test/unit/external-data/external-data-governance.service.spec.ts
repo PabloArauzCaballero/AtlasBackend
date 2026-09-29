@@ -1,6 +1,6 @@
 import { describe, expect, it, jest, afterEach } from '@jest/globals';
 import { asyncMock } from '../../support/jest-mocks.js';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ExternalDataGovernanceService } from '../../../src/modules/external-data/application/external-data-governance.service.js';
 
 /**
@@ -60,6 +60,34 @@ describe('ExternalDataGovernanceService', () => {
       expect(result).toEqual({ requestId: 'req-1', approvalStatus: 'approved' });
       expect(request.update).toHaveBeenCalledWith({ approvalStatus: 'approved', approvedByAdminId: 'admin-1' });
     });
+    it.each(['MOCKED', 'COMPLETED', 'FAILED', 'PROVIDER_UNAVAILABLE'])(
+      'rechaza con 409 aprobar una solicitud ya terminada (%s) y no escribe nada',
+      async (responseStatus) => {
+        const { service, repository } = buildService();
+        const request = { id: 'req-9', responseStatus, responseCode: null, respondedAt: null, metadataJson: {}, update: asyncMock() };
+        (repository.findProviderRequestByIdAndTenant as jest.Mock).mockResolvedValueOnce(request as never);
+
+        await expect(service.approveRequest({ tenantId: 't1', requestId: 'req-9', approvedByAdminId: 'admin-1' })).rejects.toThrow(
+          ConflictException,
+        );
+        expect(repository.updateProviderRequest).not.toHaveBeenCalled();
+        expect(request.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['MANUAL_APPROVAL_REQUIRED', 'BLOCKED_BY_COST_POLICY', 'PENDING'])(
+      'aprueba una solicitud retenida (%s)',
+      async (responseStatus) => {
+        const { service, repository } = buildService();
+        const request = { id: 'req-8', responseStatus, responseCode: null, respondedAt: null, metadataJson: {}, update: asyncMock() };
+        (repository.findProviderRequestByIdAndTenant as jest.Mock).mockResolvedValueOnce(request as never);
+
+        await expect(service.approveRequest({ tenantId: 't1', requestId: 'req-8', approvedByAdminId: 'admin-1' })).resolves.toEqual({
+          requestId: 'req-8',
+          approvalStatus: 'approved',
+        });
+      },
+    );
   });
 
   describe('getProviderReadiness', () => {

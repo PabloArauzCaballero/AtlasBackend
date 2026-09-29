@@ -108,6 +108,14 @@ export type IdentitySummaryDto = {
   fraudRisk: number | null;
   requestedAt: string | null;
   completedAt: string | null;
+  /**
+   * Lo que el Motor habría decidido cuando la política `IDENTITY_REQUIRE_HUMAN_REVIEW` retuvo el
+   * intento en `IN_REVIEW` (`VERIFIED` / `REJECTED`), y su motivo. Es justo el dato que la revisión
+   * humana necesita, y hasta ahora sólo vivía en `reason_codes_json`: el analista no lo veía.
+   * `null` cuando el intento no fue retenido por la política.
+   */
+  engineSuggestion: 'VERIFIED' | 'REJECTED' | null;
+  engineReason: string | null;
 };
 
 /**

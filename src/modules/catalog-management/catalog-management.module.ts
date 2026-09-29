@@ -46,6 +46,7 @@ import { CatalogRiskPolicyRepository } from './catalog-risk-policy.repository.js
 import { CatalogManagementRepository } from './catalog-management.repository.js';
 import { CatalogStagingReadService } from './application/catalog-staging-read.service.js';
 import { CatalogManagementService } from './catalog-management.service.js';
+import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 
 @Module({
   imports: [
@@ -76,6 +77,8 @@ import { CatalogManagementService } from './catalog-management.service.js';
       OperationalAuditLogModel,
       DataChangeLogModel,
     ]),
+    // Aporta `InternalPermissionsGuard`: las políticas de gobierno se leen y publican con permiso fino.
+    InternalUsersModule,
   ],
   controllers: [CatalogManagementController, CatalogGovernanceController],
   providers: [

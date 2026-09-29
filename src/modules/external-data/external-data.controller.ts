@@ -535,7 +535,8 @@ export class AdminExternalProvidersController {
   // que el mismo perfil que solicita datos costosos se autoapruebe.
   @ApiOperation({
     summary: 'Aprobar solicitud costosa/manual (solo admin)',
-    description: 'Aprueba una solicitud bloqueada por política de costo o que requiere revisión manual, permitiendo su ejecución.',
+    description:
+      'Deja constancia de la aprobación de una solicitud retenida por política de costo o por revisión manual. No la ejecuta: hay que volver a lanzarla.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'requestId', schema: zodToApiSchema(requestIdParamsSchema.shape.requestId) })
@@ -543,6 +544,7 @@ export class AdminExternalProvidersController {
   @ApiResponse({ status: 200, description: 'Solicitud aprobada.' })
   @ApiResponse({ status: 403, description: 'Rol sin permiso (solo admin/platform_admin).' })
   @ApiResponse({ status: 404, description: 'Solicitud no encontrada.' })
+  @ApiResponse({ status: 409, description: 'EXTERNAL_REQUEST_NOT_AWAITING_APPROVAL: la solicitud ya terminó o no necesitaba permiso.' })
   @Roles('admin', 'platform_admin')
   @Post('requests/:requestId/approve')
   @HttpCode(HttpStatus.OK)

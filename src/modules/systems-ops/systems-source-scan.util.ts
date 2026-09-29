@@ -3,6 +3,7 @@
  * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
  * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
  */
+import { ServiceUnavailableException } from '@nestjs/common';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { SystemEndpointCatalogModel } from '../../database/models/index.js';
@@ -59,6 +60,25 @@ async function sourceFilesForModuleDir(moduleDir: string, extraFile: string | nu
     }
   }
   return Array.from(files);
+}
+
+/**
+ * Las inferencias por código fuente (impactos endpoint→tabla, herramientas por endpoint) sólo pueden medir con `src/`
+ * al lado. La imagen desplegada copia `dist/` y `src/database`, no `src/modules`: sin esta guarda cada endpoint salía
+ * «sin fuente», se saltaba, y el botón respondía «0 inferidos» como un resultado. En TEST, `system_endpoint_data_entity_
+ * impacts` y `system_endpoint_tool_requirements` están a 0 por eso (2026-09-28). Un catálogo que no se pudo leer y uno
+ * vacío piden acciones opuestas: se falla con 503 y el motivo.
+ */
+export async function assertSourceTreeAvailable(what: string): Promise<void> {
+  const modules = join(process.cwd(), 'src', 'modules');
+  const ok = await stat(modules)
+    .then((info) => info.isDirectory())
+    .catch(() => false);
+  if (!ok) {
+    throw new ServiceUnavailableException(
+      `${what} lee el código fuente (src/modules), que este despliegue no incluye: no se infirió nada, no es que no haya nada. Sólo se puede correr desde una copia del repositorio.`,
+    );
+  }
 }
 
 export function readSourcesForEndpoint(endpoint: SystemEndpointCatalogModel): Promise<string> {
