@@ -5,6 +5,9 @@
  */
 import { z } from 'zod';
 import { buildPaginationMeta, type PaginationMeta } from '../../common/utils/pagination/pagination.util.js';
+import { DRIFT_SEVERITIES } from './system-flows.rbac-drift.js';
+
+export { DRIFT_SEVERITIES };
 
 const paging = {
   /** Sin `limit` no se pagina: la respuesta es la de siempre. */
@@ -12,7 +15,6 @@ const paging = {
   limit: z.coerce.number().int().positive().max(100).optional(),
 };
 
-export const DRIFT_SEVERITIES = ['SIN_GUARDA', 'PUBLIC', 'SOLO_ROL'] as const;
 export const PENDING_WORK_STATES = ['pending', 'failed', 'skipped'] as const;
 
 export const rbacDriftQuerySchema = z.object({

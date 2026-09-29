@@ -61,6 +61,7 @@ export class SystemFlowsGateService {
         REQUIERE_HALLAZGOS,
       ),
       sinMedirSiFalta(comprobacionDeriva(deriva), cargas, [...REQUIERE_ENDPOINTS, ...REQUIERE_PANTALLAS]),
+      sinMedirSiFalta(comprobacionPermisosQueBloquean(deriva), cargas, ['endpoints:ATLAS_BACKEND', 'screens:ADMIN_PORTAL']),
       sinMedirSiFalta(
         {
           code: 'REVIEW_PENDING_HIGH',
@@ -153,6 +154,37 @@ function comprobacionDeriva(deriva: Awaited<ReturnType<SystemFlowsScreensService
     count: sinGuarda,
     detail: `llamadas desde pantallas a endpoints sin permiso ni rol, sobre ${deriva.screensWithObservedEdges} pantalla(s) con uso observado${limites.length ? ` · ${limites.join(' · ')}` : ''}`,
   };
+}
+
+/**
+ * Lo que deja a un usuario delante de «sin permiso»: un permiso que la base no tiene (403 para todos) o un
+ * menú que deja entrar con un permiso distinto del que pide la API. Sin catálogo en la base no se mide: diría
+ * que faltan todos. Los permisos fuera del catálogo no dependen del tráfico; el desajuste de menú, sí.
+ */
+function comprobacionPermisosQueBloquean(deriva: Awaited<ReturnType<SystemFlowsScreensService['rbacDrift']>>): GateCheck {
+  const fuera = deriva.summary?.bySeverity?.PERMISO_FUERA_DEL_CATALOGO ?? 0;
+  const distinto = deriva.summary?.bySeverity?.MENU_PERMISO_DISTINTO ?? 0;
+  const count = fuera + distinto;
+  const detail = `${fuera} permiso(s) exigido(s) que la base no tiene y ${distinto} llamada(s) cuyo menú pide otro permiso que la API`;
+  if (!deriva.catalogMeasured) {
+    return {
+      code: 'RBAC_DRIFT_BLOQUEA_USUARIOS',
+      passed: false,
+      measured: false,
+      count,
+      detail: `sin medir: la base no tiene catálogo de permisos · ${detail}`,
+    };
+  }
+  if (count === 0 && deriva.screensWithObservedEdges === 0) {
+    return {
+      code: 'RBAC_DRIFT_BLOQUEA_USUARIOS',
+      passed: false,
+      measured: false,
+      count,
+      detail: `sin uso observado de pantallas: no se puede afirmar que ningún menú pida otro permiso · ${detail}`,
+    };
+  }
+  return { code: 'RBAC_DRIFT_BLOQUEA_USUARIOS', passed: count === 0 && !deriva.truncated, measured: true, count, detail };
 }
 
 function comprobacionArtefactos(cargas: Set<string>): GateCheck {

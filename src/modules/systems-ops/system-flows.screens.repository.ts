@@ -8,6 +8,12 @@ import { InjectModel } from '@nestjs/sequelize';
 import { literal, Op, QueryTypes, Transaction } from 'sequelize';
 import { SystemScreenCatalogModel } from '../../database/models/system-screen-catalog.model.js';
 import { RBAC_DRIFT_SQL, SCREEN_RUNS_LIMIT, SCREEN_RUNS_SQL } from './system-flows.sql.constants.js';
+import {
+  FLOWS_WITH_PERMISSIONS_SQL,
+  MENU_PERMISSIONS_SQL,
+  RBAC_CATALOG_PERMISSIONS_SQL,
+  type DriftRow,
+} from './system-flows.rbac-drift.js';
 
 /** Cubeta del tráfico que no declaró cliente. No se atribuye a nadie: se cuenta aparte. */
 export const SIN_CLIENTE = '(sin cliente)';
@@ -119,29 +125,46 @@ export class SystemFlowsScreensRepository {
   }
 
   /**
-   * Pantallas protegidas por permiso que llaman a endpoints sin permiso, cruzando aristas OBSERVADAS.
+   * Llamadas de pantallas con puerta de menú a los endpoints que las atienden, cruzando aristas OBSERVADAS.
    *
    * Sólo se opina de lo que alguien ha usado de verdad: la arista pantalla→endpoint derivada del AST
    * no existe (las llamadas viven en servicios compartidos, no en el fichero de la página), y
    * inventarla daría hallazgos plausibles sobre relaciones que quizá no ocurren.
    */
-  rbacDrift(): Promise<
-    Array<{
-      client_code: string;
-      route: string;
-      nav_permissions: string[];
-      nav_roles: string[];
-      method: string;
-      path: string;
-      flow_id: string;
-      roles: string[];
-      is_public: boolean;
-    }>
-  > {
+  rbacDrift(): Promise<DriftRow[]> {
     return this.screens.sequelize!.query(RBAC_DRIFT_SQL, { type: QueryTypes.SELECT });
   }
 
-  /** Los códigos de cliente que hay en el catálogo de pantallas  /** Los códigos de cliente que hay en el catálogo de pantallas, sin suponer cuáles son. */
+  /**
+   * Los permisos que existen EN LA BASE. Nulo si no hay ninguno: una base sin catálogo sembrado diría
+   * que falta todo, y eso es el entorno, no una deriva.
+   */
+  async rbacCatalogPermissions(): Promise<Set<string> | null> {
+    const rows = await this.screens.sequelize!.query<{ permission_code: string }>(RBAC_CATALOG_PERMISSIONS_SQL, {
+      type: QueryTypes.SELECT,
+    });
+    return rows.length ? new Set(rows.map((row) => row.permission_code)) : null;
+  }
+
+  /** Menús con permiso de los clientes indicados, se hayan usado o no. */
+  menusWithPermissions(
+    clientCodes: readonly string[],
+  ): Promise<Array<{ client_code: string; route: string; nav_permissions: string[]; nav_roles: string[] }>> {
+    if (!clientCodes.length) return Promise.resolve([]);
+    return this.screens.sequelize!.query(MENU_PERMISSIONS_SQL, {
+      type: QueryTypes.SELECT,
+      replacements: { clientCodes: [...clientCodes] },
+    });
+  }
+
+  /** Endpoints de AtlasBackend con permiso fino, para cruzarlos con el catálogo de la base. */
+  flowsWithPermissions(): Promise<
+    Array<{ flow_id: string; method: string; path: string; internal_permissions: string[]; roles: string[] }>
+  > {
+    return this.screens.sequelize!.query(FLOWS_WITH_PERMISSIONS_SQL, { type: QueryTypes.SELECT });
+  }
+
+  /** Los códigos de cliente que hay en el catálogo de pantallas, sin suponer cuáles son. */
   async screenClients(): Promise<string[]> {
     const rows = await this.screens.findAll({
       attributes: ['clientCode'],

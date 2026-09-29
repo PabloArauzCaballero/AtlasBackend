@@ -132,9 +132,15 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
    * del catálogo, 995 no tienen permiso fino pero 914 sí tienen roles, así que el 92 % de aquellos
    * hallazgos era falso. Una lista donde casi todo es ruido no la lee nadie.
    */
-  const deriva = (filas: unknown[], over: { conRutas?: number; conPuerta?: string[] } = {}) => {
+  const deriva = (
+    filas: unknown[],
+    over: { conRutas?: number; conPuerta?: string[]; catalogo?: Set<string> | null; menus?: unknown[]; conPermiso?: unknown[] } = {},
+  ) => {
     const repo = {
       rbacDrift: async () => filas,
+      rbacCatalogPermissions: async () => (over.catalogo === undefined ? new Set(['audit.events.read', 'partner.qr.read']) : over.catalogo),
+      menusWithPermissions: jest.fn(async () => over.menus ?? []),
+      flowsWithPermissions: async () => over.conPermiso ?? [],
       screensWithObservedRoutes: jest.fn(async () => over.conRutas ?? 2),
       clientsWithMenuGates: async () => over.conPuerta ?? ['ADMIN_PORTAL', 'MOTOR_PORTAL'],
     };
@@ -169,6 +175,62 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
     expect(screens[0].calls).toEqual([expect.objectContaining({ severity: 'PUBLIC' })]);
   });
 
+  it('menú con un permiso y API con otro: quien entra por el menú recibe 403', async () => {
+    const r = await deriva([fila({ internal_permissions: ['partner.qr.read'] })]).resultado;
+    expect(r.items).toEqual([
+      expect.objectContaining({ severity: 'MENU_PERMISO_DISTINTO', missingFromMenu: ['partner.qr.read'], missingFromCatalog: [] }),
+    ]);
+    expect(r.summary.breaking).toBe(1);
+  });
+
+  it('un endpoint con permiso fino que el menú ya pide y la base tiene NO es deriva', async () => {
+    const r = await deriva([fila({ internal_permissions: ['audit.events.read'] })]).resultado;
+    expect(r.items).toEqual([]);
+    expect(r.screens).toEqual([]);
+  });
+
+  it('un permiso que la base no tiene es 403 para todos: gana a cualquier otra clase', async () => {
+    const r = await deriva([fila({ internal_permissions: ['partner.qr.review'] })]).resultado;
+    expect(r.items).toEqual([
+      expect.objectContaining({ severity: 'PERMISO_FUERA_DEL_CATALOGO', missingFromCatalog: ['partner.qr.review'] }),
+    ]);
+    expect(r.summary.permissionsOutsideCatalog).toEqual(['partner.qr.review']);
+  });
+
+  it('endpoints y menús con un permiso inexistente se listan aunque nadie los haya abierto, sin repetir', async () => {
+    const r = await deriva([fila({ flow_id: 'flow_llamado', internal_permissions: ['partner.qr.review'] })], {
+      conPermiso: [
+        { flow_id: 'flow_llamado', method: 'GET', path: 'a', internal_permissions: ['partner.qr.review'], roles: [] },
+        { flow_id: 'flow_solo', method: 'POST', path: 'partners/qr/:p/approve', internal_permissions: ['partner.qr.review'], roles: [] },
+        { flow_id: 'flow_bien', method: 'GET', path: 'b', internal_permissions: ['audit.events.read'], roles: [] },
+      ],
+      menus: [
+        { client_code: 'ADMIN_PORTAL', route: '/internal/qr', nav_permissions: ['qr.inexistente'], nav_roles: [] },
+        { client_code: 'ADMIN_PORTAL', route: '/internal/audit', nav_permissions: ['audit.events.read'], nav_roles: [] },
+      ],
+    }).resultado;
+    const fuera = r.items.filter((i) => i.severity === 'PERMISO_FUERA_DEL_CATALOGO');
+    expect(fuera.map((i) => i.flowId ?? i.route).sort()).toEqual(['/internal/qr', 'flow_llamado', 'flow_solo']);
+    expect(fuera.find((i) => i.flowId === 'flow_solo')).toMatchObject({ clientCode: null, route: null });
+    expect(r.summary.permissionsOutsideCatalog).toEqual(['partner.qr.review', 'qr.inexistente']);
+  });
+
+  it('sin catálogo en la base no se afirma que falte ningún permiso', async () => {
+    const r = await deriva([fila({ internal_permissions: ['partner.qr.review'] })], {
+      catalogo: null,
+      conPermiso: [{ flow_id: 'x', method: 'GET', path: 'x', internal_permissions: ['y'], roles: [] }],
+      menus: [{ client_code: 'ADMIN_PORTAL', route: '/r', nav_permissions: ['z'], nav_roles: [] }],
+    }).resultado;
+    expect(r.catalogMeasured).toBe(false);
+    expect(r.items.map((i) => i.severity)).toEqual(['MENU_PERMISO_DISTINTO']);
+  });
+
+  it('los menús se cruzan con el catálogo sólo para los clientes cuyos permisos viven en AtlasBackend', async () => {
+    const { repo, resultado } = deriva([]);
+    await resultado;
+    expect(repo.menusWithPermissions).toHaveBeenCalledWith(['ADMIN_PORTAL', 'CONSUMER_APP']);
+  });
+
   it('el portal del Motor se mide: sólo quedan sin medir los clientes con menú filtrado que nadie mide', async () => {
     expect(await deriva([]).resultado).toMatchObject({ notMeasured: [] });
     expect(await deriva([], { conPuerta: ['ADMIN_PORTAL', 'ERP_PORTAL'] }).resultado).toMatchObject({ notMeasured: ['ERP_PORTAL'] });
@@ -187,7 +249,8 @@ describe('RBAC_DRIFT_SQL · cada pantalla contra el bloque que la mide', () => {
     expect(RBAC_DRIFT_SQL).toMatch(/f\.controller \|\| '\.' \|\| f\.handler = l\.path AND jsonb_array_length\(f\.roles\) = 0/);
   });
 
-  it('los clientes de AtlasBackend siguen cruzándose por ruta y sin permiso fino, y nunca con el Motor', () => {
-    expect(RBAC_DRIFT_SQL).toMatch(/f\.system_code = 'ATLAS_BACKEND' AND l\.client_code <> 'MOTOR_PORTAL' AND f\.path = l\.path/);
+  it('los clientes de AtlasBackend se cruzan por ruta con TODOS sus flujos, y nunca con el Motor', () => {
+    expect(RBAC_DRIFT_SQL).toMatch(/f\.system_code = 'ATLAS_BACKEND' AND l\.client_code <> 'MOTOR_PORTAL' AND f\.path = l\.path\)/);
+    expect(RBAC_DRIFT_SQL).not.toMatch(/jsonb_array_length\(f\.internal_permissions\) = 0/);
   });
 });

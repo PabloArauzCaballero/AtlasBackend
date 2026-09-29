@@ -28,7 +28,17 @@ function servicio(
       importedScopes: async () => over.cargas ?? todasLasCargas,
       unwiredProcessSteps: async () => over.sinCablear ?? [],
     } as never,
-    { rbacDrift: async () => ({ screensWithObservedEdges: 5, truncated: false, notMeasured: [], screens: [], ...over.deriva }) } as never,
+    {
+      rbacDrift: async () => ({
+        screensWithObservedEdges: 5,
+        truncated: false,
+        notMeasured: [],
+        screens: [],
+        catalogMeasured: true,
+        summary: { bySeverity: { PERMISO_FUERA_DEL_CATALOGO: 0, MENU_PERMISO_DISTINTO: 0 } },
+        ...over.deriva,
+      }),
+    } as never,
   );
 }
 const check = (resultado: { checks: Array<{ code: string; passed: boolean; count: number; detail: string }> }, code: string) =>
@@ -71,6 +81,32 @@ describe('SystemFlowsGateService', () => {
     expect(
       check(await servicio({ deriva: { screens: [{ calls: [{ severity: 'SOLO_ROL' }] }] } }).evaluate(), 'RBAC_DRIFT_SIN_GUARDA'),
     ).toMatchObject({ passed: true });
+  });
+
+  it('un permiso que la base no tiene o un menú que pide otro permiso bloquean, con la cifra', async () => {
+    const resultado = await servicio({
+      deriva: { summary: { bySeverity: { PERMISO_FUERA_DEL_CATALOGO: 1, MENU_PERMISO_DISTINTO: 2 } } },
+    }).evaluate();
+    expect(resultado.passed).toBe(false);
+    expect(check(resultado, 'RBAC_DRIFT_BLOQUEA_USUARIOS')).toMatchObject({ passed: false, measured: true, count: 3 });
+  });
+
+  it('sin catálogo de permisos en la base la comprobación queda sin medir', async () => {
+    expect(check(await servicio({ deriva: { catalogMeasured: false } }).evaluate(), 'RBAC_DRIFT_BLOQUEA_USUARIOS')).toMatchObject({
+      passed: false,
+      measured: false,
+    });
+  });
+
+  it('un permiso fuera del catálogo se afirma aunque no haya uso observado; «cero» sin uso, no', async () => {
+    const sinUso = { screensWithObservedEdges: 0 };
+    expect(check(await servicio({ deriva: sinUso }).evaluate(), 'RBAC_DRIFT_BLOQUEA_USUARIOS')).toMatchObject({ measured: false });
+    const conFuera = { ...sinUso, summary: { bySeverity: { PERMISO_FUERA_DEL_CATALOGO: 1, MENU_PERMISO_DISTINTO: 0 } } };
+    expect(check(await servicio({ deriva: conFuera }).evaluate(), 'RBAC_DRIFT_BLOQUEA_USUARIOS')).toMatchObject({
+      passed: false,
+      measured: true,
+      count: 1,
+    });
   });
 
   it('una consulta de deriva cortada no pasa aunque no vea llamadas sin guarda', async () => {
@@ -124,6 +160,7 @@ describe('SystemFlowsGateService', () => {
       'CRITICAL_VERIFIED',
       'UNPROTECTED_WRITE_OPEN',
       'RBAC_DRIFT_SIN_GUARDA',
+      'RBAC_DRIFT_BLOQUEA_USUARIOS',
       'REVIEW_PENDING_HIGH',
       'PROCESS_STEPS_WIRED',
     ]) {

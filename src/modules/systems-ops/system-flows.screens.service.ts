@@ -11,7 +11,19 @@ import { SIN_CLIENTE } from './system-flows.screens.repository.js';
 import { matchScreenRuns, screenVerificationFrom } from './system-flows.verification.util.js';
 import { CLIENT_EVIDENCE, CLIENTES_CON_DERIVA, type PantallasObservadas } from './system-flows.evidence.js';
 import { RBAC_DRIFT_LIMIT } from './system-flows.sql.constants.js';
+import {
+  byGravity,
+  classifyCall,
+  endpointItemsOutsideCatalog,
+  menuItemsOutsideCatalog,
+  summarizeDrift,
+  type DriftCall,
+  type DriftItem,
+} from './system-flows.rbac-drift.js';
 import { containsText, slicePage, type RbacDriftQueryDto } from './system-flows.list-query.js';
+
+/** Clientes cuyos permisos de menú viven en el catálogo RBAC de AtlasBackend. */
+const CLIENTES_DEL_CATALOGO = Object.keys(CLIENT_EVIDENCE).filter((cliente) => CLIENT_EVIDENCE[cliente] === 'ATLAS_BACKEND');
 
 @Injectable()
 export class SystemFlowsScreensService {
@@ -105,16 +117,26 @@ export class SystemFlowsScreensService {
    * falso —incluido el único que produjo con tráfico real—. Una lista donde casi todo es ruido no
    * la lee nadie, que es justo el fallo que este proyecto lleva persiguiendo.
    *
-   * Los tres desenlaces se separan porque piden acciones distintas de personas distintas, y sólo el
-   * primero es una avería. Ver `RBAC_DRIFT_SQL`.
+   * Las clases se separan porque piden acciones distintas de personas distintas; sólo las de
+   * `BREAKING_SEVERITIES` dejan a un usuario fuera. Además de las llamadas observadas, se listan los menús
+   * y endpoints que piden un permiso que la base no tiene: ese 403 es para todos y no espera al tráfico.
+   * Ver `RBAC_DRIFT_SQL` y `system-flows.rbac-drift.ts`.
    */
   async rbacDrift(query: Partial<RbacDriftQueryDto> = {}) {
-    const filas = await this.repository.rbacDrift();
+    const [filas, catalogo, menus, conPermiso] = await Promise.all([
+      this.repository.rbacDrift(),
+      this.repository.rbacCatalogPermissions(),
+      this.repository.menusWithPermissions(CLIENTES_DEL_CATALOGO),
+      this.repository.flowsWithPermissions(),
+    ]);
     const porPantalla = new Map<
       string,
       { clientCode: string; route: string; navPermissions: string[]; navRoles: string[]; calls: DriftCall[] }
     >();
     for (const fila of filas) {
+      const call = classifyCall(fila, catalogo);
+      // Un endpoint con permiso fino que el menú ya pide y que la base tiene está bien: no es deriva.
+      if (!call) continue;
       const clave = `${fila.client_code} ${fila.route}`;
       const entrada = porPantalla.get(clave) ?? {
         clientCode: fila.client_code,
@@ -123,18 +145,12 @@ export class SystemFlowsScreensService {
         navRoles: fila.nav_roles,
         calls: [],
       };
-      entrada.calls.push({
-        flowId: fila.flow_id,
-        method: fila.method,
-        path: fila.path,
-        severity: severidad(fila),
-        roles: fila.roles,
-      });
+      entrada.calls.push(call);
       porPantalla.set(clave, entrada);
     }
-    const screens = [...porPantalla.values()].filter((pantalla) => pantalla.calls.length);
-    // Una fila por llamada: es lo que la tabla del portal enseña y lo que se busca, filtra y pagina.
-    const llamadas = screens.flatMap((pantalla) =>
+    const screens = [...porPantalla.values()];
+    // Una fila por hallazgo: es lo que el portal enseña y lo que se busca, filtra y pagina.
+    const llamadas: DriftItem[] = screens.flatMap((pantalla) =>
       pantalla.calls.map((call) => ({
         clientCode: pantalla.clientCode,
         route: pantalla.route,
@@ -143,24 +159,30 @@ export class SystemFlowsScreensService {
         ...call,
       })),
     );
-    const filtradas = llamadas.filter(
-      (llamada) =>
-        (!query.severity || llamada.severity === query.severity) &&
-        (!query.clientCode || llamada.clientCode === query.clientCode) &&
-        containsText(query.q, llamada.clientCode, llamada.route, llamada.method, llamada.path, llamada.flowId),
+    const vistos = new Set(llamadas.map((llamada) => llamada.flowId).filter((id): id is string => Boolean(id)));
+    const todos = [
+      ...llamadas,
+      ...menuItemsOutsideCatalog(menus, catalogo),
+      ...endpointItemsOutsideCatalog(conPermiso, catalogo, vistos),
+    ].sort(byGravity);
+    const filtradas = todos.filter(
+      (item) =>
+        (!query.severity || item.severity === query.severity) &&
+        (!query.clientCode || item.clientCode === query.clientCode) &&
+        containsText(
+          query.q,
+          item.clientCode,
+          item.route,
+          item.method,
+          item.path,
+          item.flowId,
+          ...item.permissions,
+          ...item.navPermissions,
+        ),
     );
     const { items, meta } = slicePage(filtradas, query.page ?? 1, query.limit);
     // Las cifras son del conjunto SIN filtrar: filtrar la tabla no debe cambiar cuántas hay en total.
-    const summary = {
-      screensWithDrift: screens.length,
-      calls: llamadas.length,
-      bySeverity: {
-        SIN_GUARDA: llamadas.filter((llamada) => llamada.severity === 'SIN_GUARDA').length,
-        PUBLIC: llamadas.filter((llamada) => llamada.severity === 'PUBLIC').length,
-        SOLO_ROL: llamadas.filter((llamada) => llamada.severity === 'SOLO_ROL').length,
-      },
-      clients: [...new Set(llamadas.map((llamada) => llamada.clientCode))].sort(),
-    };
+    const summary = summarizeDrift(todos);
     const [consideradas, conPuertaDeMenu] = await Promise.all([
       this.repository.screensWithObservedRoutes(CLIENTES_CON_DERIVA),
       this.repository.clientsWithMenuGates(),
@@ -172,6 +194,8 @@ export class SystemFlowsScreensService {
       // El denominador, que en la primera versión era un booleano constante: sin él, un `[]` no se
       // distingue de «nadie ha abierto ninguna pantalla todavía».
       screensWithObservedEdges: consideradas,
+      // Sin catálogo RBAC en la base no se afirma que falte ningún permiso: faltarían todos.
+      catalogMeasured: catalogo !== null,
       // Si la consulta de deriva llegó a su tope, esto opina sobre datos incompletos y hay que decirlo.
       truncated: filas.length >= RBAC_DRIFT_LIMIT,
       screens,
@@ -180,14 +204,4 @@ export class SystemFlowsScreensService {
       summary,
     };
   }
-}
-
-type DriftCall = { flowId: string; method: string; path: string; severity: 'PUBLIC' | 'SOLO_ROL' | 'SIN_GUARDA'; roles: string[] };
-
-/**
- * Qué clase de desajuste es. Sólo `SIN_GUARDA` es una avería; los otros dos son otra conversación.
- */
-function severidad(fila: { is_public: boolean; roles: string[] }): 'PUBLIC' | 'SOLO_ROL' | 'SIN_GUARDA' {
-  if (fila.is_public) return 'PUBLIC';
-  return fila.roles.length ? 'SOLO_ROL' : 'SIN_GUARDA';
 }

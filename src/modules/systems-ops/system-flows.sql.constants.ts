@@ -149,7 +149,7 @@ export const DOMAIN_EVENT_CONSUMERS_SQL = `SELECT o.event_code,
  * Una lista donde casi todo es ruido es una lista que nadie lee, que es el fallo que este proyecto
  * lleva persiguiendo desde la ola 12.
  *
- * Ahora se distinguen tres desenlaces, y sólo el primero es una avería:
+ * Sin permiso fino se distinguen tres desenlaces (con permiso fino, dos más: `system-flows.rbac-drift.ts`):
  *
  * - `SIN_GUARDA`: ni permiso, ni roles, ni `@Public`. La ruta la puede llamar cualquiera con sesión,
  *   y el menú promete que hace falta un permiso. Hoy son 29 flujos en todo el catálogo.
@@ -164,7 +164,8 @@ export const DOMAIN_EVENT_CONSUMERS_SQL = `SELECT o.event_code,
  * registra sus rutas. Sin esa condición el JOIN cruzaba por (método, ruta) contra los cuatro bloques
  * —45 pares están duplicados entre sistemas— y atribuía a una pantalla endpoints que nunca tocó.
  *
- * - Clientes de AtlasBackend: por método y ruta, y sólo flujos sin permiso fino.
+ * - Clientes de AtlasBackend: por método y ruta, TODOS sus flujos; los de permiso fino se comparan con el
+ *   menú y con el catálogo de la base en `system-flows.rbac-drift.ts`.
  * - Portal del Motor: por método y `Controller.handler`, que es como el Motor registra sus accesos. En
  *   el Motor no existe permiso fino, así que «sólo rol» es lo normal y contarlo sería ruido: sólo entran
  *   sus flujos SIN roles, que son las averías posibles (`SIN_GUARDA` o `PUBLIC`).
@@ -197,8 +198,7 @@ export const RBAC_DRIFT_SQL = `WITH llamadas AS (
          JOIN ${FLOWS}.system_flow_catalog f
            ON f.http_method = l.method
           AND (
-                (f.system_code = 'ATLAS_BACKEND' AND l.client_code <> 'MOTOR_PORTAL' AND f.path = l.path
-                  AND jsonb_array_length(f.internal_permissions) = 0)
+                (f.system_code = 'ATLAS_BACKEND' AND l.client_code <> 'MOTOR_PORTAL' AND f.path = l.path)
              OR (f.system_code = 'DECISION_ENGINE' AND l.client_code = 'MOTOR_PORTAL'
                   AND f.controller || '.' || f.handler = l.path AND jsonb_array_length(f.roles) = 0)
               )
