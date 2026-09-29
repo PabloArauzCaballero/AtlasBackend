@@ -17,6 +17,7 @@ import { NodoService } from './application/nodo.service.js';
 import { NodoMovimientoService } from './application/nodo-movimiento.service.js';
 import { SubidaService } from './application/subida.service.js';
 import { ExpedienteAccesoGuard, NivelRequerido, type RequestConExpediente } from './guards/expediente-acceso.guard.js';
+import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { toNodoDto } from './expedientes.mapper.js';
 import {
   actualizarNodoSchema,
@@ -41,7 +42,7 @@ import {
 @ApiBearerAuth('access-token')
 @Controller('expedientes/:id')
 @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin')
-@UseGuards(ExpedienteAccesoGuard)
+@UseGuards(TenantGuard, ExpedienteAccesoGuard)
 export class ExpedientesNodosController {
   constructor(
     private readonly nodos: NodoService,
