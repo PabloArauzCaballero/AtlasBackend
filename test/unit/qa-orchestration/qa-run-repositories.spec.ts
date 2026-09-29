@@ -215,10 +215,24 @@ describe('repositorio de lecturas de corridas QA', () => {
     const db = fakeSequelize((sql) => (sql.includes('COUNT(*)::text AS total') ? [{ total: '37' }] : [{ ordinal: 11 }]));
     const result = await new QaRunQueryRepository(db.asSequelize).listPersonas('42', { page: 3, limit: 5, status: 'FAILED' });
     expect(result).toEqual({ items: [{ ordinal: 11 }], total: 37 });
-    for (const call of db.calls) expect(call.options.bind).toEqual({ runId: '42', status: 'FAILED', limit: 5, offset: 10 });
+    for (const call of db.calls)
+      expect(call.options.bind).toEqual({ runId: '42', status: 'FAILED', pattern: null, ordinal: null, limit: 5, offset: 10 });
 
     const vacio = await new QaRunQueryRepository(fakeSequelize(() => []).asSequelize).listPersonas('42', { page: 1, limit: 5 });
     expect(vacio.total).toBe(0);
+  });
+
+  it('la búsqueda de personas escapa % y _ y trata «#12» como número de orden', async () => {
+    const db = fakeSequelize(() => []);
+    const repo = new QaRunQueryRepository(db.asSequelize);
+    await repo.listPersonas('42', { page: 1, limit: 5, q: ' 50%_x ' });
+    expect(db.calls[0].options.bind).toMatchObject({ pattern: '%50\\%\\_x%', ordinal: null });
+    await repo.listPersonas('42', { page: 1, limit: 5, q: '#12' });
+    expect(db.calls[2].options.bind).toMatchObject({ pattern: '%#12%', ordinal: 12 });
+    await repo.listPersonas('42', { page: 1, limit: 5, q: '007' });
+    expect(db.calls[4].options.bind).toMatchObject({ ordinal: 7 });
+    expect(db.calls[4].sql).toContain('persona_key ILIKE $pattern');
+    expect(db.calls[4].sql).toContain('reason ILIKE $pattern');
   });
 
   it('agregados de pasos, personas y causas raíz se piden por corrida', async () => {

@@ -63,6 +63,8 @@ export const qaPersonasQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   status: z.enum(['PENDING', 'RUNNING', 'PASSED', 'FAILED', 'BLOCKED', 'INDETERMINATE', 'CANCELLED']).optional(),
+  /** Texto libre: clave de la persona, arquetipo, categoría del caso, paso que falló o motivo; un número, además, su ordinal. */
+  q: z.string().trim().min(1).max(100).optional(),
 });
 export type QaPersonasQueryDto = z.infer<typeof qaPersonasQuerySchema>;
 

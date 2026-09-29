@@ -171,7 +171,7 @@ export class QaRunReadService {
     };
   }
 
-  async personas(user: AuthenticatedUser, runId: string, input: { page: number; limit: number; status?: string }) {
+  async personas(user: AuthenticatedUser, runId: string, input: { page: number; limit: number; status?: string; q?: string }) {
     await this.requireRun(user, runId);
     const result = await this.query.listPersonas(runId, input);
     return {

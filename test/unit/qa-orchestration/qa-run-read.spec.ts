@@ -1,6 +1,7 @@
 import { HttpException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../../src/common/types/auth.types';
 import { summary, tallySteps } from '../../../src/modules/qa-orchestration/application/qa-run-read.mappers';
+import { qaPersonasQuerySchema } from '../../../src/modules/qa-orchestration/qa-orchestration.schemas';
 import { QaRunReadService } from '../../../src/modules/qa-orchestration/application/qa-run-read.service';
 import { QaWorkflowMatcher } from '../../../src/modules/qa-orchestration/application/qa-workflow-matcher';
 import { ACCOUNT_SIGNUP_TO_LOGIN } from '../../../src/modules/qa-orchestration/catalog/customer-account.recipes';
@@ -229,6 +230,10 @@ describe('lecturas del laboratorio QA: corridas', () => {
     expect(personas).toMatchObject({ total: 3, page: 2, limit: 1 });
     expect(personas.items[0]).toMatchObject({ personaKey: 'p-0001', resources: {}, failedStepKey: 'signup.me' });
 
+    const found = await service.personas(user, '42', { page: 1, limit: 10, q: 'signup' });
+    expect(found.total).toBe(3);
+    expect(query.listPersonas).toHaveBeenLastCalledWith('42', { page: 1, limit: 10, q: 'signup' });
+
     const steps = await service.steps(user, '42', 'p-0001');
     expect(steps.items[0]).toMatchObject({ stepKey: 'signup.me', workflowStepCode: 'lifecycle.auth_me', status: 'FAILED' });
 
@@ -312,5 +317,15 @@ describe('casamiento de plantillas con flujos por endpoint', () => {
       expect.arrayContaining(['lifecycle.consent_documents', 'lifecycle.signup', 'lifecycle.login', 'lifecycle.auth_me']),
     );
     expect(await matcher.stepsOf('flujo_desconocido')).toEqual([]);
+  });
+});
+
+describe('qaPersonasQuerySchema · q', () => {
+  it('acepta q recortado, lo rechaza vacío o excesivo y sigue aceptando la consulta sin q', () => {
+    expect(qaPersonasQuerySchema.parse({ q: '  login  ' }).q).toBe('login');
+    expect(qaPersonasQuerySchema.parse({}).q).toBeUndefined();
+    expect(qaPersonasQuerySchema.safeParse({ q: '   ' }).success).toBe(false);
+    expect(qaPersonasQuerySchema.safeParse({ q: 'x'.repeat(101) }).success).toBe(false);
+    expect(qaPersonasQuerySchema.parse({ status: 'FAILED', q: '#3', page: '2' })).toMatchObject({ status: 'FAILED', q: '#3', page: 2 });
   });
 });

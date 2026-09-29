@@ -8,9 +8,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { containsLikePattern } from '../../../common/utils/strings/like-pattern.util.js';
 import { atlasSchemaFor } from '../../../database/domain-schemas.js';
 
 const S = atlasSchemaFor('qa_runs');
+/** `12` o `#12`: el número de orden de la persona en la corrida. */
+const NUMERIC_ORDINAL = /^[0-9]{1,9}$/;
 
 export type RunRow = {
   _id: string;
@@ -127,22 +130,35 @@ export class QaRunQueryRepository {
     );
   }
 
-  async listPersonas(runId: string, input: { page: number; limit: number; status?: string }) {
-    const bind = { runId, status: input.status ?? null, limit: input.limit, offset: (input.page - 1) * input.limit };
+  async listPersonas(runId: string, input: { page: number; limit: number; status?: string; q?: string }) {
+    const term = input.q?.trim() ?? '';
+    const digits = term.replace(/^#/, '');
+    const bind = {
+      runId,
+      status: input.status ?? null,
+      pattern: term === '' ? null : containsLikePattern(term),
+      ordinal: NUMERIC_ORDINAL.test(digits) ? Number(digits) : null,
+      limit: input.limit,
+      offset: (input.page - 1) * input.limit,
+    };
+    // Sin `q`, `$pattern` es NULL y la condición no filtra. Con `q`, casa con parte de cualquiera de los
+    // textos que la pantalla enseña de la persona; `#12` o `12` casan además con su número de orden.
+    const where = `run_id = $runId AND ($status::text IS NULL OR status = $status)
+            AND ($pattern::text IS NULL
+                 OR persona_key ILIKE $pattern OR archetype ILIKE $pattern OR case_category ILIKE $pattern
+                 OR failed_step_key ILIKE $pattern OR reason ILIKE $pattern
+                 OR ($ordinal::int IS NOT NULL AND ordinal = $ordinal))`;
     const [items, total] = await Promise.all([
       this.sequelize.query<PersonaRow>(
         `SELECT ordinal, persona_key, status, case_category, archetype, resources_json, failed_step_key, reason, started_at, finished_at
-           FROM ${S}.qa_persona_runs WHERE run_id = $runId AND ($status::text IS NULL OR status = $status)
+           FROM ${S}.qa_persona_runs WHERE ${where}
           ORDER BY ordinal LIMIT $limit OFFSET $offset;`,
         { type: QueryTypes.SELECT, bind },
       ),
-      this.sequelize.query<{ total: string }>(
-        `SELECT COUNT(*)::text AS total FROM ${S}.qa_persona_runs WHERE run_id = $runId AND ($status::text IS NULL OR status = $status);`,
-        {
-          type: QueryTypes.SELECT,
-          bind,
-        },
-      ),
+      this.sequelize.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM ${S}.qa_persona_runs WHERE ${where};`, {
+        type: QueryTypes.SELECT,
+        bind,
+      }),
     ]);
     return { items, total: Number(total[0]?.total ?? 0) };
   }
