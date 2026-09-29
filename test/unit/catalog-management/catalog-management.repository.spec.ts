@@ -92,7 +92,12 @@ describe('CatalogManagementRepository', () => {
     catalogModel.findAndCountAll = jest.fn(async (..._args: unknown[]) => ({ rows: [{ id: 'c1' }], count: 41 }));
     catalogModel.count = jest.fn(async (..._args: unknown[]) => 7);
     const result = await repo.listCatalogs({ domain: 'finance', active: 'true', status: 'all', page: 3, limit: 20 } as never);
-    const args = catalogModel.findAndCountAll.mock.calls[0]?.[0] as { where: Record<symbol, unknown>; order: unknown; limit: number; offset: number };
+    const args = catalogModel.findAndCountAll.mock.calls[0]?.[0] as {
+      where: Record<symbol, unknown>;
+      order: unknown;
+      limit: number;
+      offset: number;
+    };
     expect(args).toMatchObject({ order: [['catalogCode', 'ASC']], limit: 20, offset: 40 });
     expect(args.where[Op.and]).toEqual([{ domain: 'finance' }, { isActive: true }]);
     expect(catalogModel.count).toHaveBeenCalledTimes(3);

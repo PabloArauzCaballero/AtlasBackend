@@ -41,6 +41,7 @@ describe('Textos legales y políticas de gobierno · permiso fino, no sólo rol'
     [ConsentOperationsController, 'create', 'governance.policies.manage'],
     [ConsentOperationsController, 'update', 'governance.policies.manage'],
     [CatalogGovernanceController, 'getDataGovernancePolicies', 'governance.policies.read'],
+    [CatalogGovernanceController, 'searchDataGovernancePolicies', 'governance.policies.read'],
     [CatalogGovernanceController, 'upsertDataGovernancePackage', 'governance.policies.manage'],
     [PartnerContractTemplatesController, 'publish', 'governance.policies.manage'],
     [PartnerContractTemplatesController, 'setDefault', 'governance.policies.manage'],
