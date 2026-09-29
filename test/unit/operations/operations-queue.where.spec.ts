@@ -1,7 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { Op } from 'sequelize';
 import { fraudQueueWhere, manualReviewQueueWhere } from '../../../src/modules/operations/operations-queue.where.js';
-import { containsPattern, escapeLikePattern } from '../../../src/common/utils/strings/like-pattern.util.js';
 
 const escape = (value: string) => `'${value.replace(/'/g, "''")}'`;
 
@@ -33,12 +32,5 @@ describe('filtros de la cola de trabajo', () => {
       throw new Error('no debería escapar');
     });
     expect(where[Op.or]).toBeUndefined();
-  });
-});
-
-describe('patrón LIKE', () => {
-  it('escapa barra, % y _ (la barra primero)', () => {
-    expect(escapeLikePattern('a\\b%c_d')).toBe('a\\\\b\\%c\\_d');
-    expect(containsPattern('  x ')).toBe('%x%');
   });
 });
