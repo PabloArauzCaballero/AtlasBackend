@@ -6,257 +6,241 @@ import { PortalGlossaryService } from '../../../src/modules/internal-portal/appl
 /**
  * El glosario de negocio: dominios, tablas y campos con sus relaciones.
  *
- * Es un catálogo COMPUESTO —tres consultas que se cruzan en memoria— y ahí está lo que se prueba:
- * el cruce, no el SQL.
- *
- * Las relaciones se arman con lo ya cargado y no con una consulta por término. Con 80 dominios, 120
- * tablas y 240 campos, resolver «qué tablas tiene este dominio» preguntando a la base por cada uno
- * serían cientos de idas para ordenar algo que ya está en la mano.
- *
- * El cruce es INSENSIBLE a mayúsculas por los dos lados, porque `domain_code`, `module` y
- * `table_name` los escriben personas distintas en momentos distintos: una tabla catalogada como
- * `Credit` y un dominio `credit` son el mismo dominio, y tratarlos como distintos deja la ficha del
- * dominio vacía sin que nada falle.
- *
- * Un campo cuyo dominio no está declarado se cuelga del dominio de SU TABLA. Si no, el campo
- * desaparece del glosario: existe en la base, está catalogado, y no aparece en ninguna ficha.
- *
- * Y los endpoints que tocan una tabla se deduplican: el mismo `GET /x` declarado dos veces sobre la
- * misma entidad se pintaría dos veces en la ficha.
+ * La página, el total, el buscador y los filtros los resuelve PostgreSQL sobre el catálogo entero
+ * (antes: 80 dominios, 120 tablas y 240 campos traídos con `LIMIT` fijo y paginados en memoria). Lo
+ * que estas pruebas fijan es lo que el servicio hace ALREDEDOR de ese SQL: qué filtros le manda, cómo
+ * arma el total, y cómo cruza las relaciones de los términos de la página —sin mayúsculas de por
+ * medio y sin duplicar endpoints—. Que el SQL filtre de verdad lo mide la integración contra
+ * PostgreSQL (`test/integration/internal-portal/portal-catalog-queries.spec.ts`).
  */
 function servicio(query: jest.Mock): PortalGlossaryService {
   return new PortalGlossaryService({ query } as unknown as Sequelize);
 }
 
-/** Responde a cada consulta según la tabla que menciona. */
-function porTabla(filas: Record<string, unknown[]>): jest.Mock {
+const TERMINO_DOMINIO = {
+  kind: 'domain',
+  ref_id: 'credit',
+  term_key: 'credit',
+  name: 'Crédito',
+  definition: 'Todo lo que presta dinero',
+  domain: 'credit',
+  owner: 'riesgo',
+  status: 'ACTIVE',
+  updated_at: new Date('2026-09-01T10:00:00Z'),
+  data_nature: 'OPERACIONAL',
+  schema_name: null,
+  table_name: null,
+  review_status: null,
+  sensitivity_level: null,
+};
+const TERMINO_TABLA = {
+  ...TERMINO_DOMINIO,
+  kind: 'table',
+  ref_id: '10',
+  term_key: 'loans',
+  name: 'Préstamos',
+  definition: 'Los créditos desembolsados',
+  data_nature: null,
+  schema_name: 'credit',
+  table_name: 'loans',
+  review_status: 'APPROVED',
+};
+const TERMINO_CAMPO = {
+  ...TERMINO_DOMINIO,
+  kind: 'field',
+  ref_id: '100',
+  term_key: 'loans.principal_amount',
+  name: 'Capital prestado',
+  owner: 'data-governance',
+  data_nature: null,
+  schema_name: 'credit',
+  table_name: 'loans',
+  sensitivity_level: 'INTERNAL',
+};
+
+type Respuestas = {
+  page?: unknown[];
+  total?: string;
+  domainTables?: unknown[];
+  fields?: unknown[];
+  endpoints?: unknown[];
+  fks?: unknown[];
+};
+
+/** Responde a cada consulta según la forma del SQL que recibe. */
+function doble(respuestas: Respuestas): jest.Mock {
   return jest.fn(async (sql: string) => {
-    const tabla = Object.keys(filas).find((nombre) => (sql as string).includes(nombre));
-    return (filas[tabla ?? ''] ?? []) as never;
+    if (sql.includes('COUNT(*)::text AS total FROM terms')) return [{ total: respuestas.total ?? '3' }] as never;
+    if (sql.includes('LIMIT :limit OFFSET :offset') || sql.includes('WHERE kind = :kind AND ref_id = :ref'))
+      return (respuestas.page ?? []) as never;
+    if (sql.includes('AS module_key')) return (respuestas.domainTables ?? []) as never;
+    if (sql.includes('FROM system_data_field_catalog\n WHERE')) return (respuestas.fields ?? []) as never;
+    if (sql.includes('FROM system_endpoint_data_entity_impacts i')) return (respuestas.endpoints ?? []) as never;
+    if (sql.includes('FROM system_data_relationship_catalog')) return (respuestas.fks ?? []) as never;
+    return [] as never;
   }) as unknown as jest.Mock;
 }
 
-const DOMINIO = {
-  _id: 1,
-  domain_code: 'credit',
-  domain_name: 'Crédito',
-  description: 'Todo lo que presta dinero',
-  owner_team: 'riesgo',
-  data_nature: 'OPERACIONAL',
-  _updated_at: new Date('2026-09-01T10:00:00Z'),
-};
-
-const TABLA = {
-  _id: 10,
-  schema_name: 'credit',
-  table_name: 'loans',
-  entity_name: 'Préstamos',
-  module: 'credit',
-  domain_code: 'credit',
-  business_purpose: 'Los créditos desembolsados',
-  data_owner: 'riesgo',
-  status: 'ACTIVE',
-  review_status: 'REVIEWED',
-  _updated_at: new Date('2026-09-01T10:00:00Z'),
-};
-
-const CAMPO = {
-  _id: 100,
-  data_entity_id: 10,
-  schema_name: 'credit',
-  table_name: 'loans',
-  column_name: 'principal_amount',
-  business_name: 'Capital prestado',
-  business_meaning: 'Lo que se entregó al cliente',
-  domain_code: 'credit',
-  sensitivity_level: 'INTERNAL',
-  referenced_table: null,
-  referenced_column: null,
-  _updated_at: new Date('2026-09-01T10:00:00Z'),
-};
+const replacementsDe = (query: jest.Mock, fragmento: string) =>
+  (query.mock.calls.find(([sql]) => String(sql).includes(fragmento))?.[1] as { replacements: Record<string, unknown> }).replacements;
 
 describe('PortalGlossaryService', () => {
   let query: jest.Mock;
 
   beforeEach(() => {
-    query = porTabla({
-      system_domain_catalog: [DOMINIO],
-      system_data_entity_catalog: [TABLA],
-      system_data_field_catalog: [CAMPO],
-      system_endpoint_data_entity_impacts: [{ data_entity_id: 10, method: 'GET', full_path: '/api/v1/loans' }],
-      system_data_relationship_catalog: [],
+    query = doble({
+      page: [TERMINO_DOMINIO, TERMINO_TABLA, TERMINO_CAMPO],
+      domainTables: [{ id: '10', table_name: 'loans', domain_key: 'credit', module_key: 'credit' }],
+      fields: [{ data_entity_id: '10', table_name: 'loans', column_name: 'principal_amount', domain_key: 'credit' }],
+      endpoints: [{ data_entity_id: '10', method: 'GET', full_path: '/api/v1/loans' }],
     });
   });
 
-  describe('el catálogo compuesto', () => {
-    it('mezcla dominios, tablas y campos, cada uno con su prefijo de identificador', async () => {
-      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
+  describe('el listado', () => {
+    it('manda a SQL el buscador escapado, el dominio, el tipo y la página', async () => {
+      await servicio(query).listBusinessTerms({ page: 3, limit: 10, q: 'tasa_50%', domain: 'RIESGO', type: 'table' });
 
-      expect(items.map((item) => item.termId)).toEqual(['domain:credit', 'table:10', 'field:100']);
+      expect(replacementsDe(query, 'LIMIT :limit OFFSET :offset')).toEqual({
+        q: 'tasa_50%',
+        like: '%tasa\\_50\\%%',
+        domain: 'RIESGO',
+        kind: 'table',
+        limit: 10,
+        offset: 20,
+      });
+      expect(replacementsDe(query, 'COUNT(*)::text AS total FROM terms')).toMatchObject({ domain: 'RIESGO', kind: 'table' });
     });
 
-    it('las relaciones se arman con lo ya cargado: cuatro consultas, no una por término', async () => {
-      await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
+    it('un tipo desconocido no filtra: no se inventa un cuarto tipo de término', async () => {
+      await servicio(query).listBusinessTerms({ page: 1, limit: 10, type: 'report' });
 
-      expect(query).toHaveBeenCalledTimes(4);
+      expect(replacementsDe(query, 'LIMIT :limit OFFSET :offset')).toMatchObject({ kind: '' });
+    });
+
+    it('el total sale del conteo en la base, no del tamaño de la página', async () => {
+      query = doble({ page: [TERMINO_CAMPO], total: '1234' });
+
+      const { meta } = await servicio(query).listBusinessTerms({ page: 2, limit: 20 });
+
+      expect(meta).toEqual({ page: 2, limit: 20, total: 1234, totalPages: 62 });
+    });
+
+    it('cada término lleva su tipo y su prefijo de identificador', async () => {
+      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 20 });
+
+      expect(items.map((item) => [item.termId, item.type])).toEqual([
+        ['domain:credit', 'domain'],
+        ['table:10', 'table'],
+        ['field:100', 'field'],
+      ]);
     });
 
     it('un dominio lleva sus tablas, sus columnas y los endpoints que las tocan', async () => {
-      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
-      const dominio = items[0] as { relatedTables: string[]; relatedColumns: string[]; relatedEndpoints: string[] };
+      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 20 });
 
-      expect(dominio.relatedTables).toEqual(['loans']);
-      expect(dominio.relatedColumns).toEqual(['loans.principal_amount']);
-      expect(dominio.relatedEndpoints).toEqual(['GET /api/v1/loans']);
+      expect(items[0]).toMatchObject({
+        relatedTables: ['loans'],
+        relatedColumns: ['loans.principal_amount'],
+        relatedEndpoints: ['GET /api/v1/loans'],
+      });
     });
 
-    it('el cruce ignora mayúsculas: `Credit` y `credit` son el mismo dominio', async () => {
-      query = porTabla({
-        system_domain_catalog: [{ ...DOMINIO, domain_code: 'CREDIT' }],
-        system_data_entity_catalog: [{ ...TABLA, domain_code: 'Credit', module: 'Credit' }],
-        system_data_field_catalog: [{ ...CAMPO, domain_code: 'credit' }],
-        system_endpoint_data_entity_impacts: [],
-        system_data_relationship_catalog: [],
+    it('el cruce ignora mayúsculas: el dominio `CREDIT` encuentra las tablas de `credit`', async () => {
+      query = doble({
+        page: [{ ...TERMINO_DOMINIO, ref_id: 'CREDIT', term_key: 'CREDIT' }],
+        domainTables: [{ id: '10', table_name: 'loans', domain_key: 'credit', module_key: 'credit' }],
       });
 
-      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
+      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 20 });
 
+      expect(replacementsDe(query, 'AS module_key')).toEqual({ codes: ['credit'] });
       expect(items[0].relatedTables).toEqual(['loans']);
-    });
-
-    it('una tabla sin `domain_code` se cuelga de su MÓDULO: si no, el dominio saldría vacío', async () => {
-      query = porTabla({
-        system_domain_catalog: [DOMINIO],
-        system_data_entity_catalog: [{ ...TABLA, domain_code: null, module: 'credit' }],
-        system_data_field_catalog: [],
-        system_endpoint_data_entity_impacts: [],
-        system_data_relationship_catalog: [],
-      });
-
-      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
-
-      expect(items[0].relatedTables).toEqual(['loans']);
-    });
-
-    it('un campo sin dominio declarado se cuelga del dominio de SU TABLA, no desaparece', async () => {
-      query = porTabla({
-        system_domain_catalog: [DOMINIO],
-        system_data_entity_catalog: [TABLA],
-        system_data_field_catalog: [{ ...CAMPO, domain_code: null }],
-        system_endpoint_data_entity_impacts: [],
-        system_data_relationship_catalog: [],
-      });
-
-      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
-
-      expect(items[0].relatedColumns).toEqual(['loans.principal_amount']);
     });
 
     it('el mismo endpoint declarado dos veces sobre la misma tabla se pinta una sola vez', async () => {
-      query = porTabla({
-        system_domain_catalog: [DOMINIO],
-        system_data_entity_catalog: [TABLA],
-        system_data_field_catalog: [],
-        system_endpoint_data_entity_impacts: [
-          { data_entity_id: 10, method: 'GET', full_path: '/api/v1/loans' },
-          { data_entity_id: 10, method: 'GET', full_path: '/api/v1/loans' },
+      query = doble({
+        page: [TERMINO_TABLA],
+        endpoints: [
+          { data_entity_id: '10', method: 'GET', full_path: '/api/v1/loans' },
+          { data_entity_id: '10', method: 'GET', full_path: '/api/v1/loans' },
         ],
-        system_data_relationship_catalog: [],
       });
 
-      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
+      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 20 });
 
-      const conEndpoints = items as Array<{ relatedEndpoints: string[] }>;
-      expect(conEndpoints[0].relatedEndpoints).toEqual(['GET /api/v1/loans']);
-      expect(conEndpoints[1].relatedEndpoints).toEqual(['GET /api/v1/loans']);
+      expect(items[0].relatedEndpoints).toEqual(['GET /api/v1/loans']);
     });
 
-    it('sin tablas catalogadas no se pregunta por los endpoints: un `IN ()` vacío no aporta nada', async () => {
-      query = porTabla({
-        system_domain_catalog: [DOMINIO],
-        system_data_entity_catalog: [],
-        system_data_field_catalog: [],
-        system_data_relationship_catalog: [],
-      });
+    it('una página sólo de campos no pregunta por relaciones: el campo ya sabe de qué tabla es', async () => {
+      query = doble({ page: [TERMINO_CAMPO] });
 
-      await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
+      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 20 });
 
-      expect(query.mock.calls.some((llamada) => String(llamada[0]).includes('system_endpoint_data_entity_impacts'))).toBe(false);
+      expect(query).toHaveBeenCalledTimes(2);
+      expect(items[0]).toMatchObject({ relatedTables: ['loans'], relatedColumns: ['loans.principal_amount'], relatedEndpoints: [] });
     });
 
-    it('un dominio sin descripción, dueño ni nombre no sale con huecos: lleva su valor por defecto', async () => {
-      query = porTabla({
-        system_domain_catalog: [{ ...DOMINIO, domain_name: null, description: null, owner_team: null }],
-        system_data_entity_catalog: [],
-        system_data_field_catalog: [],
-        system_data_relationship_catalog: [],
-      });
+    it('sin descripción, dueño ni nombre no salen huecos: cada tipo lleva su valor por defecto', async () => {
+      query = doble({ page: [{ ...TERMINO_DOMINIO, name: null, definition: null, owner: null }] });
 
-      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
+      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 20 });
 
       expect(items[0].name).toBe('credit');
       expect(items[0].definition).toContain('Dominio de negocio');
       expect(items[0].owner).toBe('systems');
     });
+  });
 
-    it('un campo sin nombre de negocio cae a su nombre de columna', async () => {
-      query = porTabla({
-        system_domain_catalog: [],
-        system_data_entity_catalog: [],
-        system_data_field_catalog: [{ ...CAMPO, business_name: null, business_meaning: null, domain_code: null }],
-        system_data_relationship_catalog: [],
+  describe('los valores de los filtros', () => {
+    it('reparte dominios y tipos con su número de términos, sobre el catálogo entero', async () => {
+      query = jest.fn(async () => [
+        { facet: 'domain', value: 'CREDIT', total: '40' },
+        { facet: 'domain', value: 'platform', total: '7' },
+        { facet: 'kind', value: 'field', total: '300' },
+      ]) as unknown as jest.Mock;
+
+      const facets = await servicio(query).listBusinessTermFacets();
+
+      expect(facets).toEqual({
+        domains: [
+          { value: 'CREDIT', total: 40 },
+          { value: 'platform', total: 7 },
+        ],
+        types: [{ value: 'field', total: 300 }],
       });
-
-      const { items } = await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
-
-      expect(items[0].name).toBe('principal_amount');
-      expect(items[0].domain).toBe('PLATAFORMA');
-      expect((items[0].metadata as { sensitivityLevel: string }).sensitivityLevel).toBe('INTERNAL');
-    });
-
-    it('el buscador filtra el catálogo ya compuesto, y mira TODO el término y no sólo su nombre', async () => {
-      const soloElCampo = await servicio(query).listBusinessTerms({ page: 1, limit: 50, q: 'Capital prestado' });
-      expect(soloElCampo.items.map((item) => item.termId)).toEqual(['field:100']);
-
-      /*
-       * `principal_amount` aparece también en `relatedColumns` del dominio y de la tabla, así que
-       * los tres son coincidencias legítimas: quien busca el nombre de una columna quiere saber
-       * dónde vive, no sólo su ficha. Se fija aquí porque la lectura contraria —«el buscador está
-       * roto, devuelve de más»— llevaría a estrecharlo al nombre y a perder justo eso.
-       */
-      const dondeVive = await servicio(query).listBusinessTerms({ page: 1, limit: 50, q: 'principal_amount' });
-      expect(dondeVive.items.map((item) => item.termId)).toEqual(['domain:credit', 'table:10', 'field:100']);
-    });
-
-    it('los campos DEPRECADOS no entran en el catálogo', async () => {
-      await servicio(query).listBusinessTerms({ page: 1, limit: 50 });
-
-      const sql = query.mock.calls.map((llamada) => String(llamada[0])).find((texto) => texto.includes('system_data_field_catalog'));
-      expect(sql).toContain("<> 'DEPRECATED'");
     });
   });
 
   describe('la ficha de un término', () => {
-    it('un término que no existe es 404', async () => {
-      await expect(servicio(query).getBusinessTerm('domain:no-existe')).rejects.toBeInstanceOf(NotFoundException);
+    it('se busca por su tipo e identificador en la base, no dentro de una página', async () => {
+      query = doble({ page: [TERMINO_TABLA] });
+
+      const ficha = await servicio(query).getBusinessTerm('table:10');
+
+      expect(ficha.termId).toBe('table:10');
+      expect(replacementsDe(query, 'WHERE kind = :kind AND ref_id = :ref')).toEqual({ kind: 'table', ref: '10' });
+      expect(query.mock.calls.some(([sql]) => String(sql).includes('LIMIT :limit OFFSET :offset'))).toBe(false);
     });
 
-    it('los sinónimos salen de la clave, el nombre y sus relaciones, sin huecos', async () => {
-      const ficha = await servicio(query).getBusinessTerm('domain:credit');
+    it('un término que no existe, o de un tipo desconocido, es 404', async () => {
+      query = doble({ page: [] });
+      await expect(servicio(query).getBusinessTerm('domain:no-existe')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(servicio(query).getBusinessTerm('report:1')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(servicio(query).getBusinessTerm('sin-prefijo')).rejects.toBeInstanceOf(NotFoundException);
+    });
 
-      expect(ficha.synonyms).toContain('credit');
-      expect(ficha.synonyms).toContain('Crédito');
-      expect(ficha.synonyms).toContain('loans');
-      expect(ficha.synonyms.every(Boolean)).toBe(true);
+    it('un identificador codificado en la URL se decodifica antes de buscar', async () => {
+      query = doble({ page: [TERMINO_DOMINIO] });
+
+      const ficha = await servicio(query).getBusinessTerm(encodeURIComponent('domain:credit'));
+
+      expect(ficha.termId).toBe('domain:credit');
     });
 
     it('con claves foráneas declaradas, las relaciones son las REALES y llevan sus dos extremos', async () => {
-      query = porTabla({
-        system_domain_catalog: [DOMINIO],
-        system_data_entity_catalog: [TABLA],
-        system_data_field_catalog: [],
-        system_endpoint_data_entity_impacts: [],
-        system_data_relationship_catalog: [
+      query = doble({
+        page: [TERMINO_TABLA],
+        fks: [
           {
             _id: 7,
             source_table: 'loans',
@@ -270,31 +254,30 @@ describe('PortalGlossaryService', () => {
 
       const ficha = await servicio(query).getBusinessTerm('table:10');
 
-      expect(ficha.relations).toHaveLength(1);
-      expect(ficha.relations[0]).toMatchObject({
-        relationId: 'fk:7',
-        relationType: 'FOREIGN_KEY',
-        targetId: 'customers',
-        sourceTable: 'loans',
-        targetColumn: '_id',
-      });
+      expect(ficha.relations).toEqual([
+        expect.objectContaining({
+          relationId: 'fk:7',
+          relationType: 'FOREIGN_KEY',
+          targetId: 'customers',
+          sourceTable: 'loans',
+          targetColumn: '_id',
+        }),
+      ]);
     });
 
     it('sin claves foráneas se declara la relación documental, no una lista vacía', async () => {
+      query = doble({ page: [TERMINO_TABLA] });
+
       const ficha = await servicio(query).getBusinessTerm('table:10');
 
       expect(ficha.relations).toEqual([expect.objectContaining({ relationType: 'documents', targetType: 'table', targetId: 'loans' })]);
     });
 
-    it('un identificador codificado en la URL se decodifica antes de buscar', async () => {
-      const ficha = await servicio(query).getBusinessTerm(encodeURIComponent('domain:credit'));
-
-      expect(ficha.termId).toBe('domain:credit');
-    });
-
-    it('la ficha lleva sus restricciones de gobierno, que no dependen del término', async () => {
+    it('la ficha lleva sinónimos sin huecos y sus restricciones de gobierno', async () => {
       const ficha = await servicio(query).getBusinessTerm('domain:credit');
 
+      expect(ficha.synonyms).toEqual(expect.arrayContaining(['credit', 'Crédito', 'loans']));
+      expect(ficha.synonyms.every(Boolean)).toBe(true);
       expect(ficha.restrictions.join(' ')).toContain('PII');
       expect(ficha.audit).toEqual([expect.objectContaining({ auditId: 'audit:domain:credit', actor: 'atlas_backend' })]);
     });

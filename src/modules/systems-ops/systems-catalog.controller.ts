@@ -37,6 +37,7 @@ import {
 import { SystemsCatalogQueryService } from './systems-catalog-query.service.js';
 import { SystemsToolInferenceService } from './systems-tool-inference.service.js';
 import { SystemsDomainOverviewService } from './systems-domain-overview.service.js';
+import { SystemsCatalogSummaryService } from './systems-catalog-summary.service.js';
 import { SystemsDataImpactInferenceService } from './systems-data-impact-inference.service.js';
 
 @Controller('systems')
@@ -47,7 +48,18 @@ export class SystemsCatalogController {
     private readonly toolInferenceService: SystemsToolInferenceService,
     private readonly dataImpactInferenceService: SystemsDataImpactInferenceService,
     private readonly domainOverviewService: SystemsDomainOverviewService,
+    private readonly catalogSummaryService: SystemsCatalogSummaryService,
   ) {}
+
+  @ApiOperation({
+    summary: 'Cifras del catálogo de tablas, rutas y suites',
+    description: 'Contadas en la base sobre el catálogo entero: sensibilidad, documentación, cobertura QA y pendientes de revisión.',
+  })
+  @ApiResponse({ status: 200, description: '`tables`, `endpoints` y `testSuites` con sus contadores.' })
+  @Get('catalog/summary')
+  getCatalogSummary() {
+    return this.catalogSummaryService.summary();
+  }
 
   @ApiOperation({ summary: 'Dashboard resumen de systems-ops' })
   @ApiResponse({ status: 200, description: 'Contadores y resumen del catálogo interno.' })
@@ -66,6 +78,12 @@ export class SystemsCatalogController {
   @ApiQuery({ name: 'page', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).page })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Lista paginada de endpoints.' })
+  @ApiQuery({
+    name: 'personalData',
+    required: false,
+    schema: zodObjectPropertySchemas(systemsListQuerySchema).personalData,
+    description: '`true`: sólo rutas marcadas con datos personales o con campos personales; `false`: las demás.',
+  })
   @Get('endpoints')
   listEndpoints(@Query(new ZodValidationPipe(systemsListQuerySchema)) query: SystemsListQueryDto) {
     return this.service.listEndpoints(query);
@@ -147,6 +165,12 @@ export class SystemsCatalogController {
   @ApiQuery({ name: 'page', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).page })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(systemsListQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Lista paginada de entidades de datos.' })
+  @ApiQuery({
+    name: 'personalData',
+    required: false,
+    schema: zodObjectPropertySchemas(systemsListQuerySchema).personalData,
+    description: '`true`: sólo tablas con datos personales, legales, de ubicación o de dispositivo; `false`: las demás.',
+  })
   @Get('data-entities')
   listDataEntities(@Query(new ZodValidationPipe(systemsListQuerySchema)) query: SystemsListQueryDto) {
     return this.service.listDataEntities(query);

@@ -16,13 +16,11 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { InternalPortalService } from './internal-portal.service.js';
 import { ApiDataQualityRulesDocs, ApiDeprecatedAcknowledgeDocs, ApiDeprecatedAlertsDocs } from './data-quality-portal.openapi.js';
 import { portalScopeFor } from './application/portal-scope.util.js';
-import { businessTermDetailResponseSchema, businessTermListResponseSchema } from './business-metadata.openapi.js';
+import { INTERNAL_PORTAL_ROLES } from './internal-portal.roles.js';
 import {
   ApiPortalFacetQuery,
   ApiPortalListQuery,
   ApiPortalSearchQuery,
-  lineageQuerySchema,
-  LineageQueryDto,
   portalIdParamSchema,
   portalListQuerySchema,
   PortalListQueryDto,
@@ -34,26 +32,11 @@ import {
   PortalJobsQueryDto,
   portalSearchQuerySchema,
   PortalSearchQueryDto,
+  portalReportsQuerySchema,
+  PortalReportsQueryDto,
   runReportSchema,
   RunReportDto,
 } from './internal-portal.schemas.js';
-
-/**
- * Roles internos autorizados para el portal operacional.
- *
- * El controller expone lectura y escritura administrativa; nunca debe aceptar actores `customer`.
- */
-const INTERNAL_PORTAL_ROLES = [
-  'internal_operator',
-  'risk_analyst',
-  'compliance_analyst',
-  'admin',
-  'platform_admin',
-  'system_admin',
-  'qa_engineer',
-  'devops',
-  'readonly_auditor',
-] as const;
 
 /**
  * Portal interno de operación y gobierno de datos.
@@ -82,34 +65,6 @@ const INTERNAL_PORTAL_ROLES = [
 @Roles(...INTERNAL_PORTAL_ROLES)
 export class InternalPortalController {
   constructor(private readonly service: InternalPortalService) {}
-
-  @ApiOperation({
-    summary: 'Listar términos del glosario de negocio',
-    description: 'Unifica dominios, tablas y campos para dar contexto semántico, ownership y trazabilidad a las decisiones.',
-  })
-  @ApiPortalListQuery()
-  @ApiResponse({ status: 200, description: 'Lista paginada de términos del glosario.', schema: businessTermListResponseSchema })
-  @Get('business-metadata/glossary')
-  listBusinessTerms(@Query(new ZodValidationPipe(portalListQuerySchema)) query: PortalListQueryDto) {
-    return this.service.listBusinessTerms(query);
-  }
-
-  @ApiOperation({
-    summary: 'Obtener un término del glosario de negocio',
-    description: 'Incluye sinónimos, restricciones, relaciones de datos y evidencia mínima de auditoría.',
-  })
-  @ApiParam({
-    name: 'termId',
-    schema: { type: 'string', pattern: '^(domain|table|field):.+$' },
-    example: 'domain:RIESGO_CREDITO',
-    description: 'Identificador retornado por el glosario; debe enviarse URL-encoded cuando corresponda.',
-  })
-  @ApiResponse({ status: 200, description: 'Detalle enriquecido del término.', schema: businessTermDetailResponseSchema })
-  @ApiResponse({ status: 404, description: 'BUSINESS_TERM_NOT_FOUND.' })
-  @Get('business-metadata/terms/:termId')
-  getBusinessTerm(@Param(new ZodValidationPipe(portalIdParamSchema('termId'))) params: { termId: string }) {
-    return this.service.getBusinessTerm(params.termId);
-  }
 
   @ApiOperation({
     summary: 'Listar catálogos exportables',
@@ -165,28 +120,6 @@ export class InternalPortalController {
   @Get('governance/policies/:policyId')
   getGovernancePolicy(@Param(new ZodValidationPipe(portalIdParamSchema('policyId'))) params: { policyId: string }) {
     return this.service.getGovernancePolicy(params.policyId);
-  }
-
-  @ApiOperation({ summary: 'Consultar el grafo de linaje de datos' })
-  @ApiResponse({ status: 200, description: 'Grafo de linaje de datos.' })
-  @Get('lineage')
-  getLineage(@Query(new ZodValidationPipe(lineageQuerySchema)) query: LineageQueryDto) {
-    return this.service.getLineage(query);
-  }
-
-  @ApiOperation({ summary: 'Obtener un nodo de linaje de datos' })
-  @ApiParam({ name: 'nodeId' })
-  @ApiResponse({ status: 200, description: 'Detalle del nodo de linaje.' })
-  @Get('lineage/nodes/:nodeId')
-  getLineageNode(@Param(new ZodValidationPipe(portalIdParamSchema('nodeId'))) params: { nodeId: string }) {
-    return this.service.getLineageNode(params.nodeId);
-  }
-
-  @ApiOperation({ summary: 'Analizar impacto de linaje de datos (aguas abajo/arriba)' })
-  @ApiResponse({ status: 200, description: 'Análisis de impacto de linaje.' })
-  @Get('lineage/impact')
-  getLineageImpact(@Query(new ZodValidationPipe(lineageQuerySchema)) query: LineageQueryDto) {
-    return this.service.getLineageImpact(query);
   }
 
   @ApiDeprecatedAlertsDocs()
@@ -245,10 +178,16 @@ export class InternalPortalController {
     return this.service.getReleaseReadiness(portalScopeFor(currentUser));
   }
 
-  @ApiOperation({ summary: 'Listar reportes registrados' })
+  @ApiOperation({
+    summary: 'Listar reportes registrados',
+    description: 'Definiciones declaradas en código. `facets` y `summary` cuentan el catálogo entero y lo filtrado, no la página.',
+  })
+  @ApiPortalListQuery()
+  @ApiPortalFacetQuery('domain', 'Dominio exacto del reporte (operations, systems, governance, risk…).')
+  @ApiPortalFacetQuery('status', 'Estado exacto del reporte (ACTIVE…).')
   @ApiResponse({ status: 200, description: 'Lista de reportes.' })
   @Get('reports')
-  listReports(@Query(new ZodValidationPipe(portalListQuerySchema)) query: PortalListQueryDto) {
+  listReports(@Query(new ZodValidationPipe(portalReportsQuerySchema)) query: PortalReportsQueryDto) {
     return this.service.listReports(query);
   }
 

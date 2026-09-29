@@ -23,6 +23,11 @@ export const systemsListQuerySchema = z.object({
   riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
   reviewStatus: z.enum(['AUTO_DETECTED', 'NEEDS_REVIEW', 'APPROVED', 'REJECTED']).optional(),
   q: z.string().trim().min(1).max(200).optional(),
+  /** Sólo lo que guarda o expone datos personales (tablas: PII, legal, ubicación o dispositivo; rutas: PII o campos personales). */
+  personalData: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 });

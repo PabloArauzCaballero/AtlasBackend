@@ -69,6 +69,25 @@ export const portalDataQualityRulesQuerySchema = portalListQuerySchema.extend({
 export type PortalDataQualityRulesQueryDto = z.infer<typeof portalDataQualityRulesQuerySchema>;
 
 /**
+ * Glosario: `domain` (exacto, sin distinguir mayúsculas) y `type` (dominio, tabla o campo). Antes el
+ * portal mandaba `domain` y Zod lo descartaba: el desplegable «Dominio» no filtraba nada.
+ */
+export const portalGlossaryQuerySchema = portalListQuerySchema.extend({
+  domain: z.string().trim().min(1).max(120).optional(),
+  type: z.enum(['domain', 'table', 'field']).optional(),
+});
+
+export type PortalGlossaryQueryDto = z.infer<typeof portalGlossaryQuerySchema>;
+
+/** Reportería: los dos desplegables de la pantalla, que antes se descartaban en silencio. */
+export const portalReportsQuerySchema = portalListQuerySchema.extend({
+  domain: facetFilter,
+  status: facetFilter,
+});
+
+export type PortalReportsQueryDto = z.infer<typeof portalReportsQuerySchema>;
+
+/**
  * Los identificadores del portal son opacos y compuestos (`dq:103`, `field:42`, `purpose:MKT`), no
  * enteros: se validan por forma, no por tipo. El tope de longitud y la lista de caracteres impiden
  * que un id absurdo llegue a la capa de consulta o al log.
@@ -95,6 +114,17 @@ export const lineageQuerySchema = z.object({
   nodeLimit: z.coerce.number().int().min(1).max(2000).optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
+  // Módulo exacto de los nodos (grafo) o de alguno de los dos extremos (impacto).
+  domain: z.string().trim().min(1).max(120).optional(),
+  // Sólo `/lineage/impact`: severidad de la arista endpoint→tabla y familia de arista. `severity` lo
+  // mandaba el portal desde siempre y se descartaba aquí, así que el desplegable no filtraba.
+  severity: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .pipe(z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']))
+    .optional(),
+  family: z.enum(['impact', 'relationship']).optional(),
 });
 
 export type LineageQueryDto = z.infer<typeof lineageQuerySchema>;
@@ -134,6 +164,34 @@ export function ApiPortalListQuery(): MethodDecorator {
       description: 'Alias legado de `limit`, conservado por compatibilidad con el Admin Portal.',
     }),
   );
+}
+
+/** Documenta los filtros de `/lineage` y `/lineage/impact` (los del grafo y los de la lista). */
+export function ApiLineageQuery(options: { impact: boolean }): MethodDecorator {
+  const properties = zodObjectPropertySchemas(lineageQuerySchema);
+  const query = (name: keyof typeof properties, description: string) =>
+    ApiQuery({ name, required: false, schema: properties[name], description });
+  const common = [
+    query(
+      'q',
+      options.impact
+        ? 'Texto en origen, destino, tipo, descripción o tabla (ILIKE).'
+        : 'Texto en nombre, tabla, esquema, ruta o módulo (ILIKE).',
+    ),
+    query('domain', 'Módulo exacto (sin distinguir mayúsculas) de los nodos o de alguno de los dos extremos.'),
+  ];
+  const specific = options.impact
+    ? [
+        query('severity', 'Severidad de la arista endpoint→tabla (LOW, MEDIUM, HIGH, CRITICAL). Las relaciones entre tablas no tienen.'),
+        query('family', 'Familia de arista: `impact` (endpoint→tabla) o `relationship` (tabla→tabla).'),
+        query('page', 'Página solicitada, desde 1.'),
+        query('limit', 'Elementos por página (1-100).'),
+      ]
+    : [
+        query('nodeType', 'Sólo nodos de este tipo: `table` o `endpoint`.'),
+        query('nodeLimit', 'Tope de nodos de cada tipo (1-2000, por defecto 1000).'),
+      ];
+  return applyDecorators(...common, ...specific);
 }
 
 /** Documenta un filtro exacto (sin distinguir mayúsculas) de una lista del portal. */

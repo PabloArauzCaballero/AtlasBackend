@@ -3,7 +3,7 @@
  * @business Esta pieza hace observable y gobernable el propio backend para operaciones, QA y arquitectura.
  * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
  */
-import { Op, WhereOptions } from 'sequelize';
+import { Op, Sequelize, WhereOptions } from 'sequelize';
 import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import { SystemsActionLogQueryDto, SystemsListQueryDto, SystemsStressProfileQueryDto } from './systems-ops.schemas.js';
 
@@ -18,19 +18,29 @@ export function buildEndpointTextWhere(query: SystemsListQueryDto): WhereOptions
     ...(query.riskLevel ? { riskLevel: query.riskLevel } : {}),
     ...(query.reviewStatus ? { reviewStatus: query.reviewStatus } : {}),
   };
+  const and: unknown[] = [];
 
   // El buscador de la pantalla promete «ruta, módulo o propósito»: el módulo y el método del
   // controlador (`handlerName`) no entraban, así que buscar `loans` o `createLoan` no devolvía nada.
   if (query.q) {
-    where[Op.or as unknown as string] = [
-      { code: ilike(query.q) },
-      { fullPath: ilike(query.q) },
-      { routeName: ilike(query.q) },
-      { businessPurpose: ilike(query.q) },
-      { module: ilike(query.q) },
-      { handlerName: ilike(query.q) },
-    ];
+    and.push({
+      [Op.or]: [
+        { code: ilike(query.q) },
+        { fullPath: ilike(query.q) },
+        { routeName: ilike(query.q) },
+        { businessPurpose: ilike(query.q) },
+        { module: ilike(query.q) },
+        { handlerName: ilike(query.q) },
+      ],
+    });
   }
+  // Una ruta expone datos personales si el catálogo la marca o si declara campos personales. Antes el
+  // registro de datos personales bajaba el catálogo ENTERO y lo filtraba en el navegador en cada tecla.
+  if (query.personalData !== undefined) {
+    const personal = { [Op.or]: [{ containsPii: true }, Sequelize.literal("jsonb_array_length(COALESCE(pii_fields, '[]'::jsonb)) > 0")] };
+    and.push(query.personalData ? personal : { [Op.not]: personal });
+  }
+  if (and.length > 0) where[Op.and as unknown as string] = and;
 
   return where as WhereOptions;
 }
@@ -60,17 +70,30 @@ export function buildDataEntityWhere(query: SystemsListQueryDto): WhereOptions {
     ...(query.status ? { status: query.status } : {}),
     ...(query.reviewStatus ? { reviewStatus: query.reviewStatus } : {}),
   };
+  const and: unknown[] = [];
 
   if (query.q) {
-    where[Op.or as unknown as string] = [
-      { tableName: { [Op.iLike]: `%${query.q}%` } },
-      { entityName: { [Op.iLike]: `%${query.q}%` } },
-      { modelName: { [Op.iLike]: `%${query.q}%` } },
-      // El esquema entra en la busqueda porque en un catalogo de tres bloques es lo que distingue
-      // `atlas_accounting.invoice` de una tabla homonima de otro producto.
-      { schemaName: { [Op.iLike]: `%${query.q}%` } },
-    ];
+    // El esquema entra en la busqueda porque en un catalogo de tres bloques es lo que distingue
+    // `atlas_accounting.invoice` de una tabla homonima de otro producto. Módulo y responsable entran
+    // porque el buscador de la pantalla los promete y no se buscaban.
+    and.push({
+      [Op.or]: [
+        { tableName: ilike(query.q) },
+        { entityName: ilike(query.q) },
+        { modelName: ilike(query.q) },
+        { schemaName: ilike(query.q) },
+        { module: ilike(query.q) },
+        { dataOwner: ilike(query.q) },
+      ],
+    });
   }
+  if (query.personalData !== undefined) {
+    const personal = {
+      [Op.or]: [{ containsPii: true }, { containsLegalData: true }, { containsLocationData: true }, { containsDeviceData: true }],
+    };
+    and.push(query.personalData ? personal : { [Op.not]: personal });
+  }
+  if (and.length > 0) where[Op.and as unknown as string] = and;
 
   return where as WhereOptions;
 }

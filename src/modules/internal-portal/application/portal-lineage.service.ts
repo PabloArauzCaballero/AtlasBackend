@@ -3,9 +3,10 @@
  * @business Esta pieza ofrece a operaciones una vista gobernada del negocio sin acceso directo a tablas sensibles.
  * @system compone consultas read-only, reportes, glosario, linaje y búsqueda para el portal administrativo.
  */
-import { NotFoundException } from '@nestjs/common';
-import { boolValue, clean, containsQuery, id, intValue, nullableText, paginate, Query, Row } from './portal-format.util.js';
+import { clean, id, intValue, nullableText, Query, Row } from './portal-format.util.js';
+import { containsLikePattern } from '../../../common/utils/strings/like-pattern.util.js';
 import { PortalQueryBase } from './portal-query.base.js';
+import { EntityRow, toEndpointNode, toTableNode } from './portal-lineage-nodes.util.js';
 
 /**
  * Tope por defecto de nodos de cada tipo (tablas y endpoints se piden por separado).
@@ -20,17 +21,7 @@ const MAX_NODE_LIMIT = 2000;
 /** Tope de aristas de cada familia. Se aplica DESPUÉS de acotar a los nodos cargados. */
 const EDGE_LIMIT = 2000;
 
-type EntityRow = {
-  _id: unknown;
-  schema_name: unknown;
-  table_name: unknown;
-  entity_name: unknown;
-  module: unknown;
-  status: unknown;
-  review_status: unknown;
-  contains_pii: unknown;
-  contains_risk_data: unknown;
-};
+type NodeFilters = { q: string; like: string; domain: string; nodeLimit: number };
 
 /**
  * Grafo de linaje del portal interno: nodos (tablas y endpoints) y aristas (impactos y relaciones).
@@ -48,21 +39,24 @@ type EntityRow = {
  */
 export class PortalLineageService extends PortalQueryBase {
   async getLineage(query: Query) {
-    const q = clean(query.q, '').toLowerCase();
+    const q = clean(query.q, '').trim();
     const nodeLimit = Math.min(MAX_NODE_LIMIT, Math.max(1, intValue(query.nodeLimit, DEFAULT_NODE_LIMIT)));
     const nodeType = clean(query.nodeType, '').toLowerCase();
+    const filters: NodeFilters = { q, like: containsLikePattern(q), domain: clean(query.domain, '').trim(), nodeLimit };
 
     const [entityRows, endpointRows, totals] = await Promise.all([
-      nodeType === 'endpoint' ? Promise.resolve([]) : this.loadEntityRows(q, nodeLimit),
-      nodeType === 'table' ? Promise.resolve([]) : this.loadEndpointRows(q, nodeLimit),
+      nodeType === 'endpoint' ? Promise.resolve([]) : this.loadEntityRows(filters),
+      nodeType === 'table' ? Promise.resolve([]) : this.loadEndpointRows(filters),
       this.countTotals(),
     ]);
 
-    // El filtro en memoria se conserva además del de SQL: cubre los campos derivados del nodo
-    // (criticidad, estado normalizado) que no son columnas y que la pantalla sí muestra.
-    const tableNodes = entityRows.map((row) => this.toTableNode(row)).filter((node) => containsQuery(node, q));
-    const endpointNodes = endpointRows.map((row) => this.toEndpointNode(row)).filter((node) => containsQuery(node, q));
+    const tableNodes = entityRows.map((row) => toTableNode(row));
+    const endpointNodes = endpointRows.map((row) => toEndpointNode(row));
     const nodes = [...tableNodes, ...endpointNodes];
+    // `matching` sale de `COUNT(*) OVER ()`: cuántos nodos cumplen el filtro antes del tope. Es el
+    // denominador honesto de «se muestran X de Y»; el total del catálogo no lo es cuando hay filtro.
+    const tablesMatching = intValue(entityRows[0]?.matching, 0);
+    const endpointsMatching = intValue(endpointRows[0]?.matching, 0);
 
     const entityIds = tableNodes.map((node) => node.referenceId);
     const endpointIds = endpointNodes.map((node) => node.referenceId);
@@ -81,63 +75,46 @@ export class PortalLineageService extends PortalQueryBase {
         edgeCount: edges.length,
         source: 'live_backend_catalog',
         // La pantalla necesita poder decir «esto es una parte», no fingir que es todo.
-        tables: { shown: tableNodes.length, total: totals.entities },
-        endpoints: { shown: endpointNodes.length, total: totals.endpoints },
+        tables: { shown: tableNodes.length, total: nodeType === 'endpoint' ? 0 : tablesMatching, catalog: totals.entities },
+        endpoints: { shown: endpointNodes.length, total: nodeType === 'table' ? 0 : endpointsMatching, catalog: totals.endpoints },
         impactEdges: { shown: impacts.length, total: totals.impacts },
         relationshipEdges: { shown: relationships.length, total: totals.relationships },
-        truncated: tableNodes.length < totals.entities || endpointNodes.length < totals.endpoints,
+        truncated: tableNodes.length < tablesMatching || endpointNodes.length < endpointsMatching || impacts.length >= EDGE_LIMIT,
       },
     };
   }
 
-  private loadEntityRows(q: string, nodeLimit: number) {
-    return this.queryRows<EntityRow>(
-      `SELECT _id, schema_name, table_name, entity_name, module, status, review_status, contains_pii, contains_risk_data
+  /**
+   * El buscador mira nombre de entidad, tabla, esquema y módulo; `domain` es el módulo exacto (sin
+   * distinguir mayúsculas). Antes el patrón `LIKE` no escapaba `%` ni `_` y además se volvía a
+   * filtrar en memoria sobre los campos del nodo, que no incluyen el esquema: buscar por esquema
+   * devolvía la fila en SQL y la tiraba después.
+   */
+  private loadEntityRows(filters: NodeFilters) {
+    return this.queryRows<EntityRow & { matching: string }>(
+      `SELECT _id, schema_name, table_name, entity_name, module, status, review_status, contains_pii, contains_risk_data,
+              COUNT(*) OVER ()::text AS matching
          FROM system_data_entity_catalog
-        WHERE :q = ''
-           OR lower(coalesce(entity_name, '') || ' ' || coalesce(table_name, '') || ' ' || coalesce(schema_name, '') || ' ' || coalesce(module, '')) LIKE :like
+        WHERE (:q = '' OR coalesce(entity_name, '') ILIKE :like OR table_name ILIKE :like OR coalesce(schema_name, '') ILIKE :like
+               OR coalesce(module, '') ILIKE :like)
+          AND (:domain = '' OR lower(coalesce(module, '')) = lower(:domain))
         ORDER BY table_name ASC
         LIMIT :nodeLimit`,
-      { q, like: `%${q}%`, nodeLimit },
+      filters,
     );
   }
 
-  private loadEndpointRows(q: string, nodeLimit: number) {
+  private loadEndpointRows(filters: NodeFilters) {
     return this.queryRows(
-      `SELECT _id, method, full_path, route_name, module, risk_level, status, contains_pii
+      `SELECT _id, method, full_path, route_name, module, risk_level, status, contains_pii, COUNT(*) OVER ()::text AS matching
          FROM system_endpoint_catalog
-        WHERE :q = ''
-           OR lower(coalesce(method, '') || ' ' || coalesce(full_path, '') || ' ' || coalesce(route_name, '') || ' ' || coalesce(module, '')) LIKE :like
+        WHERE (:q = '' OR (coalesce(method, '') || ' ' || coalesce(full_path, '')) ILIKE :like OR coalesce(route_name, '') ILIKE :like
+               OR coalesce(module, '') ILIKE :like)
+          AND (:domain = '' OR lower(coalesce(module, '')) = lower(:domain))
         ORDER BY module ASC, full_path ASC
         LIMIT :nodeLimit`,
-      { q, like: `%${q}%`, nodeLimit },
+      filters,
     );
-  }
-
-  private toTableNode(row: EntityRow) {
-    return {
-      nodeId: `table:${id(row._id)}`,
-      nodeType: 'table',
-      label: clean(row.entity_name, clean(row.table_name)),
-      domain: clean(row.module),
-      status: clean(row.status),
-      criticality: boolValue(row.contains_pii) || boolValue(row.contains_risk_data) ? 'HIGH' : 'MEDIUM',
-      referenceId: id(row._id),
-      metadata: { schemaName: clean(row.schema_name), tableName: clean(row.table_name), reviewStatus: clean(row.review_status) },
-    };
-  }
-
-  private toEndpointNode(row: Row) {
-    return {
-      nodeId: `endpoint:${id(row._id)}`,
-      nodeType: 'endpoint',
-      label: `${clean(row.method)} ${clean(row.full_path)}`,
-      domain: clean(row.module),
-      status: clean(row.status),
-      criticality: clean(row.risk_level),
-      referenceId: id(row._id),
-      metadata: { routeName: clean(row.route_name), containsPii: boolValue(row.contains_pii) },
-    };
   }
 
   private toImpactEdge(row: Row) {
@@ -230,30 +207,5 @@ export class PortalLineageService extends PortalQueryBase {
       impacts: intValue(rows?.impacts, 0),
       relationships: intValue(rows?.relationships, 0),
     };
-  }
-
-  async getLineageNode(nodeId: string) {
-    const graph = await this.getLineage({});
-    const decoded = decodeURIComponent(nodeId);
-    const node = graph.nodes.find((item) => item.nodeId === decoded);
-    if (!node) throw new NotFoundException('LINEAGE_NODE_NOT_FOUND');
-    const incomingEdges = graph.edges.filter((edge) => edge.targetNodeId === decoded);
-    const outgoingEdges = graph.edges.filter((edge) => edge.sourceNodeId === decoded);
-    const relatedIds = new Set([...incomingEdges.map((edge) => edge.sourceNodeId), ...outgoingEdges.map((edge) => edge.targetNodeId)]);
-    return { ...node, incomingEdges, outgoingEdges, relatedNodes: graph.nodes.filter((item) => relatedIds.has(item.nodeId)) };
-  }
-
-  async getLineageImpact(query: Query) {
-    const graph = await this.getLineage(query);
-    const items = graph.edges.map((edge) => ({
-      impactId: edge.edgeId,
-      sourceNodeId: edge.sourceNodeId,
-      targetNodeId: edge.targetNodeId,
-      impactType: edge.edgeType,
-      severity: clean(edge.label, 'MEDIUM'),
-      description: nullableText(edge.label) ?? 'Impacto de linaje registrado por catálogo.',
-      path: graph.nodes.filter((node) => node.nodeId === edge.sourceNodeId || node.nodeId === edge.targetNodeId),
-    }));
-    return paginate(items, query);
   }
 }

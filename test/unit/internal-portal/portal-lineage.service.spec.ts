@@ -1,5 +1,4 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { NotFoundException } from '@nestjs/common';
 import { PortalLineageService } from '../../../src/modules/internal-portal/application/portal-lineage.service.js';
 
 /**
@@ -23,6 +22,7 @@ describe('PortalLineageService', () => {
     review_status: 'reviewed',
     contains_pii: true,
     contains_risk_data: false,
+    matching: '1',
     ...over,
   });
 
@@ -35,13 +35,14 @@ describe('PortalLineageService', () => {
     risk_level: 'LOW',
     status: 'active',
     contains_pii: true,
+    matching: '1',
     ...over,
   });
 
   function build(options: { entities?: unknown[]; endpoints?: unknown[]; impacts?: unknown[]; relationships?: unknown[] } = {}) {
     // El doble discrimina por la FORMA de la consulta, no por el nombre de tabla: la consulta de
     // relaciones hace JOIN contra el catálogo de entidades y el conteo las nombra a todas.
-    const query = jest.fn(async (sql: string) => {
+    const query = jest.fn(async (sql: string, _options?: unknown) => {
       if (sql.includes('SELECT (SELECT COUNT(*)')) {
         return [{ entities: '1', endpoints: '1', impacts: '1', relationships: '1' }];
       }
@@ -77,10 +78,32 @@ describe('PortalLineageService', () => {
       expect(graph.nodes[0]).toMatchObject({ criticality: 'MEDIUM' });
     });
 
-    it('filtra los nodos por el texto buscado', async () => {
-      const { service } = build();
-      const graph = await service.getLineage({ q: 'clientes' });
-      expect(graph.nodes.map((node) => node.nodeId)).toEqual(['table:1']);
+    /**
+     * El filtro lo decide SQL, con el patrón escapado. Antes además se refiltraba en memoria sobre los
+     * campos del nodo, que no llevan el esquema: una búsqueda por esquema traía la fila y la tiraba.
+     */
+    it('busca en SQL con el patrón escapado y no vuelve a filtrar en memoria', async () => {
+      const { service, query } = build();
+
+      const graph = await service.getLineage({ q: 'customer_' });
+
+      const [, opciones] = query.mock.calls.find(([sql]) => String(sql).includes('FROM system_data_entity_catalog\n')) ?? [];
+      expect(opciones).toMatchObject({ replacements: { q: 'customer_', like: '%customer\\_%' } });
+      // La fila que SQL devolvió se queda aunque «customer_» no esté en la etiqueta del nodo.
+      expect(graph.nodes.map((node) => node.nodeId)).toEqual(['table:1', 'endpoint:10']);
+    });
+
+    it('el filtro de dominio viaja a las dos consultas de nodos como módulo exacto', async () => {
+      const { service, query } = build();
+
+      await service.getLineage({ domain: 'Customers' });
+
+      const nodos = query.mock.calls.filter(([sql]) => String(sql).includes('COUNT(*) OVER ()'));
+      expect(nodos).toHaveLength(2);
+      for (const [sql, opciones] of nodos) {
+        expect(String(sql)).toContain("lower(coalesce(module, '')) = lower(:domain)");
+        expect(opciones).toMatchObject({ replacements: { domain: 'Customers' } });
+      }
     });
 
     it('la arista de impacto va del endpoint a la tabla que toca', async () => {
@@ -157,51 +180,18 @@ describe('PortalLineageService', () => {
       const graph = await service.getLineage({});
 
       expect(graph.summary).toMatchObject({
-        tables: { shown: 1, total: 1 },
-        endpoints: { shown: 1, total: 1 },
+        tables: { shown: 1, total: 1, catalog: 1 },
+        endpoints: { shown: 1, total: 1, catalog: 1 },
         truncated: false,
       });
     });
-  });
 
-  describe('getLineageNode', () => {
-    it('devuelve el nodo con sus aristas de entrada, de salida y sus vecinos', async () => {
-      const { service } = build();
+    it('con más nodos que el tope, el total es lo que cumple el filtro y el grafo se declara recortado', async () => {
+      const { service } = build({ entities: [entity({ matching: '250' })] });
 
-      const node = await service.getLineageNode('table:1');
+      const graph = await service.getLineage({ nodeLimit: 1 });
 
-      expect(node).toMatchObject({ nodeId: 'table:1' });
-      expect(node.incomingEdges.map((edge) => edge.edgeId)).toEqual(['impact:100']);
-      expect(node.outgoingEdges).toEqual([]);
-      expect(node.relatedNodes.map((related) => related.nodeId)).toEqual(['endpoint:10']);
-    });
-
-    it('acepta el identificador codificado en la URL', async () => {
-      const { service } = build();
-      await expect(service.getLineageNode(encodeURIComponent('endpoint:10'))).resolves.toMatchObject({ nodeId: 'endpoint:10' });
-    });
-
-    it('un nodo inexistente es un 404, no un grafo vacío', async () => {
-      const { service } = build();
-      await expect(service.getLineageNode('table:999')).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('getLineageImpact', () => {
-    it('convierte cada arista en un impacto con su camino y lo pagina', async () => {
-      const { service } = build();
-
-      const page = await service.getLineageImpact({});
-
-      expect(page.items).toEqual([
-        expect.objectContaining({
-          impactId: 'impact:100',
-          impactType: 'WRITE',
-          severity: 'HIGH',
-          // El camino conserva el orden del grafo (tablas y luego endpoints), no el de la arista.
-          path: [expect.objectContaining({ nodeId: 'table:1' }), expect.objectContaining({ nodeId: 'endpoint:10' })],
-        }),
-      ]);
+      expect(graph.summary).toMatchObject({ tables: { shown: 1, total: 250 }, truncated: true });
     });
   });
 });

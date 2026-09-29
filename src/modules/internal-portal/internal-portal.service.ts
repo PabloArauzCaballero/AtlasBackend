@@ -12,6 +12,7 @@ import { PortalDataQualityService } from './application/portal-data-quality.serv
 import { PortalGlossaryService } from './application/portal-glossary.service.js';
 import { PortalGovernanceService } from './application/portal-governance.service.js';
 import { PortalLineageService } from './application/portal-lineage.service.js';
+import { PortalLineageImpactService } from './application/portal-lineage-impact.service.js';
 import { PortalOperationsService } from './application/portal-operations.service.js';
 import { PortalReportsService } from './application/portal-reports.service.js';
 import { PortalSearchService } from './application/portal-search.service.js';
@@ -35,6 +36,7 @@ export class InternalPortalService {
   private readonly dataQuality: PortalDataQualityService;
   private readonly governance: PortalGovernanceService;
   private readonly lineage: PortalLineageService;
+  private readonly lineageImpact: PortalLineageImpactService;
   private readonly operations: PortalOperationsService;
   private readonly reports: PortalReportsService;
   private readonly searchService: PortalSearchService;
@@ -44,6 +46,7 @@ export class InternalPortalService {
     this.dataQuality = new PortalDataQualityService(this.sequelize);
     this.governance = new PortalGovernanceService(this.sequelize);
     this.lineage = new PortalLineageService(this.sequelize);
+    this.lineageImpact = new PortalLineageImpactService(this.sequelize);
     this.operations = new PortalOperationsService(this.sequelize);
     this.reports = new PortalReportsService(this.sequelize, this.operations);
     this.searchService = new PortalSearchService(this.sequelize);
@@ -56,6 +59,10 @@ export class InternalPortalService {
 
   getBusinessTerm(termId: string) {
     return this.glossary.getBusinessTerm(termId);
+  }
+
+  listBusinessTermFacets() {
+    return this.glossary.listBusinessTermFacets();
   }
 
   // --- Exports ---------------------------------------------------------------
@@ -87,11 +94,11 @@ export class InternalPortalService {
   }
 
   getLineageNode(nodeId: string) {
-    return this.lineage.getLineageNode(nodeId);
+    return this.lineageImpact.getLineageNode(nodeId);
   }
 
   getLineageImpact(query: Query) {
-    return this.lineage.getLineageImpact(query);
+    return this.lineageImpact.getLineageImpact(query);
   }
 
   // --- Alertas ---------------------------------------------------------------

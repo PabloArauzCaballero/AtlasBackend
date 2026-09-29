@@ -4,157 +4,196 @@
  * @system compone consultas read-only, reportes, glosario, linaje y búsqueda para el portal administrativo.
  */
 import { NotFoundException } from '@nestjs/common';
-import { clean, containsQuery, id, iso, nullableText, paginate, Query, Row } from './portal-format.util.js';
+import { clean, id, intValue, iso, nullableText, parsePage, Query, Row } from './portal-format.util.js';
+import { containsLikePattern } from '../../../common/utils/strings/like-pattern.util.js';
 import { PortalQueryBase } from './portal-query.base.js';
+import {
+  GLOSSARY_COUNT_SQL,
+  GLOSSARY_DOMAIN_TABLES_SQL,
+  GLOSSARY_FACETS_SQL,
+  GLOSSARY_PAGE_SQL,
+  GLOSSARY_RELATED_ENDPOINTS_SQL,
+  GLOSSARY_RELATED_FIELDS_SQL,
+  GLOSSARY_TERM_BY_REF_SQL,
+} from './portal-glossary-sql.constants.js';
+
+export const GLOSSARY_TERM_KINDS = ['domain', 'table', 'field'] as const;
+export type GlossaryTermKind = (typeof GLOSSARY_TERM_KINDS)[number];
+
+type TermRow = {
+  kind: GlossaryTermKind;
+  ref_id: string;
+  term_key: string;
+  name: string;
+  definition: string | null;
+  domain: string;
+  owner: string | null;
+  status: string;
+  updated_at: unknown;
+  data_nature: string | null;
+  schema_name: string | null;
+  table_name: string | null;
+  review_status: string | null;
+  sensitivity_level: string | null;
+};
+
+type Relations = { tables: Map<string, string[]>; columns: Map<string, string[]>; endpoints: Map<string, string[]> };
+
+/** Un `IN ()` vacío no es SQL válido: se sustituye por un valor que no casa con nada. */
+const orNone = (values: string[]) => (values.length > 0 ? values : ['\u0000']);
+
+const DEFINITION_FALLBACK: Record<GlossaryTermKind, string> = {
+  domain: 'Dominio de negocio registrado para agrupar datos, endpoints y reglas.',
+  table: 'Tabla operacional documentada en el catálogo de datos.',
+  field: 'Campo documentado para auditoría, análisis y gobierno de datos.',
+};
+
+const RELATED_REPORTS: Record<GlossaryTermKind, string[]> = {
+  domain: ['operations-overview', 'data-governance'],
+  table: ['endpoint-coverage', 'data-governance'],
+  field: ['data-governance'],
+};
+
+const SOURCE: Record<GlossaryTermKind, string> = {
+  domain: 'system_domain_catalog',
+  table: 'system_data_entity_catalog',
+  field: 'system_data_field_catalog',
+};
 
 /**
  * Glosario de negocio del portal interno: dominios, tablas y campos catalogados, con sus relaciones.
  *
- * Extraído de `internal-portal.service.ts` (Fase 2.2 del plan 10/10) sin cambios de comportamiento.
- * `InternalPortalService` delega aquí y mantiene su API pública intacta.
+ * La página, el total, el buscador y los filtros `domain` y `type` se resuelven en SQL sobre el
+ * catálogo entero (`portal-glossary-sql.constants.ts`); sólo las relaciones de los términos de ESA
+ * página se cruzan después, con tres consultas acotadas a ellos.
  */
 export class PortalGlossaryService extends PortalQueryBase {
   async listBusinessTerms(query: Query) {
-    const q = clean(query.q, '').toLowerCase();
-    const [domains, tables, fields] = await Promise.all([
-      this.queryRows(
-        `SELECT _id, domain_code, domain_name, description, owner_team, data_nature, _updated_at FROM system_domain_catalog ORDER BY domain_code ASC LIMIT 80`,
-      ),
-      this.queryRows(
-        `SELECT _id, schema_name, table_name, entity_name, module, domain_code, business_purpose, data_owner, status, review_status, _updated_at FROM system_data_entity_catalog ORDER BY module ASC, table_name ASC LIMIT 120`,
-      ),
-      this.queryRows(
-        `SELECT _id, data_entity_id, schema_name, table_name, column_name, business_name, business_meaning, domain_code, sensitivity_level, referenced_table, referenced_column, _updated_at FROM system_data_field_catalog WHERE COALESCE(status, 'ACTIVE') <> 'DEPRECATED' ORDER BY table_name ASC, ordinal_position ASC LIMIT 240`,
-      ),
+    const page = parsePage(query);
+    const q = clean(query.q, '').trim();
+    const filters = {
+      q,
+      like: containsLikePattern(q),
+      domain: clean(query.domain, '').trim(),
+      kind: GLOSSARY_TERM_KINDS.includes(query.type as GlossaryTermKind) ? String(query.type) : '',
+    };
+    const [rows, totals] = await Promise.all([
+      this.queryRows<TermRow>(GLOSSARY_PAGE_SQL, { ...filters, limit: page.limit, offset: page.offset }),
+      this.queryRows<{ total: string }>(GLOSSARY_COUNT_SQL, filters),
     ]);
-    const entityIds = tables.map((row) => id(row._id)).filter(Boolean);
-    const endpointImpacts = entityIds.length
-      ? await this.queryRows<{ data_entity_id: string; method: string; full_path: string }>(
-          `SELECT i.data_entity_id, e.method, e.full_path
-             FROM system_endpoint_data_entity_impacts i
-             JOIN system_endpoint_catalog e ON e._id = i.endpoint_id
-            WHERE i.data_entity_id IN (:entityIds)`,
-          { entityIds },
-        )
-      : [];
-    const endpointsByEntityId = new Map<string, string[]>();
-    for (const impact of endpointImpacts) {
-      const key = clean(impact.data_entity_id, '');
-      const label = `${clean(impact.method)} ${clean(impact.full_path)}`;
-      const current = endpointsByEntityId.get(key) ?? [];
-      if (!current.includes(label)) endpointsByEntityId.set(key, [...current, label]);
-    }
-    const fieldsByTable = new Map<string, Row[]>();
-    for (const field of fields) {
-      const key = clean(field.table_name, '').toLowerCase();
-      fieldsByTable.set(key, [...(fieldsByTable.get(key) ?? []), field]);
-    }
-    const tablesForDomain = (domainCode: unknown) => {
-      const domain = clean(domainCode, '').toLowerCase();
-      return tables
-        .filter(
-          (row) => clean(row.domain_code, clean(row.module, '')).toLowerCase() === domain || clean(row.module, '').toLowerCase() === domain,
-        )
-        .map((row) => clean(row.table_name));
+    const total = intValue(totals[0]?.total, 0);
+    const relations = await this.loadRelations(rows);
+    return {
+      items: rows.map((row) => this.toTerm(row, relations)),
+      meta: { page: page.page, limit: page.limit, total, totalPages: Math.max(1, Math.ceil(total / page.limit)) },
     };
-    const columnsForDomain = (domainCode: unknown) => {
-      const domain = clean(domainCode, '').toLowerCase();
-      const tableNames = new Set(tablesForDomain(domainCode).map((table) => table.toLowerCase()));
-      return fields
-        .filter((row) => clean(row.domain_code, '').toLowerCase() === domain || tableNames.has(clean(row.table_name, '').toLowerCase()))
-        .map((row) => `${clean(row.table_name)}.${clean(row.column_name)}`);
-    };
-    const endpointsForDomain = (domainCode: unknown) => {
-      const domainTables = new Set(tablesForDomain(domainCode).map((table) => table.toLowerCase()));
-      const result = new Set<string>();
-      for (const row of tables) {
-        if (!domainTables.has(clean(row.table_name, '').toLowerCase())) continue;
-        for (const endpoint of endpointsByEntityId.get(clean(row._id, '')) ?? []) result.add(endpoint);
-      }
-      return [...result];
-    };
-    const items = [
-      ...domains.map((row) => ({
-        termId: `domain:${clean(row.domain_code)}`,
-        key: clean(row.domain_code),
-        name: clean(row.domain_name, clean(row.domain_code)),
-        definition: clean(row.description, 'Dominio de negocio registrado para agrupar datos, endpoints y reglas.'),
-        domain: clean(row.domain_code),
-        owner: clean(row.owner_team, 'systems'),
-        status: 'ACTIVE',
-        relatedTables: tablesForDomain(row.domain_code),
-        relatedColumns: columnsForDomain(row.domain_code),
-        relatedEndpoints: endpointsForDomain(row.domain_code),
-        relatedReports: ['operations-overview', 'data-governance'],
-        metadata: { dataNature: clean(row.data_nature, 'OPERACIONAL'), source: 'system_domain_catalog' },
-        updatedAt: iso(row._updated_at),
-      })),
-      ...tables.map((row) => ({
-        termId: `table:${id(row._id)}`,
-        key: clean(row.table_name),
-        name: clean(row.entity_name, clean(row.table_name)),
-        definition: clean(row.business_purpose, 'Tabla operacional documentada en el catálogo de datos.'),
-        domain: clean(row.module, 'platform'),
-        owner: clean(row.data_owner, 'systems'),
-        status: clean(row.status, 'ACTIVE'),
-        relatedTables: [clean(row.table_name)],
-        relatedColumns: (fieldsByTable.get(clean(row.table_name, '').toLowerCase()) ?? []).map(
-          (field) => `${clean(field.table_name)}.${clean(field.column_name)}`,
-        ),
-        relatedEndpoints: endpointsByEntityId.get(id(row._id)) ?? [],
-        relatedReports: ['endpoint-coverage', 'data-governance'],
-        metadata: { schemaName: clean(row.schema_name), reviewStatus: clean(row.review_status), source: 'system_data_entity_catalog' },
-        updatedAt: iso(row._updated_at),
-      })),
-      ...fields.map((row) => this.mapFieldTerm(row)),
-    ].filter((item) => containsQuery(item, q));
-    return paginate(items, query);
   }
 
-  private mapFieldTerm(row: Row) {
+  /** Valores del filtro «Dominio» y reparto por tipo, contados sobre el catálogo entero. */
+  async listBusinessTermFacets() {
+    const rows = await this.queryRows<{ facet: string; value: string; total: string }>(GLOSSARY_FACETS_SQL);
+    const pick = (facet: string) =>
+      rows.filter((row) => row.facet === facet).map((row) => ({ value: clean(row.value), total: intValue(row.total, 0) }));
+    return { domains: pick('domain'), types: pick('kind') };
+  }
+
+  private async loadRelations(rows: TermRow[]): Promise<Relations> {
+    const relations: Relations = { tables: new Map(), columns: new Map(), endpoints: new Map() };
+    const codes = rows.filter((row) => row.kind === 'domain').map((row) => row.ref_id.toLowerCase());
+    const tableRows = rows.filter((row) => row.kind === 'table');
+    if (codes.length === 0 && tableRows.length === 0) return relations;
+
+    const domainTables = codes.length
+      ? await this.queryRows<{ id: string; table_name: string; domain_key: string; module_key: string }>(GLOSSARY_DOMAIN_TABLES_SQL, {
+          codes,
+        })
+      : [];
+    const entityIds = [...new Set([...tableRows.map((row) => row.ref_id), ...domainTables.map((row) => row.id)])];
+    const tableNames = [...new Set([...tableRows, ...domainTables].map((row) => clean(row.table_name, '').toLowerCase()))];
+    const [fields, impacts] = await Promise.all([
+      this.queryRows<{ data_entity_id: string | null; table_name: string; column_name: string; domain_key: string }>(
+        GLOSSARY_RELATED_FIELDS_SQL,
+        { entityIds: orNone(entityIds), tableNames: orNone(tableNames), codes: orNone(codes) },
+      ),
+      entityIds.length
+        ? this.queryRows<{ data_entity_id: string; method: string; full_path: string }>(GLOSSARY_RELATED_ENDPOINTS_SQL, { entityIds })
+        : Promise.resolve([]),
+    ]);
+
+    const endpointsByEntity = new Map<string, string[]>();
+    for (const impact of impacts) addUnique(endpointsByEntity, impact.data_entity_id, `${clean(impact.method)} ${clean(impact.full_path)}`);
+    const columnOf = (field: { table_name: string; column_name: string }) => `${clean(field.table_name)}.${clean(field.column_name)}`;
+
+    for (const table of tableRows) {
+      const key = `table:${table.ref_id}`;
+      const name = clean(table.table_name, '').toLowerCase();
+      relations.tables.set(key, [clean(table.table_name)]);
+      relations.columns.set(
+        key,
+        fields.filter((field) => field.data_entity_id === table.ref_id || clean(field.table_name, '').toLowerCase() === name).map(columnOf),
+      );
+      relations.endpoints.set(key, endpointsByEntity.get(table.ref_id) ?? []);
+    }
+    for (const code of codes) {
+      const key = `domain:${code}`;
+      const tables = domainTables.filter((row) => row.domain_key === code || row.module_key === code);
+      const ids = new Set(tables.map((row) => row.id));
+      const names = new Set(tables.map((row) => clean(row.table_name, '').toLowerCase()));
+      relations.tables.set(key, [...new Set(tables.map((row) => clean(row.table_name)))]);
+      relations.columns.set(key, [
+        ...new Set(
+          fields
+            .filter(
+              (field) => field.domain_key === code || ids.has(clean(field.data_entity_id, '')) || names.has(field.table_name.toLowerCase()),
+            )
+            .map(columnOf),
+        ),
+      ]);
+      relations.endpoints.set(key, [...new Set(tables.flatMap((row) => endpointsByEntity.get(row.id) ?? []))]);
+    }
+    return relations;
+  }
+
+  private toTerm(row: TermRow, relations: Relations) {
+    const termId = `${row.kind}:${row.kind === 'domain' ? clean(row.ref_id) : id(row.ref_id)}`;
+    const relationKey = row.kind === 'domain' ? `domain:${row.ref_id.toLowerCase()}` : termId;
+    const tableName = clean(row.table_name);
     return {
-      termId: `field:${id(row._id)}`,
-      key: `${clean(row.table_name)}.${clean(row.column_name)}`,
-      name: clean(row.business_name, clean(row.column_name)),
-      definition: clean(row.business_meaning, 'Campo documentado para auditoría, análisis y gobierno de datos.'),
-      domain: clean(row.domain_code, 'PLATAFORMA'),
-      owner: 'data-governance',
-      status: 'ACTIVE',
-      relatedTables: [clean(row.table_name)],
-      relatedColumns: [`${clean(row.table_name)}.${clean(row.column_name)}`],
-      relatedReports: ['data-governance'],
-      metadata: { sensitivityLevel: clean(row.sensitivity_level, 'INTERNAL'), source: 'system_data_field_catalog' },
-      updatedAt: iso(row._updated_at),
+      termId,
+      key: clean(row.term_key),
+      name: clean(row.name, clean(row.term_key)),
+      definition: clean(row.definition, DEFINITION_FALLBACK[row.kind]),
+      type: row.kind,
+      domain: clean(row.domain),
+      owner: clean(row.owner, row.kind === 'field' ? 'data-governance' : 'systems'),
+      status: clean(row.status, 'ACTIVE'),
+      relatedTables: row.kind === 'field' ? [tableName] : (relations.tables.get(relationKey) ?? []),
+      relatedColumns: row.kind === 'field' ? [clean(row.term_key)] : (relations.columns.get(relationKey) ?? []),
+      relatedEndpoints: row.kind === 'field' ? [] : (relations.endpoints.get(relationKey) ?? []),
+      relatedReports: RELATED_REPORTS[row.kind],
+      metadata: this.metadataFor(row),
+      updatedAt: iso(row.updated_at),
     };
+  }
+
+  private metadataFor(row: TermRow): Row {
+    if (row.kind === 'domain') return { dataNature: clean(row.data_nature, 'OPERACIONAL'), source: SOURCE.domain };
+    if (row.kind === 'table') return { schemaName: clean(row.schema_name), reviewStatus: clean(row.review_status), source: SOURCE.table };
+    return { sensitivityLevel: clean(row.sensitivity_level, 'INTERNAL'), source: SOURCE.field };
   }
 
   /**
-   * `field:` es, con diferencia, el prefijo más numeroso de `termId` (hasta 240 candidatos vs 120
-   * de `table:` y 80 de `domain:`) y, a diferencia de esos dos, un término de campo no necesita
-   * cruzar contra el resto del catálogo (`relatedTables`/`relatedColumns` se arman solo con la
-   * fila misma — ver `mapFieldTerm`). Para ese caso se resuelve con una sola query dirigida por
-   * id en vez de traer domains+tables+fields completos (`listBusinessTerms`) solo para hacer
-   * `.find()` sobre uno. `domain:`/`table:` sí necesitan el resto del catálogo para calcular sus
-   * relaciones (tablesForDomain/columnsForDomain, fieldsByTable), así que esos siguen usando el
-   * camino original.
+   * La ficha se resuelve por su identificador en la base, no buscándola dentro de una página: con
+   * la versión anterior una tabla más allá de las 120 primeras respondía 404 aunque existiera.
    */
-  private async findSingleBusinessTerm(
-    decodedTermId: string,
-  ): Promise<Awaited<ReturnType<PortalGlossaryService['listBusinessTerms']>>['items'][number] | undefined> {
-    if (decodedTermId.startsWith('field:')) {
-      const fieldId = decodedTermId.slice('field:'.length);
-      const rows = await this.queryRows(
-        `SELECT _id, data_entity_id, schema_name, table_name, column_name, business_name, business_meaning, domain_code,
-                sensitivity_level, referenced_table, referenced_column, _updated_at
-           FROM system_data_field_catalog
-          WHERE _id = :fieldId AND COALESCE(status, 'ACTIVE') <> 'DEPRECATED'
-          LIMIT 1`,
-        { fieldId },
-      );
-      return rows[0] ? this.mapFieldTerm(rows[0]) : undefined;
-    }
-    const result = await this.listBusinessTerms({ page: 1, limit: 500 });
-    return result.items.find((item) => item.termId === decodedTermId);
+  private async findSingleBusinessTerm(decodedTermId: string) {
+    const separator = decodedTermId.indexOf(':');
+    const kind = decodedTermId.slice(0, separator) as GlossaryTermKind;
+    const ref = decodedTermId.slice(separator + 1);
+    if (separator < 1 || !GLOSSARY_TERM_KINDS.includes(kind) || !ref) return undefined;
+    const rows = await this.queryRows<TermRow>(GLOSSARY_TERM_BY_REF_SQL, { kind, ref });
+    if (!rows[0]) return undefined;
+    return this.toTerm(rows[0], await this.loadRelations(rows));
   }
 
   async getBusinessTerm(termId: string) {
@@ -203,4 +242,9 @@ export class PortalGlossaryService extends PortalQueryBase {
       audit: [{ auditId: `audit:${term.termId}`, action: 'seeded_or_detected', actor: 'atlas_backend', createdAt: term.updatedAt }],
     };
   }
+}
+
+function addUnique(map: Map<string, string[]>, key: string, value: string) {
+  const current = map.get(key) ?? [];
+  if (!current.includes(value)) map.set(key, [...current, value]);
 }
