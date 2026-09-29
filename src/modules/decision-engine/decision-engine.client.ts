@@ -11,6 +11,7 @@ import { classifyDecision, type DecisionVerdict } from './decision-verdict.js';
 import { ConsentReplicationStore } from './consent-replication.store.js';
 import { EngineConsentGateway, type ConsentBasis, type ConsentReplicationInput } from './engine-consent.gateway.js';
 import { EngineTransportService, type OpcionesDeLlamada } from './engine-transport.service.js';
+import { EngineManualReviewGateway } from './engine-manual-review.gateway.js';
 import { basisBlocker, ensureUnderwritingBasis } from './underwriting-basis.js';
 import {
   DecisionRequest,
@@ -46,12 +47,16 @@ export class DecisionEngineClient {
   /** P-09: entrega y durabilidad de la réplica de consentimientos (engine-consent.gateway.ts). */
   readonly consents: EngineConsentGateway;
 
+  /** El expediente del alta anexado al caso de revisión (engine-manual-review.gateway.ts). */
+  readonly manualReviews: EngineManualReviewGateway;
+
   constructor(
     private readonly transport: EngineTransportService,
     /** La cola duradera de réplica de consentimientos. Opcional para los usos sin base (pruebas). */
     @Optional() consentStore?: ConsentReplicationStore,
   ) {
     this.consents = new EngineConsentGateway(transport, () => this.isConfigured, consentStore);
+    this.manualReviews = new EngineManualReviewGateway(transport, () => this.isConfigured);
   }
 
   /**

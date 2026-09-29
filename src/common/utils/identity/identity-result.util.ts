@@ -141,3 +141,20 @@ export function pickIdentityAttemptForEligibility<T extends PolicyAttempt>(
     attemptsNewestFirst.filter((attempt) => attempt.verificationChannel === LIVENESS_IDENTITY_CHANNEL || Boolean(attempt.manualReviewedBy)),
   );
 }
+
+/** El estado del registro estatal (SEGIP) en el vocabulario del proveedor, que es el que enruta el Motor. */
+export type EstadoDelRegistroEstatal = { estado: 'FOUND' | 'NOT_FOUND' | 'PENDING' | 'NO_CONSULTADO'; coincidencia: number };
+
+/**
+ * Del intento vigente del canal de ALTA (SEGIP) al vocabulario del proveedor. Sin intento,
+ * `NO_CONSULTADO`. Sólo `verified` confirma (`FOUND`); los otros tres impiden la aprobación
+ * automática y se distinguen para que quien revise sepa si preguntar otra vez sirve de algo.
+ * La comparten el artefacto de identidad y el expediente del alta que ve el analista.
+ */
+export function estadoDelRegistroEstatalDe(attempt: IdentityAttemptLike | null): EstadoDelRegistroEstatal {
+  if (!attempt) return { estado: 'NO_CONSULTADO', coincidencia: 0 };
+  const resultado = normalizeIdentityResult(attempt.finalResult);
+  if (resultado === 'verified') return { estado: 'FOUND', coincidencia: 1 };
+  if (resultado === 'rejected') return { estado: 'NOT_FOUND', coincidencia: 0 };
+  return { estado: 'PENDING', coincidencia: 0 };
+}

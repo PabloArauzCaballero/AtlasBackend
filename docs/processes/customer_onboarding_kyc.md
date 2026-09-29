@@ -4,7 +4,7 @@
 
 `customer_onboarding_kyc` · v1 · prioridad **P0** · tipo `customer_journey` · dueño `OPERATIONS_MANAGER` · bloques `ATLAS_BACKEND`
 
-Registro progresivo del cliente con cuenta: carnet y selfie, datos personales, domicilio, situación económica, referencias, permisos del teléfono y encuesta de hábitos, con guardado parcial, hasta el envío del paquete a revisión. Incluye la mirada del equipo interno sobre el expediente.
+Registro progresivo del cliente con cuenta: carnet y selfie en tres poses, datos personales, domicilio, situación económica y permisos del teléfono, con guardado parcial (referencias y encuesta de hábitos quedan opcionales desde eligibility-v2), hasta el envío del paquete a revisión. Incluye la mirada del equipo interno sobre el expediente.
 
 ## Por qué existe
 
@@ -16,7 +16,7 @@ Lo inicia el cliente desde el centro de registro de la app, una vez que ya tiene
 
 ## Cuándo empieza y cuándo termina
 
-Empieza cuando la app lee el estado del alta y encuentra la primera sección pendiente (el orden vive en ONBOARDING_SECTION_CODES: contacto, identidad, datos personales, domicilio, economía, referencias, permisos del teléfono y encuesta). Termina cuando el envío deja al cliente en under_review, cierra el flujo como completed y dispara la evaluación de riesgo.
+Empieza cuando la app lee el estado del alta y encuentra la primera sección pendiente (el orden vive en ONBOARDING_SECTION_CODES: contacto, identidad, datos personales, domicilio, economía y permisos del teléfono; referencias y encuesta ya no son secciones desde eligibility-v2). Termina cuando el envío deja al cliente en under_review, cierra el flujo como completed y dispara la evaluación de riesgo.
 
 ## Qué pasa cuando falla
 
@@ -103,7 +103,7 @@ Nombre, apellido y fecha de nacimiento (18 a 100 años); guardado parcial.
 
 ### Fase situación: domicilio, economía y referencias (`kyc_situation`)
 
-Domicilio, seis atributos económicos obligatorios y al menos dos referencias personales.
+Domicilio y cuatro atributos económicos obligatorios (situación laboral, antigüedad si trabaja, ingreso por banda y rubro). Las referencias personales son opcionales desde eligibility-v2.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
@@ -125,7 +125,7 @@ La sección se cierra con una DECISIÓN (sí o no) sobre la agenda y la ubicaci�
 
 ### Fase hábitos: encuesta de consumo (`kyc_consumer_survey`)
 
-Seis preguntas de hábitos de consumo, con guardado parcial.
+Seis preguntas de hábitos de consumo, con guardado parcial. Opcional desde eligibility-v2: no bloquea el envío.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|

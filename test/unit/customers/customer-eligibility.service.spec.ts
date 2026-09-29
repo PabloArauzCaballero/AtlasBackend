@@ -117,7 +117,7 @@ describe('CustomerEligibilityService', () => {
       customerId: 'c1',
       eligible: false,
       lifecycleStatus: 'onboarding_in_progress',
-      ruleVersion: 'eligibility-v1',
+      ruleVersion: 'eligibility-v2',
       decisionSource: 'automatic',
     });
     expect(String(evaluation.factsHash)).toHaveLength(64); // sha256 hex

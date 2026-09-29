@@ -79,9 +79,18 @@ function build(rows: Attempt[]) {
   const sequelize = { transaction: jest.fn(async (callback: (transaction: unknown) => Promise<unknown>) => callback({})) };
 
   const events = { publish: jest.fn(async (..._args: unknown[]) => ({})) };
-  const service = new IdentityManualReviewOutcomeService(repository as never, lifecycle as never, sequelize as never, events as never);
+  const reviewCases = { closeOpen: jest.fn(async (..._args: unknown[]) => 1) };
+  const eligibility = { evaluateAndRecord: jest.fn(async (..._args: unknown[]) => ({ lifecycleStatus: 'active', eligible: true })) };
+  const service = new IdentityManualReviewOutcomeService(
+    repository as never,
+    lifecycle as never,
+    sequelize as never,
+    events as never,
+    reviewCases as never,
+    eligibility as never,
+  );
   const controller = new IdentityReviewCallbackController(service, repository as never);
-  return { service, controller, repository, lifecycle, events };
+  return { service, controller, repository, lifecycle, events, reviewCases, eligibility };
 }
 
 function snapshot(row: Attempt): Attempt {
@@ -172,6 +181,60 @@ describe('la resolución de una revisión humana de identidad', () => {
 
       await controller.aplicar(TENANT, CLAVE, { executionId: 'exec-r', decision: 'DECLINE' });
       expect((events.publish as jest.Mock).mock.calls[0][0]).toMatchObject({ verdict: 'rejected', reasonCode: 'MANUAL_REVIEW_REJECTED' });
+    });
+
+    /**
+     * Decidir en el Motor tiene que dejar al cliente IGUAL que decidir en el panel de identidad
+     * (`identity-verification/decision`): el caso `identity_review` cerrado, la regla reevaluada
+     * —que es la que promueve a `active` y emite «Tu cuenta ha sido verificada»— y, al rechazar,
+     * el cliente en `observed`. Antes el callback saltaba a `active` por encima de la regla y dejaba
+     * el caso de la bandeja abierto.
+     */
+    it('APPROVE cierra el caso identity_review y reevalúa la regla, sin saltar a active por su cuenta', async () => {
+      const enRevision = attempt({
+        id: '37',
+        finalResult: 'IN_REVIEW',
+        reasonCodesJson: { executionId: 'exec-p', humanReviewPolicy: true },
+      });
+      const { controller, reviewCases, eligibility, lifecycle } = build([enRevision]);
+
+      const resultado = await controller.aplicar(TENANT, CLAVE, {
+        executionId: 'exec-p',
+        decision: 'APPROVE',
+        resolvedByInternalUserId: '7',
+      });
+
+      expect(reviewCases.closeOpen).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: TENANT, customerId: CUSTOMER, resolution: 'approved' }),
+        { transaction: {} },
+      );
+      expect(eligibility.evaluateAndRecord).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: TENANT, customerId: CUSTOMER, decisionSource: 'manual_decision', transaction: {} }),
+      );
+      expect(lifecycle.advance).not.toHaveBeenCalled();
+      expect(resultado).toMatchObject({ identityResult: 'verified', lifecycleStatus: 'active' });
+    });
+
+    it('DECLINE cierra el caso como rechazado, deja al cliente observed y reevalúa la regla', async () => {
+      const enRevision = attempt({ id: '38', finalResult: 'IN_REVIEW', reasonCodesJson: { executionId: 'exec-d' } });
+      const { controller, reviewCases, eligibility, lifecycle } = build([enRevision]);
+
+      await controller.aplicar(TENANT, CLAVE, { executionId: 'exec-d', decision: 'DECLINE', resolvedByInternalUserId: '7' });
+
+      expect(reviewCases.closeOpen).toHaveBeenCalledWith(expect.objectContaining({ resolution: 'rejected' }), { transaction: {} });
+      expect(lifecycle.advance).toHaveBeenCalledWith(expect.objectContaining({ toStatus: 'observed', customerId: CUSTOMER }));
+      expect(eligibility.evaluateAndRecord).toHaveBeenCalledTimes(1);
+    });
+
+    it('si la transición a observed no aplica, el veredicto igualmente queda guardado', async () => {
+      const enRevision = attempt({ id: '39', finalResult: 'IN_REVIEW', reasonCodesJson: { executionId: 'exec-e' } });
+      const { controller, lifecycle } = build([enRevision]);
+      (lifecycle.advance as jest.Mock).mockRejectedValueOnce(new Error('INVALID_STATUS_TRANSITION') as never);
+
+      await expect(controller.aplicar(TENANT, CLAVE, { executionId: 'exec-e', decision: 'DECLINE' })).resolves.toMatchObject({
+        identityResult: 'rejected',
+      });
+      expect(enRevision.finalResult).toBe('REJECTED');
     });
 
     it('no resuelve nada si ningún intento nació de esa ejecución', async () => {

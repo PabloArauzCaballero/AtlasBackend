@@ -45,6 +45,15 @@ describe('resolveStageProgress', () => {
       const result = resolveStageProgress({ type: 'onboarding_section', sectionCode: 'inventada' }, assessment());
       expect(result).toEqual({ status: 'pending', reason: 'UNKNOWN_SECTION_inventada' });
     });
+
+    it('una sección retirada en eligibility-v2 (referencias, encuesta) no aplica: no queda pendiente para siempre', () => {
+      for (const sectionCode of ['reference_contacts', 'consumer_survey']) {
+        expect(resolveStageProgress({ type: 'onboarding_section', sectionCode }, assessment())).toEqual({
+          status: 'not_applicable',
+          reason: 'SECTION_NOT_REQUIRED',
+        });
+      }
+    });
   });
 
   describe('lifecycle_status', () => {

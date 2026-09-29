@@ -12,7 +12,8 @@ import { DecisionEngineClient } from '../decision-engine/decision-engine.client.
 import { MobileIdentityRepository, PENDING_RESULT } from './mobile-identity.repository.js';
 import { CustomerContactsSnapshotService } from '../customer-onboarding/application/customer-contacts-snapshot.service.js';
 import { IdentityReviewCaseRepository } from '../customer-onboarding/repositories/identity-review-case.repository.js';
-import { abrirCasoDeIdentidad, desenlaceDelMotor } from './mobile-identity.human-review.js';
+import { abrirCasoDeIdentidad, anexarExpedienteAlCaso, desenlaceDelMotor, type DesenlaceDelMotor } from './mobile-identity.human-review.js';
+import { OnboardingReviewDossierPublisher } from '../customer-onboarding/application/onboarding-review-dossier.publisher.js';
 
 import { StartIdentityVerificationDto, type IdentityVerificationState, type IdentityVerificationView } from './mobile-identity.schemas.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
@@ -61,6 +62,7 @@ export class MobileIdentityService {
     private readonly contacts: CustomerContactsSnapshotService,
     private readonly senales: MobileIdentitySignalsService,
     private readonly reviewCases: IdentityReviewCaseRepository,
+    private readonly expediente: OnboardingReviewDossierPublisher,
   ) {}
 
   /**
@@ -266,7 +268,7 @@ export class MobileIdentityService {
         documentForensicsScore: decimal(salida.identidad_riesgo_fraude) ?? decimal(salida.identidad_evidencia_documento),
         completedAt: new Date(),
       });
-      await this.caso(tenantId, customerId, `El Motor sugiere ${desenlace.sugerencia}; decide una persona.`, desenlace.retenido);
+      await this.casoConExpediente(tenantId, customerId, desenlace, respuesta.executionId);
     } catch (error: unknown) {
       await this.repository.complete(tenantId, verificationId, {
         finalResult: 'UNAVAILABLE',
@@ -277,6 +279,12 @@ export class MobileIdentityService {
       });
       throw error;
     }
+  }
+
+  /** El caso de la bandeja (si se retuvo) y el anexo del expediente al caso del Motor. Ninguno lanza. */
+  private async casoConExpediente(tenantId: string, customerId: string | null, desenlace: DesenlaceDelMotor, executionId: string) {
+    await this.caso(tenantId, customerId, `El Motor sugiere ${desenlace.sugerencia}; decide una persona.`, desenlace.retenido);
+    await anexarExpedienteAlCaso(this.expediente, { tenantId, customerId, executionId, desenlace });
   }
 
   /** Abre el caso de la bandeja cuando toca: un veredicto retenido, o un Motor caído con la revisión humana encendida. */

@@ -3,7 +3,7 @@
  * @business Esta pieza publica el árbol de endpoints del proceso estándar para que cliente y portal no dupliquen su lógica.
  * @system expone el catálogo versionado de flujos, etapas, pasos, dependencias y transiciones.
  */
-import { EligibilityAssessment } from '../../customers/application/customer-eligibility.evaluator.js';
+import { EligibilityAssessment, isRetiredOnboardingSection } from '../../customers/application/customer-eligibility.evaluator.js';
 import { OPERATION_BLOCKING_STATUSES } from '../../customers/customer-lifecycle.constants.js';
 import { WorkflowProgressStatus } from '../workflow-catalog.constants.js';
 
@@ -31,13 +31,8 @@ export function resolveStageProgress(rule: Record<string, unknown>, assessment: 
   }
 
   switch (rule.type) {
-    case 'onboarding_section': {
-      const sectionCode = typeof rule.sectionCode === 'string' ? rule.sectionCode : null;
-      const section = assessment.sections.find((candidate) => candidate.code === sectionCode);
-      if (!section) return { status: 'pending', reason: `UNKNOWN_SECTION_${sectionCode ?? 'MISSING'}` };
-      if (section.status === 'completed') return { status: 'completed', reason: null };
-      return { status: 'pending', reason: section.missingFields.length > 0 ? `MISSING_${section.missingFields.join(',')}` : null };
-    }
+    case 'onboarding_section':
+      return sectionProgress(rule, assessment);
 
     case 'lifecycle_status': {
       const statuses = asStringArray(rule.statuses);
@@ -60,4 +55,16 @@ export function resolveStageProgress(rule: Record<string, unknown>, assessment: 
     default:
       return { status: 'pending', reason: 'NO_COMPLETION_RULE' };
   }
+}
+
+/** La etapa sigue a su sección homónima. Una sección que la regla dejó de exigir (referencias, encuesta) no aplica. */
+function sectionProgress(rule: Record<string, unknown>, assessment: EligibilityAssessment): StageProgress {
+  const sectionCode = typeof rule.sectionCode === 'string' ? rule.sectionCode : null;
+  const section = assessment.sections.find((candidate) => candidate.code === sectionCode);
+  if (!section && isRetiredOnboardingSection(sectionCode)) {
+    return { status: 'not_applicable', reason: 'SECTION_NOT_REQUIRED' };
+  }
+  if (!section) return { status: 'pending', reason: `UNKNOWN_SECTION_${sectionCode ?? 'MISSING'}` };
+  if (section.status === 'completed') return { status: 'completed', reason: null };
+  return { status: 'pending', reason: section.missingFields.length > 0 ? `MISSING_${section.missingFields.join(',')}` : null };
 }

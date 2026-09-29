@@ -5,7 +5,7 @@
  */
 import { z } from 'zod';
 import { birthDateSchema } from './customer-onboarding-profile.schemas.js';
-import { captureSourceSchema, sinEscanerEnLaSelfie } from '../../common/storage/capture-source.js';
+import { captureSourceSchema, IDENTITY_EVIDENCE_TYPES, sinEscanerEnLaSelfie } from '../../common/storage/capture-source.js';
 import { isCustomerPinValid } from '../../common/utils/crypto/password.util.js';
 
 const ALLOWED_PERMISSION_CODES = ['location', 'camera', 'contacts', 'notifications', 'storage'] as const;
@@ -176,7 +176,7 @@ export const contactVerificationSubmitSchema = z
 
 const identityEvidenceSchema = z
   .object({
-    evidenceType: z.enum(['identity_front', 'identity_back', 'selfie', 'proof_of_address', 'bank_qr_proof', 'occupation_audio', 'other']),
+    evidenceType: z.enum(IDENTITY_EVIDENCE_TYPES),
     storageKey: z
       .string()
       .trim()
@@ -224,7 +224,7 @@ export const identityPackageSchema = z.object({
         message: 'El documento de identidad está vencido.',
       }),
   }),
-  evidence: z.array(identityEvidenceSchema).min(1).max(5),
+  evidence: z.array(identityEvidenceSchema).min(1).max(8),
   provider: z
     .object({
       providerCode: z.string().trim().min(1).max(80),

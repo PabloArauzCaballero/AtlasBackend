@@ -272,6 +272,10 @@
     }
   },
   "tableOwners": {
+    "devices": "sessions",
+    "device_snapshots": "sessions",
+    "customer_device_contacts": "customer-device-signals",
+    "customer_location_pings": "customer-device-signals",
     "qa_runs": "qa-orchestration",
     "qa_run_plans": "qa-orchestration",
     "qa_run_secrets": "qa-orchestration",

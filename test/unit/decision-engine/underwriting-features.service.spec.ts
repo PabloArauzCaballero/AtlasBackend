@@ -164,3 +164,34 @@ describe('UnderwritingSignalsService.complianceSignals', () => {
     expect(options.where).toMatchObject({ tenantId: '1', customerId: 'c1', closedAt: null });
   });
 });
+
+describe('eligibility-v2 · gastos y origen de fondos ya no se piden en el alta', () => {
+  it('con gastos declarados, disponible y deuda-ingreso son derivados', async () => {
+    const { service } = build();
+
+    const { variables, provenance } = await service.build(input);
+
+    expect(variables.disposable_income).toBe(5000);
+    expect(provenance.disposable_income).toBe('derivado');
+    expect(provenance.debt_to_income_ratio).toBe('derivado');
+  });
+
+  it('sin gastos NO se inventa un «gasta 0»: disponible y deuda-ingreso viajan marcados ausentes', async () => {
+    const { service, signals } = build();
+    (signals.economicAttributes as jest.Mock).mockResolvedValueOnce({
+      monthly_income_declared: 8000,
+      __employmentStatus: 'employee',
+    } as never);
+
+    const { variables, provenance } = await service.build(input);
+
+    expect(variables.declared_monthly_income).toBe(8000);
+    expect(provenance.declared_monthly_income).toBe('expediente');
+    expect(provenance.disposable_income).toBe('ausente');
+    expect(provenance.debt_to_income_ratio).toBe('ausente');
+    expect(Number.isFinite(variables.disposable_income as number)).toBe(true);
+    // Sin origen de fondos declarado tampoco se afirma que se verificó.
+    expect(variables.source_of_funds_verified).toBe(false);
+    expect(provenance.source_of_funds_verified).toBe('ausente');
+  });
+});

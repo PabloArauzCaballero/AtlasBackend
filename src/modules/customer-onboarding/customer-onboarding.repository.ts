@@ -252,6 +252,8 @@ export class CustomerOnboardingRepository {
       finalResult: string;
       reasonCodesJson: Record<string, unknown> | null;
       requestedAt: Date;
+      /** La selfie de FRENTE. Los perfiles de la prueba de vida (`selfie_left`/`selfie_right`) no van aquí. */
+      selfieEvidenceId?: string | null;
     },
     options: RepositoryOptions,
   ): Promise<IdentityVerificationAttemptModel> {

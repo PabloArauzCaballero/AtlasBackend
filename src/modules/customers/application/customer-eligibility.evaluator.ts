@@ -13,14 +13,13 @@ import {
   OnboardingSectionStatus,
   REQUIRED_FINANCIAL_ATTRIBUTE_CODES,
   REQUIRED_PROFILE_FIELDS,
-  REQUIRED_REFERENCE_CONTACTS,
+  RETIRED_ONBOARDING_SECTION_CODES,
   RISK_APPROVED_ACTION,
   RISK_ASSESSMENT_TTL_DAYS,
 } from '../customer-eligibility.constants.js';
 import { isIdentityVerified } from '../../../common/utils/identity/identity-result.util.js';
 import { CREDIT_ELIGIBLE_STATUS, CustomerLifecycleStatus } from '../customer-lifecycle.constants.js';
 import type { EligibilityFacts } from '../repositories/customer-eligibility.facts.js';
-import { CODIGOS_DE_PREGUNTA } from '../consumer-survey.catalog.js';
 
 export type EligibilityBlocker = {
   code: EligibilityBlockerCode;
@@ -137,16 +136,14 @@ export function buildSections(facts: EligibilityFacts, now: Date): OnboardingSec
   if (!facts.identityDocument) identityMissing.push('identityDocument');
   else if (isDocumentExpired(facts.identityDocument.expiresAt, now)) identityMissing.push('documentExpiry');
 
-  const referenceMissing = facts.referenceContactCount >= REQUIRED_REFERENCE_CONTACTS ? [] : ['referenceContacts'];
-  // Lectura defensiva de los dos hechos nuevos: hay bancos de prueba que arman los hechos sin ellos.
+  // Lectura defensiva: hay bancos de prueba que arman los hechos sin este.
   const decidedPurposes = new Set(facts.decidedDevicePermissionPurposes ?? []);
   const permissionsMissing = DEVICE_PERMISSION_PURPOSE_CODES.filter((purpose) => !decidedPurposes.has(purpose));
-  const answered = new Set(facts.answeredSurveyQuestionCodes ?? []);
-  const surveyMissing = CODIGOS_DE_PREGUNTA.filter((code) => !answered.has(code));
 
   /*
    * En el ORDEN de `ONBOARDING_SECTION_CODES`: el `nextStep` es la primera sección sin completar, y
-   * ese orden es el de las cuatro fases del alta. El carnet va antes que los datos personales.
+   * ese orden es el de las fases del alta. El carnet va antes que los datos personales. Referencias y
+   * encuesta dejaron de ser secciones en eligibility-v2: sus datos se guardan si llegan, no se piden.
    */
   return [
     {
@@ -175,20 +172,10 @@ export function buildSections(facts: EligibilityFacts, now: Date): OnboardingSec
       missingFields: financialMissing,
     },
     {
-      code: 'reference_contacts',
-      status: sectionStatus(referenceMissing, facts.referenceContactCount > 0),
-      missingFields: referenceMissing,
-    },
-    {
       // Una decisión —también «no»— cierra la sección. Lo que se exige es haber decidido.
       code: 'device_permissions',
       status: sectionStatus(permissionsMissing, decidedPurposes.size > 0),
       missingFields: permissionsMissing,
-    },
-    {
-      code: 'consumer_survey',
-      status: sectionStatus(surveyMissing, answered.size > 0),
-      missingFields: surveyMissing,
     },
   ];
 }
@@ -214,10 +201,8 @@ export function buildBlockers(facts: EligibilityFacts, lifecycleStatus: Customer
   const financialMissing = missingFinancialFields(facts);
   if (financialMissing.length > 0) blockers.push({ code: 'FINANCIAL_PROFILE_INCOMPLETE', fields: [...financialMissing] });
 
+  // Sin `REFERENCES_INSUFFICIENT` desde eligibility-v2: las referencias ya no se exigen.
   if (!facts.hasCurrentAddress) blockers.push({ code: 'ADDRESS_MISSING' });
-  if (facts.referenceContactCount < REQUIRED_REFERENCE_CONTACTS) {
-    blockers.push({ code: 'REFERENCES_INSUFFICIENT', detail: `required=${REQUIRED_REFERENCE_CONTACTS}` });
-  }
 
   if (!facts.identityDocument) blockers.push({ code: 'IDENTITY_DOCUMENT_MISSING' });
   else if (isDocumentExpired(facts.identityDocument.expiresAt, now)) blockers.push({ code: 'IDENTITY_DOCUMENT_EXPIRED' });
@@ -242,6 +227,11 @@ export function buildBlockers(facts: EligibilityFacts, lifecycleStatus: Customer
   if (facts.openFraudCaseCount > 0) blockers.push({ code: 'FRAUD_CASE_OPEN' });
 
   return blockers;
+}
+
+/** Si la regla EXIGÍA esa sección y dejó de hacerlo (eligibility-v2: referencias y encuesta). */
+export function isRetiredOnboardingSection(code: string | null): boolean {
+  return (RETIRED_ONBOARDING_SECTION_CODES as readonly string[]).includes(code ?? '');
 }
 
 function deriveNextStep(sections: OnboardingSection[], lifecycleStatus: CustomerLifecycleStatus): EligibilityAssessment['nextStep'] {

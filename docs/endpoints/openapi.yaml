@@ -3091,6 +3091,49 @@ paths:
       summary: Entrega el paquete de domicilio del cliente
       tags:
         - customer-onboarding
+  /customer-onboarding/{customerId}/answers:
+    get:
+      description: >-
+        Devuelve lo vigente de datos personales, perfil económico y domicilio
+        (con la calle descifrada y la última coordenada declarada) para que la
+        app rellene cada paso al volver a él.
+      operationId: CustomerOnboardingAnswersController_getAnswers
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Respuestas vigentes; `null` en lo que todavía no se contestó.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Respuestas ya guardadas del alta
+      tags:
+        - customer-onboarding
   /customer-onboarding/{customerId}/consumer-survey:
     get:
       operationId: ConsumerSurveyController_status
@@ -3586,6 +3629,8 @@ paths:
                     - identity_front
                     - identity_back
                     - selfie
+                    - selfie_left
+                    - selfie_right
                     - proof_of_address
                     - bank_statement
                     - bank_qr_proof
@@ -3948,7 +3993,7 @@ paths:
                   additionalProperties: false
                 evidence:
                   minItems: 1
-                  maxItems: 5
+                  maxItems: 8
                   type: array
                   items:
                     type: object
@@ -3959,6 +4004,8 @@ paths:
                           - identity_front
                           - identity_back
                           - selfie
+                          - selfie_left
+                          - selfie_right
                           - proof_of_address
                           - bank_qr_proof
                           - occupation_audio
@@ -18152,6 +18199,51 @@ paths:
       summary: Resumen de investigación de un cliente
       tags:
         - operations
+  /operations/customers/{customerId}/review-dossier:
+    get:
+      description: >-
+        Lo declarado (con carnet, teléfono y correo enmascarados), lo leído del
+        carnet frente a lo declarado y el registro estatal, el cronómetro y la
+        bitácora del alta, el dispositivo, permisos, consentimientos, ubicación,
+        agenda agregada y las evidencias. Un bloque sin dato es null. Es el
+        mismo JSON que se anexa al caso del Motor.
+      operationId: OnboardingReviewDossierController_get
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Expediente del alta, versión 1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Cliente no encontrado.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Expediente del alta para revisar la identidad
+      tags:
+        - customer-onboarding
   /operations/data-governance/policies:
     get:
       operationId: CatalogGovernanceController_getDataGovernancePolicies

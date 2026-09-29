@@ -98,6 +98,11 @@ describe('MobileIdentityService', () => {
       })),
     };
     const reviewCases = { openIfAbsent: jest.fn(async (..._args: unknown[]) => ({})) };
+    // El anexo del expediente del alta al caso del Motor. Nunca lanza en la realidad; el doble sí
+    // puede, para probar que ni así se toca el intento.
+    const expediente = {
+      publish: jest.fn(async (..._args: unknown[]) => ({ sent: true, executionId: '9001', result: null, reason: null })),
+    };
     const service = new MobileIdentityService(
       repository as never,
       engine as never,
@@ -105,8 +110,9 @@ describe('MobileIdentityService', () => {
       contacts as never,
       senales as never,
       reviewCases as never,
+      expediente as never,
     );
-    return { service, repository, engine, bindings, contacts, senales, reviewCases };
+    return { service, repository, engine, bindings, contacts, senales, reviewCases, expediente };
   }
 
   /** Deja correr la promesa que el servicio lanzó sin esperar. */
@@ -178,6 +184,66 @@ describe('MobileIdentityService', () => {
       expect(update.reasonCodes.humanReviewPolicy).toBeUndefined();
       expect(motor.reviewCases.openIfAbsent).not.toHaveBeenCalled();
     }));
+
+  describe('el expediente del alta en el caso del Motor', () => {
+    it('retenido por la política: pide al Motor abrir el caso en IDENTIDAD con el expediente, sobre esa ejecución', () =>
+      conRevisionHumana(true, async () => {
+        const { service, expediente } = montar({ output: { identidad_resultado: 'VERIFICADO' } });
+
+        await service.start('1', { ...cuerpo(), customerId: '77' } as never, 'idem-1');
+        await dejarResolver();
+
+        expect(expediente.publish).toHaveBeenCalledWith({
+          tenantId: '1',
+          customerId: '77',
+          momento: 'identidad',
+          executionId: '9001',
+          openIfMissing: { queueCode: 'IDENTIDAD', motivo: 'REVISION_HUMANA_OBLIGATORIA' },
+        });
+      }));
+
+    it('REVISION_HUMANA del Motor: el caso ya existe y el expediente se fusiona, sin pedir abrir otro', () =>
+      conRevisionHumana(true, async () => {
+        const { service, expediente } = montar({ output: { identidad_resultado: 'REVISION_HUMANA' } });
+
+        await service.start('1', { ...cuerpo(), customerId: '77' } as never, 'idem-1');
+        await dejarResolver();
+
+        expect(expediente.publish).toHaveBeenCalledWith({ tenantId: '1', customerId: '77', momento: 'identidad', executionId: '9001' });
+      }));
+
+    it('un VERIFICADO sin revisión humana no tiene caso: no se anexa nada', () =>
+      conRevisionHumana(false, async () => {
+        const { service, expediente } = montar({ output: { identidad_resultado: 'VERIFICADO' } });
+
+        await service.start('1', { ...cuerpo(), customerId: '77' } as never, 'idem-1');
+        await dejarResolver();
+
+        expect(expediente.publish).not.toHaveBeenCalled();
+      }));
+
+    it('sin cliente no hay expediente que anexar', () =>
+      conRevisionHumana(true, async () => {
+        const { service, expediente } = montar({ output: { identidad_resultado: 'VERIFICADO' } });
+
+        await service.start('1', cuerpo(), 'idem-1');
+        await dejarResolver();
+
+        expect(expediente.publish).not.toHaveBeenCalled();
+      }));
+
+    it('si el anexo revienta, el intento queda como lo dejó el Motor (no pasa a UNAVAILABLE)', () =>
+      conRevisionHumana(true, async () => {
+        const { service, repository, expediente } = montar({ output: { identidad_resultado: 'VERIFICADO' } });
+        (expediente.publish as jest.Mock).mockRejectedValueOnce(new Error('socket hang up') as never);
+
+        await service.start('1', { ...cuerpo(), customerId: '77' } as never, 'idem-1');
+        await dejarResolver();
+
+        expect(repository.complete).toHaveBeenCalledTimes(1);
+        expect(repository.complete).toHaveBeenCalledWith('1', '5501', expect.objectContaining({ finalResult: 'IN_REVIEW' }));
+      }));
+  });
 
   it('escribe VERIFIED cuando el artefacto verifica (revisión humana apagada)', () =>
     conRevisionHumana(false, async () => {

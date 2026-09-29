@@ -1,7 +1,7 @@
 /**
  * @file Proceso declarado en código: Elegibilidad y ciclo de vida del cliente.
  * @business Sólo un cliente `active` y sin bloqueadores puede pedir crédito: este proceso decide y deja evidencia de cuándo un cliente pasa a activo, observado, suspendido, rechazado o bloqueado, y por qué.
- * @system fixture que `syncWorkflowCatalog` vuelca a `workflow_*`; escrita el 2026-09-26 desde `customers/` (máquina de estados y regla eligibility-v1), `operations/` y `fraud/`.
+ * @system fixture que `syncWorkflowCatalog` vuelca a `workflow_*`; escrita el 2026-09-26 desde `customers/` (máquina de estados y regla eligibility-v2 desde el 2026-09-28), `operations/` y `fraud/`.
  */
 import type { WorkflowDefinitionFixture } from '../workflow-definition.types.js';
 
@@ -14,7 +14,7 @@ export const CUSTOMER_ELIGIBILITY_LIFECYCLE: WorkflowDefinitionFixture = {
   version: 'v1',
   name: 'Elegibilidad y ciclo de vida del cliente',
   description:
-    'Cálculo de la habilitación crediticia con la regla eligibility-v1 (quince condiciones, lista completa de bloqueadores) y transiciones del estado del cliente por la máquina de estados: promoción automática desde under_review, decisión administrativa y decisiones de casos de revisión.',
+    'Cálculo de la habilitación crediticia con la regla eligibility-v2 (las condiciones C1–C15 salvo las referencias, que dejaron de exigirse; lista completa de bloqueadores) y transiciones del estado del cliente por la máquina de estados: promoción automática desde under_review, decisión administrativa y decisiones de casos de revisión.',
   processType: 'back_office',
   ownerDomain: 'customers',
   ownerRole: 'OPERATIONS_MANAGER',
@@ -64,14 +64,14 @@ export const CUSTOMER_ELIGIBILITY_LIFECYCLE: WorkflowDefinitionFixture = {
   ],
   metadata: {
     comesFrom: ['P-02 customer_onboarding_kyc (envío)', 'P-03 identity_verification', 'P-04 onboarding_risk_assessment'],
-    ruleVersion: 'eligibility-v1',
+    ruleVersion: 'eligibility-v2',
   },
   stages: [
     {
       code: 'eligibility_evaluation',
       name: 'Evaluación de la regla de habilitación',
       description:
-        'Quince condiciones (C1–C15); la regla nunca corta en el primer bloqueador. Sólo desde under_review y con ACCOUNT_NOT_ACTIVE como único bloqueador promueve a active sola.',
+        'Las condiciones C1–C15 menos las referencias (eligibility-v2); la regla nunca corta en el primer bloqueador. Sólo desde under_review y con ACCOUNT_NOT_ACTIVE como único bloqueador promueve a active sola.',
       module: 'customers',
       actor: 'system',
       client: 'BLOCK',

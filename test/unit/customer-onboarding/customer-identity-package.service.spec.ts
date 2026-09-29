@@ -264,6 +264,42 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
     expect(origenes).toEqual(['system_scanner', 'camera', null]);
   });
 
+  it('con las tres poses de la selfie, guarda las cinco evidencias y selfie_evidence_id apunta a la de FRENTE', async () => {
+    const { service, customersRepository, onboardingRepository } = buildService();
+    (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
+    for (const id of ['e1', 'e2', 'e3', 'e4', 'e5']) {
+      (onboardingRepository.createEvidenceDocument as jest.Mock).mockResolvedValueOnce({ id } as never);
+    }
+    (onboardingRepository.createIdentityDocument as jest.Mock).mockResolvedValueOnce({ id: 'identity-doc-1' } as never);
+    (onboardingRepository.createIdentityVerificationAttempt as jest.Mock).mockResolvedValueOnce({ id: 'attempt-1' } as never);
+    (onboardingRepository.findLatestOnboardingFlow as jest.Mock).mockResolvedValueOnce(null as never);
+    const tipos = ['identity_front', 'identity_back', 'selfie_left', 'selfie', 'selfie_right'];
+
+    await service.submitIdentityPackage(
+      baseInput({
+        body: {
+          identity: {},
+          evidence: tipos.map((evidenceType, i) => ({
+            evidenceType,
+            storageKey: `t1/c1/k${i}`,
+            mimeType: 'image/jpeg',
+            sha256Hash: `h${i}`,
+            captureSource: 'camera',
+          })),
+        },
+      }),
+    );
+
+    const guardados = (onboardingRepository.createEvidenceDocument as jest.Mock).mock.calls.map(
+      (llamada) => (llamada[0] as { documentType: string }).documentType,
+    );
+    expect(guardados).toEqual(tipos);
+    const intento = (onboardingRepository.createIdentityVerificationAttempt as jest.Mock).mock.calls[0]![0] as { selfieEvidenceId: string };
+    expect(intento.selfieEvidenceId).toBe('e4');
+    const documento = (onboardingRepository.createIdentityDocument as jest.Mock).mock.calls[0]![0] as Record<string, unknown>;
+    expect(documento).toMatchObject({ frontEvidenceId: 'e1', backEvidenceId: 'e2' });
+  });
+
   it('every evidence extraction is created with requiresReview: true — nothing is auto-approved', async () => {
     const { service, customersRepository, onboardingRepository } = buildService();
     (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);

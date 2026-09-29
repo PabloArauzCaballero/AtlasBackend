@@ -12,6 +12,12 @@ import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import {
   CustomerConsumerSurveyAnswerModel,
   AddressGpsObservationModel,
+  BankStatementReviewModel,
+  CustomerConsentModel,
+  CustomerDeviceContactModel,
+  CustomerLocationPingModel,
+  DeviceModel,
+  DeviceSnapshotModel,
   AttributeDefinitionModel,
   AuthEventModel,
   ContactVerificationAttemptModel,
@@ -53,6 +59,9 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
 import { CustomerOnboardingController } from './customer-onboarding.controller.js';
 import { CustomerPackagesController } from './customer-packages.controller.js';
 import { CustomerOnboardingProfileController } from './customer-onboarding-profile.controller.js';
+import { CustomerOnboardingAnswersController } from './customer-onboarding-answers.controller.js';
+import { CustomerOnboardingAnswersService } from './application/customer-onboarding-answers.service.js';
+import { CustomerOnboardingAnswersRepository } from './repositories/customer-onboarding-answers.repository.js';
 import { CustomerOnboardingStatusController } from './customer-onboarding-status.controller.js';
 import { CustomerVerificationController } from './customer-verification.controller.js';
 import { CustomerAddressPackageService } from './application/customer-address-package.service.js';
@@ -65,6 +74,12 @@ import { ExternalDataModule } from '../external-data/external-data.module.js';
 // habilitación se queda para siempre en `RISK_NOT_APPROVED` y nadie se activa solo.
 import { RiskModule } from '../risk/risk.module.js';
 import { RiskService } from '../risk/risk.service.js';
+import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
+import { DecisionEngineClient } from '../decision-engine/decision-engine.client.js';
+import { OnboardingReviewDossierController } from './onboarding-review-dossier.controller.js';
+import { OnboardingReviewDossierService } from './application/onboarding-review-dossier.service.js';
+import { ONBOARDING_DOSSIER_ENGINE_PORT, OnboardingReviewDossierPublisher } from './application/onboarding-review-dossier.publisher.js';
+import { OnboardingReviewDossierRepository } from './repositories/onboarding-review-dossier.repository.js';
 import { CustomerTelemetryModule } from '../customer-telemetry/customer-telemetry.module.js';
 import { ConsumerSurveyController } from './consumer-survey/consumer-survey.controller.js';
 import { ConsumerSurveyService } from './consumer-survey/consumer-survey.service.js';
@@ -148,6 +163,14 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
       OnDeviceMetricValueModel,
       // La encuesta de hábitos (fase 4 del alta).
       CustomerConsumerSurveyAnswerModel,
+      // Sólo lectura, para el expediente del alta que se anexa al caso del Motor: dispositivo,
+      // consentimientos, pings, agenda sincronizada y extracto.
+      BankStatementReviewModel,
+      CustomerConsentModel,
+      CustomerDeviceContactModel,
+      CustomerLocationPingModel,
+      DeviceModel,
+      DeviceSnapshotModel,
     ]),
     CustomersModule,
     // El resumen de comportamiento del alta se recalcula al enviar la solicitud.
@@ -159,13 +182,17 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
     NotificationsModule,
     ExternalDataModule,
     RiskModule,
+    // El anexo del expediente del alta al caso del Motor, por puerto (ONBOARDING_DOSSIER_ENGINE_PORT).
+    DecisionEngineModule,
   ],
   controllers: [
+    OnboardingReviewDossierController,
     CustomerEvidenceViewController,
     IdentityReviewCallbackController,
     CustomerOnboardingController,
     CustomerPackagesController,
     CustomerOnboardingProfileController,
+    CustomerOnboardingAnswersController,
     CustomerOnboardingStatusController,
     CustomerVerificationController,
     ConsumerSurveyController,
@@ -201,11 +228,22 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
     OnboardingRiskTriggerService,
     // El onboarding pide la evaluación de riesgo por puerto; `RiskService` (de `RiskModule`) la implementa.
     { provide: ONBOARDING_RISK_PORT, useExisting: RiskService },
+    OnboardingReviewDossierRepository,
+    OnboardingReviewDossierService,
+    OnboardingReviewDossierPublisher,
+    // El Motor implementa el anexo; el onboarding sólo conoce el puerto.
+    {
+      provide: ONBOARDING_DOSSIER_ENGINE_PORT,
+      useFactory: (client: DecisionEngineClient) => client.manualReviews,
+      inject: [DecisionEngineClient],
+    },
     CustomerProfileUpdateService,
     CustomerFinancialProfileService,
     CustomerReferenceContactsService,
     CustomerContactMethodsService,
     CustomerProfileDataRepository,
+    CustomerOnboardingAnswersRepository,
+    CustomerOnboardingAnswersService,
     CustomerVerificationRepository,
     OnboardingAbandonmentService,
     OnboardingDeviceSessionService,
@@ -229,6 +267,6 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
    * significa «la agenda de este cliente», y sólo hace falta que se separen una
    * vez para que la política decida sobre números que nadie escribió.
    */
-  exports: [OnboardingAbandonmentService, CustomerContactsSnapshotService, IdentityReviewCaseRepository],
+  exports: [OnboardingAbandonmentService, CustomerContactsSnapshotService, IdentityReviewCaseRepository, OnboardingReviewDossierPublisher],
 })
 export class CustomerOnboardingModule {}
