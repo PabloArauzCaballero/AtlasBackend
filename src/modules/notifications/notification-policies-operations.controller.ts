@@ -3,8 +3,8 @@
  * @business Esta pieza deja que negocio decida qué avisos existen y cuáles no se pueden apagar.
  * @system expone el CRUD del catálogo de políticas de notificación.
  */
-import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Put, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -13,6 +13,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { GOVERNANCE_POLICY_READ_ROLES, GOVERNANCE_POLICY_WRITE_ROLES } from '../../common/utils/auth/role-groups.util.js';
@@ -46,6 +47,32 @@ export const upsertNotificationPolicySchema = z
 
 export type UpsertNotificationPolicyDto = z.infer<typeof upsertNotificationPolicySchema>;
 
+/**
+ * El listado del portal: buscador por partes, filtros y paginación en el servidor.
+ *
+ * `limit` no lleva valor por omisión a propósito: quien no lo manda (un cliente anterior a la
+ * paginación) sigue recibiendo el catálogo entero. Si manda `page` sin `limit`, se pagina de 20 en 20.
+ */
+export const listNotificationPoliciesQuerySchema = z
+  .object({
+    /** Por partes: código del evento, nombre, categoría y explicación. */
+    q: z.string().trim().min(1).max(120).optional(),
+    category: z.string().trim().min(1).max(40).optional(),
+    channel: z.enum(['push', 'email', 'sms', 'in_app', 'whatsapp']).optional(),
+    /** `true` sólo las irrenunciables; `false` sólo las que el cliente puede apagar. */
+    mandatory: queryBooleanSchema.optional(),
+    /** `true` sólo las que salen en la app; `false` sólo las apagadas. */
+    active: queryBooleanSchema.optional(),
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
+  })
+  .transform(({ page, limit, ...rest }) => ({
+    ...rest,
+    page: page ?? 1,
+    limit: limit ?? (page === undefined ? undefined : 20),
+  }));
+export type ListNotificationPoliciesQueryDto = z.infer<typeof listNotificationPoliciesQuerySchema>;
+
 @ApiTags('notifications')
 @ApiBearerAuth('access-token')
 @Controller('operations/notification-policies')
@@ -60,13 +87,43 @@ export class NotificationPoliciesOperationsController {
       'Es lo que la app usa para dibujar la pantalla de preferencias: sin catálogo, esa pantalla sale vacía.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiResponse({ status: 200, description: 'Políticas del tenant, activas e inactivas.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Busca por partes en el código del evento, el nombre, la categoría y la explicación.',
+  })
+  @ApiQuery({ name: 'category', required: false, description: 'Sólo los avisos de esta categoría (p. ej. `pagos`).' })
+  @ApiQuery({
+    name: 'channel',
+    required: false,
+    description: 'Sólo los avisos de este canal: `push`, `email`, `sms`, `in_app` o `whatsapp`.',
+  })
+  @ApiQuery({
+    name: 'mandatory',
+    required: false,
+    description: '`true` sólo los irrenunciables; `false` sólo los que el cliente puede apagar.',
+  })
+  @ApiQuery({ name: 'active', required: false, description: '`true` sólo los que salen en la app; `false` sólo los apagados.' })
+  @ApiQuery({ name: 'page', required: false, description: 'Página, desde 1. Con `page` y sin `limit` se pagina de 20 en 20.' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Políticas por página, de 1 a 100. Sin `limit` ni `page` responde el catálogo entero.',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Políticas del tenant, activas e inactivas, con `meta` y `summary` (total, irrenunciables, activas, por canal y por categoría del catálogo entero).',
+  })
   @Get()
   @Roles(...GOVERNANCE_POLICY_READ_ROLES)
-  async list(@CurrentTenant() tenantId: string) {
-    const policies = await this.policies.listAll(tenantId);
+  async list(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(listNotificationPoliciesQuerySchema)) query: ListNotificationPoliciesQueryDto,
+  ) {
+    const { rows, meta, summary } = await this.policies.listPage(tenantId, query);
     return {
-      data: policies.map((policy) => ({
+      data: rows.map((policy) => ({
         policyId: policy.id,
         eventCode: policy.eventCode,
         channel: policy.channel,
@@ -81,6 +138,8 @@ export class NotificationPoliciesOperationsController {
         isActive: policy.isActive,
         updatedAt: policy.updatedAtValue?.toISOString() ?? null,
       })),
+      meta,
+      summary,
     };
   }
 

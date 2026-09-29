@@ -40,12 +40,13 @@ function politica(overrides: Record<string, unknown> = {}) {
 }
 
 describe('NotificationPoliciesRepository', () => {
-  let model: { findAll: jest.Mock; findOne: jest.Mock; create: jest.Mock };
+  let model: { findAll: jest.Mock; findOne: jest.Mock; create: jest.Mock; findAndCountAll: jest.Mock };
   let repo: NotificationPoliciesRepository;
 
   beforeEach(() => {
     model = {
       findAll: jest.fn(async () => []),
+      findAndCountAll: jest.fn(async () => ({ rows: [], count: 0 })),
       findOne: jest.fn(async () => null),
       create: jest.fn(async (values: unknown) => politica(values as Record<string, unknown>)),
     };
@@ -69,10 +70,44 @@ describe('NotificationPoliciesRepository', () => {
     });
 
     it('el portal interno ve TAMBIÉN lo apagado: tiene que poder reactivar lo que apagó', async () => {
-      await repo.listAll('t1');
+      const page = await repo.listPage('t1', { page: 1 });
 
-      expect(ultima(model.findAll).where).toEqual({ tenantId: 't1', deleted: false });
-      expect(ultima(model.findAll).where).not.toHaveProperty('isActive');
+      expect(ultima(model.findAndCountAll).where).toEqual({ tenantId: 't1', deleted: false });
+      expect(ultima(model.findAndCountAll).where).not.toHaveProperty('isActive');
+      // Sin `limit` responde el catálogo entero, como antes de paginar: no hay limit ni offset.
+      expect(model.findAndCountAll.mock.calls.at(-1)?.[0]).not.toHaveProperty('limit');
+      expect(page.meta).toEqual({ page: 1, limit: 1, total: 0, totalPages: 0 });
+    });
+
+    it('con limit pagina en el servidor y el meta lleva el total del filtro', async () => {
+      model.findAndCountAll.mockImplementationOnce(async () => ({ rows: [politica()], count: 45 }));
+      const page = await repo.listPage('t1', { page: 3, limit: 20, channel: 'sms', mandatory: true, active: false, category: 'pagos' });
+
+      const args = model.findAndCountAll.mock.calls.at(-1)?.[0] as { where: Record<string, unknown>; limit: number; offset: number };
+      expect(args).toMatchObject({ limit: 20, offset: 40 });
+      expect(args.where).toMatchObject({ channel: 'sms', isMandatory: true, isActive: false, category: 'pagos' });
+      expect(page.meta).toEqual({ page: 3, limit: 20, total: 45, totalPages: 3 });
+    });
+
+    it('el resumen agrupa el catálogo entero por canal, categoría, obligatoriedad y estado', async () => {
+      model.findAll.mockImplementationOnce(async () => [
+        { channel: 'push', category: 'pagos', isMandatory: true, isActive: true, n: '2' },
+        { channel: 'push', category: 'novedades', isMandatory: false, isActive: false, n: '1' },
+        { channel: 'sms', category: 'pagos', isMandatory: false, isActive: true, n: '3' },
+      ]);
+      const { summary } = await repo.listPage('t1', { page: 1, limit: 10, q: 'zzz' });
+
+      expect(summary).toEqual({
+        total: 6,
+        mandatory: 2,
+        active: 5,
+        inactive: 1,
+        byChannel: { push: 3, sms: 3 },
+        byCategory: [
+          { category: 'novedades', count: 1 },
+          { category: 'pagos', count: 5 },
+        ],
+      });
     });
 
     it('una política se localiza por la pareja evento+canal, dentro del tenant', async () => {

@@ -7726,7 +7726,15 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "active",
+      "category",
+      "channel",
+      "limit",
+      "mandatory",
+      "page",
+      "q"
+    ],
     "path": [],
     "security": [
       "access-token"
