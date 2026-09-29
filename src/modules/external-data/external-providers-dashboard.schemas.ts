@@ -45,6 +45,8 @@ export const providerRequestsQuerySchema = z.object({
         : undefined,
     ),
   approvalStatus: z.string().trim().min(2).max(40).optional(),
+  /** Id de solicitud exacto (sólo dígitos) o, por partes, referencia del proveedor, tipo de consulta o error. */
+  q: z.string().trim().min(1).max(120).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).max(100_000).default(0),
 });

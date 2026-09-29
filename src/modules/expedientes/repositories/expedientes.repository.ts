@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction } from 'sequelize';
 import { ExpedienteActividadModel, ExpedienteModel, ExpedienteNodoModel } from '../../../database/models/index.js';
 import type { AccionActividad, EstadoExpediente } from '../expedientes.types.js';
+import { busquedaDeExpedientes } from './expedientes-busqueda.js';
 
 /**
  * El expediente, su árbol y su bitácora.
@@ -78,16 +79,15 @@ export class ExpedientesRepository {
     const where: Record<string, unknown> = { tenantId: input.tenantId };
     if (input.subjectType) where.subjectType = input.subjectType;
     if (input.estado) where.estado = input.estado;
-    // La búsqueda es por código de cliente o por identificador del sujeto: son los dos datos que
-    // alguien tiene delante cuando llega desde un caso o desde un ticket de soporte.
-    if (input.q) {
-      const patron = `%${input.q.replace(/[%_]/g, (c) => `\\${c}`)}%`;
-      where[Op.or as unknown as string] = [
-        { customerCode: { [Op.iLike]: patron } },
-        ...(/^\d+$/.test(input.q) ? [{ subjectId: input.q }] : []),
-      ];
-    }
-    return this.expedientes.findAndCountAll({ where, order: [['created_at', 'DESC']], offset: input.offset, limit: input.limit });
+    const busqueda = input.q ? busquedaDeExpedientes(input.tenantId, input.q) : null;
+    if (busqueda) where[Op.or as unknown as string] = busqueda.condiciones;
+    return this.expedientes.findAndCountAll({
+      where,
+      replacements: busqueda?.replacements,
+      order: [['created_at', 'DESC']],
+      offset: input.offset,
+      limit: input.limit,
+    });
   }
 
   async actualizarExpediente(

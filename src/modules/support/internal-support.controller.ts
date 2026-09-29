@@ -4,7 +4,7 @@
  * @system exige perfil de agente además del rol; cada acción deja evento y auditoría.
  */
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -28,13 +28,12 @@ import {
   internalNoteSchema,
   type LinkCaseDto,
   linkCaseSchema,
-  type ListCasesQueryDto,
-  listCasesQuerySchema,
   type ResolveCaseDto,
   resolveCaseSchema,
   type TriageCaseDto,
   triageCaseSchema,
 } from './support-case.schemas.js';
+import { type ListInternalCasesQueryDto, listInternalCasesQuerySchema } from './support-case-list.schemas.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
@@ -58,12 +57,17 @@ export class InternalSupportController {
     private readonly closure: SupportCaseClosureService,
   ) {}
 
-  @ApiOperation({ summary: 'Cola de trabajo: casos abiertos por cola, prioridad y antigüedad' })
+  @ApiOperation({
+    summary: 'Cola de trabajo: casos abiertos por cola, prioridad y antigüedad',
+    description:
+      'Pagina por cursor. `summary` cuenta el filtro ENTERO (total, P1/P2 y sin agente) con la misma visibilidad de los casos restringidos.',
+  })
   @ApiHeader({ name: 'x-tenant-id', required: false })
+  @ApiQuery({ name: 'q', required: false, description: 'Busca por partes en el número de caso, el asunto y el código de cliente.' })
   @Get()
   async workQueue(
     @CurrentTenant() tenantId: string,
-    @Query(new ZodValidationPipe(listCasesQuerySchema)) query: ListCasesQueryDto,
+    @Query(new ZodValidationPipe(listInternalCasesQuerySchema)) query: ListInternalCasesQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     const actor = await this.actors.resolve(currentUser, tenantId);

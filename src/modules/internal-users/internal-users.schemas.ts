@@ -42,6 +42,9 @@ export const internalLogoutSchema = z.object({
 
 export type InternalLogoutDto = z.infer<typeof internalLogoutSchema>;
 
+/** Los estados de una cuenta interna; los mismos al editarla y al filtrar el listado. */
+export const INTERNAL_USER_STATUSES = ['active', 'invited', 'suspended', 'locked', 'disabled'] as const;
+
 export const createInternalUserSchema = z.object({
   tenantId: positiveIdSchema.optional(),
   email: emailSchema,
@@ -66,7 +69,7 @@ export const updateInternalUserSchema = z.object({
   fullName: z.string().trim().min(3).max(180).optional(),
   department: z.enum(['OPERATIONS', 'RISK', 'COLLECTIONS', 'COMPLIANCE', 'FINANCE', 'SUPPORT', 'SYSTEMS', 'AUDIT', 'EXECUTIVE']).optional(),
   jobTitle: z.string().trim().max(120).nullable().optional(),
-  status: z.enum(['active', 'invited', 'suspended', 'locked', 'disabled']).optional(),
+  status: z.enum(INTERNAL_USER_STATUSES).optional(),
   mustChangePassword: z.boolean().optional(),
   reason: z.string().trim().min(8).max(500),
 });
@@ -86,9 +89,27 @@ export const internalUserParamsSchema = z.object({
 
 export type InternalUserParamsDto = z.infer<typeof internalUserParamsSchema>;
 
+/**
+ * `q`, `status` y `role` recorren la tabla ENTERA en el servidor. Antes sólo existían `page` y
+ * `limit`, y la pantalla filtraba en el navegador la primera página: con más de 50 personas, la
+ * número 51 no aparecía por mucho que se escribiera su correo.
+ */
 export const listInternalUsersQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(50),
+  q: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .describe('Busca, sin distinguir mayúsculas, en correo, nombre, departamento, cargo y código de rol asignado.'),
+  status: z.enum(INTERNAL_USER_STATUSES).optional().describe('Estado de la cuenta.'),
+  role: z
+    .string()
+    .trim()
+    .regex(/^[A-Z][A-Z0-9_]{1,79}$/)
+    .optional()
+    .describe('Código exacto de un rol vivo asignado (p. ej. SUPER_ADMIN).'),
 });
 
 export type ListInternalUsersQueryDto = z.infer<typeof listInternalUsersQuerySchema>;

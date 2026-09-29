@@ -136,6 +136,7 @@ describe('Identidad del comercio afiliado', () => {
       authRepository as never,
       merchantActorRepository as never,
       sequelize as never,
+      { create: jest.fn(async () => ({})) } as never,
     );
     return { service, merchantUserModel, authRepository, merchantActorRepository, created };
   }

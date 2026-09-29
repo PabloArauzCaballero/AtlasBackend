@@ -5,7 +5,7 @@
  * @system Mismos roles que las campañas: leer `internal_operator`+, escribir `admin`/`platform_admin`.
  */
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../../common/openapi/zod-to-schema.util.js';
 import { CurrentTenant } from '../../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
@@ -34,11 +34,13 @@ import {
 export class NotificationAudienceSegmentsController {
   constructor(private readonly audience: NotificationCampaignAudienceService) {}
 
-  @ApiOperation({ summary: 'Listar segmentos de audiencia guardados' })
+  @ApiOperation({ summary: 'Listar segmentos de audiencia guardados', description: 'Lista COMPLETA del estado pedido, sin paginar.' })
+  @ApiQuery({ name: 'status', required: false, enum: ['active', 'archived'], description: 'Activos (por defecto) o archivados.' })
+  @ApiQuery({ name: 'q', required: false, description: 'Busca por partes en el nombre y la descripción del segmento.' })
   @Get()
   @Roles('internal_operator', 'admin', 'platform_admin', 'system')
-  list(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listSegmentsQuerySchema)) query: { status: string }) {
-    return this.audience.listSegments(tenantId, query.status);
+  list(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listSegmentsQuerySchema)) query: { status: string; q?: string }) {
+    return this.audience.listSegments(tenantId, query.status, query.q);
   }
 
   @ApiOperation({ summary: 'Guardar un segmento de audiencia', description: 'Calcula su tamaño al guardarlo.' })

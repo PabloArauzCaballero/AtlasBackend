@@ -20,6 +20,7 @@ import {
   PaginatedMerchantUserRequests,
 } from './merchant-identity.types.js';
 import { MerchantUsersService } from './merchant-users.service.js';
+import { merchantListConditions, merchantListPage } from './merchant-identity-list.filter.js';
 import { CredentialsNotifierService } from '../auth/credentials-notifier.service.js';
 
 export function toProvisioningRequest(model: MerchantUserProvisioningRequestModel): MerchantUserProvisioningRequest {
@@ -141,11 +142,7 @@ export class MerchantUserRequestsService {
   }
 
   async list(tenantId: string, query: ListMerchantUserRequestsQueryDto): Promise<PaginatedMerchantUserRequests> {
-    const filters: unknown[] = [{ tenantId }];
-    if (query.status) filters.push({ status: query.status });
-    if (query.email) {
-      filters.push(where(fn('lower', fn('btrim', col('email'))), query.email.trim().toLowerCase()));
-    }
+    const filters = merchantListConditions([{ tenantId }], query, ['email', 'fullName', 'accountName', 'branchName']);
 
     const { rows, count } = await this.requestModel.findAndCountAll({
       where: { [Op.and]: filters } as never,
@@ -159,7 +156,7 @@ export class MerchantUserRequestsService {
       offset: (query.page - 1) * query.limit,
     });
 
-    return { items: rows.map(toProvisioningRequest), page: query.page, limit: query.limit, total: count };
+    return merchantListPage(rows.map(toProvisioningRequest), query, count);
   }
 
   async get(tenantId: string, requestId: string): Promise<MerchantUserProvisioningRequest> {

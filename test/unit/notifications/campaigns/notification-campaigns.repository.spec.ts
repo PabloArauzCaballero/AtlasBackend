@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { Op } from 'sequelize';
 import { NotificationCampaignsRepository } from '../../../../src/modules/notifications/campaigns/notification-campaigns.repository.js';
 
 type Row = Record<string, unknown>;
@@ -41,6 +42,15 @@ describe('NotificationCampaignsRepository', () => {
     await repository.listSegments('1', 'active');
     expect(campaigns.findOne).toHaveBeenCalledWith({ where: { tenantId: '1', id: '2' } });
     expect(segments.findAll).toHaveBeenCalledWith({ where: { tenantId: '1', status: 'active' }, order: [['name', 'ASC']] });
+  });
+
+  it('los segmentos se buscan por nombre y descripción, sin paginar', async () => {
+    const { repository, segments } = build();
+    await repository.listSegments('1', 'archived', 'vip');
+    const opciones = (segments.findAll as jest.Mock).mock.calls.at(-1)?.[0] as { where: Record<string | symbol, unknown>; limit?: number };
+    expect(opciones.where).toMatchObject({ tenantId: '1', status: 'archived' });
+    expect(opciones.where[Op.and]).toEqual([{ [Op.or]: [{ name: { [Op.iLike]: '%vip%' } }, { description: { [Op.iLike]: '%vip%' } }] }]);
+    expect(opciones.limit).toBeUndefined();
   });
 
   it('lista con búsqueda y paginación por offset', async () => {

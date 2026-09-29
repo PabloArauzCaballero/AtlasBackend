@@ -39,6 +39,12 @@ export class InternalAccessCatalogRepository {
     return this.queryRoleRows('WHERE r._id = :roleId AND r._deleted = false', { roleId });
   }
 
+  /**
+   * El catálogo ENTERO, sin tope. Antes llevaba `limit: 1000`: un corte que nadie veía (la respuesta
+   * no decía que faltaran filas) sobre una lista que crece con cada pantalla. El catálogo lo define
+   * el código (`INTERNAL_PERMISSION_SEEDS`) y se sincroniza por migración, así que su tamaño está
+   * acotado por construcción; paginarlo sólo obligaría a pedir varias veces lo mismo.
+   */
   async listPermissions(): Promise<InternalPermissionListItem[]> {
     const permissions = await this.permissionModel.findAll({
       where: { deleted: { [Op.ne]: true }, status: 'active' } as never,
@@ -47,7 +53,6 @@ export class InternalAccessCatalogRepository {
         ['resource_code', 'ASC'],
         ['action_code', 'ASC'],
       ],
-      limit: 1000,
     });
     return permissions.map(permissionItem);
   }

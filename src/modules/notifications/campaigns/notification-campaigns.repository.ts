@@ -9,6 +9,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op, QueryTypes, type WhereOptions } from 'sequelize';
 import { atlasSchemaFor } from '../../../database/domain-schemas.js';
 import { NotificationAudienceSegmentModel, NotificationCampaignModel, NotificationMessageModel } from '../../../database/models/index.js';
+import { withTextSearch } from '../notification-list.filters.js';
 import type { ListCampaignsQueryDto } from './notification-campaigns.schemas.js';
 
 export type CampaignMessageStat = { channel: string; status: string; count: number; read: number };
@@ -132,8 +133,10 @@ export class NotificationCampaignsRepository {
     return this.segments.findOne({ where: { tenantId, id: segmentId } });
   }
 
-  listSegments(tenantId: string, status: string): Promise<NotificationAudienceSegmentModel[]> {
-    return this.segments.findAll({ where: { tenantId, status }, order: [['name', 'ASC']] });
+  listSegments(tenantId: string, status: string, q?: string): Promise<NotificationAudienceSegmentModel[]> {
+    const where: Record<string | symbol, unknown> = { tenantId, status };
+    withTextSearch(where, q, ['name', 'description']);
+    return this.segments.findAll({ where: where as never, order: [['name', 'ASC']] });
   }
 
   async saveSegment(segment: NotificationAudienceSegmentModel, patch: Record<string, unknown>): Promise<NotificationAudienceSegmentModel> {

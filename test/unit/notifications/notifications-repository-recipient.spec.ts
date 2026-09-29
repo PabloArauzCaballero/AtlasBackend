@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { Op } from 'sequelize';
 import { asyncMock } from '../../support/jest-mocks.js';
 import type { AsyncMock } from '../../support/jest-mocks.js';
 import { NotFoundException } from '@nestjs/common';
@@ -76,6 +77,19 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
 
       const callArgs = (messageModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown> };
       expect(callArgs.where).toMatchObject({ tenantId: 't1', recipientType: 'internal_user', recipientId: 'iu1', channel: 'in_app' });
+    });
+
+    it('listRecipientMessages busca en título, asunto y texto SIN perder el filtro de vigencia', async () => {
+      const messageModel = { findAndCountAll: jest.fn(async (..._args: unknown[]) => ({ rows: [], count: 0 })) };
+      const repository = buildRepository(messageModel);
+      await repository.listRecipientMessages('t1', 'internal_user', 'iu1', { q: 'caída', page: 1, limit: 20 } as never);
+      const callArgs = (messageModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<symbol, unknown[]> };
+      const condiciones = callArgs.where[Op.and];
+      expect(condiciones).toHaveLength(2);
+      expect((condiciones[0] as Record<symbol, unknown[]>)[Op.or]).toContainEqual({ expiresAt: null });
+      expect(condiciones[1]).toEqual({
+        [Op.or]: [{ title: { [Op.iLike]: '%caída%' } }, { subject: { [Op.iLike]: '%caída%' } }, { body: { [Op.iLike]: '%caída%' } }],
+      });
     });
 
     it('listCustomerMessages (regression) delegates to listRecipientMessages with recipientType: customer', async () => {

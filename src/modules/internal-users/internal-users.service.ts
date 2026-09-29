@@ -17,6 +17,7 @@ import { assertCanAssignRequestedRoles, assertInternalActor, disabledLikeStatuse
 import { InternalRbacRepository } from './internal-rbac.repository.js';
 import { CreateInternalUserDto, ReplaceInternalUserRolesDto, UpdateInternalUserDto } from './internal-users.schemas.js';
 import { InternalAccessProfile, InternalUserListItem } from './internal-users.types.js';
+import type { InternalUsersListFilter } from './internal-users-list.filter.js';
 
 @Injectable()
 export class InternalUsersService {
@@ -44,10 +45,12 @@ export class InternalUsersService {
 
   async listUsers(
     currentUser: AuthenticatedUser,
-    pagination: PaginationInput,
+    query: PaginationInput & InternalUsersListFilter,
   ): Promise<{ items: InternalUserListItem[]; meta: PaginationMeta }> {
     const actor = assertInternalActor(currentUser);
-    const { rows, total } = await this.rbacRepository.listUsers(actor.tenantId, pagination);
+    const pagination = { page: query.page, limit: query.limit };
+    const filter = { q: query.q, status: query.status, role: query.role };
+    const { rows, total } = await this.rbacRepository.listUsers(actor.tenantId, pagination, filter);
     // Batch: una sola query de roles/permisos para toda la página en vez de una por usuario
     // (antes, `Promise.all(users.map(buildAccessProfile))` disparaba hasta `limit` round trips).
     const profiles = await this.rbacRepository.buildAccessProfiles(rows);

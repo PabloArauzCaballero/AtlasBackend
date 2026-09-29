@@ -4,6 +4,7 @@
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
 import { Injectable } from '@nestjs/common';
+import { paginationMetaFromOffset } from '../../../common/utils/pagination/pagination.util.js';
 import { DataProviderRequestModel } from '../../../database/models/index.js';
 import { ExternalDataRepository } from '../external-data.repository.js';
 import { ExternalProviderDashboardRepository } from '../infrastructure/external-provider-dashboard.repository.js';
@@ -176,6 +177,7 @@ export class ExternalProviderDashboardService {
     customerId?: string;
     responseStatuses?: string[];
     approvalStatus?: string;
+    q?: string;
     limit: number;
     offset: number;
   }) {
@@ -187,7 +189,14 @@ export class ExternalProviderDashboardService {
     // filtro mal escrito enseña más datos que el filtro correcto, que es lo contrario de lo que
     // cualquiera espera de un filtro.
     if (input.providerCode && !provider) {
-      return { generatedAt: new Date().toISOString(), total: 0, limit: input.limit, offset: input.offset, requests: [] };
+      return {
+        generatedAt: new Date().toISOString(),
+        total: 0,
+        limit: input.limit,
+        offset: input.offset,
+        meta: paginationMetaFromOffset(input, 0),
+        requests: [],
+      };
     }
     const page = await this.dashboardRepository.listRequestsPage({
       from: new Date(Date.now() - input.days * 24 * 60 * 60 * 1000),
@@ -196,6 +205,7 @@ export class ExternalProviderDashboardService {
       customerId: input.customerId,
       responseStatuses: input.responseStatuses,
       approvalStatus: input.approvalStatus,
+      q: input.q,
       limit: input.limit,
       offset: input.offset,
     });
@@ -204,6 +214,7 @@ export class ExternalProviderDashboardService {
       total: page.count,
       limit: input.limit,
       offset: input.offset,
+      meta: paginationMetaFromOffset(input, page.count),
       requests: page.rows.map((request) => this.mapRequest(request, providers)),
     };
   }

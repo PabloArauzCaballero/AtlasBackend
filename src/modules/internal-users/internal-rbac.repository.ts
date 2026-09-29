@@ -16,8 +16,9 @@ import {
   InternalUserRoleModel,
   OperationalAuditLogModel,
 } from '../../database/models/index.js';
-import { PaginationInput, toOffset } from '../../common/utils/pagination/pagination.util.js';
+import { PaginationInput } from '../../common/utils/pagination/pagination.util.js';
 import { CreateInternalUserInput, InternalAccessProfile } from './internal-users.types.js';
+import { InternalUsersListFilter, ListedUsers, internalUsersListQuery } from './internal-users-list.filter.js';
 
 export type InternalRolePermissionRow = {
   roleCode: string;
@@ -97,12 +98,10 @@ export class InternalRbacRepository {
     });
   }
 
-  async listUsers(tenantId: string, pagination: PaginationInput): Promise<{ rows: InternalUserModel[]; total: number }> {
+  async listUsers(tenantId: string, pagination: PaginationInput, filter: InternalUsersListFilter = {}): Promise<ListedUsers> {
     const result = await this.internalUserModel.findAndCountAll({
-      where: { tenantId, deleted: { [Op.ne]: true } } as never,
+      ...internalUsersListQuery(tenantId, filter, pagination),
       order: [['_id', 'ASC']],
-      limit: pagination.limit,
-      offset: toOffset(pagination),
     });
     return { rows: result.rows, total: result.count };
   }

@@ -64,6 +64,7 @@ export class NotificationsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(listMessagesQuerySchema).status })
   @ApiQuery({ name: 'channel', required: false, schema: zodObjectPropertySchemas(listMessagesQuerySchema).channel })
+  @ApiQuery({ name: 'q', required: false, description: 'Busca por partes en correlation ID, código de plantilla, título y asunto.' })
   @ApiResponse({ status: 200, description: 'Lista paginada de mensajes.' })
   @Get('operations/notifications/messages')
   @Roles(
@@ -205,6 +206,7 @@ export class NotificationsController {
   @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional (se toma del token).' })
   @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(customerNotificationsQuerySchema).status })
   @ApiQuery({ name: 'channel', required: false, schema: zodObjectPropertySchemas(customerNotificationsQuerySchema).channel })
+  @ApiQuery({ name: 'q', required: false, description: 'Busca por partes en el título, el asunto y el texto del aviso.' })
   @ApiResponse({ status: 200, description: 'Lista paginada de mis notificaciones.' })
   @ApiResponse({ status: 403, description: 'INTERNAL_USER_TOKEN_REQUIRED.' })
   @Get('internal-users/me/notifications')

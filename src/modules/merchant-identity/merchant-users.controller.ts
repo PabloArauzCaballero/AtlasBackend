@@ -4,7 +4,7 @@
  * @system implementa identidad del comercio, credenciales y ciclo de vida de sus usuarios.
  */
 import { Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
@@ -15,6 +15,8 @@ import { InternalPermissions } from '../internal-users/internal-permissions.deco
 import { MerchantUsersService } from './merchant-users.service.js';
 import { MerchantUserRequestsService } from './merchant-user-requests.service.js';
 import {
+  MERCHANT_PROVISIONING_STATUSES,
+  MERCHANT_USER_STATUSES,
   ApproveMerchantUserRequestDto,
   EnqueueMerchantUserRequestDto,
   ListMerchantUserRequestsQueryDto,
@@ -92,6 +94,9 @@ export class MerchantUsersController {
   }
 
   @ApiOperation({ summary: 'Listar las peticiones de alta encoladas' })
+  @ApiQuery({ name: 'status', required: false, enum: MERCHANT_PROVISIONING_STATUSES, description: 'Estado de la petición.' })
+  @ApiQuery({ name: 'email', required: false, description: 'Correo EXACTO (sin distinguir mayúsculas).' })
+  @ApiQuery({ name: 'q', required: false, description: 'Busca por partes en correo, nombre, cuenta y sucursal.' })
   @ApiResponse({ status: 200, description: 'Lista paginada, con las pendientes y las más antiguas primero.' })
   @Get('provisioning-requests')
   @InternalPermissions('merchant.users.read')
@@ -164,6 +169,9 @@ export class MerchantUsersController {
   }
 
   @ApiOperation({ summary: 'Listar identidades de comercio del tenant' })
+  @ApiQuery({ name: 'status', required: false, enum: MERCHANT_USER_STATUSES, description: 'Estado del acceso.' })
+  @ApiQuery({ name: 'email', required: false, description: 'Correo EXACTO (sin distinguir mayúsculas).' })
+  @ApiQuery({ name: 'q', required: false, description: 'Busca por partes en correo, nombre y código de usuario.' })
   @ApiResponse({ status: 200, description: 'Lista paginada.' })
   @Get()
   @InternalPermissions('merchant.users.read')

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { Op } from 'sequelize';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { NotificationsRepository } from '../../../src/modules/notifications/notifications.repository.js';
 import { encryptSecretEnvelope } from '../../../src/common/utils/crypto/envelope-encryption.util.js';
@@ -113,6 +114,22 @@ describe('NotificationsRepository — núcleo', () => {
     await expect(repo.getMessageForDelivery('m1')).rejects.toBeInstanceOf(NotFoundException);
     (messageModel.findOne as jest.Mock).mockResolvedValueOnce({ id: 'm1' } as never);
     expect(await repo.getMessage('t1', 'm1')).toMatchObject({ id: 'm1' });
+  });
+
+  it('listMessages busca por partes en correlation ID, plantilla, título y asunto', async () => {
+    const { repo, messageModel } = build();
+    await repo.listMessages('t1', { q: 'otp', page: 1, limit: 20 } as never);
+    const where = (messageModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<symbol, unknown[]> };
+    expect(where.where[Op.and]).toEqual([
+      {
+        [Op.or]: [
+          { correlationId: { [Op.iLike]: '%otp%' } },
+          { templateCode: { [Op.iLike]: '%otp%' } },
+          { title: { [Op.iLike]: '%otp%' } },
+          { subject: { [Op.iLike]: '%otp%' } },
+        ],
+      },
+    ]);
   });
 
   it('listMessages arma el where con todos los filtros y el rango de fechas', async () => {

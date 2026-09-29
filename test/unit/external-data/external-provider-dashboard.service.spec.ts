@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { ExternalProviderDashboardService } from '../../../src/modules/external-data/application/external-provider-dashboard.service.js';
 
 /**
@@ -155,5 +155,14 @@ describe('ExternalProviderDashboardService', () => {
 
     expect(result.requests[0]).toMatchObject({ requestId: '1', providerCode: 'SEGIP', responseStatus: 'MOCKED' });
     expect(result.requests[0]).not.toHaveProperty('providerId');
+  });
+
+  it('q viaja al repositorio y la respuesta trae el meta canónico calculado desde el offset', async () => {
+    const listRequestsPage = jest.fn(async (_input: unknown) => ({ rows: [request()], count: 51 }));
+    const service = build({ providers: [provider()] });
+    (service as unknown as { dashboardRepository: { listRequestsPage: unknown } }).dashboardRepository.listRequestsPage = listRequestsPage;
+    const result = await service.listRequests({ days: 7, q: 'timeout', limit: 25, offset: 25 });
+    expect(listRequestsPage.mock.calls[0]![0]).toMatchObject({ q: 'timeout', limit: 25, offset: 25 });
+    expect(result.meta).toEqual({ page: 2, limit: 25, total: 51, totalPages: 3 });
   });
 });

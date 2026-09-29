@@ -151,7 +151,11 @@ export const updateSegmentSchema = z.object({
   definition: audienceDefinitionSchema.optional(),
   status: z.enum(['active', 'archived']).optional(),
 });
-export const listSegmentsQuerySchema = z.object({ status: z.enum(['active', 'archived']).default('active') });
+export const listSegmentsQuerySchema = z.object({
+  status: z.enum(['active', 'archived']).default('active'),
+  /** Por partes: nombre o descripción del segmento. La lista sigue completa, sin paginar. */
+  q: z.string().trim().min(1).max(120).optional(),
+});
 
 export type CreateCampaignDto = z.infer<typeof createCampaignSchema>;
 export type UpdateCampaignDto = z.infer<typeof updateCampaignSchema>;

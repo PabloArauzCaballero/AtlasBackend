@@ -175,4 +175,21 @@ describe('NotificationTemplatesRepository', () => {
       tenantId: 't1',
     });
   });
+
+  it('listTemplates busca por partes en código, título y asunto sin pisar el alcance tenant/global', async () => {
+    const { repo, templateModel } = buildRepo();
+    (templateModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
+    await repo.listTemplates('t1', { q: 'otp_', page: 1, limit: 20 } as never);
+    const where = callArg<CallArgRecord>(templateModel.findAndCountAll, 0, 0).where as unknown as Record<symbol, unknown[]>;
+    expect(where[Op.or]).toEqual([{ tenantId: 't1' }, { tenantId: null }]);
+    expect(where[Op.and]).toEqual([
+      {
+        [Op.or]: [
+          { code: { [Op.iLike]: '%otp\\_%' } },
+          { titleTemplate: { [Op.iLike]: '%otp\\_%' } },
+          { subjectTemplate: { [Op.iLike]: '%otp\\_%' } },
+        ],
+      },
+    ]);
+  });
 });

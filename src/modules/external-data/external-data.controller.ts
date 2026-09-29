@@ -72,7 +72,8 @@ export class ExternalDataController {
   @ApiOperation({
     summary: 'Registrar consentimiento para un proveedor externo',
     description:
-      'Registra el consentimiento del cliente para consultar un proveedor de datos externos específico (KYC, buró, telco, etc.).',
+      'Registra el consentimiento OTORGADO del cliente para consultar un proveedor de datos externos (KYC, buró, telco, etc.). ' +
+      '`accepted` sólo admite `true`: una negativa no crea fila (400). No guarda versión del texto legal ni documento de consentimiento.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiBody({ schema: zodToApiSchema(externalConsentSchema) })

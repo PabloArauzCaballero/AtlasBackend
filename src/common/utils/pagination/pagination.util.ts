@@ -27,3 +27,8 @@ export function buildPaginationMeta(input: PaginationInput, total: number): Pagi
     totalPages: Math.ceil(total / input.limit),
   };
 }
+
+/** El `meta` canónico para un listado que pagina por `offset` (se conserva por compatibilidad). */
+export function paginationMetaFromOffset(input: { limit: number; offset: number }, total: number): PaginationMeta {
+  return buildPaginationMeta({ page: Math.floor(input.offset / input.limit) + 1, limit: input.limit }, total);
+}

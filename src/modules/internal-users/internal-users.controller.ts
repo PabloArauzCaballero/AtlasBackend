@@ -41,6 +41,24 @@ export class InternalUsersController {
   @ApiOperation({ summary: 'Listar usuarios internos' })
   @ApiQuery({ name: 'page', required: false, schema: zodObjectPropertySchemas(listInternalUsersQuerySchema).page })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(listInternalUsersQuerySchema).limit })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Busca, sin distinguir mayúsculas, en correo, nombre, departamento, cargo y código de rol asignado.',
+    schema: zodObjectPropertySchemas(listInternalUsersQuerySchema).q,
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Estado de la cuenta.',
+    schema: zodObjectPropertySchemas(listInternalUsersQuerySchema).status,
+  })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    description: 'Código exacto de un rol vivo asignado (p. ej. SUPER_ADMIN).',
+    schema: zodObjectPropertySchemas(listInternalUsersQuerySchema).role,
+  })
   @ApiResponse({ status: 200, description: 'Lista paginada de usuarios internos.' })
   @Get()
   @InternalPermissions('internal.users.read')
