@@ -181,7 +181,9 @@ export class QaRunQueryRepository {
   }
 
   /** Endpoints de cada paso de un flujo del catálogo: con ellos se casan las recetas y el árbol. */
-  async workflowEndpoints(workflowCode: string): Promise<Array<{ step_code: string; http_method: string; route_path: string }>> {
+  async workflowEndpoints(
+    workflowCode: string,
+  ): Promise<Array<{ step_code: string; http_method: string | null; route_path: string | null }>> {
     return this.sequelize.query(
       `SELECT s.step_code, s.http_method, s.route_path
          FROM ${atlasSchemaFor('workflow_steps')}.workflow_steps s

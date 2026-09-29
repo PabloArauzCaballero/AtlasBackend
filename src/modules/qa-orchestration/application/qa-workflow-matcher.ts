@@ -34,10 +34,12 @@ export class QaWorkflowMatcher {
     const cached = this.cache.get(workflowCode);
     if (cached && Date.now() - cached.at < CACHE_MS) return cached.steps;
     const rows = await this.query.workflowEndpoints(workflowCode).catch(() => []);
-    const steps =
-      rows.length > 0
-        ? rows.map((row) => ({ stepCode: row.step_code, endpoint: endpointKey(row.http_method, row.route_path) }))
-        : (DECLARED[workflowCode] ?? []);
+    // Los pasos que hace una persona (aprobar un asiento en el ERP) no llaman a ninguna ruta: no
+    // casan con ninguna receta y no se normalizan. Sin este filtro, `null.toUpperCase()` = 500.
+    const routed = rows.flatMap((row) =>
+      row.http_method && row.route_path ? [{ stepCode: row.step_code, endpoint: endpointKey(row.http_method, row.route_path) }] : [],
+    );
+    const steps = rows.length > 0 ? routed : (DECLARED[workflowCode] ?? []);
     this.cache.set(workflowCode, { at: Date.now(), steps });
     return steps;
   }

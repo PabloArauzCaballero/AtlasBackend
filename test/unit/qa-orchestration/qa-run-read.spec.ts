@@ -99,7 +99,9 @@ function fakeQuery(row: RunRow | null = runRow()) {
         _created_at: new Date('2026-09-24T10:01:00Z'),
       },
     ]),
-    workflowEndpoints: jest.fn(async (): Promise<Array<{ step_code: string; http_method: string; route_path: string }>> => []),
+    workflowEndpoints: jest.fn(
+      async (): Promise<Array<{ step_code: string; http_method: string | null; route_path: string | null }>> => [],
+    ),
   };
 }
 
@@ -306,6 +308,17 @@ describe('casamiento de plantillas con flujos por endpoint', () => {
     expect(await matcher.matchedSteps(ACCOUNT_SIGNUP_TO_LOGIN, 'flujo_en_base')).toEqual(['otro.me']);
     expect(await matcher.stepsOf('flujo_en_base')).toEqual([{ stepCode: 'otro.me', endpoint: 'GET /auth/me' }]);
     expect(query.workflowEndpoints).toHaveBeenCalledTimes(1);
+  });
+
+  it('un paso que hace una persona (sin método ni ruta) no casa ni rompe la lectura', async () => {
+    const query = fakeQuery();
+    query.workflowEndpoints.mockResolvedValue([
+      { step_code: 'accounting_approval', http_method: null, route_path: null },
+      { step_code: 'otro.me', http_method: 'GET', route_path: '/auth/me' },
+    ]);
+    const matcher = new QaWorkflowMatcher(query as unknown as QaRunQueryRepository);
+    expect(await matcher.stepsOf('accounting_documents_cycle')).toEqual([{ stepCode: 'otro.me', endpoint: 'GET /auth/me' }]);
+    expect(await matcher.matchedSteps(ACCOUNT_SIGNUP_TO_LOGIN, 'accounting_documents_cycle')).toEqual(['otro.me']);
   });
 
   it('sin filas (o si la base falla) cae a los flujos declarados en el repositorio', async () => {
