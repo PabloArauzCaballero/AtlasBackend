@@ -4,11 +4,7 @@
  * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
  */
 import { Op, WhereOptions } from 'sequelize';
-import {
-  SystemsActionLogQueryDto,
-  SystemsListQueryDto,
-  SystemsStressProfileQueryDto,
-} from './systems-ops.schemas.js';
+import { SystemsActionLogQueryDto, SystemsListQueryDto, SystemsStressProfileQueryDto } from './systems-ops.schemas.js';
 import { containsPattern } from '../../common/utils/strings/like-pattern.util.js';
 
 const ilike = (value: string) => ({ [Op.iLike]: containsPattern(value) });
@@ -46,7 +42,12 @@ export function buildToolWhere(query: SystemsListQueryDto): WhereOptions {
 
   // El placeholder de Herramientas prometía «proveedor» y sólo se buscaba en código y nombre.
   if (query.q) {
-    where[Op.or as unknown as string] = [{ code: ilike(query.q) }, { name: ilike(query.q) }, { provider: ilike(query.q) }, { type: ilike(query.q) }];
+    where[Op.or as unknown as string] = [
+      { code: ilike(query.q) },
+      { name: ilike(query.q) },
+      { provider: ilike(query.q) },
+      { type: ilike(query.q) },
+    ];
   }
 
   return where as WhereOptions;

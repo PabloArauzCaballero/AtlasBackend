@@ -9,13 +9,7 @@ import { SystemsReviewQueueDto } from './systems-ops.schemas.js';
 import { containsPattern } from '../../common/utils/strings/like-pattern.util.js';
 
 /** Las seis familias de la cola, con el mismo nombre que acepta `type`. */
-export type ReviewFamily =
-  | 'endpoints'
-  | 'data_entities'
-  | 'data_impacts'
-  | 'field_impacts'
-  | 'data_column_impacts'
-  | 'tool_requirements';
+export type ReviewFamily = 'endpoints' | 'data_entities' | 'data_impacts' | 'field_impacts' | 'data_column_impacts' | 'tool_requirements';
 
 /** Escapa un literal SQL (`sequelize.escape`); se inyecta para que esta utilidad siga siendo pura. */
 export type SqlEscape = (value: string) => string;

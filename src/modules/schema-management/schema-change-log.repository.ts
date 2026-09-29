@@ -16,6 +16,9 @@ const CHANGE_LOG_COLUMNS = `_id, schema_version_id, change_type, affected_entity
   approved_by_platform_user_id, approved_by_internal_user_id, approved_at, approval_notes,
   rolled_back, change_result, error_message, applied_by_migration, applied_at, created_at`;
 
+/** Filtros del change log; `q` busca en tipo de cambio, objeto afectado, tabla propuesta y notas. */
+export type SchemaChangeLogFilters = { approvalStatus?: string; changeType?: string; requesterUserId?: string; q?: string };
+
 interface CountRow {
   count: string;
 }
@@ -89,12 +92,9 @@ export class SchemaChangeLogRepository {
   }
 
   async listChangeLog(
-    approvalStatus: string | undefined,
-    changeType: string | undefined,
-    requesterUserId: string | undefined,
+    { approvalStatus, changeType, requesterUserId, q }: SchemaChangeLogFilters,
     limit: number,
     offset: number,
-    q?: string,
   ): Promise<{ rows: SchemaChangeLogRow[]; total: number }> {
     const filters: string[] = [];
     // El buscador era el ID numérico del solicitante (una letra daba 400). Ahora busca por lo que se

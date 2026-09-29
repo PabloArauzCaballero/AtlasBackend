@@ -228,7 +228,9 @@ describe('SystemFlowsAsyncService.pendingWork · quién consume cada evento de d
 describe('SystemFlowsAsyncService.pendingWork · corte del informe', () => {
   it('pide una fila de más y, si llega, lo dice en `truncated` y no la enseña', async () => {
     expect(PENDING_WORK_SQL).toContain(`LIMIT ${PENDING_WORK_LIMIT + 1}`);
-    const filas = Array.from({ length: PENDING_WORK_LIMIT + 1 }, (_, i) => fila({ path: `r/${i}`, pending: '0', events: '1', processed: '1' }));
+    const filas = Array.from({ length: PENDING_WORK_LIMIT + 1 }, (_, i) =>
+      fila({ path: `r/${i}`, pending: '0', events: '1', processed: '1' }),
+    );
     const r = await servicio(filas).pendingWork();
     expect(r.truncated).toBe(true);
     expect(r.limit).toBe(PENDING_WORK_LIMIT);

@@ -307,8 +307,7 @@ export class SchemaManagementRepository {
     tableType: string | undefined,
     limit: number,
     offset: number,
-    schemaName?: string,
-    q?: string,
+    { schemaName, q }: { schemaName?: string; q?: string } = {},
   ): Promise<{ rows: SchemaTableRow[]; total: number }> {
     // tableType proviene de un enum Zod ya validado; aun así va como replacement.
     const typeFilter = tableType ? 'AND table_type = :tableType' : '';

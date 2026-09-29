@@ -41,9 +41,13 @@ describe('SchemaManagementController', () => {
     // El quinto argumento es `schemaName`: acota el inventario a un esquema de datos (`iam`,
     // `risk`…). Sin él, «las tablas de riesgo» no se podían pedir — el catálogo guarda el nombre
     // cualificado y el techo de página es de 100 filas sobre 152 tablas.
-    expect(service.listSchemaTables).toHaveBeenCalledWith('v1', 'core', 5, 2, undefined, 'loan');
+    expect(service.listSchemaTables).toHaveBeenCalledWith('v1', 'core', 5, 2, { schemaName: undefined, q: 'loan' });
     expect(service.getSchemaTable).toHaveBeenCalledWith('t1');
-    expect(service.listSchemaChangeLog).toHaveBeenCalledWith('pending', 'create', 'u9', 20, 0, 'customers');
+    expect(service.listSchemaChangeLog).toHaveBeenCalledWith(
+      { approvalStatus: 'pending', changeType: 'create', requesterUserId: 'u9', q: 'customers' },
+      20,
+      0,
+    );
   });
 
   it('proposeTable y approveChange delegan pasando el user', async () => {

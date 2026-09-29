@@ -6,7 +6,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { SchemaManagementRepository, SchemaVersionCounts, SchemaVersionRow } from '../schema-management.repository.js';
-import { SchemaChangeLogRepository } from '../schema-change-log.repository.js';
+import { SchemaChangeLogRepository, type SchemaChangeLogFilters } from '../schema-change-log.repository.js';
 import { SchemaManagementValidationService } from './schema-management-validation.service.js';
 import { mapChangeLogRow, mapTableRow, mapVersionRowWithCounts } from './schema-management.mapper.js';
 import {
@@ -118,15 +118,14 @@ export class SchemaManagementService {
     tableType: string | undefined,
     limit = 50,
     offset = 0,
-    schemaName?: string,
-    q?: string,
+    filters: { schemaName?: string; q?: string } = {},
   ): Promise<SchemaTablesListResponseDto> {
     const version = await this.repo.getSchemaVersion(versionId);
     if (!version) {
       throw new NotFoundException(`Schema version ${versionId} not found`);
     }
 
-    const { rows, total } = await this.repo.listSchemaTables(versionId, tableType, limit, offset, schemaName, q);
+    const { rows, total } = await this.repo.listSchemaTables(versionId, tableType, limit, offset, filters);
     // Los contadores se rellenan por lotes para la página: `mapTableRow` los deja en 0 y sin este
     // paso el inventario declaraba que ninguna tabla del esquema tenía columnas ni relaciones.
     const countsByTable = await this.repo.countColumnsAndRelationshipsForTables(rows.map((row) => row._id));
@@ -140,7 +139,7 @@ export class SchemaManagementService {
       return dto;
     });
 
-    return { tables, total, limit, offset, versionId, ...(schemaName ? { schemaName } : {}) };
+    return { tables, total, limit, offset, versionId, ...(filters.schemaName ? { schemaName: filters.schemaName } : {}) };
   }
 
   async getSchemaTable(tableId: string): Promise<SchemaTableDto> {
@@ -301,15 +300,8 @@ export class SchemaManagementService {
   // CHANGE LOG (GET /change-log)
   // =========================================================================
 
-  async listSchemaChangeLog(
-    approvalStatus: string | undefined,
-    changeType: string | undefined,
-    requesterUserId: string | undefined,
-    limit = 50,
-    offset = 0,
-    q?: string,
-  ): Promise<SchemaChangeLogListResponseDto> {
-    const { rows, total } = await this.changeLog.listChangeLog(approvalStatus, changeType, requesterUserId, limit, offset, q);
+  async listSchemaChangeLog(filters: SchemaChangeLogFilters, limit = 50, offset = 0): Promise<SchemaChangeLogListResponseDto> {
+    const { rows, total } = await this.changeLog.listChangeLog(filters, limit, offset);
 
     return {
       changes: rows.map((row) => mapChangeLogRow(row)),

@@ -168,7 +168,7 @@ describe('SchemaManagementRepository', () => {
     it('listChangeLog arma el WHERE dinámico desde los filtros presentes', async () => {
       const all = buildChangeLogRepo();
       (all.sequelize.query as jest.Mock).mockResolvedValueOnce([{ _id: 'c1' }] as never).mockResolvedValueOnce([{ count: '1' }] as never);
-      await all.repo.listChangeLog('pending', 'create_table', 'p1', 10, 0);
+      await all.repo.listChangeLog({ approvalStatus: 'pending', changeType: 'create_table', requesterUserId: 'p1' }, 10, 0);
       const sql = (all.sequelize.query as jest.Mock).mock.calls[0][0] as string;
       expect(sql).toContain('approval_status = :approvalStatus');
       expect(sql).toContain('change_type = :changeType');
@@ -178,7 +178,7 @@ describe('SchemaManagementRepository', () => {
 
       const none = buildChangeLogRepo();
       (none.sequelize.query as jest.Mock).mockResolvedValueOnce([] as never).mockResolvedValueOnce([{ count: '0' }] as never);
-      await none.repo.listChangeLog(undefined, undefined, undefined, 10, 0);
+      await none.repo.listChangeLog({}, 10, 0);
       expect((none.sequelize.query as jest.Mock).mock.calls[0][0] as string).not.toContain('WHERE');
     });
 

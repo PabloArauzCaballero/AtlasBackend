@@ -26,7 +26,14 @@ describe('systems-repository-where.util', () => {
     expect(where).toMatchObject({ module: 'auth', backendService: 'api', status: 'active', riskLevel: 'high', reviewStatus: 'pending' });
     const ramas = (where as Record<symbol, Array<Record<string, unknown>>>)[Op.or as unknown as symbol];
     // El placeholder promete «ruta, módulo o propósito»: módulo y método del controlador tienen que estar.
-    expect(ramas.map((rama) => Object.keys(rama)[0])).toEqual(['code', 'fullPath', 'routeName', 'businessPurpose', 'module', 'handlerName']);
+    expect(ramas.map((rama) => Object.keys(rama)[0])).toEqual([
+      'code',
+      'fullPath',
+      'routeName',
+      'businessPurpose',
+      'module',
+      'handlerName',
+    ]);
   });
 
   it('los comodines del usuario se escapan: `_` y `%` no casan con cualquier cosa', () => {

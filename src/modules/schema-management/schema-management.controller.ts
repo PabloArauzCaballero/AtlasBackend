@@ -132,7 +132,10 @@ export class SchemaManagementController {
     @Query(new ZodValidationPipe(schemaTablesListQuerySchema))
     query: SchemaTablesListQuery,
   ) {
-    return this.schemaService.listSchemaTables(query.versionId, query.tableType, query.limit, query.offset, query.schemaName, query.q);
+    return this.schemaService.listSchemaTables(query.versionId, query.tableType, query.limit, query.offset, {
+      schemaName: query.schemaName,
+      q: query.q,
+    });
   }
 
   @ApiOperation({ summary: 'Obtener una tabla del catálogo de esquema (con columnas y FKs)' })
@@ -183,14 +186,8 @@ export class SchemaManagementController {
     @Query(new ZodValidationPipe(schemaChangeLogQuerySchema))
     query: SchemaChangeLogQuery,
   ) {
-    return this.schemaService.listSchemaChangeLog(
-      query.approvalStatus,
-      query.changeType,
-      query.requesterUserId,
-      query.limit,
-      query.offset,
-      query.q,
-    );
+    const { approvalStatus, changeType, requesterUserId, q } = query;
+    return this.schemaService.listSchemaChangeLog({ approvalStatus, changeType, requesterUserId, q }, query.limit, query.offset);
   }
 
   @ApiOperation({

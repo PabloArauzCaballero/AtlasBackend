@@ -9,7 +9,14 @@ import { SystemFlowsReviewRepository } from '../../../src/modules/systems-ops/sy
  * que CADA familia recibe el texto y el módulo, y que el texto se busca en lo que la tabla enseña.
  */
 const escape = (value: string) => `'${value.replace(/'/g, "''")}'`;
-const FAMILIAS: ReviewFamily[] = ['endpoints', 'data_entities', 'data_impacts', 'field_impacts', 'data_column_impacts', 'tool_requirements'];
+const FAMILIAS: ReviewFamily[] = [
+  'endpoints',
+  'data_entities',
+  'data_impacts',
+  'field_impacts',
+  'data_column_impacts',
+  'tool_requirements',
+];
 
 type Where = Record<symbol, unknown[]>;
 
@@ -34,7 +41,9 @@ describe('buildReviewFamilyWhere', () => {
 
   it('el texto y el módulo llegan a las SEIS familias, no sólo a rutas y tablas', () => {
     for (const familia of FAMILIAS) {
-      const partes = condiciones(buildReviewFamilyWhere(familia, { reviewStatus: 'APPROVED', module: 'loans', q: 'cuota' } as never, escape));
+      const partes = condiciones(
+        buildReviewFamilyWhere(familia, { reviewStatus: 'APPROVED', module: 'loans', q: 'cuota' } as never, escape),
+      );
       expect(partes).toHaveLength(3);
     }
   });
@@ -55,13 +64,17 @@ describe('buildReviewFamilyWhere', () => {
   });
 
   it('herramientas: busca también en el catálogo de herramientas (código, nombre, proveedor)', () => {
-    const [, texto] = condiciones(buildReviewFamilyWhere('tool_requirements', { reviewStatus: 'NEEDS_REVIEW', q: 'segip' } as never, escape));
+    const [, texto] = condiciones(
+      buildReviewFamilyWhere('tool_requirements', { reviewStatus: 'NEEDS_REVIEW', q: 'segip' } as never, escape),
+    );
     expect(dump(texto)).toContain('system_tool_catalog');
     expect(dump(texto)).toContain('provider ILIKE');
   });
 
   it('columnas: el módulo se aplica al de la tabla a la que pertenecen', () => {
-    const [, modulo] = condiciones(buildReviewFamilyWhere('data_column_impacts', { reviewStatus: 'NEEDS_REVIEW', module: 'loans' } as never, escape));
+    const [, modulo] = condiciones(
+      buildReviewFamilyWhere('data_column_impacts', { reviewStatus: 'NEEDS_REVIEW', module: 'loans' } as never, escape),
+    );
     expect(dump(modulo)).toContain("module = 'loans'");
     expect(Object.keys(modulo as object)).toEqual(['dataEntityId']);
   });

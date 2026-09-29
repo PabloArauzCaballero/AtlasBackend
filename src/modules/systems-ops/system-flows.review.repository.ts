@@ -111,7 +111,9 @@ export class SystemFlowsReviewRepository {
         reviewStatus: query.reviewStatus,
         ...(query.systemCode ? { systemCode: query.systemCode } : {}),
         // La cola no tenía buscador: con cien flujos pendientes no había forma de ir a uno concreto.
-        ...(query.q ? { [Op.or]: [{ path: like(query.q) }, { handler: like(query.q) }, { module: like(query.q) }, { slug: like(query.q) }] } : {}),
+        ...(query.q
+          ? { [Op.or]: [{ path: like(query.q) }, { handler: like(query.q) }, { module: like(query.q) }, { slug: like(query.q) }] }
+          : {}),
       },
       // Por significado, como el listado de flujos: por alfabeto, LOW saldría antes que MEDIUM.
       order: [

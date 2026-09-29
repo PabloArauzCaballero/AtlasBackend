@@ -74,7 +74,12 @@ export class SystemFlowsReviewController {
     description: 'Texto libre sin distinguir mayúsculas: ruta, método del controlador, módulo o slug del flujo.',
     schema: zodObjectPropertySchemas(flowReviewQueueSchema).q,
   })
-  @ApiQuery({ name: 'page', required: false, description: 'Página (desde 1).', schema: zodObjectPropertySchemas(flowReviewQueueSchema).page })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Página (desde 1).',
+    schema: zodObjectPropertySchemas(flowReviewQueueSchema).page,
+  })
   @ApiQuery({
     name: 'limit',
     required: false,
