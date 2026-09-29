@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 
 const positiveId = z.string().regex(/^[1-9][0-9]*$/);
-const optionalCsv = z.string().trim().min(1).max(200).optional();
 
 export const systemsListQuerySchema = z.object({
   module: z.string().trim().min(1).max(120).optional(),
@@ -29,6 +28,7 @@ export const systemsListQuerySchema = z.object({
 });
 
 export * from './systems-ops.params.schemas.js';
+export * from './systems-ops.query.schemas.js';
 
 const httpMethodSchema = z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']);
 const suiteTypeSchema = z.enum(['INTEGRATION', 'SMOKE', 'REGRESSION', 'E2E_API', 'LOAD']);
@@ -289,22 +289,6 @@ export const updateDataEntityMetadataSchema = z
   .strict()
   .refine((value) => Object.keys(value).length > 0, { message: 'Debe enviar al menos un campo de metadata.' });
 
-export const systemsRunsQuerySchema = z.object({
-  suiteId: positiveId.optional(),
-  status: z.enum(['QUEUED', 'RUNNING', 'PASSED', 'FAILED', 'CANCELLED']).optional(),
-  environment: z.enum(['LOCAL', 'STAGING', 'PRODUCTION_READONLY']).optional(),
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
-});
-
-export const systemsSuiteQuerySchema = z.object({
-  module: z.string().trim().min(1).max(120).optional(),
-  suiteType: optionalCsv,
-  enabled: queryBooleanSchema.optional(),
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
-});
-
 export type CreateTestSuiteDto = z.infer<typeof createTestSuiteSchema>;
 export type UpdateTestSuiteDto = z.infer<typeof updateTestSuiteSchema>;
 export type CreateTestStepDto = z.infer<typeof createTestStepSchema>;
@@ -321,8 +305,6 @@ export type RunTestSuiteDto = z.infer<typeof runTestSuiteSchema>;
 export type DiscoverEndpointsDto = z.infer<typeof discoverEndpointsSchema>;
 export type CatalogSeedRefreshDto = z.infer<typeof catalogSeedRefreshSchema>;
 export type UpdateDataEntityMetadataDto = z.infer<typeof updateDataEntityMetadataSchema>;
-export type SystemsRunsQueryDto = z.infer<typeof systemsRunsQuerySchema>;
-export type SystemsSuiteQueryDto = z.infer<typeof systemsSuiteQuerySchema>;
 export type ReviewDecisionDto = z.infer<typeof reviewDecisionSchema>;
 export type SystemsReviewQueueDto = z.infer<typeof systemsReviewQueueSchema>;
 export type SystemsStressProfileQueryDto = z.infer<typeof systemsStressProfileQuerySchema>;

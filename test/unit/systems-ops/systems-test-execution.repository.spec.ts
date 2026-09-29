@@ -10,7 +10,7 @@ import { SystemsTestExecutionRepository } from '../../../src/modules/systems-ops
  */
 describe('SystemsTestExecutionRepository', () => {
   function buildRepo() {
-    const suiteModel = { upsert: asyncMock(), findAndCountAll: asyncMock(), findByPk: asyncMock() };
+    const suiteModel = { upsert: asyncMock(), findAndCountAll: asyncMock(), findByPk: asyncMock(), findAll: asyncMock() };
     const stepModel = { upsert: asyncMock(), findAll: asyncMock() };
     const runModel = { create: asyncMock(), findAndCountAll: asyncMock(), update: asyncMock(), findOne: asyncMock() };
     const stepRunModel = { create: asyncMock(), findAll: asyncMock() };
@@ -68,6 +68,34 @@ describe('SystemsTestExecutionRepository', () => {
     const arg = (suiteModel.findAndCountAll as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown>; offset: number };
     expect(arg.where).toMatchObject({ module: 'm', isEnabled: true });
     expect(arg.offset).toBe(10);
+  });
+
+  it('listTestSuites busca `q` en código, nombre y módulo (contiene, con comodines escapados)', async () => {
+    const { repo, suiteModel } = buildRepo();
+    (suiteModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
+    await repo.listTestSuites({ q: 'auth_', page: 1, limit: 20 } as never);
+    const where = callArg<CallArgRecord>(suiteModel.findAndCountAll, 0, 0).where as Record<symbol, unknown>;
+    expect(where[Op.or]).toEqual([
+      { code: { [Op.iLike]: '%auth\\_%' } },
+      { name: { [Op.iLike]: '%auth\\_%' } },
+      { module: { [Op.iLike]: '%auth\\_%' } },
+    ]);
+  });
+
+  it('listTestRuns busca `q` por la suite (código o nombre) y, si es un número, por el n.º de corrida', async () => {
+    const { repo, runModel, suiteModel } = buildRepo();
+    (runModel.update as jest.Mock).mockResolvedValue([0] as never);
+    (runModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
+    (suiteModel.findAll as jest.Mock).mockResolvedValue([{ id: 11 }, { id: 12 }] as never);
+    await repo.listTestRuns({ q: 'login', environment: 'STAGING', page: 1, limit: 20 } as never, null);
+    const where = callArg<CallArgRecord>(runModel.findAndCountAll, 0, 0).where as Record<string | symbol, unknown>;
+    expect(where.environment).toBe('STAGING');
+    expect(where[Op.or]).toEqual([{ suiteId: { [Op.in]: ['11', '12'] } }]);
+
+    (suiteModel.findAll as jest.Mock).mockResolvedValue([] as never);
+    await repo.listTestRuns({ q: '42', page: 1, limit: 20 } as never, null);
+    const numeric = callArg<CallArgRecord>(runModel.findAndCountAll, 1, 0).where as Record<symbol, unknown>;
+    expect(numeric[Op.or]).toEqual([{ suiteId: { [Op.in]: [] } }, { id: '42' }]);
   });
 
   it('createTestRun nace sin finishedAt/durationMs y con timestamps de startedAt', async () => {

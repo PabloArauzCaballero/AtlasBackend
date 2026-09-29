@@ -19,6 +19,7 @@ import { businessTermDetailResponseSchema, businessTermListResponseSchema } from
 import {
   ApiPortalFacetQuery,
   ApiPortalListQuery,
+  ApiPortalSearchQuery,
   lineageQuerySchema,
   LineageQueryDto,
   portalIdParamSchema,
@@ -28,6 +29,8 @@ import {
   PortalAlertsQueryDto,
   portalJobsQuerySchema,
   PortalJobsQueryDto,
+  portalSearchQuerySchema,
+  PortalSearchQueryDto,
   runReportSchema,
   RunReportDto,
 } from './internal-portal.schemas.js';
@@ -289,11 +292,11 @@ export class InternalPortalController {
     return this.service.runReport(portalScopeFor(currentUser), params.reportId, body);
   }
 
-  @ApiOperation({ summary: 'Búsqueda global dentro del panel interno' })
-  @ApiPortalListQuery()
+  @ApiOperation({ summary: 'Búsqueda global dentro del panel interno', description: '`totals` es un COUNT real por tipo.' })
+  @ApiPortalSearchQuery()
   @ApiResponse({ status: 200, description: 'Resultados de búsqueda.' })
   @Get('search')
-  search(@Query(new ZodValidationPipe(portalListQuerySchema)) query: PortalListQueryDto) {
+  search(@Query(new ZodValidationPipe(portalSearchQuerySchema)) query: PortalSearchQueryDto) {
     return this.service.search(query);
   }
 }

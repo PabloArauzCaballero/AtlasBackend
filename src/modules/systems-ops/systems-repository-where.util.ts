@@ -4,6 +4,7 @@
  * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
  */
 import { Op, WhereOptions } from 'sequelize';
+import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import {
   SystemsActionLogQueryDto,
   SystemsListQueryDto,
@@ -97,7 +98,11 @@ export function buildReviewWhere(query: SystemsReviewQueueDto): WhereOptions {
   } as WhereOptions;
 }
 
-export function buildStressProfileWhere(query: SystemsStressProfileQueryDto): WhereOptions {
+/**
+ * `endpointIds`: los endpoints cuya RUTA contiene lo buscado (los resuelve el repositorio). El
+ * buscador de perfiles promete «perfil o endpoint» y antes sólo miraba código, nombre y notas.
+ */
+export function buildStressProfileWhere(query: SystemsStressProfileQueryDto, endpointIds: readonly string[] = []): WhereOptions {
   const where: Record<string, unknown> = {
     ...(query.endpointId ? { endpointId: query.endpointId } : {}),
     ...(query.status ? { status: query.status } : {}),
@@ -105,10 +110,12 @@ export function buildStressProfileWhere(query: SystemsStressProfileQueryDto): Wh
   };
 
   if (query.q) {
+    const pattern = containsLikePattern(query.q);
     where[Op.or as unknown as string] = [
-      { code: { [Op.iLike]: `%${query.q}%` } },
-      { name: { [Op.iLike]: `%${query.q}%` } },
-      { notes: { [Op.iLike]: `%${query.q}%` } },
+      { code: { [Op.iLike]: pattern } },
+      { name: { [Op.iLike]: pattern } },
+      { notes: { [Op.iLike]: pattern } },
+      ...(endpointIds.length > 0 ? [{ endpointId: { [Op.in]: [...endpointIds] } }] : []),
     ];
   }
 

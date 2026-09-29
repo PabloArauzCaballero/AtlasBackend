@@ -16,6 +16,7 @@ describe('SystemsStressController', () => {
     const stressRunService = {
       queueStressRun: jest.fn(async (..._args: unknown[]) => ({ queued: true })),
       listStressRuns: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
+      capabilities: jest.fn(() => ({ consumerEnabled: false, disabledReason: 'apagado' })),
     };
     return {
       controller: new SystemsStressController(profileService as never, stressRunService as never),
@@ -47,5 +48,11 @@ describe('SystemsStressController', () => {
     expect(stressRunService.listStressRuns).toHaveBeenCalledWith({ status: 'queued' }, user);
     // no se mezclan los servicios
     expect((profileService as { queueStressRun?: unknown }).queueStressRun).toBeUndefined();
+  });
+
+  it('getStressRunCapabilities devuelve lo que dice el stress-run service', () => {
+    const { controller, stressRunService } = build();
+    expect(controller.getStressRunCapabilities()).toEqual({ consumerEnabled: false, disabledReason: 'apagado' });
+    expect(stressRunService.capabilities).toHaveBeenCalledTimes(1);
   });
 });
