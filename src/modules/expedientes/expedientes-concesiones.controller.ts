@@ -12,6 +12,7 @@ import { ConcesionService } from './application/concesion.service.js';
 import { NodoService } from './application/nodo.service.js';
 import { VisibilidadService } from './application/visibilidad.service.js';
 import { ExpedienteAccesoGuard, NivelRequerido, type RequestConExpediente } from './guards/expediente-acceso.guard.js';
+import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import {
   concederSchema,
   concesionParamsSchema,
@@ -33,7 +34,7 @@ import {
 @ApiBearerAuth('access-token')
 @Controller('expedientes/:id/nodos/:nodoId/concesiones')
 @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin')
-@UseGuards(ExpedienteAccesoGuard)
+@UseGuards(TenantGuard, ExpedienteAccesoGuard)
 export class ExpedientesConcesionesController {
   constructor(
     private readonly concesiones: ConcesionService,

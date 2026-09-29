@@ -12,6 +12,7 @@ import { ExpedienteService } from './application/expediente.service.js';
 import { ConcesionService } from './application/concesion.service.js';
 import { ExpedientesRepository } from './repositories/expedientes.repository.js';
 import { ExpedienteAccesoGuard, NivelRequerido, type RequestConExpediente } from './guards/expediente-acceso.guard.js';
+import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { toActividadDto, toExpedienteDto } from './expedientes.mapper.js';
 import {
   actividadQuerySchema,
@@ -37,7 +38,7 @@ import {
 @ApiBearerAuth('access-token')
 @Controller('expedientes')
 @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin')
-@UseGuards(ExpedienteAccesoGuard)
+@UseGuards(TenantGuard, ExpedienteAccesoGuard)
 export class ExpedientesController {
   constructor(
     private readonly expedientes: ExpedienteService,
