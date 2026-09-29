@@ -61,6 +61,8 @@ describe('esquemas de consulta: lo no declarado se descarta en silencio, así qu
     );
     expect(rbacDriftQuerySchema.safeParse({ limit: '101' }).success).toBe(false);
     expect(rbacDriftQuerySchema.safeParse({ severity: 'GRAVE' }).success).toBe(false);
+    expect(rbacDriftQuerySchema.parse({ severity: 'MENU_PERMISO_DISTINTO' }).severity).toBe('MENU_PERMISO_DISTINTO');
+    expect(rbacDriftQuerySchema.parse({ severity: 'PERMISO_FUERA_DEL_CATALOGO' }).severity).toBe('PERMISO_FUERA_DEL_CATALOGO');
     expect(rbacDriftQuerySchema.parse({}).limit).toBeUndefined();
   });
 
@@ -98,14 +100,17 @@ describe('SystemFlowsScreensService.rbacDrift · buscar, filtrar y paginar', () 
   const servicio = () =>
     new SystemFlowsScreensService({
       rbacDrift: async () => FILAS,
+      rbacCatalogPermissions: async () => new Set(['audit.events.read']),
+      menusWithPermissions: async () => [],
+      flowsWithPermissions: async () => [],
       screensWithObservedRoutes: jest.fn(async () => 9),
       clientsWithMenuGates: async () => ['ADMIN_PORTAL', 'MOTOR_PORTAL'],
     } as never);
-  const ids = (items: Array<{ flowId: string }>) => items.map((i) => i.flowId);
+  const ids = (items: Array<{ flowId: string | null }>) => items.map((i) => i.flowId);
 
-  it('sin parámetros: `items` trae todas las llamadas, no hay meta y `screens` sigue igual', async () => {
+  it('sin parámetros: `items` trae todas las llamadas, lo más grave primero; no hay meta y `screens` sigue igual', async () => {
     const r = await servicio().rbacDrift();
-    expect(ids(r.items)).toEqual(['flow_1', 'flow_2', 'flow_3', 'flow_4', 'flow_5']);
+    expect(ids(r.items)).toEqual(['flow_1', 'flow_4', 'flow_3', 'flow_2', 'flow_5']);
     expect(r.meta).toBeUndefined();
     expect(r.screens).toHaveLength(3);
     expect(r.items[0]).toEqual({
@@ -118,6 +123,9 @@ describe('SystemFlowsScreensService.rbacDrift · buscar, filtrar y paginar', () 
       path: 'systems/action-logs',
       severity: 'SIN_GUARDA',
       roles: [],
+      permissions: [],
+      missingFromMenu: [],
+      missingFromCatalog: [],
     });
   });
 
@@ -146,7 +154,7 @@ describe('SystemFlowsScreensService.rbacDrift · buscar, filtrar y paginar', () 
 
   it('con `limit` pagina lo YA filtrado y `meta.total` cuenta las coincidencias', async () => {
     const p1 = await servicio().rbacDrift({ page: 1, limit: 2 });
-    expect(ids(p1.items)).toEqual(['flow_1', 'flow_2']);
+    expect(ids(p1.items)).toEqual(['flow_1', 'flow_4']);
     expect(p1.meta).toEqual({ page: 1, limit: 2, total: 5, totalPages: 3 });
     const p3 = await servicio().rbacDrift({ page: 3, limit: 2 });
     expect(ids(p3.items)).toEqual(['flow_5']);
@@ -162,8 +170,10 @@ describe('SystemFlowsScreensService.rbacDrift · buscar, filtrar y paginar', () 
     expect(todo).toEqual({
       screensWithDrift: 3,
       calls: 5,
-      bySeverity: { SIN_GUARDA: 2, PUBLIC: 1, SOLO_ROL: 2 },
+      breaking: 2,
+      bySeverity: { PERMISO_FUERA_DEL_CATALOGO: 0, MENU_PERMISO_DISTINTO: 0, SIN_GUARDA: 2, PUBLIC: 1, SOLO_ROL: 2 },
       clients: ['ADMIN_PORTAL', 'MOTOR_PORTAL'],
+      permissionsOutsideCatalog: [],
     });
   });
 });

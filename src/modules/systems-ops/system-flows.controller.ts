@@ -135,8 +135,8 @@ export class SystemFlowsController {
   @ApiResponse({
     status: 200,
     description:
-      'Pantallas con aristas observadas cuyo endpoint no exige el permiso que el menú declara, ' +
-      'clasificadas en SIN_GUARDA (avería), PUBLIC (decisión declarada) y SOLO_ROL (otra puerta).',
+      'Pantallas cuya puerta de menú no es la que aplica la API, y permisos exigidos que la base no tiene. ' +
+      'Clases: PERMISO_FUERA_DEL_CATALOGO, MENU_PERMISO_DISTINTO y SIN_GUARDA (averías), PUBLIC y SOLO_ROL (informativas).',
   })
   @ApiRbacDriftQuery()
   @InternalPermissions('systems.flows.read')
