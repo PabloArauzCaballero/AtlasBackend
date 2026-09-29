@@ -14,6 +14,7 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { InternalPortalService } from './internal-portal.service.js';
+import { ApiDataQualityRulesDocs, ApiDeprecatedAcknowledgeDocs, ApiDeprecatedAlertsDocs } from './data-quality-portal.openapi.js';
 import { portalScopeFor } from './application/portal-scope.util.js';
 import { businessTermDetailResponseSchema, businessTermListResponseSchema } from './business-metadata.openapi.js';
 import {
@@ -26,6 +27,8 @@ import {
   portalListQuerySchema,
   PortalListQueryDto,
   portalAlertsQuerySchema,
+  portalDataQualityRulesQuerySchema,
+  PortalDataQualityRulesQueryDto,
   PortalAlertsQueryDto,
   portalJobsQuerySchema,
   PortalJobsQueryDto,
@@ -129,15 +132,10 @@ export class InternalPortalController {
     return this.service.getExport(params.exportId);
   }
 
-  @ApiOperation({
-    summary: 'Listar reglas de calidad de datos',
-    description: 'El conteo de issues abiertos de cada regla está acotado al tenant del token.',
-  })
-  @ApiPortalListQuery()
-  @ApiResponse({ status: 200, description: 'Lista de reglas de calidad de datos.' })
+  @ApiDataQualityRulesDocs()
   @Get('data-quality/rules')
   listDataQualityRules(
-    @Query(new ZodValidationPipe(portalListQuerySchema)) query: PortalListQueryDto,
+    @Query(new ZodValidationPipe(portalDataQualityRulesQuerySchema)) query: PortalDataQualityRulesQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.service.listDataQualityRules(portalScopeFor(currentUser), query);
@@ -191,11 +189,7 @@ export class InternalPortalController {
     return this.service.getLineageImpact(query);
   }
 
-  @ApiOperation({ summary: 'Listar alertas del panel interno', description: 'Acotado al tenant del token.' })
-  @ApiPortalListQuery()
-  @ApiPortalFacetQuery('status', 'Estado exacto de la alerta (OPEN, ACKNOWLEDGED, RESOLVED…).')
-  @ApiPortalFacetQuery('severity', 'Severidad exacta de la regla que la levantó (LOW, MEDIUM, HIGH, CRITICAL).')
-  @ApiResponse({ status: 200, description: 'Lista de alertas.' })
+  @ApiDeprecatedAlertsDocs()
   @Get('alerts')
   listAlerts(
     @Query(new ZodValidationPipe(portalAlertsQuerySchema)) query: PortalAlertsQueryDto,
@@ -204,13 +198,7 @@ export class InternalPortalController {
     return this.service.listAlerts(portalScopeFor(currentUser), query);
   }
 
-  @ApiOperation({
-    summary: 'Reconocer (acknowledge) una alerta',
-    description: 'Solo alertas del propio tenant. Una alerta de otro tenant responde 404, igual que una inexistente.',
-  })
-  @ApiParam({ name: 'alertId' })
-  @ApiResponse({ status: 200, description: 'Alerta reconocida.' })
-  @ApiResponse({ status: 404, description: 'DATA_QUALITY_ISSUE_NOT_FOUND.' })
+  @ApiDeprecatedAcknowledgeDocs()
   @Post('alerts/:alertId/acknowledge')
   @HttpCode(HttpStatus.OK)
   acknowledgeAlert(

@@ -1,6 +1,6 @@
 {
   "processes": {
-    "migration": "20260929010000-sync-workflow-catalog-8",
+    "migration": "20260929120000-sync-workflow-catalog-9",
     "hashes": {
       "customer_credit_journey": "46e9c949ee21f967",
       "post_login_first_screen": "6b88e3d8745e29e5",
@@ -42,7 +42,7 @@
       "internal_users_rbac": "be536bb9444105e3",
       "schema_change_management": "f4b9cdbfe86a2602",
       "external_providers_operations": "a873c3bfb6dbaa1e",
-      "data_governance_quality_reports": "c4013a29281dfa30",
+      "data_governance_quality_reports": "c415b5f215e949da",
       "deploy_and_release": "df61d8d0f765dc9b"
     }
   },

@@ -3,6 +3,7 @@
  * @business Esta pieza ofrece a operaciones una vista gobernada del negocio sin acceso directo a tablas sensibles.
  * @system compone consultas read-only, reportes, glosario, linaje y búsqueda para el portal administrativo.
  */
+import { pendingIssueSql } from '../../../common/utils/data-quality-issue-status.util.js';
 import { NotFoundException } from '@nestjs/common';
 import { Sequelize } from 'sequelize-typescript';
 import { clean, containsQuery, paginate, Query, Row } from './portal-format.util.js';
@@ -98,7 +99,7 @@ export class PortalReportsService extends PortalQueryBase {
       this.count('system_data_entity_catalog'),
       this.count('system_test_suites'),
       this.count('data_quality_rules'),
-      this.countInScope(scope, 'data_quality_issues', 'i', `COALESCE(i.issue_status, 'open') NOT IN ('resolved','closed','acknowledged')`),
+      this.countInScope(scope, 'data_quality_issues', 'i', pendingIssueSql('i')),
       this.countInScope(scope, 'system_job_runs', 'j'),
     ]);
     const checks = [
@@ -132,11 +133,13 @@ export class PortalReportsService extends PortalQueryBase {
       },
       {
         key: 'open_quality_issues',
-        label: 'Issues de calidad abiertos',
+        label: 'Incidencias de calidad pendientes',
         status: issues === 0 ? 'ok' : 'warning',
         // Ningún proceso evalúa las reglas (ver `recalculateDataQuality`): las incidencias sólo entran por revisión manual.
         // Sin decirlo, «0 issues abiertos» se leía como «los datos cumplen las reglas».
-        detail: `${issues} issues abiertos · las reglas de calidad no se evalúan solas: sólo cuentan las incidencias registradas a mano`,
+        // Pendiente = sin revisar o reconocida: reconocer no corrige el dato, así que no apaga el aviso
+        // (ver `data-quality-issue-status.util.ts`). Sólo lo apaga corregirla o descartarla con motivo.
+        detail: `${issues} incidencias pendientes (sin revisar o reconocidas sin corregir) · las reglas de calidad no se evalúan solas: sólo cuentan las incidencias registradas a mano`,
         details: { issues },
       },
       {

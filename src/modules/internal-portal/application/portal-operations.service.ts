@@ -3,7 +3,8 @@
  * @business Esta pieza ofrece a operaciones una vista gobernada del negocio sin acceso directo a tablas sensibles.
  * @system compone consultas read-only, reportes, glosario, linaje y búsqueda para el portal administrativo.
  */
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { pendingIssueSql } from '../../../common/utils/data-quality-issue-status.util.js';
 import { clean, id, intValue, iso, jsonValue, nullableText, parsePage, Query, Row } from './portal-format.util.js';
 import { PortalQueryBase } from './portal-query.base.js';
 import { PortalScope, scopeReplacements, tenantPredicate } from './portal-scope.util.js';
@@ -84,23 +85,45 @@ export class PortalOperationsService extends PortalQueryBase {
   }
 
   /**
-   * El `UPDATE` lleva el tenant en su propio `WHERE`, no en una comprobación previa: así no existe
-   * ventana entre "verifico que es mío" y "escribo". Si no afecta ninguna fila, se responde 404 —
-   * indistinguible de un id inexistente, para que el actor no pueda sondear ids de otros tenants.
+   * DEPRECADO (2026-09-29): reconocer es ya una resolución de `POST /operations/data-quality/issues/:id/resolve`,
+   * con motivo y notas. Esta ruta se conserva para no romper clientes, con tres correcciones:
+   *
+   * - Idempotente: repetirla no vuelve a concatenar la nota ni mueve la marca de tiempo (antes cada
+   *   llamada añadía otro « | Acknowledged from internal portal.»).
+   * - No reabre: una incidencia ya corregida, descartada o cerrada responde 409 en vez de volver a
+   *   `acknowledged`.
+   * - Reconocer ya no la saca de las pendientes (`pendingIssueSql`), así que sin motivo no baja el
+   *   semáforo de salida. `resolved_at` se sigue rellenando (sólo la primera vez) porque es de donde
+   *   esta misma lista lee `acknowledgedAt`.
+   *
+   * El `UPDATE` lleva el tenant en su propio `WHERE`, no en una comprobación previa: no hay ventana
+   * entre "verifico que es mío" y "escribo". Si no afecta ninguna fila se distingue después entre
+   * inexistente/ajena (404, indistinguible a propósito) y ya cerrada (409).
    */
   async acknowledgeAlert(scope: PortalScope, alertId: string) {
     const rawId = decodeURIComponent(alertId).replace(/^dq:/, '');
+    const replacements = { id: rawId, ...scopeReplacements(scope) };
     const updated = await this.queryRows<{ _id: string }>(
       `UPDATE data_quality_issues i
           SET issue_status = 'acknowledged',
-              resolved_at = NOW(),
-              resolution_notes = COALESCE(i.resolution_notes, '') || ' | Acknowledged from internal portal.'
-        WHERE i._id::text = :id AND ${tenantPredicate(scope, 'i')}
+              resolved_at = COALESCE(i.resolved_at, NOW()),
+              resolution_notes = CASE
+                WHEN LOWER(COALESCE(i.issue_status, 'open')) = 'acknowledged' THEN i.resolution_notes
+                ELSE COALESCE(i.resolution_notes, '') || ' | Acknowledged from internal portal.'
+              END
+        WHERE i._id::text = :id AND ${tenantPredicate(scope, 'i')} AND ${pendingIssueSql('i')}
         RETURNING i._id`,
-      { id: rawId, ...scopeReplacements(scope) },
+      replacements,
     );
 
-    if (updated.length === 0) throw new NotFoundException('DATA_QUALITY_ISSUE_NOT_FOUND');
+    if (updated.length === 0) {
+      const existing = await this.queryRows<{ _id: string }>(
+        `SELECT i._id FROM data_quality_issues i WHERE i._id::text = :id AND ${tenantPredicate(scope, 'i')}`,
+        replacements,
+      );
+      if (existing.length === 0) throw new NotFoundException('DATA_QUALITY_ISSUE_NOT_FOUND');
+      throw new ConflictException('DATA_QUALITY_ISSUE_ALREADY_RESOLVED');
+    }
 
     return { alertId, status: 'ACKNOWLEDGED', message: 'Alerta reconocida correctamente.' };
   }

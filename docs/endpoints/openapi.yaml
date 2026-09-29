@@ -9531,25 +9531,14 @@ paths:
         - notifications
   /internal/alerts:
     get:
-      description: Acotado al tenant del token.
+      deprecated: true
+      description: >-
+        DEPRECADO desde 2026-09-29: las «alertas» son las incidencias de
+        `data_quality_issues`, que el portal lista en `GET
+        /operations/data-quality/issues` (búsqueda, filtros y `summary`). Sigue
+        respondiendo igual para no romper clientes. Acotado al tenant del token.
       operationId: InternalPortalController_listAlerts
       parameters:
-        - name: severity
-          required: false
-          in: query
-          schema:
-            type: string
-            maxLength: 60
-          description: >-
-            Severidad exacta de la regla que la levantó (LOW, MEDIUM, HIGH,
-            CRITICAL).
-        - name: status
-          required: false
-          in: query
-          schema:
-            type: string
-            maxLength: 60
-          description: Estado exacto de la alerta (OPEN, ACKNOWLEDGED, RESOLVED…).
         - name: q
           required: false
           in: query
@@ -9588,6 +9577,22 @@ paths:
           description: >-
             Alias legado de `limit`, conservado por compatibilidad con el Admin
             Portal.
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 60
+          description: Estado exacto de la alerta (OPEN, ACKNOWLEDGED, RESOLVED…).
+        - name: severity
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 60
+          description: >-
+            Severidad exacta de la regla que la levantó (LOW, MEDIUM, HIGH,
+            CRITICAL).
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -9608,14 +9613,20 @@ paths:
           $ref: '#/components/responses/InternalError'
       security:
         - access-token: []
-      summary: Listar alertas del panel interno
+      summary: Listar alertas del panel interno (DEPRECADO)
       tags:
         - internal-portal
   /internal/alerts/{alertId}/acknowledge:
     post:
+      deprecated: true
       description: >-
-        Solo alertas del propio tenant. Una alerta de otro tenant responde 404,
-        igual que una inexistente.
+        DEPRECADO desde 2026-09-29: reconocer es una resolución más de `POST
+        /operations/data-quality/issues/:issueId/resolve` (`resolution:
+        acknowledged`), con motivo y notas en la auditoría. Sigue funcionando:
+        es idempotente (repetirlo no duplica la nota), no reabre una incidencia
+        ya cerrada (409) y una incidencia reconocida sigue contando como
+        pendiente. Solo alertas del propio tenant; una de otro tenant responde
+        404, igual que una inexistente.
       operationId: InternalPortalController_acknowledgeAlert
       parameters:
         - name: alertId
@@ -9640,14 +9651,14 @@ paths:
         '404':
           description: DATA_QUALITY_ISSUE_NOT_FOUND.
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: DATA_QUALITY_ISSUE_ALREADY_RESOLVED.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
       security:
         - access-token: []
-      summary: Reconocer (acknowledge) una alerta
+      summary: Reconocer (acknowledge) una alerta (DEPRECADO)
       tags:
         - internal-portal
   /internal/assist/chat:
@@ -10593,8 +10604,11 @@ paths:
   /internal/data-quality/rules:
     get:
       description: >-
-        El conteo de issues abiertos de cada regla está acotado al tenant del
-        token.
+        `q` busca en código, nombre, tabla y campo. `summary` (total, críticas,
+        activas e incidencias pendientes) cuenta TODAS las reglas del filtro, no
+        sólo la página. El conteo de incidencias pendientes (sin revisar o
+        reconocidas) está acotado al tenant del token. `frequency` y `owner` van
+        vacíos: la tabla no guarda ni frecuencia ni dueño.
       operationId: InternalPortalController_listDataQualityRules
       parameters:
         - name: q
@@ -10635,10 +10649,30 @@ paths:
           description: >-
             Alias legado de `limit`, conservado por compatibilidad con el Admin
             Portal.
+        - name: severity
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 60
+          description: >-
+            Severidad de la regla (LOW, MEDIUM, HIGH, CRITICAL); no distingue
+            mayúsculas.
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - ACTIVE
+              - INACTIVE
+          description: >-
+            Estado de la definición de la regla (activa o apagada). Las reglas
+            no se ejecutan: no es un estado de ejecución.
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Lista de reglas de calidad de datos.
+          description: Lista paginada de reglas de calidad de datos con `summary`.
           content:
             application/json:
               schema:
@@ -16198,10 +16232,37 @@ paths:
   /operations/catalogs:
     get:
       description: >-
-        Devuelve los catálogos que normalizan señales de negocio y su versión
-        más reciente.
+        Una página de los catálogos que normalizan señales de negocio, con su
+        versión más reciente; `status` filtra por el estado de esa versión y
+        `summary` cuenta el filtro entero.
       operationId: CatalogManagementController_listCatalogs
       parameters:
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: >-
+            Contiene (sin mayúsculas) en código, nombre, dominio o equipo dueño
+            del catálogo.
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Página, desde 1.
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Elementos por página (1-100).
         - name: active
           required: false
           in: query
@@ -16234,7 +16295,7 @@ paths:
           in: query
           schema:
             type: string
-            minLength: 2
+            minLength: 1
             maxLength: 80
           description: Filtra por dominio de negocio del catálogo técnico.
         - $ref: '#/components/parameters/CorrelationId'
@@ -16325,8 +16386,31 @@ paths:
                                 - ownerTeam
                                 - isActive
                                 - currentVersion
+                          meta:
+                            $ref: '#/components/schemas/PaginationMeta'
+                          summary:
+                            type: object
+                            description: >-
+                              Conteos del filtro entero (no de la página):
+                              total, activos, con la versión más reciente
+                              publicada y sin versión.
+                            properties:
+                              total:
+                                type: integer
+                                minimum: 0
+                              active:
+                                type: integer
+                                minimum: 0
+                              published:
+                                type: integer
+                                minimum: 0
+                              withoutVersion:
+                                type: integer
+                                minimum: 0
                         required:
                           - items
+                          - meta
+                          - summary
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -18287,6 +18371,76 @@ paths:
       summary: Obtener las políticas de gobernanza de datos activas
       tags:
         - catalog-management
+  /operations/data-governance/policies/search:
+    get:
+      description: >-
+        Propósitos de tratamiento, retenciones, clasificaciones, campos
+        sensibles y reglas de calidad activos en una sola lista, ordenada por
+        tipo y código. `policyId` es el que acepta `GET
+        /internal/governance/policies/:policyId`. `summary` (total, byType,
+        sensitiveFields, explicitConsent, protectedClasses) cuenta el filtro
+        entero, no la página.
+      operationId: CatalogGovernanceController_searchDataGovernancePolicies
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Elementos por página (1-100).
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Página, desde 1.
+        - name: type
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - purpose
+              - retention
+              - classification
+              - sensitive
+              - quality
+          description: Tipo de política.
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: Contiene (sin mayúsculas) en código, nombre o alcance.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Página de políticas con `meta` y `summary`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Sin el permiso governance.policies.read.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Buscar políticas de gobierno de datos (paginado)
+      tags:
+        - catalog-management
   /operations/data-governance/policy-package:
     post:
       operationId: CatalogGovernanceController_upsertDataGovernancePackage
@@ -18588,8 +18742,13 @@ paths:
   /operations/data-quality/issues:
     get:
       description: >-
-        severity resuelve contra data_quality_rules (vía join manual, no columna
-        propia del issue).
+        `q` busca «contiene» en la tabla del registro, el código de la regla y
+        las notas de la resolución. `severity` (LOW…CRITICAL) y `status` no
+        distinguen mayúsculas; severity resuelve contra data_quality_rules.
+        `summary` cuenta TODAS las incidencias del filtro, no sólo la página:
+        `pending` = sin revisar + reconocidas (lo mismo que el semáforo de
+        salida), `acknowledged`, `closed` (resolved/ignored/closed) y
+        `byStatus`.
       operationId: DataQualityController_listIssues
       parameters:
         - name: customerId
@@ -18627,11 +18786,20 @@ paths:
           description: >-
             Filtra por estado del recurso. Los valores admitidos son los del
             dominio de ese recurso.
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: >-
+            Texto libre: tabla del registro, código de la regla o notas de la
+            resolución.
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Lista paginada de issues.
+          description: Lista paginada de issues con `summary`.
           content:
             application/json:
               schema:
@@ -18641,7 +18809,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Sin el permiso dataQuality.issues.read.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -18653,6 +18821,12 @@ paths:
         - data-quality
   /operations/data-quality/issues/{issueId}/resolve:
     post:
+      description: >-
+        `resolved` (corregido) e `ignored` (descartado) cierran la incidencia.
+        `acknowledged` la reconoce con motivo y notas: sigue pendiente —cuenta
+        en el semáforo de salida— y se puede cerrar después; reconocerla otra
+        vez es idempotente. Sustituye a `POST
+        /internal/alerts/:alertId/acknowledge` (deprecado).
       operationId: DataQualityController_resolveIssue
       parameters:
         - name: issueId
@@ -18677,6 +18851,7 @@ paths:
                   enum:
                     - resolved
                     - ignored
+                    - acknowledged
                 reasonCode:
                   type: string
                   minLength: 1
@@ -18692,7 +18867,7 @@ paths:
               additionalProperties: false
       responses:
         '200':
-          description: Issue resuelto/ignorado.
+          description: Issue resuelto, descartado o reconocido.
           content:
             application/json:
               schema:
@@ -18702,7 +18877,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Sin el permiso dataQuality.issues.resolve.
         '404':
           description: DATA_QUALITY_ISSUE_NOT_FOUND.
         '409':
@@ -18713,7 +18888,7 @@ paths:
           $ref: '#/components/responses/InternalError'
       security:
         - access-token: []
-      summary: Resolver/ignorar un issue de calidad de datos
+      summary: Resolver, descartar o reconocer un issue de calidad de datos
       tags:
         - data-quality
   /operations/definitions:
@@ -18723,12 +18898,36 @@ paths:
         alimentar reglas, scoring y explicabilidad.
       operationId: CatalogManagementController_listDefinitions
       parameters:
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: Contiene (sin mayúsculas) en el código o el nombre de la definición.
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Página, desde 1.
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Elementos por página (1-100).
         - name: domain
           required: false
           in: query
           schema:
             type: string
-            minLength: 2
+            minLength: 1
             maxLength: 80
           description: Filtra por dominio de negocio del catálogo técnico.
         - name: status
@@ -18771,8 +18970,11 @@ paths:
                       data:
                         type: object
                         description: >-
-                          Definiciones semánticas disponibles para observación,
-                          reglas, features y decisiones.
+                          Una página de definiciones semánticas en el orden
+                          eventos → observaciones → atributos → features (por
+                          código). Las cuatro listas traen sólo las filas de la
+                          página; `summary` cuenta cada tipo con el filtro
+                          entero.
                         properties:
                           observations:
                             type: array
@@ -18958,11 +19160,33 @@ paths:
                                 - featureDefinitionId
                                 - featureCode
                                 - featureName
+                          meta:
+                            $ref: '#/components/schemas/PaginationMeta'
+                          summary:
+                            type: object
+                            properties:
+                              total:
+                                type: integer
+                                minimum: 0
+                              events:
+                                type: integer
+                                minimum: 0
+                              observations:
+                                type: integer
+                                minimum: 0
+                              attributes:
+                                type: integer
+                                minimum: 0
+                              features:
+                                type: integer
+                                minimum: 0
                         required:
                           - observations
                           - events
                           - attributes
                           - features
+                          - meta
+                          - summary
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -20597,7 +20821,12 @@ paths:
         - runtime-jobs
   /operations/jobs/recalculate-data-quality:
     post:
-      description: Job de mantenimiento. Restringido a admin/platform_admin/system.
+      description: >-
+        Job de mantenimiento. Restringido a admin/platform_admin/system. NO
+        evalúa reglas ni recalcula métricas: sólo cuenta las incidencias en
+        estado `open` (opcionalmente de un cliente) y lo registra en
+        `system_job_runs`; `issuesCreated` y `rulesEvaluated` son siempre 0
+        porque no existe evaluador de reglas.
       operationId: RuntimeJobsController_recalculateDataQuality
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -20640,7 +20869,7 @@ paths:
           $ref: '#/components/responses/InternalError'
       security:
         - access-token: []
-      summary: Recalcular métricas de calidad de datos
+      summary: Contar incidencias de calidad abiertas
       tags:
         - runtime-jobs
   /operations/jobs/reclaim-stuck-events:

@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { describe, expect, it, jest } from '@jest/globals';
 import { CatalogManagementRepository } from '../../../src/modules/catalog-management/catalog-management.repository.js';
 
@@ -85,18 +86,22 @@ describe('CatalogManagementRepository', () => {
 
   // --- Núcleo del catálogo: lecturas -----------------------------------------------------------
 
-  it('listCatalogs traduce domain/active a un where y ordena por catalogCode', async () => {
+  it('listCatalogs pagina con findAndCountAll, ordena por catalogCode y devuelve summary con el mismo filtro', async () => {
     const { repo, models } = buildRepo();
-    await repo.listCatalogs({ domain: 'finance', active: 'true' } as never);
-    expect(models.catalogModel.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { domain: 'finance', isActive: true }, order: [['catalogCode', 'ASC']] }),
-    );
-  });
-
-  it('listCatalogs con active=false filtra por isActive:false y sin domain no añade la clave', async () => {
-    const { repo, models } = buildRepo();
-    await repo.listCatalogs({ active: 'false' } as never);
-    expect(models.catalogModel.findAll).toHaveBeenCalledWith(expect.objectContaining({ where: { isActive: false } }));
+    const catalogModel = models.catalogModel as unknown as Record<string, jest.Mock>;
+    catalogModel.findAndCountAll = jest.fn(async (..._args: unknown[]) => ({ rows: [{ id: 'c1' }], count: 41 }));
+    catalogModel.count = jest.fn(async (..._args: unknown[]) => 7);
+    const result = await repo.listCatalogs({ domain: 'finance', active: 'true', status: 'all', page: 3, limit: 20 } as never);
+    const args = catalogModel.findAndCountAll.mock.calls[0]?.[0] as {
+      where: Record<symbol, unknown>;
+      order: unknown;
+      limit: number;
+      offset: number;
+    };
+    expect(args).toMatchObject({ order: [['catalogCode', 'ASC']], limit: 20, offset: 40 });
+    expect(args.where[Op.and]).toEqual([{ domain: 'finance' }, { isActive: true }]);
+    expect(catalogModel.count).toHaveBeenCalledTimes(3);
+    expect(result).toEqual({ rows: [{ id: 'c1' }], total: 41, summary: { total: 41, active: 7, published: 7, withoutVersion: 7 } });
   });
 
   it('findCatalogByCode busca por code propagando la transacción', async () => {

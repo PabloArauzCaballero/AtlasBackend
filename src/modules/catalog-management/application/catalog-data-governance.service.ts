@@ -8,6 +8,8 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { dataGovernanceDto } from '../catalog-management.mapper.js';
+import { searchGovernancePolicies } from '../catalog-governance-index.query.js';
+import type { GovernancePolicySearchDto } from '../catalog-list.schemas.js';
 import { CatalogManagementRepository } from '../catalog-management.repository.js';
 import { DataGovernancePolicyPackageDto } from '../catalog-management.schemas.js';
 import { actorPlatformUserId, assertInternal, auditBase, RequestContext, requireIdempotency } from './catalog-management.shared.js';
@@ -22,6 +24,12 @@ export class CatalogDataGovernanceService {
   async getDataGovernancePolicies(input: { currentUser: AuthenticatedUser }) {
     assertInternal(input.currentUser);
     return dataGovernanceDto(await this.repository.listDataGovernancePolicies());
+  }
+
+  /** Lista paginada de las políticas (buscador, tipo y conteos del filtro entero). */
+  searchDataGovernancePolicies(input: { query: GovernancePolicySearchDto; currentUser: AuthenticatedUser }) {
+    assertInternal(input.currentUser);
+    return searchGovernancePolicies(this.sequelize, input.query);
   }
 
   async upsertDataGovernancePackage(input: {

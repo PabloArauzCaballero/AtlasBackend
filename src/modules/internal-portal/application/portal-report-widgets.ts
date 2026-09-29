@@ -3,6 +3,7 @@
  * @business Cada informe responde SU pregunta: gobierno de datos cuenta campos sensibles, cobertura cuenta endpoints.
  * @system consultas agregadas de sólo lectura sobre catálogos de plataforma y tablas acotadas por tenant.
  */
+import { pendingIssueSql } from '../../../common/utils/data-quality-issue-status.util.js';
 import { Sequelize } from 'sequelize-typescript';
 import { clean, intValue, Row } from './portal-format.util.js';
 import { PortalOperationsService } from './portal-operations.service.js';
@@ -89,7 +90,7 @@ export class PortalReportWidgets extends PortalQueryBase {
       this.count('system_endpoint_catalog'),
       this.count('system_data_entity_catalog'),
       this.count('data_quality_rules', 'is_active = true'),
-      this.countInScope(scope, 'data_quality_issues', 'i', `COALESCE(i.issue_status, 'open') NOT IN ('resolved','closed','acknowledged')`),
+      this.countInScope(scope, 'data_quality_issues', 'i', pendingIssueSql('i')),
       this.queryRows<{ total: string; failed: string }>(
         `SELECT COUNT(*)::text AS total,
                 COUNT(*) FILTER (WHERE UPPER(COALESCE(j.status, '')) = 'FAILED')::text AS failed
@@ -104,7 +105,7 @@ export class PortalReportWidgets extends PortalQueryBase {
         { label: 'Endpoints catalogados', value: endpoints },
         { label: 'Tablas documentadas', value: tables },
         { label: 'Reglas de calidad activas', value: rules },
-        { label: 'Incidencias de calidad abiertas', value: issues },
+        { label: 'Incidencias de calidad pendientes', value: issues },
         { label: 'Corridas de procesos automáticos', value: intValue(jobs[0]?.total) },
         { label: 'Corridas fallidas', value: intValue(jobs[0]?.failed) },
       ],
@@ -170,7 +171,7 @@ export class PortalReportWidgets extends PortalQueryBase {
            FROM data_quality_issues i
            LEFT JOIN data_quality_rules r ON r._id = i.quality_rule_id
           WHERE ${tenantPredicate(scope, 'i')}
-            AND COALESCE(i.issue_status, 'open') NOT IN ('resolved','closed','acknowledged')
+            AND ${pendingIssueSql('i')}
             AND ${bySeverity}`,
         { ...scopeReplacements(scope), severity },
       ),
@@ -182,7 +183,7 @@ export class PortalReportWidgets extends PortalQueryBase {
       kind: 'metrics',
       entries: [
         { label: 'Reglas de calidad activas', value: value(rules) },
-        { label: 'Incidencias de calidad abiertas', value: value(issues) },
+        { label: 'Incidencias de calidad pendientes', value: value(issues) },
         { label: 'Reglas de la política de riesgo', value: value(policyRules) },
         { label: 'Reglas que frenan la solicitud', value: value(hardStops) },
       ],

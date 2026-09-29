@@ -23,12 +23,9 @@ export type CatalogCodeParamsDto = z.infer<typeof catalogCodeParamsSchema>;
 export type CatalogVersionParamsDto = z.infer<typeof catalogVersionParamsSchema>;
 export type RulesetVersionParamsDto = z.infer<typeof rulesetVersionParamsSchema>;
 
-export const listCatalogsQuerySchema = z.object({
-  domain: z.string().min(2).max(80).optional(),
-  status: z.enum(['draft', 'pending_approval', 'approved', 'published', 'retired', 'all']).optional().default('all'),
-  active: z.enum(['true', 'false', 'all']).optional().default('all'),
-});
-export type ListCatalogsQueryDto = z.infer<typeof listCatalogsQuerySchema>;
+// Los filtros de los dos listados paginados viven en `catalog-list.schemas.ts` (tamaño de archivo).
+export { definitionsQuerySchema, listCatalogsQuerySchema } from './catalog-list.schemas.js';
+export type { DefinitionsQueryDto, ListCatalogsQueryDto } from './catalog-list.schemas.js';
 
 const aliasSchema = z.object({
   aliasValue: z.string().min(1).max(220),
@@ -132,13 +129,6 @@ export const stagingDecisionBatchSchema = z.object({
     .max(500),
 });
 export type StagingDecisionBatchDto = z.infer<typeof stagingDecisionBatchSchema>;
-
-export const definitionsQuerySchema = z.object({
-  type: z.enum(['observation', 'event', 'attribute', 'feature', 'all']).optional().default('all'),
-  status: z.enum(['active', 'inactive', 'all']).optional().default('all'),
-  domain: z.string().min(2).max(80).optional(),
-});
-export type DefinitionsQueryDto = z.infer<typeof definitionsQuerySchema>;
 
 const definitionBase = z.object({
   description: z.string().max(2000).optional(),

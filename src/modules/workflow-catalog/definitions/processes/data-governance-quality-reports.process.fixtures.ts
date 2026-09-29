@@ -48,7 +48,7 @@ export const DATA_GOVERNANCE_QUALITY_REPORTS: WorkflowDefinitionFixture = {
     whenItFails:
       'Una incidencia abierta queda en «Incidencias de calidad» hasta que alguien la resuelve y cuenta en la preparación de salida; un reporte no se guarda, así que no hay histórico que recuperar. Hoy no hay botón para publicar un documento legal aunque el portal tiene el gancho escrito, y las exportaciones sólo se consultan: nadie las crea.',
     healthIndicator:
-      'Incidencias de calidad abiertas (las que no están resolved, closed ni acknowledged), reglas sin evaluar, documentos legales vigentes por código y los controles de la preparación de salida en ok, warning o blocked.',
+      'Incidencias de calidad pendientes (sin revisar o reconocidas: todas las que no están resolved, ignored ni closed), reglas sin evaluar, documentos legales vigentes por código y los controles de la preparación de salida en ok, warning o blocked.',
   },
   instanceEntity: {
     system: 'ATLAS_BACKEND',
@@ -57,7 +57,8 @@ export const DATA_GOVERNANCE_QUALITY_REPORTS: WorkflowDefinitionFixture = {
     idColumn: '_id',
     statusColumn: 'issue_status',
     labelColumn: 'target_table',
-    openStatuses: ['open'],
+    // Reconocer no cierra: una incidencia reconocida sigue pendiente de corregir (y cuenta en la preparación de salida).
+    openStatuses: ['open', 'acknowledged'],
   },
   success:
     'Las políticas están vigentes, las incidencias de calidad se resuelven, los documentos legales están publicados y la preparación de salida no tiene bloqueos.',
@@ -137,14 +138,14 @@ export const DATA_GOVERNANCE_QUALITY_REPORTS: WorkflowDefinitionFixture = {
     {
       code: 'quality_issues',
       name: 'Incidencias de calidad',
-      description: 'El analista revisa las reglas y resuelve o ignora cada incidencia abierta.',
+      description: 'El analista revisa las reglas y reconoce, resuelve o descarta cada incidencia pendiente, siempre con motivo y notas.',
       module: 'data_quality',
       actor: 'internal_user',
       client: 'ADMIN_PORTAL',
       screen: '/internal/data-quality/issues',
       roles: GOVERNANCE_READ,
-      requiredStates: ['open'],
-      resultingStates: ['resolved', 'ignored'],
+      requiredStates: ['open', 'acknowledged'],
+      resultingStates: ['acknowledged', 'resolved', 'ignored'],
       steps: [
         {
           code: 'dq.list_rules',
@@ -158,19 +159,19 @@ export const DATA_GOVERNANCE_QUALITY_REPORTS: WorkflowDefinitionFixture = {
         {
           code: 'dq.list_issues',
           name: 'Listar incidencias',
-          description: 'Incidencias por estado, tabla y regla.',
+          description: 'Incidencias por estado y severidad, con búsqueda por tabla, código de regla o notas y conteos del filtro entero.',
           method: 'GET',
           path: '/operations/data-quality/issues',
           roles: GOVERNANCE_READ,
         },
         {
           code: 'dq.resolve_issue',
-          name: 'Resolver una incidencia',
-          description: 'resolution: resolved o ignored, con notas.',
+          name: 'Reconocer, resolver o descartar una incidencia',
+          description: 'resolution: acknowledged (sigue pendiente), resolved o ignored (cierran), con motivo y notas.',
           method: 'POST',
           path: '/operations/data-quality/issues/:issueId/resolve',
           roles: GOVERNANCE_READ,
-          resultingStates: ['resolved', 'ignored'],
+          resultingStates: ['acknowledged', 'resolved', 'ignored'],
         },
       ],
     },

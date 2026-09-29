@@ -254,8 +254,11 @@ export class RuntimeJobsController {
   }
 
   @ApiOperation({
-    summary: 'Recalcular métricas de calidad de datos',
-    description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.',
+    summary: 'Contar incidencias de calidad abiertas',
+    description:
+      'Job de mantenimiento. Restringido a admin/platform_admin/system. NO evalúa reglas ni recalcula métricas: sólo cuenta las ' +
+      'incidencias en estado `open` (opcionalmente de un cliente) y lo registra en `system_job_runs`; `issuesCreated` y ' +
+      '`rulesEvaluated` son siempre 0 porque no existe evaluador de reglas.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
