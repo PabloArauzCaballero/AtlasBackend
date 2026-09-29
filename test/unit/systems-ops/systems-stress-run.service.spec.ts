@@ -80,4 +80,29 @@ describe('SystemsStressRunService', () => {
     expect(res.items[0]).toMatchObject({ jobRunId: '1' });
     expect(res.meta).toMatchObject({ total: 1, page: 1, limit: 10 });
   });
+
+  it('la corrida encolada dice la verdad sobre el consumidor: sin él, la nota no promete ejecución', async () => {
+    const { service, stressProfileModel, jobRunModel } = build();
+    (stressProfileModel.findByPk as jest.Mock).mockResolvedValueOnce(activeProfile() as never);
+    const res = await service.queueStressRun('5', input() as never, user);
+    // En las pruebas la bandera no está declarada: vale su default, `false`.
+    expect(res.consumerEnabled).toBe(false);
+    const [args] = jobRunModel.create.mock.calls[0] as unknown as [{ inputJson: { note: string } }];
+    expect(args.inputJson.note).toContain('SIN consumidor activo');
+    expect(args.inputJson.note).not.toContain('worker externo');
+    expect(service.capabilities()).toMatchObject({ consumerEnabled: false });
+    expect(service.capabilities().disabledReason).toContain('RUNTIME_JOBS_STRESS_CONSUMER_ENABLED');
+  });
+
+  it('listStressRuns aplica ambiente, perfil y búsqueda (antes sólo jobCode y status)', async () => {
+    const { service, jobRunModel } = build();
+    await service.listStressRuns({ environment: 'STAGING', profileId: '7', q: 'CHECKOUT', page: 2, limit: 10 } as never, user);
+    const [opts] = jobRunModel.findAndCountAll.mock.calls[0] as unknown as [{ where: Record<string, unknown>; offset: number }];
+    expect(opts.where).toMatchObject({
+      jobCode: 'systems_stress_run',
+      tenantId: 't1',
+      inputJson: { environment: 'STAGING', profileId: '7' },
+    });
+    expect(opts.offset).toBe(10);
+  });
 });

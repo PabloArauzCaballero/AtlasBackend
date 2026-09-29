@@ -5,12 +5,14 @@
  */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindAndCountOptions, WhereOptions } from 'sequelize';
+import { FindAndCountOptions } from 'sequelize';
+import { env } from '../../config/env.js';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { actorId } from '../../common/utils/auth/actor.util.js';
 import { SystemJobRunModel, SystemStressProfileModel } from '../../database/models/index.js';
-import { QueueStressRunDto, SystemsRunsQueryDto } from './systems-ops.schemas.js';
+import { QueueStressRunDto, SystemsStressRunsQueryDto } from './systems-ops.schemas.js';
+import { buildStressRunWhere, stressConsumerCapabilities } from './systems-stress-run.where.util.js';
 import { systemsTenantScope } from './systems-tenant-scope.util.js';
 
 function mapSystemJobRun(row: SystemJobRunModel) {
@@ -27,6 +29,12 @@ function mapSystemJobRun(row: SystemJobRunModel) {
     triggeredById: row.triggeredById,
     createdAt: row.createdAtValue?.toISOString?.() ?? null,
   };
+}
+
+function consumerNote(consumerEnabled: boolean): string {
+  return consumerEnabled
+    ? 'Encolado para el consumidor de estrés de Core (consume_systems_stress_runs), que manda el tráfico y guarda el resultado.'
+    : 'Encolado SIN consumidor activo (RUNTIME_JOBS_STRESS_CONSUMER_ENABLED=false): la corrida sigue en cola hasta que se encienda.';
 }
 
 @Injectable()
@@ -63,7 +71,7 @@ export class SystemsStressRunService {
         approvalTicket: input.approvalTicket ?? null,
         config: input.config,
         headers: this.sanitizeHeaders(input.headers),
-        note: 'Fase 4 solo encola el plan de stress. La ejecución real debe hacerla un worker externo controlado.',
+        note: consumerNote(this.consumerEnabled()),
       },
       resultJson: null,
       errorMessage: null,
@@ -71,23 +79,32 @@ export class SystemsStressRunService {
       triggeredById: actorId(user),
       createdAtValue: now,
     } as never);
-    return { queued: true, run: mapSystemJobRun(run) };
+    return { queued: true, consumerEnabled: this.consumerEnabled(), run: mapSystemJobRun(run) };
   }
 
-  async listStressRuns(query: SystemsRunsQueryDto, user: AuthenticatedUser) {
-    const tenantId = systemsTenantScope(user);
-    const where: WhereOptions = {
-      jobCode: 'systems_stress_run',
-      ...(query.status ? { status: query.status.toLowerCase() } : {}),
-      ...(tenantId === null ? {} : { tenantId }),
-    } as WhereOptions;
+  /**
+   * ¿Hay quien ejecute lo que se encola? El consumidor (`consume_systems_stress_runs`) sólo existe
+   * con `RUNTIME_JOBS_STRESS_CONSUMER_ENABLED=true`, apagado por omisión a propósito (genera tráfico
+   * HTTP real). Sin él, una corrida encolada se queda en `queued` para siempre, y el portal debe
+   * decirlo ANTES de ofrecer el botón, igual que las corridas QA de N personas con `capabilities`.
+   */
+  capabilities() {
+    return stressConsumerCapabilities(this.consumerEnabled());
+  }
+
+  async listStressRuns(query: SystemsStressRunsQueryDto, user: AuthenticatedUser) {
     const result = await this.jobRunModel.findAndCountAll({
-      where,
+      where: buildStressRunWhere(query, systemsTenantScope(user)),
       order: [['createdAtValue', 'DESC']],
       limit: query.limit,
       offset: toOffset(query),
     } as FindAndCountOptions);
     return { items: result.rows.map(mapSystemJobRun), meta: buildPaginationMeta(query, result.count) };
+  }
+
+  /** La bandera se reparte igual a `api` y `worker` (bloque común del compose): la API la puede leer. */
+  private consumerEnabled(): boolean {
+    return env.RUNTIME_JOBS_STRESS_CONSUMER_ENABLED;
   }
 
   private assertProfileCanBeQueued(profile: SystemStressProfileModel, input: QueueStressRunDto): void {

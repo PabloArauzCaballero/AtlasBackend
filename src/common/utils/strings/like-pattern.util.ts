@@ -5,12 +5,13 @@
  */
 
 /**
- * Patrón `ILIKE '%…%'` con los comodines del usuario escapados.
+ * Patrón `%texto%` para `LIKE`/`ILIKE` con los comodines del usuario ESCAPADOS.
  *
- * Sin escapar, quien busca `user_id` encontraba también `userXid` (el `_` es «cualquier carácter») y
- * un `%` suelto casaba con todo. La barra invertida es el carácter de escape por defecto de `LIKE` e
- * `ILIKE` en PostgreSQL, así que también se escapa ella misma.
+ * Sin escapar, buscar `50%` o `user_id` no busca ese texto: `%` casa con cualquier cosa y `_` con
+ * cualquier carácter, así que un buscador «que funciona» devuelve filas que no contienen lo escrito.
+ * La barra invertida es el carácter de escape por omisión de PostgreSQL en `LIKE`, por eso también
+ * se escapa ella misma.
  */
-export function containsPattern(value: string): string {
+export function containsLikePattern(value: string): string {
   return `%${value.replace(/[\\%_]/g, '\\$&')}%`;
 }

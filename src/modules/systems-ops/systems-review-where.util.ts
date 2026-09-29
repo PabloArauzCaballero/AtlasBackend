@@ -6,7 +6,7 @@
 import { literal, Op, WhereOptions } from 'sequelize';
 import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { SystemsReviewQueueDto } from './systems-ops.schemas.js';
-import { containsPattern } from '../../common/utils/strings/like-pattern.util.js';
+import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 
 /** Las seis familias de la cola, con el mismo nombre que acepta `type`. */
 export type ReviewFamily = 'endpoints' | 'data_entities' | 'data_impacts' | 'field_impacts' | 'data_column_impacts' | 'tool_requirements';
@@ -36,7 +36,7 @@ const ENTITY_TEXT = ['table_name', 'entity_name', 'schema_name', 'module'];
 const TOOL_TEXT = ['code', 'name', 'provider'];
 
 function textConditions(family: ReviewFamily, q: string, escape: SqlEscape): WhereOptions {
-  const pattern = containsPattern(q);
+  const pattern = containsLikePattern(q);
   const sqlPattern = escape(pattern);
   const like = { [Op.iLike]: pattern };
   const byEndpoint = { endpointId: endpointIdsWhere(anyColumnLike(ENDPOINT_TEXT, sqlPattern)) };

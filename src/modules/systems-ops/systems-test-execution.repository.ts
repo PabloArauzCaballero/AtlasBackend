@@ -5,8 +5,9 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindAndCountOptions, FindOptions, Op, WhereOptions } from 'sequelize';
+import { FindAndCountOptions, FindOptions, Op } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
+import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import { SystemTestRunModel, SystemTestStepModel, SystemTestStepRunModel, SystemTestSuiteModel } from '../../database/models/index.js';
 import { SystemsRunsQueryDto, SystemsSuiteQueryDto } from './systems-ops.schemas.js';
 
@@ -117,11 +118,12 @@ export class SystemsTestExecutionRepository {
   }
 
   async listTestSuites(query: SystemsSuiteQueryDto) {
-    const where: WhereOptions = {
+    const where: Record<string | symbol, unknown> = {
       ...(query.module ? { module: query.module } : {}),
       ...(query.suiteType ? { suiteType: query.suiteType } : {}),
       ...(query.enabled !== undefined ? { isEnabled: query.enabled } : {}),
-    } as WhereOptions;
+    };
+    if (query.q) where[Op.or] = suiteTextClauses(query.q, ['code', 'name', 'module']);
     const result = await this.suiteModel.findAndCountAll({
       where,
       order: [['code', 'ASC']],
@@ -181,12 +183,13 @@ export class SystemsTestExecutionRepository {
 
   async listTestRuns(query: SystemsRunsQueryDto, tenantId: string | null) {
     await this.markStaleRunsFailed(tenantId);
-    const where: WhereOptions = {
+    const where: Record<string | symbol, unknown> = {
       ...(query.suiteId ? { suiteId: query.suiteId } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.environment ? { environment: query.environment } : {}),
       ...(tenantId === null ? {} : { tenantId }),
-    } as WhereOptions;
+    };
+    if (query.q) where[Op.or] = await this.runSearchClauses(query.q);
     const result = await this.runModel.findAndCountAll({
       where,
       order: [['createdAtValue', 'DESC']],
@@ -194,6 +197,21 @@ export class SystemsTestExecutionRepository {
       offset: toOffset(query),
     } as FindAndCountOptions);
     return { rows: result.rows, meta: buildPaginationMeta(query, result.count) };
+  }
+
+  /**
+   * El buscador de corridas: una corrida no tiene texto propio, así que se busca por la SUITE (código
+   * o nombre) y, si lo escrito es un número, por el número de la corrida. Dos consultas en vez de un
+   * JOIN porque `system_test_runs` no declara la asociación con su suite.
+   */
+  private async runSearchClauses(q: string): Promise<Record<string, unknown>[]> {
+    const suites = await this.suiteModel.findAll({
+      attributes: ['id'],
+      where: { [Op.or]: suiteTextClauses(q, ['code', 'name']) },
+    } as FindOptions);
+    const clauses: Record<string, unknown>[] = [{ suiteId: { [Op.in]: suites.map((suite) => String(suite.id)) } }];
+    if (/^[1-9][0-9]{0,17}$/.test(q)) clauses.push({ id: q });
+    return clauses;
   }
 
   async markStaleRunsFailed(tenantId: string | null): Promise<number> {
@@ -222,4 +240,9 @@ export class SystemsTestExecutionRepository {
   findStepRunsByRun(runId: string): Promise<SystemTestStepRunModel[]> {
     return this.stepRunModel.findAll({ where: { testRunId: runId }, order: [['id', 'ASC']] } as FindOptions);
   }
+}
+
+function suiteTextClauses(q: string, fields: readonly string[]): Record<string, unknown>[] {
+  const pattern = containsLikePattern(q);
+  return fields.map((field) => ({ [field]: { [Op.iLike]: pattern } }));
 }

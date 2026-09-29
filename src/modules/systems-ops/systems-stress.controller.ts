@@ -17,8 +17,8 @@ import {
   QueueStressRunDto,
   systemsListQuerySchema,
   SystemsListQueryDto,
-  systemsRunsQuerySchema,
-  SystemsRunsQueryDto,
+  systemsStressRunsQuerySchema,
+  SystemsStressRunsQueryDto,
   systemsStressProfileParamsSchema,
   SystemsStressProfileParamsDto,
   systemsStressProfileQuerySchema,
@@ -28,6 +28,8 @@ import {
 } from './systems-ops.schemas.js';
 import { SystemsStressProfileService } from './systems-stress-profile.service.js';
 import { SystemsStressRunService } from './systems-stress-run.service.js';
+
+const stressRunQuery = zodObjectPropertySchemas(systemsStressRunsQuerySchema);
 
 @Controller('systems')
 @SystemsOpsControllerSecurity()
@@ -61,7 +63,11 @@ export class SystemsStressController {
 
   @ApiOperation({
     summary: 'Encolar una corrida de un perfil de estrés',
-    description: 'Requiere aprobación (approvalTicket) para entornos distintos de LOCAL cuando el perfil lo exige.',
+    description:
+      'Inserta la corrida en `system_job_runs` (`queued`). La ejecuta el consumidor de Core `consume_systems_stress_runs`, ' +
+      'que sólo corre con `RUNTIME_JOBS_STRESS_CONSUMER_ENABLED=true`; la respuesta dice `consumerEnabled` y, si es `false`, ' +
+      'la corrida se queda en cola (consúltalo antes en `GET /systems/stress-runs/capabilities`). Una corrida real exige ' +
+      '`approvalTicket` cuando el perfil pide aprobación.',
   })
   @ApiParam({ name: 'profileId', schema: zodToApiSchema(systemsStressProfileParamsSchema.shape.profileId) })
   @ApiBody({ schema: zodToApiSchema(queueStressRunSchema) })
@@ -104,15 +110,47 @@ export class SystemsStressController {
     return this.service.getStressMatrix(query);
   }
 
+  @ApiOperation({
+    summary: '¿Se ejecutan las corridas de estrés en este entorno?',
+    description:
+      '`consumerEnabled: false` significa que lo que se encole se queda en `queued`: el portal deshabilita el botón con `disabledReason`.',
+  })
+  @ApiResponse({ status: 200, description: 'Estado del consumidor de corridas de estrés.' })
+  @Get('stress-runs/capabilities')
+  getStressRunCapabilities() {
+    return this.stressRunService.capabilities();
+  }
+
   @ApiOperation({ summary: 'Listar corridas de pruebas de estrés' })
-  @ApiQuery({ name: 'suiteId', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).suiteId })
-  @ApiQuery({ name: 'status', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).status })
-  @ApiQuery({ name: 'environment', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).environment })
-  @ApiQuery({ name: 'page', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).page })
-  @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(systemsRunsQuerySchema).limit })
+  @ApiQuery({ name: 'profileId', required: false, schema: stressRunQuery.profileId, description: 'Sólo las corridas de este perfil.' })
+  @ApiQuery({
+    name: 'suiteId',
+    required: false,
+    schema: stressRunQuery.suiteId,
+    deprecated: true,
+    description: 'Obsoleto: alias de `profileId`.',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    schema: stressRunQuery.status,
+    description: 'Estado en la cola; `PASSED` equivale a `COMPLETED`.',
+  })
+  @ApiQuery({ name: 'environment', required: false, schema: stressRunQuery.environment, description: 'Ambiente con el que se encoló.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    schema: stressRunQuery.q,
+    description: 'Código del perfil (contiene) o número exacto de la corrida.',
+  })
+  @ApiQuery({ name: 'page', required: false, schema: stressRunQuery.page, description: 'Página solicitada, desde 1.' })
+  @ApiQuery({ name: 'limit', required: false, schema: stressRunQuery.limit, description: 'Elementos por página (1-100).' })
   @ApiResponse({ status: 200, description: 'Lista paginada de corridas de estrés.' })
   @Get('stress-runs')
-  listStressRuns(@Query(new ZodValidationPipe(systemsRunsQuerySchema)) query: SystemsRunsQueryDto, @CurrentUser() user: AuthenticatedUser) {
+  listStressRuns(
+    @Query(new ZodValidationPipe(systemsStressRunsQuerySchema)) query: SystemsStressRunsQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.stressRunService.listStressRuns(query, user);
   }
 }

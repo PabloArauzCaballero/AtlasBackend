@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
+import { Op } from 'sequelize';
 import { SystemsStressProfileRepository } from '../../../src/modules/systems-ops/systems-stress-profile.repository.js';
 
 /**
@@ -9,7 +10,7 @@ import { SystemsStressProfileRepository } from '../../../src/modules/systems-ops
  */
 describe('SystemsStressProfileRepository', () => {
   function buildRepo() {
-    const endpointModel = { findAndCountAll: asyncMock() };
+    const endpointModel = { findAndCountAll: asyncMock(), findAll: asyncMock() };
     const stressProfileModel = { findAndCountAll: asyncMock(), findByPk: asyncMock(), upsert: asyncMock(), findAll: asyncMock() };
     const repo = new SystemsStressProfileRepository(endpointModel as never, stressProfileModel as never);
     return { repo, endpointModel, stressProfileModel };
@@ -25,6 +26,24 @@ describe('SystemsStressProfileRepository', () => {
       ['code', 'ASC'],
     ]);
     expect(arg.offset).toBe(20);
+  });
+
+  it('listStressProfiles busca también por la RUTA del endpoint, como promete el buscador', async () => {
+    const { repo, endpointModel, stressProfileModel } = buildRepo();
+    (endpointModel.findAll as jest.Mock).mockResolvedValue([{ id: 9 }] as never);
+    (stressProfileModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
+    await repo.listStressProfiles({ q: '/loans', page: 1, limit: 20 } as never);
+    const endpointWhere = callArg<CallArgRecord>(endpointModel.findAll, 0, 0).where;
+    expect(endpointWhere).toEqual({ fullPath: { [Op.iLike]: '%/loans%' } });
+    const where = callArg<CallArgRecord>(stressProfileModel.findAndCountAll, 0, 0).where as Record<symbol, unknown>;
+    expect(where[Op.or]).toContainEqual({ endpointId: { [Op.in]: ['9'] } });
+  });
+
+  it('listStressProfiles sin búsqueda no consulta endpoints', async () => {
+    const { repo, endpointModel, stressProfileModel } = buildRepo();
+    (stressProfileModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
+    await repo.listStressProfiles({ page: 1, limit: 20 } as never);
+    expect(endpointModel.findAll).not.toHaveBeenCalled();
   });
 
   it('upsertStressProfile aplica notes ?? null y arrastra actorId a createdBy/updatedBy', async () => {

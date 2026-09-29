@@ -128,4 +128,11 @@ describe('systems-repository-where.util', () => {
     expect((full as Record<symbol, unknown>)[Op.or as unknown as symbol]).toHaveLength(3);
     expect(Reflect.ownKeys(buildStressProfileWhere({} as never) as object)).toHaveLength(0);
   });
+
+  it('buildStressProfileWhere: los endpoints cuya ruta casa entran como cuarta alternativa', () => {
+    const where = buildStressProfileWhere({ q: '/loans' } as never, ['9', '10']) as Record<symbol, unknown[]>;
+    const alternatives = where[Op.or as unknown as symbol];
+    expect(alternatives).toHaveLength(4);
+    expect(alternatives).toContainEqual({ endpointId: { [Op.in]: ['9', '10'] } });
+  });
 });

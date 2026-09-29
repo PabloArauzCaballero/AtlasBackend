@@ -7,7 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import { containsPattern } from '../../common/utils/strings/like-pattern.util.js';
+import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 
 /**
  * SchemaManagementRepository
@@ -178,7 +178,7 @@ export class SchemaManagementRepository {
   ): Promise<{ rows: SchemaVersionRow[]; total: number }> {
     const filters = [...(includeInactive ? [] : ['is_active = true']), ...(q ? ['(version_code ILIKE :q OR notes ILIKE :q)'] : [])];
     const activeFilter = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const pattern = q ? containsPattern(q) : undefined;
+    const pattern = q ? containsLikePattern(q) : undefined;
 
     const rows = await this.sequelize.query<SchemaVersionRow>(
       `SELECT _id, version_code, created_by_platform_user_id, created_at, notes, is_active, parent_version_id
@@ -318,7 +318,7 @@ export class SchemaManagementRepository {
     // Buscador: nombre cualificado de la tabla o su descripción. Antes el inventario no tenía otro
     // camino que elegir un esquema y recorrer las páginas.
     const textFilter = q ? 'AND (table_name ILIKE :q OR description ILIKE :q)' : '';
-    const pattern = q ? containsPattern(q) : undefined;
+    const pattern = q ? containsLikePattern(q) : undefined;
 
     const rows = await this.sequelize.query<SchemaTableRow>(
       `SELECT _id, schema_version_id, table_name, table_type, is_append_only,
