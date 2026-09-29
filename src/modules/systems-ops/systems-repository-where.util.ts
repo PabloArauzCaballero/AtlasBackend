@@ -7,9 +7,11 @@ import { Op, WhereOptions } from 'sequelize';
 import {
   SystemsActionLogQueryDto,
   SystemsListQueryDto,
-  SystemsReviewQueueDto,
   SystemsStressProfileQueryDto,
 } from './systems-ops.schemas.js';
+import { containsPattern } from '../../common/utils/strings/like-pattern.util.js';
+
+const ilike = (value: string) => ({ [Op.iLike]: containsPattern(value) });
 
 export function buildEndpointTextWhere(query: SystemsListQueryDto): WhereOptions {
   const where: Record<string, unknown> = {
@@ -21,12 +23,16 @@ export function buildEndpointTextWhere(query: SystemsListQueryDto): WhereOptions
     ...(query.reviewStatus ? { reviewStatus: query.reviewStatus } : {}),
   };
 
+  // El buscador de la pantalla promete «ruta, módulo o propósito»: el módulo y el método del
+  // controlador (`handlerName`) no entraban, así que buscar `loans` o `createLoan` no devolvía nada.
   if (query.q) {
     where[Op.or as unknown as string] = [
-      { code: { [Op.iLike]: `%${query.q}%` } },
-      { fullPath: { [Op.iLike]: `%${query.q}%` } },
-      { routeName: { [Op.iLike]: `%${query.q}%` } },
-      { businessPurpose: { [Op.iLike]: `%${query.q}%` } },
+      { code: ilike(query.q) },
+      { fullPath: ilike(query.q) },
+      { routeName: ilike(query.q) },
+      { businessPurpose: ilike(query.q) },
+      { module: ilike(query.q) },
+      { handlerName: ilike(query.q) },
     ];
   }
 
@@ -38,8 +44,9 @@ export function buildToolWhere(query: SystemsListQueryDto): WhereOptions {
     ...(query.status ? { status: query.status } : {}),
   };
 
+  // El placeholder de Herramientas prometía «proveedor» y sólo se buscaba en código y nombre.
   if (query.q) {
-    where[Op.or as unknown as string] = [{ code: { [Op.iLike]: `%${query.q}%` } }, { name: { [Op.iLike]: `%${query.q}%` } }];
+    where[Op.or as unknown as string] = [{ code: ilike(query.q) }, { name: ilike(query.q) }, { provider: ilike(query.q) }, { type: ilike(query.q) }];
   }
 
   return where as WhereOptions;
@@ -80,6 +87,16 @@ export function buildActionLogWhere(query: SystemsActionLogQueryDto): WhereOptio
     ...(query.containsPii !== undefined ? { containsPii: query.containsPii } : {}),
   };
 
+  // Búsqueda libre sobre lo que la tabla enseña: la ruta (plantilla y URL ya saneada) y el rol del
+  // actor. Antes sólo se podía buscar un Request ID exacto, que nadie tiene a mano.
+  if (query.q) {
+    where[Op.or as unknown as string] = [
+      { routeTemplate: ilike(query.q) },
+      { resolvedUrlSanitized: ilike(query.q) },
+      { actorRole: ilike(query.q) },
+    ];
+  }
+
   if (query.from || query.to) {
     where.occurredAt = {
       ...(query.from ? { [Op.gte]: new Date(query.from) } : {}),
@@ -88,13 +105,6 @@ export function buildActionLogWhere(query: SystemsActionLogQueryDto): WhereOptio
   }
 
   return where as WhereOptions;
-}
-
-export function buildReviewWhere(query: SystemsReviewQueueDto): WhereOptions {
-  return {
-    ...(query.module ? { module: query.module } : {}),
-    reviewStatus: query.reviewStatus,
-  } as WhereOptions;
 }
 
 export function buildStressProfileWhere(query: SystemsStressProfileQueryDto): WhereOptions {

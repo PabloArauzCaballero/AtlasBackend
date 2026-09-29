@@ -4,7 +4,6 @@ import {
   buildActionLogWhere,
   buildDataEntityWhere,
   buildEndpointTextWhere,
-  buildReviewWhere,
   buildStressProfileWhere,
   buildToolWhere,
 } from '../../../src/modules/systems-ops/systems-repository-where.util.js';
@@ -102,16 +101,6 @@ describe('systems-repository-where.util', () => {
     it('sin ningún filtro no arma occurredAt ni claves', () => {
       expect(Reflect.ownKeys(buildActionLogWhere({} as never) as object)).toHaveLength(0);
     });
-  });
-
-  it('buildReviewWhere: reviewStatus siempre presente; module solo si viene', () => {
-    expect(buildReviewWhere({ reviewStatus: 'pending', module: 'auth' } as never)).toMatchObject({
-      reviewStatus: 'pending',
-      module: 'auth',
-    });
-    const noModule = buildReviewWhere({ reviewStatus: 'pending' } as never) as Record<string, unknown>;
-    expect(noModule).toMatchObject({ reviewStatus: 'pending' });
-    expect(noModule.module).toBeUndefined();
   });
 
   it('buildStressProfileWhere: endpointId/status/enabled=false + q, y vacío sin nada', () => {

@@ -166,6 +166,8 @@ export const systemsActionLogQuerySchema = z.object({
   module: z.string().trim().min(1).max(120).optional(),
   riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
   containsPii: queryBooleanSchema.optional(),
+  /** Texto libre: busca en la ruta (plantilla y URL saneada) y en el rol del actor. */
+  q: z.string().trim().min(1).max(200).optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -203,6 +205,8 @@ export const systemsReviewQueueSchema = z.object({
     .enum(['all', 'endpoints', 'data_entities', 'data_impacts', 'field_impacts', 'data_column_impacts', 'tool_requirements'])
     .default('all'),
   module: z.string().trim().min(1).max(120).optional(),
+  /** Texto libre: ruta, código, módulo, tabla, columna, campo o herramienta, según la familia. */
+  q: z.string().trim().min(1).max(200).optional(),
   reviewStatus: z.enum(['AUTO_DETECTED', 'NEEDS_REVIEW', 'APPROVED', 'REJECTED']).default('NEEDS_REVIEW'),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),

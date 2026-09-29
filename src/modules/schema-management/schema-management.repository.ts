@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { containsPattern } from '../../common/utils/strings/like-pattern.util.js';
 
 /**
  * SchemaManagementRepository
@@ -169,8 +170,15 @@ export class SchemaManagementRepository {
     return rows[0] ?? null;
   }
 
-  async listSchemaVersions(limit: number, offset: number, includeInactive: boolean): Promise<{ rows: SchemaVersionRow[]; total: number }> {
-    const activeFilter = includeInactive ? '' : 'WHERE is_active = true';
+  async listSchemaVersions(
+    limit: number,
+    offset: number,
+    includeInactive: boolean,
+    q?: string,
+  ): Promise<{ rows: SchemaVersionRow[]; total: number }> {
+    const filters = [...(includeInactive ? [] : ['is_active = true']), ...(q ? ['(version_code ILIKE :q OR notes ILIKE :q)'] : [])];
+    const activeFilter = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    const pattern = q ? containsPattern(q) : undefined;
 
     const rows = await this.sequelize.query<SchemaVersionRow>(
       `SELECT _id, version_code, created_by_platform_user_id, created_at, notes, is_active, parent_version_id
@@ -178,11 +186,12 @@ export class SchemaManagementRepository {
        ${activeFilter}
        ORDER BY created_at DESC, _id DESC
        LIMIT :limit OFFSET :offset`,
-      { type: QueryTypes.SELECT, replacements: { limit, offset } },
+      { type: QueryTypes.SELECT, replacements: { limit, offset, q: pattern } },
     );
 
     const countRows = await this.sequelize.query<CountRow>(`SELECT COUNT(*)::text AS count FROM schema_versions ${activeFilter}`, {
       type: QueryTypes.SELECT,
+      replacements: { q: pattern },
     });
 
     return { rows, total: Number(countRows[0]?.count ?? '0') };
@@ -299,6 +308,7 @@ export class SchemaManagementRepository {
     limit: number,
     offset: number,
     schemaName?: string,
+    q?: string,
   ): Promise<{ rows: SchemaTableRow[]; total: number }> {
     // tableType proviene de un enum Zod ya validado; aun así va como replacement.
     const typeFilter = tableType ? 'AND table_type = :tableType' : '';
@@ -306,22 +316,26 @@ export class SchemaManagementRepository {
     // aun así viaja como replacement: nunca se concatena entrada del cliente dentro del SQL.
     const schemaFilter = schemaName ? 'AND table_name LIKE :schemaPrefix' : '';
     const schemaPrefix = schemaName ? `${schemaName}.%` : undefined;
+    // Buscador: nombre cualificado de la tabla o su descripción. Antes el inventario no tenía otro
+    // camino que elegir un esquema y recorrer las páginas.
+    const textFilter = q ? 'AND (table_name ILIKE :q OR description ILIKE :q)' : '';
+    const pattern = q ? containsPattern(q) : undefined;
 
     const rows = await this.sequelize.query<SchemaTableRow>(
       `SELECT _id, schema_version_id, table_name, table_type, is_append_only,
               is_tenant_scoped, description, created_at, is_deleted
        FROM schema_tables
-       WHERE schema_version_id = :versionId AND is_deleted = false ${typeFilter} ${schemaFilter}
+       WHERE schema_version_id = :versionId AND is_deleted = false ${typeFilter} ${schemaFilter} ${textFilter}
        ORDER BY table_name ASC
        LIMIT :limit OFFSET :offset`,
-      { type: QueryTypes.SELECT, replacements: { versionId, tableType, schemaPrefix, limit, offset } },
+      { type: QueryTypes.SELECT, replacements: { versionId, tableType, schemaPrefix, q: pattern, limit, offset } },
     );
 
     const countRows = await this.sequelize.query<CountRow>(
       `SELECT COUNT(*)::text AS count
        FROM schema_tables
-       WHERE schema_version_id = :versionId AND is_deleted = false ${typeFilter} ${schemaFilter}`,
-      { type: QueryTypes.SELECT, replacements: { versionId, tableType, schemaPrefix } },
+       WHERE schema_version_id = :versionId AND is_deleted = false ${typeFilter} ${schemaFilter} ${textFilter}`,
+      { type: QueryTypes.SELECT, replacements: { versionId, tableType, schemaPrefix, q: pattern } },
     );
 
     return { rows, total: Number(countRows[0]?.count ?? '0') };

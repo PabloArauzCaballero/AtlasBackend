@@ -17,6 +17,7 @@ import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { SystemsHealthStatus } from './systems-ops.dtos.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
 import { mapTool } from './systems-ops.mapper.js';
+import type { SystemToolCatalogModel } from '../../database/models/index.js';
 import { probePlatformService } from './platform-service-health.probe.js';
 
 type LiveHealthResult = Pick<SystemsHealthStatus, 'checkType' | 'isHealthy' | 'healthMessage'>;
@@ -54,18 +55,31 @@ export class SystemsHealthService implements OnModuleDestroy {
     this.mongoClient = null;
   }
 
+  /**
+   * Todas las herramientas del catálogo, página a página. Antes se leía una sola página de 100: la
+   * herramienta 101 no aparecía en la salud, ni en el aviso de caídas de Inicio, y nada lo decía.
+   */
+  private async allTools() {
+    const tools: SystemToolCatalogModel[] = [];
+    for (let page = 1; ; page += 1) {
+      const result = await this.repository.listTools({
+        page,
+        limit: 100,
+        status: undefined,
+        module: undefined,
+        riskLevel: undefined,
+        reviewStatus: undefined,
+        q: undefined,
+      });
+      tools.push(...result.rows);
+      if (page >= result.meta.totalPages) return tools;
+    }
+  }
+
   async getToolsHealth(): Promise<SystemsHealthStatus[]> {
-    const result = await this.repository.listTools({
-      page: 1,
-      limit: 100,
-      status: undefined,
-      module: undefined,
-      riskLevel: undefined,
-      reviewStatus: undefined,
-      q: undefined,
-    });
+    const tools = await this.allTools();
     return Promise.all(
-      result.rows.map(async (tool) => {
+      tools.map(async (tool) => {
         const dto = mapTool(tool);
         const parsedEnv = env as unknown as Record<string, unknown>;
         const missingEnvVars = dto.requiredEnvVars.filter((envVar) => {

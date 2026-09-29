@@ -61,8 +61,9 @@ const deploymentSchema = z.object({
   traffic: z.array(trafficRuleSchema).optional(),
 });
 
-export const artifactPageSchema = z.object({ items: z.array(artifactSchema) });
-export const deploymentPageSchema = z.object({ items: z.array(deploymentSchema) });
+/** `total` es opcional: un motor anterior no lo manda, y entonces no se puede afirmar que haya corte. */
+export const artifactPageSchema = z.object({ items: z.array(artifactSchema), total: z.number().int().nonnegative().optional() });
+export const deploymentPageSchema = z.object({ items: z.array(deploymentSchema), total: z.number().int().nonnegative().optional() });
 
 export type DecisionEngineArtifact = z.infer<typeof artifactSchema>;
 export type DecisionEngineDeployment = z.infer<typeof deploymentSchema>;
@@ -101,4 +102,11 @@ export interface ActiveArtifactReport {
   message: string;
   environmentFilter: string | null;
   items: ActiveArtifactRow[];
+  /**
+   * El motor sirve como mucho 100 por página y aquí se lee una. `true` si el motor dijo que había
+   * más despliegues activos o artefactos de los que llegaron: la lista está incompleta.
+   */
+  truncated?: boolean;
+  /** Despliegues activos que el motor dice tener (su `total`), si lo informa. */
+  deploymentsTotal?: number | null;
 }

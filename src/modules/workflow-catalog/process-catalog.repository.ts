@@ -25,6 +25,8 @@ export type FlowRow = {
   callers: string[];
   verification: string;
   risk: string;
+  /** `TESTED` | `UNTESTED`: si el flujo tiene una prueba que lo ejercita (lo que enseñaba «Procesos de negocio»). */
+  testStatus: string;
 };
 export type InstanceRow = { id: string; label: string | null; status: string };
 
@@ -57,7 +59,7 @@ export class ProcessCatalogRepository {
   async flowsFor(keys: Array<{ systemCode: string; method: string; path: string }>): Promise<FlowRow[]> {
     if (!keys.length) return [];
     return this.sequelize.query<FlowRow>(
-      `SELECT system_code AS "systemCode", http_method AS "method", path, flow_id AS "flowId", callers, verification, risk
+      `SELECT system_code AS "systemCode", http_method AS "method", path, flow_id AS "flowId", callers, verification, risk, test_status AS "testStatus"
          FROM ${FLOWS}
         WHERE (system_code || ' ' || http_method || ' ' || path) IN (:keys)`,
       { type: QueryTypes.SELECT, replacements: { keys: keys.map((k) => `${k.systemCode} ${k.method} ${k.path}`) } },

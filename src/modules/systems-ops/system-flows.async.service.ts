@@ -12,7 +12,7 @@ import {
   type OutboxHealthRow,
   type PendingWorkRow,
 } from './system-flows.async.repository.js';
-import { DOMAIN_EVENTS_LIMIT } from './system-flows.sql.constants.js';
+import { DOMAIN_EVENTS_LIMIT, PENDING_WORK_LIMIT } from './system-flows.sql.constants.js';
 
 const DIA_MS = 86_400_000;
 /** Sin una corrida completada del consumidor en este margen, se da por ausente en este entorno. */
@@ -45,7 +45,9 @@ export class SystemFlowsAsyncService {
     ]);
     const ultimaCorrida = salud?.consumer_last_run ? new Date(salud.consumer_last_run) : null;
     const consumidorVivo = Boolean(ultimaCorrida && Date.now() - ultimaCorrida.getTime() <= CONSUMIDOR_VIVO_MS);
-    const flows = filas.map((fila) => traducir(fila, consumidorVivo ? ultimaCorrida : null));
+    // Se pide una fila de más: si llega, el informe está cortado y hay que decirlo. Antes el corte en
+    // 500 era silencioso y «rutas que encolan» parecía el total.
+    const flows = filas.slice(0, PENDING_WORK_LIMIT).map((fila) => traducir(fila, consumidorVivo ? ultimaCorrida : null));
     const atribuidos = flows.reduce((n, flujo) => n + flujo.pending, 0);
     const pendientes = Number(salud?.pending ?? 0);
 
@@ -54,6 +56,8 @@ export class SystemFlowsAsyncService {
       consumer: { lastRunAt: ultimaCorrida, running: consumidorVivo },
       diagnosis: diagnosticar(consumidorVivo, flows),
       flowsThatEnqueue: flows.length,
+      truncated: filas.length > PENDING_WORK_LIMIT,
+      limit: PENDING_WORK_LIMIT,
       pending: pendientes,
       // Pendientes que no se pudieron atar a ninguna petición: el log de éxito es fire-and-forget y
       // puede faltar. Sin esta resta desaparecerían del recuento sin que nada lo dijera.

@@ -77,6 +77,9 @@ export class SystemsActionLogQueryService {
         errorRate: totalRequests > 0 ? totalErrors / totalRequests : 0,
       },
       routes,
+      // El informe enseña las rutas con más peticiones, no todas. Sin esto la tabla parecía el total.
+      routesTotal: Number(overall?.routes_total ?? 0),
+      routesTruncated: Number(overall?.routes_total ?? 0) > routes.length,
     };
   }
 

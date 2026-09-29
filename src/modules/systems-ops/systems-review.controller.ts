@@ -39,11 +39,23 @@ export class SystemsReviewController {
 
   @ApiOperation({ summary: 'Cola de revisión del catálogo interno' })
   @ApiQuery({ name: 'type', required: false, schema: zodObjectPropertySchemas(systemsReviewQueueSchema).type })
-  @ApiQuery({ name: 'module', required: false, schema: zodObjectPropertySchemas(systemsReviewQueueSchema).module })
+  @ApiQuery({
+    name: 'module',
+    required: false,
+    description: 'Módulo exacto. En impactos y requisitos de herramienta se aplica al módulo de la ruta; en columnas, al de la tabla.',
+    schema: zodObjectPropertySchemas(systemsReviewQueueSchema).module,
+  })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description:
+      'Texto libre sin distinguir mayúsculas. Rutas: código, ruta, nombre, módulo y método del controlador. Tablas: tabla, entidad, esquema y módulo. Columnas: esquema, tabla, columna y nombre de negocio. Impactos: la ruta o la tabla a la que apuntan, la operación o el campo. Herramientas: la ruta, el código, nombre o proveedor de la herramienta y el uso.',
+    schema: zodObjectPropertySchemas(systemsReviewQueueSchema).q,
+  })
   @ApiQuery({ name: 'reviewStatus', required: false, schema: zodObjectPropertySchemas(systemsReviewQueueSchema).reviewStatus })
   @ApiQuery({ name: 'page', required: false, schema: zodObjectPropertySchemas(systemsReviewQueueSchema).page })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(systemsReviewQueueSchema).limit })
-  @ApiResponse({ status: 200, description: 'Cola de revisión paginada.' })
+  @ApiResponse({ status: 200, description: 'Cola de revisión paginada: cada familia trae sus filas, su total y su `meta` de paginación.' })
   @Get('review-queue')
   getReviewQueue(@Query(new ZodValidationPipe(systemsReviewQueueSchema)) query: SystemsReviewQueueDto) {
     return this.service.getReviewQueue(query);

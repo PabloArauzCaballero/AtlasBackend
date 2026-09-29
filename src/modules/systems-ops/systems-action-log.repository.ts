@@ -24,7 +24,12 @@ export type TrafficLatencyRow = {
   overall_avg_latency_ms: string | null;
   overall_p95_latency_ms: string | null;
   overall_error_count: string;
+  /** Cuántas rutas distintas hubo en la ventana, antes del corte en `TRAFFIC_ROUTES_LIMIT`. */
+  routes_total: string;
 };
+
+/** Rutas que devuelve el informe de tráfico, ordenadas por volumen. */
+export const TRAFFIC_ROUTES_LIMIT = 50;
 
 export type TrafficLatencyBucketRow = {
   bucket_start: Date;
@@ -109,14 +114,15 @@ export class SystemsActionLogRepository {
         overall.total_requests AS overall_total_requests,
         overall.avg_latency_ms AS overall_avg_latency_ms,
         overall.p95_latency_ms AS overall_p95_latency_ms,
-        overall.error_count AS overall_error_count
+        overall.error_count AS overall_error_count,
+        (COUNT(*) OVER ())::text AS routes_total
       FROM filtered CROSS JOIN overall
       GROUP BY route_template, method, overall.total_requests, overall.avg_latency_ms,
                overall.p95_latency_ms, overall.error_count
       ORDER BY COUNT(*) DESC
-      LIMIT 50;
+      LIMIT :routesLimit;
       `,
-      { replacements: { fromDate, tenantId }, type: QueryTypes.SELECT },
+      { replacements: { fromDate, tenantId, routesLimit: TRAFFIC_ROUTES_LIMIT }, type: QueryTypes.SELECT },
     );
   }
 

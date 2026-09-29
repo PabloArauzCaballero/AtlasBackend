@@ -68,8 +68,8 @@ export class SchemaManagementService {
   // VERSIONS
   // =========================================================================
 
-  async listSchemaVersions(limit = 20, offset = 0, includeInactive = false): Promise<SchemaVersionListResponseDto> {
-    const { rows, total } = await this.repo.listSchemaVersions(limit, offset, includeInactive);
+  async listSchemaVersions(limit = 20, offset = 0, includeInactive = false, q?: string): Promise<SchemaVersionListResponseDto> {
+    const { rows, total } = await this.repo.listSchemaVersions(limit, offset, includeInactive, q);
 
     // Batch: 3 queries agregadas (GROUP BY schema_version_id) para toda la página, en vez de 3
     // COUNT(*) por fila vía mapVersionRow (hasta 60 queries para una página de 20).
@@ -119,13 +119,14 @@ export class SchemaManagementService {
     limit = 50,
     offset = 0,
     schemaName?: string,
+    q?: string,
   ): Promise<SchemaTablesListResponseDto> {
     const version = await this.repo.getSchemaVersion(versionId);
     if (!version) {
       throw new NotFoundException(`Schema version ${versionId} not found`);
     }
 
-    const { rows, total } = await this.repo.listSchemaTables(versionId, tableType, limit, offset, schemaName);
+    const { rows, total } = await this.repo.listSchemaTables(versionId, tableType, limit, offset, schemaName, q);
     // Los contadores se rellenan por lotes para la página: `mapTableRow` los deja en 0 y sin este
     // paso el inventario declaraba que ninguna tabla del esquema tenía columnas ni relaciones.
     const countsByTable = await this.repo.countColumnsAndRelationshipsForTables(rows.map((row) => row._id));
@@ -306,8 +307,9 @@ export class SchemaManagementService {
     requesterUserId: string | undefined,
     limit = 50,
     offset = 0,
+    q?: string,
   ): Promise<SchemaChangeLogListResponseDto> {
-    const { rows, total } = await this.changeLog.listChangeLog(approvalStatus, changeType, requesterUserId, limit, offset);
+    const { rows, total } = await this.changeLog.listChangeLog(approvalStatus, changeType, requesterUserId, limit, offset, q);
 
     return {
       changes: rows.map((row) => mapChangeLogRow(row)),

@@ -5,8 +5,9 @@
  */
 import { Op, WhereOptions } from 'sequelize';
 import { FlowsListQueryDto } from './system-flows.schemas.js';
+import { containsPattern } from '../../common/utils/strings/like-pattern.util.js';
 
-export const like = (value: string) => ({ [Op.iLike]: `%${value.replace(/[%_]/g, '\\$&')}%` });
+export const like = (value: string) => ({ [Op.iLike]: containsPattern(value) });
 
 function flowStateWhere(query: FlowsListQueryDto): Record<string, unknown> {
   const where: Record<string, unknown> = {};

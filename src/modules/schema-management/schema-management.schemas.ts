@@ -33,6 +33,8 @@ export const schemaVersionsListQuerySchema = z
     limit: z.coerce.number().int().min(1).max(100).default(20),
     offset: z.coerce.number().int().min(0).default(0),
     includeInactive: queryBooleanSchema.default(false),
+    /** Texto libre sin distinguir mayúsculas; ver cada endpoint para las columnas en que busca. */
+    q: z.string().trim().min(1).max(120).optional(),
   })
   .strict();
 
@@ -59,6 +61,8 @@ export const schemaTablesListQuerySchema = z
       .regex(/^[a-z_][a-z0-9_]*$/, 'schemaName debe ser un identificador de esquema en minúsculas.')
       .max(63)
       .optional(),
+    /** Texto libre sin distinguir mayúsculas; ver cada endpoint para las columnas en que busca. */
+    q: z.string().trim().min(1).max(120).optional(),
     limit: z.coerce.number().int().min(1).max(100).default(50),
     offset: z.coerce.number().int().min(0).default(0),
   })
@@ -137,6 +141,8 @@ export const schemaChangeLogQuerySchema = z
       .regex(/^[A-Z_]+$/, 'Change type is UPPER_SNAKE_CASE (e.g. CREATE_TABLE)')
       .optional(),
     requesterUserId: numericIdString.optional(),
+    /** Texto libre sin distinguir mayúsculas; ver cada endpoint para las columnas en que busca. */
+    q: z.string().trim().min(1).max(120).optional(),
     limit: z.coerce.number().int().min(1).max(100).default(50),
     offset: z.coerce.number().int().min(0).default(0),
   })

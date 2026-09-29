@@ -69,6 +69,12 @@ export class SchemaManagementController {
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(schemaVersionsListQuerySchema).limit })
   @ApiQuery({ name: 'offset', required: false, schema: zodObjectPropertySchemas(schemaVersionsListQuerySchema).offset })
   @ApiQuery({ name: 'includeInactive', required: false, schema: zodObjectPropertySchemas(schemaVersionsListQuerySchema).includeInactive })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Texto libre sin distinguir mayúsculas: código de la versión o sus notas.',
+    schema: zodObjectPropertySchemas(schemaVersionsListQuerySchema).q,
+  })
   @ApiResponse({ status: 200, description: 'Lista paginada de versiones de esquema.' })
   @Get('versions')
   @Roles('internal_operator', 'admin', 'platform_admin', 'risk_analyst', 'readonly_auditor')
@@ -76,7 +82,7 @@ export class SchemaManagementController {
     @Query(new ZodValidationPipe(schemaVersionsListQuerySchema))
     query: SchemaVersionsListQuery,
   ) {
-    return this.schemaService.listSchemaVersions(query.limit, query.offset, query.includeInactive);
+    return this.schemaService.listSchemaVersions(query.limit, query.offset, query.includeInactive, query.q);
   }
 
   @ApiOperation({ summary: 'Obtener una versión de esquema' })
@@ -111,6 +117,12 @@ export class SchemaManagementController {
   })
   @ApiQuery({ name: 'versionId', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).versionId })
   @ApiQuery({ name: 'tableType', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).tableType })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Texto libre sin distinguir mayúsculas: nombre cualificado de la tabla (`esquema.tabla`) o su descripción.',
+    schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).q,
+  })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).limit })
   @ApiQuery({ name: 'offset', required: false, schema: zodObjectPropertySchemas(schemaTablesListQuerySchema).offset })
   @ApiResponse({ status: 200, description: 'Lista paginada de tablas.' })
@@ -120,7 +132,7 @@ export class SchemaManagementController {
     @Query(new ZodValidationPipe(schemaTablesListQuerySchema))
     query: SchemaTablesListQuery,
   ) {
-    return this.schemaService.listSchemaTables(query.versionId, query.tableType, query.limit, query.offset, query.schemaName);
+    return this.schemaService.listSchemaTables(query.versionId, query.tableType, query.limit, query.offset, query.schemaName, query.q);
   }
 
   @ApiOperation({ summary: 'Obtener una tabla del catálogo de esquema (con columnas y FKs)' })
@@ -156,6 +168,12 @@ export class SchemaManagementController {
   @ApiQuery({ name: 'approvalStatus', required: false, schema: zodObjectPropertySchemas(schemaChangeLogQuerySchema).approvalStatus })
   @ApiQuery({ name: 'changeType', required: false, schema: zodObjectPropertySchemas(schemaChangeLogQuerySchema).changeType })
   @ApiQuery({ name: 'requesterUserId', required: false, schema: zodObjectPropertySchemas(schemaChangeLogQuerySchema).requesterUserId })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Texto libre sin distinguir mayúsculas: tipo de cambio, tipo de objeto afectado, tabla propuesta o notas de aprobación.',
+    schema: zodObjectPropertySchemas(schemaChangeLogQuerySchema).q,
+  })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(schemaChangeLogQuerySchema).limit })
   @ApiQuery({ name: 'offset', required: false, schema: zodObjectPropertySchemas(schemaChangeLogQuerySchema).offset })
   @ApiResponse({ status: 200, description: 'Lista paginada del change-log.' })
@@ -165,7 +183,14 @@ export class SchemaManagementController {
     @Query(new ZodValidationPipe(schemaChangeLogQuerySchema))
     query: SchemaChangeLogQuery,
   ) {
-    return this.schemaService.listSchemaChangeLog(query.approvalStatus, query.changeType, query.requesterUserId, query.limit, query.offset);
+    return this.schemaService.listSchemaChangeLog(
+      query.approvalStatus,
+      query.changeType,
+      query.requesterUserId,
+      query.limit,
+      query.offset,
+      query.q,
+    );
   }
 
   @ApiOperation({

@@ -85,7 +85,12 @@ export class SystemFlowsController {
     return this.service.summary();
   }
 
-  @ApiOperation({ summary: 'Procesos de negocio del catálogo de flujos, con cada paso enlazado a su flujo' })
+  @ApiOperation({
+    summary: 'Procesos de negocio del catálogo de flujos, con cada paso enlazado a su flujo',
+    description:
+      'OBSOLETO: lee el volcado en base de workflow_definitions, un subconjunto de lo que ya sirve `GET /internal/processes` (que lee el código desplegado y ahora incluye `testStatus` y los contadores críticos/verificados). El portal ya no lo llama; se conserva por compatibilidad.',
+    deprecated: true,
+  })
   @ApiResponse({ status: 200, description: 'Procesos activos con sus pasos, cuáles están enlazados y cuáles no.' })
   @InternalPermissions('systems.flows.read')
   @Get('flows/business')

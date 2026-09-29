@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindAndCountOptions } from 'sequelize';
+import { FindAndCountOptions, Model } from 'sequelize';
 import {
   SystemDataEntityCatalogModel,
   SystemDataFieldCatalogModel,
@@ -16,7 +16,7 @@ import {
   SystemCatalogReviewEventModel,
 } from '../../database/models/index.js';
 import { ReviewDecisionDto, SystemsReviewQueueDto } from './systems-ops.schemas.js';
-import { buildReviewWhere } from './systems-repository-where.util.js';
+import { buildReviewFamilyWhere, ReviewFamily } from './systems-review-where.util.js';
 
 @Injectable()
 export class SystemsReviewRepository {
@@ -31,58 +31,23 @@ export class SystemsReviewRepository {
   ) {}
 
   async listReviewQueue(query: SystemsReviewQueueDto) {
-    const limit = query.limit;
-    const offset = (query.page - 1) * query.limit;
-    const include = (kind: string) => query.type === 'all' || query.type === kind;
+    const page = { limit: query.limit, offset: (query.page - 1) * query.limit };
+    const escape = (value: string) => this.endpointModel.sequelize!.escape(value);
+    const family = <T extends Model>(
+      kind: ReviewFamily,
+      model: { findAndCountAll(options: FindAndCountOptions): Promise<{ rows: T[]; count: number }> },
+      orderBy: string,
+    ) =>
+      query.type === 'all' || query.type === kind
+        ? model.findAndCountAll({ where: buildReviewFamilyWhere(kind, query, escape), order: [[orderBy, 'DESC']], ...page })
+        : Promise.resolve({ rows: [] as T[], count: 0 });
     const [endpoints, dataEntities, dataImpacts, fieldImpacts, dataColumns, toolRequirements] = await Promise.all([
-      include('endpoints')
-        ? this.endpointModel.findAndCountAll({
-            where: buildReviewWhere(query),
-            order: [['updatedAtValue', 'DESC']],
-            limit,
-            offset,
-          } as FindAndCountOptions)
-        : Promise.resolve({ rows: [], count: 0 }),
-      include('data_entities')
-        ? this.dataEntityModel.findAndCountAll({
-            where: buildReviewWhere(query),
-            order: [['updatedAtValue', 'DESC']],
-            limit,
-            offset,
-          } as FindAndCountOptions)
-        : Promise.resolve({ rows: [], count: 0 }),
-      include('data_impacts')
-        ? this.dataImpactModel.findAndCountAll({
-            where: { reviewStatus: query.reviewStatus },
-            order: [['updatedAtValue', 'DESC']],
-            limit,
-            offset,
-          } as FindAndCountOptions)
-        : Promise.resolve({ rows: [], count: 0 }),
-      include('field_impacts')
-        ? this.fieldImpactModel.findAndCountAll({
-            where: { reviewStatus: query.reviewStatus },
-            order: [['id', 'DESC']],
-            limit,
-            offset,
-          } as FindAndCountOptions)
-        : Promise.resolve({ rows: [], count: 0 }),
-      include('data_column_impacts')
-        ? this.dataFieldModel.findAndCountAll({
-            where: { reviewStatus: query.reviewStatus },
-            order: [['updatedAtValue', 'DESC']],
-            limit,
-            offset,
-          } as FindAndCountOptions)
-        : Promise.resolve({ rows: [], count: 0 }),
-      include('tool_requirements')
-        ? this.endpointToolModel.findAndCountAll({
-            where: { reviewStatus: query.reviewStatus },
-            order: [['updatedAtValue', 'DESC']],
-            limit,
-            offset,
-          } as FindAndCountOptions)
-        : Promise.resolve({ rows: [], count: 0 }),
+      family<SystemEndpointCatalogModel>('endpoints', this.endpointModel, 'updatedAtValue'),
+      family<SystemDataEntityCatalogModel>('data_entities', this.dataEntityModel, 'updatedAtValue'),
+      family<SystemEndpointDataEntityImpactModel>('data_impacts', this.dataImpactModel, 'updatedAtValue'),
+      family<SystemEndpointFieldImpactModel>('field_impacts', this.fieldImpactModel, 'id'),
+      family<SystemDataFieldCatalogModel>('data_column_impacts', this.dataFieldModel, 'updatedAtValue'),
+      family<SystemEndpointToolRequirementModel>('tool_requirements', this.endpointToolModel, 'updatedAtValue'),
     ]);
     return { endpoints, dataEntities, dataImpacts, fieldImpacts, dataColumns, toolRequirements };
   }

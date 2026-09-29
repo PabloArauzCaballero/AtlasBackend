@@ -224,6 +224,9 @@ export const RBAC_DRIFT_SQL = `WITH llamadas AS (
  * escriben al terminar la misma petición. Sirve para que el cruce use el índice de correlación en
  * vez de leer entero `system_action_logs`, que crece con cada request.
  */
+/** Tope de rutas del informe de trabajo pendiente; se pide una más para saber si hubo corte. */
+export const PENDING_WORK_LIMIT = 500;
+
 export const PENDING_WORK_SQL = `WITH eventos AS (
          SELECT o._id, o.status, o._created_at, o.processed_at, o.event_code, o._tenant_id, o.correlation_id,
                 o.event_payload_json->>'method'                  AS ev_method,
@@ -259,7 +262,7 @@ export const PENDING_WORK_SQL = `WITH eventos AS (
          FROM atribuidos
         GROUP BY method, path
         ORDER BY MIN(_created_at) FILTER (WHERE status IN ('pending', 'failed')) ASC NULLS LAST, method, path
-        LIMIT 500`;
+        LIMIT ${PENDING_WORK_LIMIT + 1}`;
 
 /**
  * El estado del outbox ENTERO y del consumidor, sin pasar por la atribución.

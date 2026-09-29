@@ -75,12 +75,18 @@ export class DecisionEngineArtifactsService {
           deploymentPageSchema,
         ),
       ]);
+      const truncated = isCut(artifacts) || isCut(deployments);
       return {
         generatedAt: new Date().toISOString(),
         status: 'OK',
-        message: `El motor reporta ${deployments.items.length} despliegue(s) activo(s) sobre ${artifacts.items.length} artefacto(s) catalogado(s).`,
+        message:
+          `El motor reporta ${deployments.total ?? deployments.items.length} despliegue(s) activo(s) sobre ` +
+          `${artifacts.total ?? artifacts.items.length} artefacto(s) catalogado(s).` +
+          (truncated ? ` Sólo se leen los primeros ${CATALOG_PAGE_SIZE} de cada lista: esta vista está incompleta.` : ''),
         environmentFilter: env.DECISION_ENGINE_ENVIRONMENT_CODE ?? null,
         items: join(artifacts.items, deployments.items),
+        truncated,
+        deploymentsTotal: deployments.total ?? null,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'error desconocido';
@@ -117,6 +123,11 @@ export class DecisionEngineArtifactsService {
 
 /** El máximo que sirve el motor por página (`paginationArgs`). */
 const CATALOG_PAGE_SIZE = 100;
+
+/** Una página está cortada si el motor dice tener más filas de las que devolvió. */
+function isCut(page: { items: readonly unknown[]; total?: number }): boolean {
+  return page.total !== undefined && page.total > page.items.length;
+}
 
 /**
  * Une cada despliegue activo con el artefacto al que pertenece.
