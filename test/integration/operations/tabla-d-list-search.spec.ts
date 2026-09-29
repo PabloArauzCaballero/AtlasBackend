@@ -154,7 +154,9 @@ describe('Tabla homogénea (D) · listados en el servidor (PostgreSQL real)', ()
     const archivadas = await service.listPage(tenantId, { status: 'archived', page: 1, limit: 1 });
     expect(archivadas.meta).toMatchObject({ total: 2, totalPages: 2 });
     expect(archivadas.rows).toHaveLength(1);
-    expect(archivadas.summary).toEqual({ total: 3, active: 1, archived: 2 });
+    expect(archivadas.summary).toMatchObject({ total: 3, active: 1, archived: 2 });
+    // La vigente sale del resumen aunque la página filtrada sean archivadas.
+    expect(archivadas.summary.current).toMatchObject({ templateCode: codigo, version: 2 });
 
     const vigentes = await service.listPage(tenantId, { status: 'active', page: 1, limit: 10 });
     expect(vigentes.rows.map((row) => row.version)).toEqual([2]);

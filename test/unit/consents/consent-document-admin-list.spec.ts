@@ -22,7 +22,7 @@ describe('ConsentDocumentAdminService.list', () => {
 
     await service.list('t1', { q: '100%', status: 'retired', page: 2, limit: 5 });
 
-    const options = documents.findAndCountAll.mock.calls[0]?.[0] as {
+    const options = (documents.findAndCountAll.mock.calls as unknown[][])[0]?.[0] as {
       where: Record<string | symbol, unknown>;
       limit: number;
       offset: number;
@@ -40,7 +40,7 @@ describe('ConsentDocumentAdminService.list', () => {
 
     const page = await service.list('t1', { page: 1, limit: 5 });
 
-    expect((documents.findAndCountAll.mock.calls[0]?.[0] as { where: unknown }).where).toEqual({ tenantId: 't1' });
+    expect(((documents.findAndCountAll.mock.calls as unknown[][])[0]?.[0] as { where: unknown }).where).toEqual({ tenantId: 't1' });
     expect(page.meta).toEqual({ page: 1, limit: 5, total: 12, totalPages: 3 });
   });
 
@@ -50,7 +50,7 @@ describe('ConsentDocumentAdminService.list', () => {
     const { summary } = await service.list('t1', { q: 'zzz', page: 1, limit: 20 });
 
     expect(summary).toEqual({ total: 11, published: 4, draft: 1, retired: 6 });
-    expect(documents.count.mock.calls.map((call) => (call[0] as { where: unknown }).where)).toEqual([
+    expect((documents.count.mock.calls as unknown[][]).map((call) => (call[0] as { where: unknown }).where)).toEqual([
       { tenantId: 't1', status: 'published' },
       { tenantId: 't1', status: 'draft' },
       { tenantId: 't1', status: 'retired' },

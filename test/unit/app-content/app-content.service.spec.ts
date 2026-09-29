@@ -135,7 +135,7 @@ describe('AppContentService', () => {
     });
 
     it('el resumen cuenta la pantalla entera, no la página ni el filtro', async () => {
-      entries.count.mockResolvedValueOnce(7).mockResolvedValueOnce(2);
+      entries.count.mockResolvedValueOnce(7 as never).mockResolvedValueOnce(2 as never);
 
       const { summary } = await service.listForAdmin('t1', { surface: 'faq', q: 'nada', page: 1, limit: 20 });
 

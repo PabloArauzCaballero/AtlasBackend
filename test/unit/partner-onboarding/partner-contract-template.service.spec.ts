@@ -139,7 +139,7 @@ describe('PartnerContractTemplateService', () => {
 
       await service.listPage('t1', { q: 'AF_1', status: 'archived', page: 2, limit: 5 });
 
-      const options = templateModel.findAndCountAll.mock.calls[0]?.[0] as unknown as {
+      const options = (templateModel.findAndCountAll.mock.calls as unknown[][])[0]?.[0] as unknown as {
         where: Record<string | symbol, unknown>;
         limit: number;
         offset: number;
@@ -160,7 +160,7 @@ describe('PartnerContractTemplateService', () => {
       const page = await service.listPage('t1', { status: 'active', page: 1, limit: 2 });
 
       expect(page.meta).toEqual({ page: 1, limit: 2, total: 3, totalPages: 2 });
-      expect(page.summary).toEqual({ total: 9, active: 2, archived: 7 });
+      expect(page.summary).toEqual({ total: 9, active: 2, archived: 7, current: null });
     });
   });
 });

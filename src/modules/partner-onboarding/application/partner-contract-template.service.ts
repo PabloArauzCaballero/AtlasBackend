@@ -10,7 +10,7 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../../common/utils/pagination/pagination.util.js';
 import { PartnerContractTemplateModel } from '../../../database/models/index.js';
-import { withTextSearch } from '../../notifications/notification-list.filters.js';
+import { withTextSearch } from '../../../common/utils/query/text-search.util.js';
 
 export type ContractTemplateInput = {
   templateCode: string;
@@ -74,13 +74,14 @@ export class PartnerContractTemplateService {
 
   /**
    * La página del portal: busca por partes, filtra por estado y pagina EN EL SERVIDOR. El `summary`
-   * cuenta todas las versiones del inquilino —vigentes y archivadas—, no la página ni el filtro.
+   * cuenta todas las versiones del inquilino —vigentes y archivadas—, no la página ni el filtro, y
+   * trae la vigente por defecto (`current`), que ya no se puede deducir de una página.
    */
   async listPage(tenantId: string, query: { q?: string; status?: 'active' | 'archived'; page: number; limit: number }) {
     const where: Record<string | symbol, unknown> = { tenantId, deleted: false };
     if (query.status) where.status = query.status === 'active' ? 'active' : { [Op.ne]: 'active' };
     withTextSearch(where, query.q, ['templateCode', 'name']);
-    const [found, active, total] = await Promise.all([
+    const [found, active, total, current] = await Promise.all([
       this.templateModel.findAndCountAll({
         where,
         order: [
@@ -92,8 +93,13 @@ export class PartnerContractTemplateService {
       }),
       this.templateModel.count({ where: { tenantId, deleted: false, status: 'active' } }),
       this.templateModel.count({ where: { tenantId, deleted: false } }),
+      this.findDefault(tenantId),
     ]);
-    return { rows: found.rows, meta: buildPaginationMeta(query, found.count), summary: { total, active, archived: total - active } };
+    return {
+      rows: found.rows,
+      meta: buildPaginationMeta(query, found.count),
+      summary: { total, active, archived: total - active, current },
+    };
   }
 
   /**

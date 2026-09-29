@@ -76,7 +76,8 @@ export class PartnerContractTemplatesController {
   @ApiQuery({ name: 'limit', required: false, description: 'Versiones por página, de 1 a 100 (20 por omisión).' })
   @ApiResponse({
     status: 200,
-    description: 'Página por código y versión descendente, con `meta` y `summary` (total, vigentes y archivadas de todo el inquilino).',
+    description:
+      'Página por código y versión descendente, con `meta` y `summary` (total, vigentes y archivadas de todo el inquilino, y la versión vigente por defecto).',
   })
   @Get()
   async list(
@@ -84,7 +85,14 @@ export class PartnerContractTemplatesController {
     @Query(new ZodValidationPipe(listContractTemplatesQuerySchema)) query: ListContractTemplatesQueryDto,
   ) {
     const { rows, meta, summary } = await this.templates.listPage(tenantId, query);
-    return { items: rows.map(toContractTemplateDto), meta, summary };
+    // La vigente viaja sin su cuerpo: el listado ya trae el texto de cada fila y aquí sólo hace falta saber cuál rige.
+    const { current, ...counts } = summary;
+    const vigente = current ? toContractTemplateDto(current) : null;
+    return {
+      items: rows.map(toContractTemplateDto),
+      meta,
+      summary: { ...counts, current: vigente ? { ...vigente, body: undefined } : null },
+    };
   }
 
   @ApiOperation({

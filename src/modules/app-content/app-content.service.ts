@@ -7,7 +7,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
-import { withTextSearch } from '../notifications/notification-list.filters.js';
+import { withTextSearch } from '../../common/utils/query/text-search.util.js';
 import { AppContentEntryModel } from '../../database/models/index.js';
 import type { ContentSurface, UpsertContentDto } from './app-content.types.js';
 

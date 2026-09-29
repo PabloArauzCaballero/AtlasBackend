@@ -7,7 +7,7 @@ import { ConflictException, Injectable, Logger, NotFoundException } from '@nestj
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
-import { withTextSearch } from '../notifications/notification-list.filters.js';
+import { withTextSearch } from '../../common/utils/query/text-search.util.js';
 import { ConsentDocumentModel } from '../../database/models/index.js';
 import { toConsentDocumentResponse } from './consents.mapper.js';
 import { CreateConsentDocumentDto, ListConsentDocumentsQueryDto, UpdateConsentDocumentDto } from './consents.schemas.js';
