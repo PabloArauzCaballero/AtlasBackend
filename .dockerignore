@@ -30,6 +30,9 @@ docs/
 ops/
 # …salvo la sonda del contenedor, que sí forma parte de la imagen: el HEALTHCHECK la ejecuta.
 !ops/docker/
+# El mapa de Flujos se copia a la imagen (Dockerfile: COPY ops/flow-model): sin esta excepción el
+# contexto lo excluye y el build muere con «/ops/flow-model: not found» (PR #115, 2026-09-29).
+!ops/flow-model/
 
 # Evidencia local de smoke tests
 scripts/smoke/results/
