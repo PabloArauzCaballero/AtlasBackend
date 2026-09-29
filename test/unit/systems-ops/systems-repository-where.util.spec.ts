@@ -14,7 +14,7 @@ import {
  * ninguno, que es lo que cubre ambos lados de cada rama.
  */
 describe('systems-repository-where.util', () => {
-  it('buildEndpointTextWhere: con todos los filtros + búsqueda libre (Op.or sobre 4 columnas)', () => {
+  it('buildEndpointTextWhere: con todos los filtros + búsqueda libre (Op.or sobre 6 columnas, módulo y handler incluidos)', () => {
     const where = buildEndpointTextWhere({
       module: 'auth',
       backendService: 'api',
@@ -24,7 +24,14 @@ describe('systems-repository-where.util', () => {
       q: 'log',
     } as never) as Record<string, unknown>;
     expect(where).toMatchObject({ module: 'auth', backendService: 'api', status: 'active', riskLevel: 'high', reviewStatus: 'pending' });
-    expect((where as Record<symbol, unknown>)[Op.or as unknown as symbol]).toHaveLength(4);
+    const ramas = (where as Record<symbol, Array<Record<string, unknown>>>)[Op.or as unknown as symbol];
+    // El placeholder promete «ruta, módulo o propósito»: módulo y método del controlador tienen que estar.
+    expect(ramas.map((rama) => Object.keys(rama)[0])).toEqual(['code', 'fullPath', 'routeName', 'businessPurpose', 'module', 'handlerName']);
+  });
+
+  it('los comodines del usuario se escapan: `_` y `%` no casan con cualquier cosa', () => {
+    const where = buildEndpointTextWhere({ q: 'user_id%' } as never) as Record<symbol, Array<Record<string, Record<symbol, string>>>>;
+    expect(where[Op.or as unknown as symbol][0].code[Op.iLike as unknown as symbol]).toBe('%user\\_id\\%%');
   });
 
   it('buildEndpointTextWhere: sin filtros devuelve un where vacío (sin Op.or)', () => {
@@ -36,7 +43,9 @@ describe('systems-repository-where.util', () => {
   it('buildToolWhere: con status + q, y vacío sin nada', () => {
     const full = buildToolWhere({ status: 'active', q: 'redis' } as never) as Record<string, unknown>;
     expect(full).toMatchObject({ status: 'active' });
-    expect((full as Record<symbol, unknown>)[Op.or as unknown as symbol]).toHaveLength(2);
+    const ramas = (full as Record<symbol, Array<Record<string, unknown>>>)[Op.or as unknown as symbol];
+    // El placeholder de Herramientas promete «proveedor»: antes sólo se buscaba en código y nombre.
+    expect(ramas.map((rama) => Object.keys(rama)[0])).toEqual(['code', 'name', 'provider', 'type']);
     expect(Reflect.ownKeys(buildToolWhere({} as never) as object)).toHaveLength(0);
   });
 

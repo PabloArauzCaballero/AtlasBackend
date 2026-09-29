@@ -69,6 +69,31 @@ describe('SystemsActionLogQueryService', () => {
     expect(res.windowHours).toBe(24);
   });
 
+  it('getTrafficLatencyReport dice cuándo la tabla enseña sólo las rutas con más tráfico', async () => {
+    const { service, actionLogRepository } = build();
+    const fila = (routes_total: string) => ({
+      route_template: '/x',
+      method: 'GET',
+      total_requests: '1',
+      error_count: '0',
+      avg_latency_ms: '1',
+      p95_latency_ms: '1',
+      last_seen_at: null,
+      overall_total_requests: '1',
+      overall_error_count: '0',
+      overall_avg_latency_ms: '1',
+      overall_p95_latency_ms: '1',
+      routes_total,
+    });
+    (actionLogRepository.getTrafficLatencyByRoute as jest.Mock).mockResolvedValueOnce([fila('73')] as never);
+    const cortado = await service.getTrafficLatencyReport(24, user);
+    expect(cortado).toMatchObject({ routesTotal: 73, routesTruncated: true });
+
+    (actionLogRepository.getTrafficLatencyByRoute as jest.Mock).mockResolvedValueOnce([fila('1')] as never);
+    const completo = await service.getTrafficLatencyReport(24, user);
+    expect(completo).toMatchObject({ routesTotal: 1, routesTruncated: false });
+  });
+
   it('getTrafficLatencyReport tolera latencias null y filas vacías (sin dividir por cero)', async () => {
     const { service, actionLogRepository } = build();
     (actionLogRepository.getTrafficLatencyByRoute as jest.Mock).mockResolvedValueOnce([

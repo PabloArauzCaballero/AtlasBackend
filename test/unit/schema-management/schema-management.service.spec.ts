@@ -262,7 +262,7 @@ describe('SchemaManagementService', () => {
 
       const result = await service.listSchemaTables('1', undefined, 50, 0, 'iam');
 
-      expect(repo.listSchemaTables).toHaveBeenCalledWith('1', undefined, 50, 0, 'iam');
+      expect(repo.listSchemaTables).toHaveBeenCalledWith('1', undefined, 50, 0, 'iam', undefined);
       expect(result.schemaName).toBe('iam');
     });
 
@@ -552,7 +552,7 @@ describe('SchemaManagementService', () => {
 
       const result = await service.listSchemaChangeLog('pending', 'CREATE_TABLE', '10', 50, 0);
 
-      expect(repo.listChangeLog).toHaveBeenCalledWith('pending', 'CREATE_TABLE', '10', 50, 0);
+      expect(repo.listChangeLog).toHaveBeenCalledWith('pending', 'CREATE_TABLE', '10', 50, 0, undefined);
       expect(result.changes).toHaveLength(1);
       expect(result.changes[0]?.approvalStatus).toBe('pending');
       expect(result.changes[0]?.requesterPlatformUserId).toBe('10');
