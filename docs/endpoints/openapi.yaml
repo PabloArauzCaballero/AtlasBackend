@@ -22046,11 +22046,57 @@ paths:
         pantalla de preferencias: sin catálogo, esa pantalla sale vacía.
       operationId: NotificationPoliciesOperationsController_list
       parameters:
+        - name: limit
+          required: false
+          in: query
+          description: >-
+            Políticas por página, de 1 a 100. Sin `limit` ni `page` responde el
+            catálogo entero.
+          schema: {}
+        - name: page
+          required: false
+          in: query
+          description: Página, desde 1. Con `page` y sin `limit` se pagina de 20 en 20.
+          schema: {}
+        - name: active
+          required: false
+          in: query
+          description: '`true` sólo los que salen en la app; `false` sólo los apagados.'
+          schema: {}
+        - name: mandatory
+          required: false
+          in: query
+          description: >-
+            `true` sólo los irrenunciables; `false` sólo los que el cliente
+            puede apagar.
+          schema: {}
+        - name: channel
+          required: false
+          in: query
+          description: >-
+            Sólo los avisos de este canal: `push`, `email`, `sms`, `in_app` o
+            `whatsapp`.
+          schema: {}
+        - name: category
+          required: false
+          in: query
+          description: Sólo los avisos de esta categoría (p. ej. `pagos`).
+          schema: {}
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Busca por partes en el código del evento, el nombre, la categoría y
+            la explicación.
+          schema: {}
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Políticas del tenant, activas e inactivas.
+          description: >-
+            Políticas del tenant, activas e inactivas, con `meta` y `summary`
+            (total, irrenunciables, activas, por canal y por categoría del
+            catálogo entero).
           content:
             application/json:
               schema:

@@ -5,8 +5,38 @@
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions } from 'sequelize';
+import { FindOptions, fn, col } from 'sequelize';
+import { buildPaginationMeta, toOffset, type PaginationMeta } from '../../common/utils/pagination/pagination.util.js';
+import { withTextSearch } from '../../common/utils/query/text-search.util.js';
 import { NotificationPolicyModel } from '../../database/models/index.js';
+
+/** Filtros del listado del portal. `limit` ausente = todo el catálogo, como antes de paginar. */
+export type NotificationPolicyPageQuery = {
+  q?: string;
+  category?: string;
+  channel?: string;
+  mandatory?: boolean;
+  active?: boolean;
+  page: number;
+  limit?: number;
+};
+
+/** Cifras del catálogo ENTERO del tenant: no cambian con el buscador, los filtros ni la página. */
+export type NotificationPolicySummary = {
+  total: number;
+  mandatory: number;
+  active: number;
+  inactive: number;
+  byChannel: Record<string, number>;
+  byCategory: Array<{ category: string; count: number }>;
+};
+
+const LIST_ORDER = [
+  ['category', 'ASC'],
+  ['displayOrder', 'ASC'],
+  ['eventCode', 'ASC'],
+  ['channel', 'ASC'],
+] as const;
 
 /**
  * El catálogo de avisos, del lado del servidor.
@@ -32,16 +62,58 @@ export class NotificationPoliciesRepository {
     } as FindOptions);
   }
 
-  /** Todas, activas o no: el portal interno tiene que poder reactivar una que apagó. */
-  listAll(tenantId: string): Promise<NotificationPolicyModel[]> {
-    return this.policyModel.findAll({
+  /**
+   * Todas, activas o no: el portal interno tiene que poder reactivar una que apagó.
+   *
+   * Busca por partes (`ILIKE`, comodines escapados) en código, nombre, categoría y descripción,
+   * filtra por categoría, canal, obligatoriedad y estado, y pagina EN EL SERVIDOR. Sin `limit`
+   * devuelve el catálogo entero, como antes. El `summary` cuenta el catálogo entero, no el filtro.
+   */
+  async listPage(
+    tenantId: string,
+    query: NotificationPolicyPageQuery,
+  ): Promise<{ rows: NotificationPolicyModel[]; meta: PaginationMeta; summary: NotificationPolicySummary }> {
+    const where: Record<string | symbol, unknown> = { tenantId, deleted: false };
+    if (query.category) where.category = query.category;
+    if (query.channel) where.channel = query.channel;
+    if (query.mandatory !== undefined) where.isMandatory = query.mandatory;
+    if (query.active !== undefined) where.isActive = query.active;
+    withTextSearch(where, query.q, ['eventCode', 'label', 'category', 'description']);
+
+    const [found, summary] = await Promise.all([
+      this.policyModel.findAndCountAll({
+        where,
+        order: LIST_ORDER as unknown as FindOptions['order'],
+        ...(query.limit ? { limit: query.limit, offset: toOffset({ page: query.page, limit: query.limit }) } : {}),
+      } as FindOptions),
+      this.summarize(tenantId),
+    ]);
+    const meta = query.limit
+      ? buildPaginationMeta({ page: query.page, limit: query.limit }, found.count)
+      : buildPaginationMeta({ page: 1, limit: Math.max(found.count, 1) }, found.count);
+    return { rows: found.rows, meta, summary };
+  }
+
+  private async summarize(tenantId: string): Promise<NotificationPolicySummary> {
+    const groups = (await this.policyModel.findAll({
       where: { tenantId, deleted: false },
-      order: [
-        ['category', 'ASC'],
-        ['displayOrder', 'ASC'],
-        ['eventCode', 'ASC'],
-      ],
-    } as FindOptions);
+      attributes: ['channel', 'category', 'isMandatory', 'isActive', [fn('COUNT', col('_id')), 'n']],
+      group: ['channel', 'category', 'is_mandatory', 'is_active'],
+      raw: true,
+    } as FindOptions)) as unknown as Array<{ channel: string; category: string; isMandatory: boolean; isActive: boolean; n: string }>;
+    const summary: NotificationPolicySummary = { total: 0, mandatory: 0, active: 0, inactive: 0, byChannel: {}, byCategory: [] };
+    const categories = new Map<string, number>();
+    for (const group of groups) {
+      const n = Number(group.n);
+      summary.total += n;
+      if (group.isMandatory) summary.mandatory += n;
+      if (group.isActive) summary.active += n;
+      else summary.inactive += n;
+      summary.byChannel[group.channel] = (summary.byChannel[group.channel] ?? 0) + n;
+      categories.set(group.category, (categories.get(group.category) ?? 0) + n);
+    }
+    summary.byCategory = [...categories.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([category, count]) => ({ category, count }));
+    return summary;
   }
 
   find(tenantId: string, eventCode: string, channel: string): Promise<NotificationPolicyModel | null> {
