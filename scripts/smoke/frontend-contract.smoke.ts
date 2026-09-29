@@ -111,7 +111,10 @@ async function main(): Promise<void> {
   await expectOk(ctx, 'GET', `/internal/lineage/nodes/${firstId(lineageItems, ['nodeId', 'id'], 'linaje')}`, 'detalle nodo linaje');
   await expectOk(ctx, 'GET', '/internal/lineage/impact?nodeId=table:customers', 'impacto linaje');
 
-  const alerts = await expectNonEmptyGet(ctx, '/internal/alerts', 'alertas');
+  // `/internal/alerts*` está deprecado (la bandeja es `/operations/data-quality/issues`) pero sigue
+  // respondiendo. El ack se pide sobre una alerta ABIERTA: sobre una ya cerrada responde 409 a propósito.
+  await expectOk(ctx, 'GET', '/operations/data-quality/issues?status=open', 'issues de calidad');
+  const alerts = await expectNonEmptyGet(ctx, '/internal/alerts?status=OPEN', 'alertas abiertas');
   await expectOk(ctx, 'POST', `/internal/alerts/${encodeURIComponent(firstId(alerts, ['alertId'], 'alertas'))}/acknowledge`, 'ack alerta');
 
   const jobs = await expectNonEmptyGet(ctx, '/internal/jobs', 'jobs');

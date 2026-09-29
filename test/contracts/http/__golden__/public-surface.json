@@ -3659,7 +3659,9 @@
       "limit",
       "page",
       "pageSize",
-      "q"
+      "q",
+      "severity",
+      "status"
     ],
     "path": [],
     "security": [
@@ -6158,6 +6160,9 @@
     "query": [
       "active",
       "domain",
+      "limit",
+      "page",
+      "q",
       "status"
     ],
     "path": [],
@@ -6781,6 +6786,29 @@
     ],
     "body": false
   },
+  "GET /operations/data-governance/policies/search": {
+    "operationId": "CatalogGovernanceController_searchDataGovernancePolicies",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [
+      "limit",
+      "page",
+      "q",
+      "type"
+    ],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
   "POST /operations/data-governance/policy-package": {
     "operationId": "CatalogGovernanceController_upsertDataGovernancePackage",
     "responses": [
@@ -6814,6 +6842,7 @@
     "query": [
       "customerId",
       "entityType",
+      "q",
       "severity",
       "status"
     ],
@@ -6858,6 +6887,9 @@
     "headers": [],
     "query": [
       "domain",
+      "limit",
+      "page",
+      "q",
       "status",
       "type"
     ],
