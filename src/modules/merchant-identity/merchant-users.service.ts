@@ -5,14 +5,15 @@
  */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
-import { Op, Transaction, col, fn, where } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import { MerchantUserModel } from '../../database/models/index.js';
+import { MerchantUserModel, OperationalAuditLogModel } from '../../database/models/index.js';
 import { AuthRepository } from '../auth/auth.repository.js';
 import { MerchantActorRepository } from '../auth/merchant-actor.repository.js';
 import { hashPassword, isPasswordStrongEnough } from '../../common/utils/crypto/password.util.js';
 import { ListMerchantUsersQueryDto, UpdateMerchantUserStatusDto } from './merchant-identity.schemas.js';
 import { MerchantUserProfile, PaginatedMerchantUsers } from './merchant-identity.types.js';
+import { merchantListConditions, merchantListPage } from './merchant-identity-list.filter.js';
 
 export function toMerchantUserProfile(model: MerchantUserModel): MerchantUserProfile {
   return {
@@ -44,6 +45,7 @@ export class MerchantUsersService {
     private readonly authRepository: AuthRepository,
     private readonly merchantActorRepository: MerchantActorRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
+    @InjectModel(OperationalAuditLogModel) private readonly auditModel: typeof OperationalAuditLogModel,
   ) {}
 
   /**
@@ -127,11 +129,7 @@ export class MerchantUsersService {
   }
 
   async listMerchantUsers(tenantId: string, query: ListMerchantUsersQueryDto): Promise<PaginatedMerchantUsers> {
-    const filters: unknown[] = [{ tenantId }, { deleted: { [Op.ne]: true } }];
-    if (query.status) filters.push({ status: query.status });
-    if (query.email) {
-      filters.push(where(fn('lower', fn('btrim', col('email'))), query.email.trim().toLowerCase()));
-    }
+    const filters = merchantListConditions([{ tenantId }, { deleted: { [Op.ne]: true } }], query, ['email', 'fullName', 'userCode']);
 
     const { rows, count } = await this.merchantUserModel.findAndCountAll({
       where: { [Op.and]: filters } as never,
@@ -140,7 +138,7 @@ export class MerchantUsersService {
       offset: (query.page - 1) * query.limit,
     });
 
-    return { items: rows.map(toMerchantUserProfile), page: query.page, limit: query.limit, total: count };
+    return merchantListPage(rows.map(toMerchantUserProfile), query, count);
   }
 
   async getMerchantUser(tenantId: string, merchantUserId: string): Promise<MerchantUserProfile> {
@@ -159,12 +157,36 @@ export class MerchantUsersService {
     actor: { internalUserId: string | null },
   ): Promise<MerchantUserProfile> {
     const merchantUser = await this.requireMerchantUser(tenantId, merchantUserId);
+    const previousStatus = merchantUser.status;
+    const now = new Date();
 
-    await merchantUser.update({
-      status: dto.status,
-      updatedByInternalUserId: actor.internalUserId,
-      updatedAtValue: new Date(),
-    } as never);
+    /*
+     * El motivo va al registro de auditoría operativa, en la MISMA transacción que el cambio. Antes el
+     * esquema decía que «queda en la auditoría» y el servicio sólo guardaba el estado y quién lo tocó:
+     * el motivo se recibía y se tiraba. Con la transacción no hay cambio de acceso sin su rastro.
+     */
+    await this.sequelize.transaction(async (transaction) => {
+      await merchantUser.update({ status: dto.status, updatedByInternalUserId: actor.internalUserId, updatedAtValue: now } as never, {
+        transaction,
+      });
+      await this.auditModel.create(
+        {
+          tenantId,
+          actorType: actor.internalUserId ? 'internal_user' : 'system',
+          actorInternalUserId: actor.internalUserId,
+          actorPlatformUserId: null,
+          actionCode: 'merchant_users.status_change',
+          targetType: 'merchant_user',
+          targetId: String(merchantUser.id),
+          ipAddress: null,
+          userAgent: null,
+          payloadJson: { previousStatus, newStatus: dto.status, reason: dto.reason ?? null },
+          occurredAt: now,
+          createdAtValue: now,
+        } as never,
+        { transaction },
+      );
+    });
 
     return toMerchantUserProfile(merchantUser);
   }

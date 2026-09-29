@@ -52,7 +52,9 @@ export const listMerchantUsersQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(25),
   status: z.enum(MERCHANT_USER_STATUSES).optional(),
+  /** Exacto: lo usa el ERP para saber si una persona ya tiene identidad. Para buscar, `q`. */
   email: z.string().trim().max(180).optional(),
+  q: z.string().trim().max(120).optional(),
 });
 export type ListMerchantUsersQueryDto = z.infer<typeof listMerchantUsersQuerySchema>;
 
@@ -91,6 +93,7 @@ export const listMerchantUserRequestsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(25),
   status: z.enum(MERCHANT_PROVISIONING_STATUSES).optional(),
   email: z.string().trim().max(180).optional(),
+  q: z.string().trim().max(120).optional(),
 });
 export type ListMerchantUserRequestsQueryDto = z.infer<typeof listMerchantUserRequestsQuerySchema>;
 

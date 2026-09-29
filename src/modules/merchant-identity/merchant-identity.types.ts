@@ -3,6 +3,7 @@
  * @business Esta pieza controla quién puede operar el canal del comercio afiliado y deja evidencia de cada alta.
  * @system implementa identidad del comercio, credenciales y ciclo de vida de sus usuarios.
  */
+import type { PaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 
 /** Proyección pública de una identidad de comercio. Nunca sale el hash ni el tenant interno. */
 export type MerchantUserProfile = {
@@ -35,6 +36,8 @@ export type PaginatedMerchantUsers = {
   page: number;
   limit: number;
   total: number;
+  /** El contrato canónico de paginación; `page`/`limit`/`total` siguen por compatibilidad. */
+  meta: PaginationMeta;
 };
 
 /**
@@ -67,6 +70,8 @@ export type PaginatedMerchantUserRequests = {
   page: number;
   limit: number;
   total: number;
+  /** El contrato canónico de paginación; `page`/`limit`/`total` siguen por compatibilidad. */
+  meta: PaginationMeta;
 };
 
 /**

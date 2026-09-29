@@ -23,7 +23,7 @@ export class InternalAccessCatalogController {
   constructor(private readonly accessCatalogService: InternalAccessCatalogService) {}
 
   @ApiOperation({ summary: 'Listar roles internos' })
-  @ApiResponse({ status: 200, description: 'Lista de roles internos.' })
+  @ApiResponse({ status: 200, description: 'Catálogo COMPLETO de roles internos, sin paginar (no admite page ni limit).' })
   @Get('internal/roles')
   @InternalPermissions('internal.roles.read')
   listRoles(@CurrentUser() currentUser: AuthenticatedUser) {
@@ -44,7 +44,7 @@ export class InternalAccessCatalogController {
   }
 
   @ApiOperation({ summary: 'Listar permisos internos' })
-  @ApiResponse({ status: 200, description: 'Lista de permisos internos.' })
+  @ApiResponse({ status: 200, description: 'Catálogo COMPLETO de permisos activos, sin paginar ni recortar (no admite page ni limit).' })
   @Get('internal/permissions')
   @InternalPermissions('internal.permissions.read')
   listPermissions(@CurrentUser() currentUser: AuthenticatedUser) {
