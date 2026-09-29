@@ -4,7 +4,7 @@
  * @system expone el CRUD del catálogo de contenidos de la app.
  */
 import { Body, Controller, Delete, Get, Param, Put, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -18,10 +18,10 @@ import { GOVERNANCE_POLICY_READ_ROLES, GOVERNANCE_POLICY_WRITE_ROLES } from '../
 import { AppContentService } from './app-content.service.js';
 import {
   contentIdParamsSchema,
-  listContentQuerySchema,
+  listAdminContentQuerySchema,
   upsertContentSchema,
   type ContentIdParamsDto,
-  type ListContentQueryDto,
+  type ListAdminContentQueryDto,
   type UpsertContentDto,
 } from './app-content.schemas.js';
 
@@ -43,11 +43,29 @@ export class AppContentOperationsController {
 
   @ApiOperation({ summary: 'Listar el contenido de la app, activo o no' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiResponse({ status: 200, description: 'Piezas de contenido con su estado de publicación.' })
+  @ApiQuery({ name: 'surface', required: false, description: 'Sólo las piezas de esta pantalla de la app.' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Busca por partes en la clave, el título, el subtítulo, el texto y la etiqueta del botón.',
+  })
+  @ApiQuery({ name: 'active', required: false, description: '`true` sólo las visibles en la app, `false` sólo las ocultas.' })
+  @ApiQuery({ name: 'page', required: false, description: 'Página, desde 1.' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Piezas por página, de 1 a 100 (20 por omisión).' })
+  @ApiResponse({
+    status: 200,
+    description: 'Página de piezas con su estado de publicación, `meta` y `summary` (total, visibles y ocultas de la pantalla).',
+  })
   @Get()
   @Roles(...GOVERNANCE_POLICY_READ_ROLES)
-  list(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listContentQuerySchema)) query: ListContentQueryDto) {
-    return this.service.listForAdmin(tenantId, { surface: query.surface });
+  list(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listAdminContentQuerySchema)) query: ListAdminContentQueryDto) {
+    return this.service.listForAdmin(tenantId, {
+      surface: query.surface,
+      q: query.q,
+      active: query.active,
+      page: query.page,
+      limit: query.limit,
+    });
   }
 
   @ApiOperation({

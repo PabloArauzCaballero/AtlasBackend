@@ -3,8 +3,8 @@
  * @business Es lo que fija bajo qué texto opera un comercio al que nadie le negoció uno propio.
  * @system tres rutas de operaciones; la consulta del predeterminado la usa además el ERP.
  */
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -20,8 +20,10 @@ import { PartnerContractTemplateService } from './application/partner-contract-t
 import { toContractTemplateDto } from './partner-onboarding.mapper.js';
 import {
   ContractTemplateParamsDto,
+  ListContractTemplatesQueryDto,
   PublishContractTemplateDto,
   contractTemplateParamsSchema,
+  listContractTemplatesQuerySchema,
   publishContractTemplateSchema,
 } from './partner-operations.schemas.js';
 
@@ -68,11 +70,21 @@ export class PartnerContractTemplatesController {
     description: 'Las archivadas NO se ocultan: son la prueba de qué texto regía cada día.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiResponse({ status: 200, description: 'Listado por código y versión descendente.' })
+  @ApiQuery({ name: 'q', required: false, description: 'Busca por partes en el código y el nombre del contrato.' })
+  @ApiQuery({ name: 'status', required: false, description: '`active` sólo las vigentes, `archived` sólo las que rigieron antes.' })
+  @ApiQuery({ name: 'page', required: false, description: 'Página, desde 1.' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Versiones por página, de 1 a 100 (20 por omisión).' })
+  @ApiResponse({
+    status: 200,
+    description: 'Página por código y versión descendente, con `meta` y `summary` (total, vigentes y archivadas de todo el inquilino).',
+  })
   @Get()
-  async list(@CurrentTenant() tenantId: string) {
-    const plantillas = await this.templates.list(tenantId);
-    return { items: plantillas.map(toContractTemplateDto) };
+  async list(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(listContractTemplatesQuerySchema)) query: ListContractTemplatesQueryDto,
+  ) {
+    const { rows, meta, summary } = await this.templates.listPage(tenantId, query);
+    return { items: rows.map(toContractTemplateDto), meta, summary };
   }
 
   @ApiOperation({

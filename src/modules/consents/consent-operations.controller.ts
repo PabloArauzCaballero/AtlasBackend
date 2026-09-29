@@ -3,8 +3,8 @@
  * @business Esta pieza deja que Legal escriba y publique lo que el cliente acepta, sin desplegar código.
  * @system expone a operaciones el catálogo de documentos de consentimiento y su edición.
  */
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -20,9 +20,11 @@ import { ConsentDocumentAdminService } from './consent-document-admin.service.js
 import {
   ConsentDocumentParamsDto,
   CreateConsentDocumentDto,
+  ListConsentDocumentsQueryDto,
   UpdateConsentDocumentDto,
   consentDocumentParamsSchema,
   createConsentDocumentSchema,
+  listConsentDocumentsQuerySchema,
   updateConsentDocumentSchema,
 } from './consents.schemas.js';
 
@@ -63,12 +65,23 @@ export class ConsentOperationsController {
     description: 'Incluye borradores y retirados: quien administra el catálogo necesita ver lo que aún no publicó y lo que ya retiró.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
-  @ApiResponse({ status: 200, description: 'Catálogo completo, el más reciente primero.' })
+  @ApiQuery({ name: 'q', required: false, description: 'Busca por partes en el código, el título y el resumen del documento.' })
+  @ApiQuery({ name: 'status', required: false, description: 'Sólo los documentos en este estado: `draft`, `published` o `retired`.' })
+  @ApiQuery({ name: 'page', required: false, description: 'Página, desde 1.' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Documentos por página, de 1 a 100 (20 por omisión).' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Página del catálogo, por código y luego el más reciente primero, con `meta` y `summary` (vigentes, borradores y retirados del catálogo entero).',
+  })
   @ApiResponse({ status: 403, description: 'Sin el permiso governance.policies.read.' })
   @InternalPermissions('governance.policies.read')
   @Get()
-  list(@CurrentTenant() tenantId: string) {
-    return this.admin.list(tenantId);
+  list(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(listConsentDocumentsQuerySchema)) query: ListConsentDocumentsQueryDto,
+  ) {
+    return this.admin.list(tenantId, query);
   }
 
   @ApiOperation({

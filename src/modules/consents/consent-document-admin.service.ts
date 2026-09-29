@@ -6,9 +6,11 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
+import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
+import { withTextSearch } from '../notifications/notification-list.filters.js';
 import { ConsentDocumentModel } from '../../database/models/index.js';
 import { toConsentDocumentResponse } from './consents.mapper.js';
-import { CreateConsentDocumentDto, UpdateConsentDocumentDto } from './consents.schemas.js';
+import { CreateConsentDocumentDto, ListConsentDocumentsQueryDto, UpdateConsentDocumentDto } from './consents.schemas.js';
 
 /**
  * Publicar y corregir documentos de consentimiento.
@@ -28,15 +30,34 @@ export class ConsentDocumentAdminService {
 
   constructor(@InjectModel(ConsentDocumentModel) private readonly documents: typeof ConsentDocumentModel) {}
 
-  async list(tenantId: string) {
-    const rows = await this.documents.findAll({
-      where: { tenantId },
-      order: [
-        ['documentCode', 'ASC'],
-        ['effectiveFrom', 'DESC'],
-      ],
-    } as FindOptions);
-    return { items: rows.map(toConsentDocumentResponse) };
+  /**
+   * La página del portal, filtrada y paginada en el servidor. El `summary` cuenta el catálogo
+   * entero del tenant —vigentes, borradores y retirados—, no la página ni el filtro, para que las
+   * cifras no cambien al buscar.
+   */
+  async list(tenantId: string, query: ListConsentDocumentsQueryDto) {
+    const where: Record<string | symbol, unknown> = { tenantId };
+    if (query.status) where.status = query.status;
+    withTextSearch(where, query.q, ['documentCode', 'title', 'summary']);
+    const [found, published, draft, retired] = await Promise.all([
+      this.documents.findAndCountAll({
+        where,
+        order: [
+          ['documentCode', 'ASC'],
+          ['effectiveFrom', 'DESC'],
+        ],
+        limit: query.limit,
+        offset: toOffset(query),
+      } as FindOptions),
+      this.documents.count({ where: { tenantId, status: 'published' } } as FindOptions),
+      this.documents.count({ where: { tenantId, status: 'draft' } } as FindOptions),
+      this.documents.count({ where: { tenantId, status: 'retired' } } as FindOptions),
+    ]);
+    return {
+      items: found.rows.map(toConsentDocumentResponse),
+      meta: buildPaginationMeta(query, found.count),
+      summary: { total: published + draft + retired, published, draft, retired },
+    };
   }
 
   /**

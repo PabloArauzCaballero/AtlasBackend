@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { Op } from 'sequelize';
 import { PartnerContractTemplateService } from '../../../src/modules/partner-onboarding/application/partner-contract-template.service.js';
 
 /**
@@ -32,6 +33,8 @@ describe('PartnerContractTemplateService', () => {
         );
       }),
       findAll: jest.fn(async () => filas),
+      findAndCountAll: jest.fn(async () => ({ rows: filas, count: filas.length })),
+      count: jest.fn(async () => 0),
       create: jest.fn(async (valores: Record<string, unknown>) => {
         creadas.push(valores);
         return valores;
@@ -128,5 +131,36 @@ describe('PartnerContractTemplateService', () => {
     const { service, filas } = build([plantilla()]);
     await service.setDefault('1', '1');
     expect(filas[0].update).not.toHaveBeenCalled();
+  });
+
+  describe('listPage', () => {
+    it('pide sólo la página, busca por partes con los comodines escapados y filtra por estado', async () => {
+      const { service, templateModel } = build();
+
+      await service.listPage('t1', { q: 'AF_1', status: 'archived', page: 2, limit: 5 });
+
+      const options = templateModel.findAndCountAll.mock.calls[0]?.[0] as unknown as {
+        where: Record<string | symbol, unknown>;
+        limit: number;
+        offset: number;
+      };
+      expect(options).toMatchObject({ limit: 5, offset: 5 });
+      // «archived» son todas las que NO están vigentes, no sólo las que dicen literalmente «archived».
+      expect(options.where).toMatchObject({ tenantId: 't1', deleted: false, status: { [Op.ne]: 'active' } });
+      expect(options.where[Op.and]).toEqual([
+        { [Op.or]: ['templateCode', 'name'].map((columna) => ({ [columna]: { [Op.iLike]: '%AF\\_1%' } })) },
+      ]);
+    });
+
+    it('el meta usa el total del filtro y el resumen el de todo el inquilino', async () => {
+      const { service, templateModel } = build();
+      templateModel.findAndCountAll.mockResolvedValueOnce({ rows: [], count: 3 } as never);
+      templateModel.count.mockResolvedValueOnce(2 as never).mockResolvedValueOnce(9 as never);
+
+      const page = await service.listPage('t1', { status: 'active', page: 1, limit: 2 });
+
+      expect(page.meta).toEqual({ page: 1, limit: 2, total: 3, totalPages: 2 });
+      expect(page.summary).toEqual({ total: 9, active: 2, archived: 7 });
+    });
   });
 });

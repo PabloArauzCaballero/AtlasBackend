@@ -6,6 +6,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions } from 'sequelize';
+import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
+import { withTextSearch } from '../notifications/notification-list.filters.js';
 import { AppContentEntryModel } from '../../database/models/index.js';
 import type { ContentSurface, UpsertContentDto } from './app-content.types.js';
 
@@ -43,16 +45,37 @@ export class AppContentService {
     return { items: rows.map((row) => this.toPublic(row)) };
   }
 
-  async listForAdmin(tenantId: string, input: { surface?: ContentSurface }) {
-    const rows = await this.entries.findAll({
-      where: { tenantId, deleted: false, ...(input.surface ? { surface: input.surface } : {}) },
-      order: [
-        ['surface', 'ASC'],
-        ['displayOrder', 'ASC'],
-        ['contentKey', 'ASC'],
-      ],
-    } as FindOptions);
-    return { items: rows.map((row) => this.toAdmin(row)) };
+  /**
+   * El listado del portal: pagina, busca por partes y filtra por visibilidad EN EL SERVIDOR.
+   *
+   * Antes devolvía todas las piezas de golpe y el portal las pintaba como un muro de tarjetas. El
+   * `summary` cuenta la pantalla elegida entera —no la página ni el filtro—, para que «visibles» y
+   * «ocultas» no cambien al buscar.
+   */
+  async listForAdmin(tenantId: string, input: { surface?: ContentSurface; q?: string; active?: boolean; page: number; limit: number }) {
+    const base = { tenantId, deleted: false, ...(input.surface ? { surface: input.surface } : {}) };
+    const where: Record<string | symbol, unknown> = { ...base };
+    if (input.active !== undefined) where.isActive = input.active;
+    withTextSearch(where, input.q, ['contentKey', 'title', 'subtitle', 'bodyMd', 'actionLabel']);
+    const [found, visible, hidden] = await Promise.all([
+      this.entries.findAndCountAll({
+        where,
+        order: [
+          ['surface', 'ASC'],
+          ['displayOrder', 'ASC'],
+          ['contentKey', 'ASC'],
+        ],
+        limit: input.limit,
+        offset: toOffset(input),
+      } as FindOptions),
+      this.entries.count({ where: { ...base, isActive: true } } as FindOptions),
+      this.entries.count({ where: { ...base, isActive: false } } as FindOptions),
+    ]);
+    return {
+      items: found.rows.map((row) => this.toAdmin(row)),
+      meta: buildPaginationMeta(input, found.count),
+      summary: { total: visible + hidden, visible, hidden },
+    };
   }
 
   async upsert(tenantId: string, body: UpsertContentDto, internalUserId: string | null) {

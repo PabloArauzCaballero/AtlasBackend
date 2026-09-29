@@ -75,3 +75,16 @@ export const consentDocumentParamsSchema = z.object({
   documentId: z.string().regex(/^[1-9][0-9]{0,18}$/u, 'documentId debe ser un entero positivo.'),
 });
 export type ConsentDocumentParamsDto = z.infer<typeof consentDocumentParamsSchema>;
+
+/**
+ * El listado del portal: buscador por partes, filtro por estado y paginación en el servidor.
+ * Antes devolvía el catálogo entero de golpe y el portal lo pintaba como tarjetas.
+ */
+export const listConsentDocumentsQuerySchema = z.object({
+  /** Por partes: código, título y resumen del documento. */
+  q: z.string().trim().min(1).max(120).optional(),
+  status: z.enum(['draft', 'published', 'retired']).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+});
+export type ListConsentDocumentsQueryDto = z.infer<typeof listConsentDocumentsQuerySchema>;
