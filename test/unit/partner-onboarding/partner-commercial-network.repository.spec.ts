@@ -186,6 +186,20 @@ describe('PartnerCommercialNetworkRepository', () => {
       expect({ limit, offset }).toEqual({ limit: 10, offset: 20 });
     });
 
+    it('con qrKind y texto, la cola casa por sus columnas, sus comercios o sus sucursales (el SQL real, en integración)', async () => {
+      await repo.listQrCodesPendingReview('t1', {
+        limit: 10,
+        offset: 0,
+        qrKind: 'bank',
+        search: { q: 'sur', partnerIds: ['7'], branchIds: [] },
+      });
+      const { where } = ultima(qrs.findAndCountAll) as { where: Record<string | symbol, unknown> };
+      expect(where).toMatchObject({ tenantId: 't1', status: 'pending_review', qrKind: 'bank' });
+      const [busqueda] = where[Op.and] as Array<Record<symbol, unknown[]>>;
+      // 3 columnas del QR + 2 ids como texto + los comercios; sin sucursales no se añade la condición vacía.
+      expect(busqueda![Op.or]).toHaveLength(6);
+    });
+
     it('revisar sella fecha, firma y nota, y el estado que decidió la persona', async () => {
       const update = jest.fn(async (_valores?: unknown, _opciones?: unknown) => undefined);
 

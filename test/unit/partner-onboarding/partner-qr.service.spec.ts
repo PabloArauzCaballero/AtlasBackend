@@ -55,12 +55,16 @@ function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr 
     findBranchById: jest.fn(async () => null),
     listQrCodes: jest.fn(async () => []),
     findPosById: jest.fn(async () => ({ id: '9', status: 'active', partnerProfileId: '7', branchId: '3' })),
+    summarizeQrPendingReview: jest.fn(async () => ({ total: 23, business: 20, bank: 3, oldestCreatedAt: null })),
+    findBranchIdsMatching: jest.fn(async (..._args: unknown[]) => [] as string[]),
+    findBranchesByIds: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
   };
   const profiles = {
     requireProfile: jest.fn(async () => ({ id: '7', onboardingStatus: 'approved' })),
     findManyByIds: jest.fn(async (..._args: unknown[]) => [
-      { id: '7', legalName: 'Ferretería Sur SRL', tradeName: 'Ferretería Sur', onboardingStatus: 'approved' },
+      { id: '7', legalName: 'Ferretería Sur SRL', tradeName: 'Ferretería Sur', taxId: '1023456029', onboardingStatus: 'approved' },
     ]),
+    findIdsMatching: jest.fn(async (..._args: unknown[]) => [] as string[]),
   };
   const storage = {
     isConfigured: () => true,
@@ -88,17 +92,62 @@ describe('PartnerQrReviewService · cola de QR pendientes', () => {
 
     const pagina = await revision.listPendingReview('t1', { page: 3, limit: 10 });
 
-    expect(network.listQrCodesPendingReview).toHaveBeenCalledWith('t1', { limit: 10, offset: 20 });
+    expect(network.listQrCodesPendingReview).toHaveBeenCalledWith('t1', { limit: 10, offset: 20, qrKind: undefined, search: undefined });
     expect(profiles.findManyByIds).toHaveBeenCalledTimes(1);
     expect(profiles.requireProfile).not.toHaveBeenCalled();
     expect(pagina.meta).toEqual({ page: 3, limit: 10, total: 23, totalPages: 3 });
     expect(pagina.items[0]?.partner).toEqual({
       legalName: 'Ferretería Sur SRL',
       tradeName: 'Ferretería Sur',
+      taxId: '1023456029',
       onboardingStatus: 'approved',
     });
+    expect(pagina.summary).toEqual({ total: 23, business: 20, bank: 3, oldestCreatedAt: null });
     // Un comercio que ya no existe no se inventa: `partner` es null.
     expect(pagina.items[2]?.partner).toBeNull();
+  });
+});
+
+describe('PartnerQrReviewService · buscador y filtro de la cola', () => {
+  it('q resuelve los comercios y las sucursales que casan y los pasa junto al texto; qrKind viaja tal cual', async () => {
+    const { revision, network, profiles } = construir();
+    profiles.findIdsMatching.mockResolvedValueOnce(['7']);
+    network.findBranchIdsMatching.mockResolvedValueOnce(['3', '4']);
+
+    await revision.listPendingReview('t1', { page: 1, limit: 10, q: '  sur ', qrKind: 'bank' });
+
+    expect(profiles.findIdsMatching).toHaveBeenCalledWith('t1', 'sur');
+    expect(network.findBranchIdsMatching).toHaveBeenCalledWith('t1', 'sur');
+    expect(network.listQrCodesPendingReview).toHaveBeenCalledWith('t1', {
+      limit: 10,
+      offset: 0,
+      qrKind: 'bank',
+      search: { q: 'sur', partnerIds: ['7'], branchIds: ['3', '4'] },
+    });
+  });
+
+  it('sin q no se consultan comercios ni sucursales para buscar', async () => {
+    const { revision, profiles, network } = construir();
+    await revision.listPendingReview('t1', { page: 1, limit: 10 });
+    expect(profiles.findIdsMatching).not.toHaveBeenCalled();
+    expect(network.findBranchIdsMatching).not.toHaveBeenCalled();
+  });
+
+  it('cada QR trae su sucursal, o null si es del comercio entero', async () => {
+    const { revision, network } = construir();
+    network.listQrCodesPendingReview.mockResolvedValueOnce({
+      rows: [
+        qr({ id: '5', partnerProfileId: '7', branchId: '3', createdAtValue: new Date() } as unknown as Partial<Qr>),
+        qr({ id: '6', partnerProfileId: '7', branchId: null, createdAtValue: new Date() } as unknown as Partial<Qr>),
+      ],
+      count: 2,
+    } as never);
+    network.findBranchesByIds.mockResolvedValueOnce([{ id: '3', branchCode: 'SUC-01', name: 'Sucursal Centro', city: null }] as never);
+
+    const pagina = await revision.listPendingReview('t1', { page: 1, limit: 10 });
+
+    expect(pagina.items[0]?.branch).toEqual({ branchCode: 'SUC-01', name: 'Sucursal Centro', city: null });
+    expect(pagina.items[1]?.branch).toBeNull();
   });
 });
 

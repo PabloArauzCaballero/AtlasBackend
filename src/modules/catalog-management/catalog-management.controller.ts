@@ -211,9 +211,16 @@ export class CatalogManagementController {
   @ApiQuery({ name: 'catalogCode', required: false, description: 'Sólo los ítems de este catálogo.' })
   @ApiQuery({ name: 'ingestionJobId', required: false, description: 'Sólo los ítems que propuso esta ingesta.' })
   @ApiQuery({ name: 'reviewStatus', required: false, description: 'pending_review, approved o rejected.' })
+  @ApiQuery({ name: 'q', required: false, description: 'Busca por partes en el código y el nombre propuestos y en el n.º del ítem.' })
+  @ApiQuery({ name: 'aiSuggested', required: false, description: 'true: sólo los que propuso la IA; false: sólo los que no.' })
   @ApiQuery({ name: 'page', required: false, description: 'Página, desde 1.' })
-  @ApiQuery({ name: 'pageSize', required: false, description: 'Ítems por página (1 a 200; 50 por defecto).' })
-  @ApiResponse({ status: 200, description: 'Ítems de staging paginados.' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Ítems por página (1 a 200; 50 por defecto). Manda sobre `pageSize`.' })
+  @ApiQuery({ name: 'pageSize', required: false, description: 'Nombre antiguo de `limit`.' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Página de ítems de staging con `meta` (total del filtro) y `summary` (el catálogo o la ingesta entera: total, pendientes, aprobados, rechazados y sugeridos por IA).',
+  })
   @ApiResponse({ status: 404, description: 'CATALOG_NOT_FOUND.' })
   @Get('catalog-staging-items')
   listStagingItems(@Query(new ZodValidationPipe(listStagingItemsQuerySchema)) query: ListStagingItemsQueryDto) {

@@ -10,6 +10,8 @@ import { CreationAttributes, literal, Op, QueryTypes, Transaction } from 'sequel
 import { Sequelize } from 'sequelize-typescript';
 import { SupportChannelModel, SupportChannelParticipantModel } from '../../database/models/index.js';
 import { atlasSchemaFor } from '../../database/domain-schemas.js';
+import { withTextSearch } from '../../common/utils/query/text-search.util.js';
+import { SUPPORT_ASSIGNED_CHANNEL_STATUSES } from './support.constants.js';
 
 const SCHEMA = atlasSchemaFor('support_channels');
 const CHANNELS = `${SCHEMA}.support_channels`;
@@ -17,6 +19,9 @@ const PARTICIPANTS = `${SCHEMA}.support_channel_participants`;
 const MESSAGES = `${SCHEMA}.support_messages`;
 
 export type RepositoryOptions = { transaction?: Transaction };
+
+/** Una página de una lista de la mesa: filas a saltar y a traer, y el buscador. */
+export type ChannelListPage = { limit: number; offset: number; q?: string };
 
 @Injectable()
 export class SupportChannelRepository {
@@ -98,37 +103,96 @@ export class SupportChannelRepository {
     return this.channels.findAll({ where: { caseId, deleted: false }, order: [['requested_at', 'DESC']] });
   }
 
-  /** La cola de espera: canales encolados sin agente, en orden de llegada. */
-  listQueuedChannels(tenantId: string, queueId: string | null, limit = 50): Promise<SupportChannelModel[]> {
-    return this.channels.findAll({
-      where: {
-        tenantId,
-        deleted: false,
-        status: { [Op.in]: ['REQUESTED', 'QUEUED'] },
-        ...(queueId ? { queueId } : {}),
-      },
-      order: [['requested_at', 'ASC']],
-      limit,
+  /**
+   * La cola de espera: canales encolados sin agente, en orden de llegada, con el total del filtro.
+   *
+   * `q` busca por partes en el código de la conversación, su n.º, el n.º del expediente y el tipo de
+   * canal —lo que el listado enseña—, con `%` y `_` como texto literal.
+   */
+  listQueuedChannels(
+    tenantId: string,
+    queueId: string | null,
+    page: ChannelListPage & { channelType?: string },
+  ): Promise<{ rows: SupportChannelModel[]; count: number }> {
+    const where: Record<string | symbol, unknown> = {
+      tenantId,
+      deleted: false,
+      status: { [Op.in]: ['REQUESTED', 'QUEUED'] },
+      ...(queueId ? { queueId } : {}),
+      ...(page.channelType ? { channelType: page.channelType } : {}),
+    };
+    withTextSearch(where, page.q, ['channelCode', 'channelType'], ['_id', 'case_id']);
+    return this.channels.findAndCountAll({
+      where,
+      order: [
+        ['requested_at', 'ASC'],
+        ['_id', 'ASC'],
+      ],
+      limit: page.limit,
+      offset: page.offset,
     });
   }
 
+  /** Cuántos esperan, cuántos sin expediente y desde cuándo el más antiguo: de TODA la cola, sin búsqueda ni página. */
+  async summarizeQueued(tenantId: string, queueId: string | null) {
+    const where = {
+      tenantId,
+      deleted: false,
+      status: { [Op.in]: ['REQUESTED', 'QUEUED'] },
+      ...(queueId ? { queueId } : {}),
+    };
+    const [total, withoutCase, oldest] = await Promise.all([
+      this.channels.count({ where }),
+      this.channels.count({ where: { ...where, caseId: null } }),
+      this.channels.min<Date | null, SupportChannelModel>('requestedAt', { where }),
+    ]);
+    return { total, withoutCase, oldestRequestedAt: oldest ?? null };
+  }
+
   /**
-   * Las conversaciones vivas que lleva este agente.
+   * Las conversaciones vivas que lleva este agente, la más reciente primero, con el total del filtro.
    *
    * Sin esta lista, un chat que el enrutado asignó solo —agente en `AVAILABLE`— salía de «en espera»
    * y no aparecía en ningún otro sitio de la consola: el agente lo tenía y no lo veía.
    */
-  listAssignedChannels(tenantId: string, agentProfileId: string, limit = 50): Promise<SupportChannelModel[]> {
-    return this.channels.findAll({
-      where: {
-        tenantId,
-        deleted: false,
-        assignedAgentProfileId: agentProfileId,
-        status: { [Op.in]: ['OPEN', 'WAITING_USER', 'WAITING_AGENT', 'CLOSING'] },
-      },
-      order: [['last_activity_at', 'DESC']],
-      limit,
+  listAssignedChannels(
+    tenantId: string,
+    agentProfileId: string,
+    page: ChannelListPage & { channelType?: string; status?: string },
+  ): Promise<{ rows: SupportChannelModel[]; count: number }> {
+    const where: Record<string | symbol, unknown> = {
+      tenantId,
+      deleted: false,
+      assignedAgentProfileId: agentProfileId,
+      status: page.status ?? { [Op.in]: [...SUPPORT_ASSIGNED_CHANNEL_STATUSES] },
+      ...(page.channelType ? { channelType: page.channelType } : {}),
+    };
+    withTextSearch(where, page.q, ['channelCode', 'channelType'], ['_id', 'case_id']);
+    return this.channels.findAndCountAll({
+      where,
+      order: [
+        ['last_activity_at', 'DESC'],
+        ['_id', 'DESC'],
+      ],
+      limit: page.limit,
+      offset: page.offset,
     });
+  }
+
+  /** Cuántas llevo, cuántas esperan mi respuesta y cuántas no tienen expediente: de TODAS las mías. */
+  async summarizeAssigned(tenantId: string, agentProfileId: string) {
+    const where = {
+      tenantId,
+      deleted: false,
+      assignedAgentProfileId: agentProfileId,
+      status: { [Op.in]: [...SUPPORT_ASSIGNED_CHANNEL_STATUSES] },
+    };
+    const [total, waitingAgent, withoutCase] = await Promise.all([
+      this.channels.count({ where }),
+      this.channels.count({ where: { ...where, status: 'WAITING_AGENT' } }),
+      this.channels.count({ where: { ...where, caseId: null } }),
+    ]);
+    return { total, waitingAgent, withoutCase };
   }
 
   addParticipant(

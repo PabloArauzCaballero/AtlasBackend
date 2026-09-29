@@ -151,6 +151,11 @@ export class PartnerProfileService {
     return this.repository.findProfilesByIds(tenantId, partnerIds);
   }
 
+  /** Los ids de los comercios que casan con un texto (razón social, nombre comercial o NIT). */
+  findIdsMatching(tenantId: string, q: string): Promise<string[]> {
+    return this.repository.findProfileIdsMatching(tenantId, q);
+  }
+
   async requireProfile(tenantId: string, partnerId: string): Promise<PartnerProfileModel> {
     const profile = await this.repository.findProfileById(tenantId, partnerId);
     if (!profile) throw new NotFoundException('Expediente de partner no encontrado.');

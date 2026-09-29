@@ -151,6 +151,13 @@ export const SUPPORT_CHANNEL_STATUSES = [
 ] as const;
 export type SupportChannelStatus = (typeof SUPPORT_CHANNEL_STATUSES)[number];
 
+/** Los tres tipos de canal que admite `ck_support_channel_type`. */
+export const SUPPORT_CHANNEL_TYPES = ['CHAT', 'ASYNC_MESSAGING', 'INTERNAL_BRIDGE'] as const;
+export type SupportChannelType = (typeof SUPPORT_CHANNEL_TYPES)[number];
+
+/** Estados en los que una conversación es «mía»: la lleva un agente y sigue viva. */
+export const SUPPORT_ASSIGNED_CHANNEL_STATUSES = ['OPEN', 'WAITING_USER', 'WAITING_AGENT', 'CLOSING'] as const;
+
 export const SUPPORT_CHANNEL_CLOSE_REASONS = [
   'USER_ENDED',
   'AGENT_ENDED',

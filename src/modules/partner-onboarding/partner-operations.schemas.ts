@@ -60,6 +60,13 @@ export type ListPartnerQueueQueryDto = z.infer<typeof listPartnerQueueQuerySchem
 
 /** La cola de QR de cobro por revisar, por páginas: antes llegaba entera. */
 export const listPendingQrQuerySchema = z.object({
+  /**
+   * Por partes: razón social, nombre comercial y NIT del comercio; nombre, código y ciudad de la
+   * sucursal; entidad y cuenta enmascarada del QR; n.º del QR y del comercio y huella del archivo.
+   */
+  q: z.string().trim().min(1).max(80).optional(),
+  /** Sólo el QR del negocio (`business`) o sólo el de una cuenta bancaria (`bank`). */
+  qrKind: z.enum(['business', 'bank']).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(50).default(10),
 });
