@@ -127,7 +127,9 @@ export class UnderwritingFeaturesService {
 
     const income = economy[INCOME] ?? 0;
     const otherIncome = economy[OTHER_INCOME] ?? 0;
-    const expenses = economy[EXPENSES] ?? 0;
+    // Sin gastos (el alta ya no los pide, eligibility-v2) disponible y deuda-ingreso viajan `ausente`: nada de «gasta 0».
+    const expensesKnown = Number.isFinite(economy[EXPENSES]);
+    const expenses = expensesKnown ? economy[EXPENSES]! : 0;
     const totalIncome = income + otherIncome;
     const disposable = Math.max(0, totalIncome - expenses);
 
@@ -158,9 +160,9 @@ export class UnderwritingFeaturesService {
        * se quedaría en cero — convirtiendo el extracto en un requisito de facto.
        */
       declared_monthly_income: put('declared_monthly_income', Math.round(totalIncome * 100) / 100, income > 0 ? FILE : MISSING),
-      disposable_income: put('disposable_income', Math.round(disposable * 100) / 100, DERIVED),
+      disposable_income: put('disposable_income', Math.round(disposable * 100) / 100, expensesKnown ? DERIVED : MISSING),
       affordability_ratio: put('affordability_ratio', Math.round(affordabilityRatio * 1000) / 1000, DERIVED),
-      debt_to_income_ratio: put('debt_to_income_ratio', Math.round(debtToIncome * 1000) / 1000, DERIVED),
+      debt_to_income_ratio: put('debt_to_income_ratio', Math.round(debtToIncome * 1000) / 1000, expensesKnown ? DERIVED : MISSING),
       /*
        * La estabilidad se estima con la antigüedad en el empleo: dos años ya es un ingreso que se
        * ha sostenido, y por encima de eso el dato deja de discriminar. Es una aproximación honesta

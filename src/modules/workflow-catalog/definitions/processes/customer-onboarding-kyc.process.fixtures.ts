@@ -15,7 +15,7 @@ export const CUSTOMER_ONBOARDING_KYC: WorkflowDefinitionFixture = {
   version: 'v1',
   name: 'Alta por fases y captura KYC del cliente',
   description:
-    'Registro progresivo del cliente con cuenta: carnet y selfie, datos personales, domicilio, situación económica, referencias, permisos del teléfono y encuesta de hábitos, con guardado parcial, hasta el envío del paquete a revisión. Incluye la mirada del equipo interno sobre el expediente.',
+    'Registro progresivo del cliente con cuenta: carnet y selfie en tres poses, datos personales, domicilio, situación económica y permisos del teléfono, con guardado parcial (referencias y encuesta de hábitos quedan opcionales desde eligibility-v2), hasta el envío del paquete a revisión. Incluye la mirada del equipo interno sobre el expediente.',
   processType: 'customer_journey',
   ownerDomain: 'customer_onboarding',
   ownerRole: 'OPERATIONS_MANAGER',
@@ -27,7 +27,7 @@ export const CUSTOMER_ONBOARDING_KYC: WorkflowDefinitionFixture = {
     whoStartsAndCloses:
       'Lo inicia el cliente desde el centro de registro de la app, una vez que ya tiene cuenta y contacto verificado, y lo cierra él mismo al pulsar «Enviar a revisión». El operador interno sólo mira: revisa el expediente, las imágenes del carnet y el resumen de investigación desde la cola de trabajo del portal.',
     startAndEnd:
-      'Empieza cuando la app lee el estado del alta y encuentra la primera sección pendiente (el orden vive en ONBOARDING_SECTION_CODES: contacto, identidad, datos personales, domicilio, economía, referencias, permisos del teléfono y encuesta). Termina cuando el envío deja al cliente en under_review, cierra el flujo como completed y dispara la evaluación de riesgo.',
+      'Empieza cuando la app lee el estado del alta y encuentra la primera sección pendiente (el orden vive en ONBOARDING_SECTION_CODES: contacto, identidad, datos personales, domicilio, economía y permisos del teléfono; referencias y encuesta ya no son secciones desde eligibility-v2). Termina cuando el envío deja al cliente en under_review, cierra el flujo como completed y dispara la evaluación de riesgo.',
     whenItFails:
       'Si falta una sección, el envío responde 422 ONBOARDING_INCOMPLETE con la lista de secciones pendientes y el cliente sigue editando. Un envío repetido responde ONBOARDING_ALREADY_SUBMITTED. Quien deja el alta a medias no recibe aviso: el job mark_abandoned_onboardings marca el flujo como abandonado tras 30 días sin actividad, sin tocar el estado del cliente.',
     healthIndicator:
@@ -160,7 +160,8 @@ export const CUSTOMER_ONBOARDING_KYC: WorkflowDefinitionFixture = {
     {
       code: 'kyc_situation',
       name: 'Fase situación: domicilio, economía y referencias',
-      description: 'Domicilio, seis atributos económicos obligatorios y al menos dos referencias personales.',
+      description:
+        'Domicilio y cuatro atributos económicos obligatorios (situación laboral, antigüedad si trabaja, ingreso por banda y rubro). Las referencias personales son opcionales desde eligibility-v2.',
       module: 'customer_onboarding',
       actor: 'customer',
       client: 'CONSUMER_APP',
@@ -177,7 +178,8 @@ export const CUSTOMER_ONBOARDING_KYC: WorkflowDefinitionFixture = {
         {
           code: 'kyc.financial_profile',
           name: 'Registrar la situación laboral y económica',
-          description: 'Guarda los atributos económicos (situación laboral, antigüedad, ingresos, gastos, actividad y origen de fondos).',
+          description:
+            'Guarda los atributos económicos (situación laboral, empleador, antigüedad, banda y frecuencia de ingreso, rubro); gastos y origen de fondos se aceptan pero ya no se exigen.',
           method: 'PUT',
           path: '/customer-onboarding/:customerId/financial-profile',
           roles: CUSTOMER_AND_INTERNAL,
@@ -187,10 +189,11 @@ export const CUSTOMER_ONBOARDING_KYC: WorkflowDefinitionFixture = {
         {
           code: 'kyc.references_add',
           name: 'Registrar referencias personales',
-          description: 'Entre dos y cinco referencias; no puede ser el propio cliente.',
+          description: 'Hasta cinco referencias, opcionales desde eligibility-v2; no puede ser el propio cliente.',
           method: 'POST',
           path: '/customer-onboarding/:customerId/reference-contacts',
           roles: CUSTOMER_AND_INTERNAL,
+          optional: true,
           errors: ['409 REFERENCE_ALREADY_REGISTERED', '422 REFERENCE_LIMIT_EXCEEDED', '422 REFERENCE_CANNOT_BE_THE_CUSTOMER'],
           successStatus: [201],
         },
@@ -201,6 +204,7 @@ export const CUSTOMER_ONBOARDING_KYC: WorkflowDefinitionFixture = {
           method: 'GET',
           path: '/customer-onboarding/:customerId/reference-contacts',
           roles: CUSTOMER_AND_INTERNAL,
+          optional: true,
         },
         {
           code: 'kyc.references_remove',
@@ -259,10 +263,11 @@ export const CUSTOMER_ONBOARDING_KYC: WorkflowDefinitionFixture = {
     {
       code: 'kyc_consumer_survey',
       name: 'Fase hábitos: encuesta de consumo',
-      description: 'Seis preguntas de hábitos de consumo, con guardado parcial.',
+      description: 'Seis preguntas de hábitos de consumo, con guardado parcial. Opcional desde eligibility-v2: no bloquea el envío.',
       module: 'customer_onboarding',
       actor: 'customer',
       client: 'CONSUMER_APP',
+      optional: true,
       completionRule: { type: 'onboarding_section', sectionCode: 'consumer_survey' },
       steps: [
         {
@@ -272,6 +277,7 @@ export const CUSTOMER_ONBOARDING_KYC: WorkflowDefinitionFixture = {
           method: 'GET',
           path: '/customer-onboarding/consumer-survey/catalog',
           roles: CUSTOMER_AND_INTERNAL,
+          optional: true,
         },
         {
           code: 'kyc.survey_state',
@@ -289,6 +295,7 @@ export const CUSTOMER_ONBOARDING_KYC: WorkflowDefinitionFixture = {
           method: 'PUT',
           path: '/customer-onboarding/:customerId/consumer-survey',
           roles: CUSTOMER_AND_INTERNAL,
+          optional: true,
           repeatable: true,
         },
       ],

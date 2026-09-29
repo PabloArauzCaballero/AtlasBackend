@@ -62,7 +62,7 @@
       "expected": {
         "eligible": true,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -90,17 +90,7 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -171,7 +161,7 @@
       "expected": {
         "eligible": false,
         "lifecycleStatus": "under_review",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -199,17 +189,7 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -285,7 +265,7 @@
       "expected": {
         "eligible": true,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -313,17 +293,7 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -394,7 +364,7 @@
       "expected": {
         "eligible": false,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -424,22 +394,12 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
         ],
-        "completionPercentage": 88,
+        "completionPercentage": 83,
         "canSubmit": false,
         "nextStep": "identity_documents",
         "blockers": [
@@ -509,7 +469,7 @@
       "expected": {
         "eligible": true,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -537,17 +497,7 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -618,7 +568,7 @@
       "expected": {
         "eligible": false,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -646,17 +596,7 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -728,7 +668,7 @@
       "expected": {
         "eligible": false,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -756,17 +696,7 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -840,7 +770,7 @@
       "expected": {
         "eligible": false,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -868,17 +798,7 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -956,7 +876,7 @@
       "expected": {
         "eligible": false,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -986,22 +906,12 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
         ],
-        "completionPercentage": 88,
+        "completionPercentage": 83,
         "canSubmit": false,
         "nextStep": "personal_data",
         "blockers": [
@@ -1074,7 +984,7 @@
       "expected": {
         "eligible": true,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -1102,17 +1012,7 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -1182,7 +1082,7 @@
       "expected": {
         "eligible": false,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -1212,22 +1112,12 @@
             ]
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
         ],
-        "completionPercentage": 88,
+        "completionPercentage": 83,
         "canSubmit": false,
         "nextStep": "financial_profile",
         "blockers": [
@@ -1299,7 +1189,7 @@
       "expected": {
         "eligible": true,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -1327,17 +1217,7 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -1408,7 +1288,7 @@
       "expected": {
         "eligible": false,
         "lifecycleStatus": "active",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -1436,17 +1316,7 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -1521,7 +1391,7 @@
       "expected": {
         "eligible": false,
         "lifecycleStatus": "blocked",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -1549,17 +1419,7 @@
             "missingFields": []
           },
           {
-            "code": "reference_contacts",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
             "code": "device_permissions",
-            "status": "completed",
-            "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
             "status": "completed",
             "missingFields": []
           }
@@ -1619,7 +1479,7 @@
       "expected": {
         "eligible": false,
         "lifecycleStatus": "closed",
-        "ruleVersion": "eligibility-v1",
+        "ruleVersion": "eligibility-v2",
         "sections": [
           {
             "code": "contact_verification",
@@ -1658,30 +1518,16 @@
               "employment_status",
               "employment_seniority_months",
               "monthly_income_declared",
-              "monthly_expenses_declared",
-              "economic_activity_code",
-              "source_of_funds"
-            ]
-          },
-          {
-            "code": "reference_contacts",
-            "status": "pending",
-            "missingFields": [
-              "referenceContacts"
+              "economic_activity_code"
             ]
           },
           {
             "code": "device_permissions",
             "status": "completed",
             "missingFields": []
-          },
-          {
-            "code": "consumer_survey",
-            "status": "completed",
-            "missingFields": []
           }
         ],
-        "completionPercentage": 25,
+        "completionPercentage": 17,
         "canSubmit": false,
         "nextStep": "blocked",
         "blockers": [
@@ -1709,17 +1555,11 @@
               "employment_status",
               "employment_seniority_months",
               "monthly_income_declared",
-              "monthly_expenses_declared",
-              "economic_activity_code",
-              "source_of_funds"
+              "economic_activity_code"
             ]
           },
           {
             "code": "ADDRESS_MISSING"
-          },
-          {
-            "code": "REFERENCES_INSUFFICIENT",
-            "detail": "required=2"
           },
           {
             "code": "IDENTITY_DOCUMENT_MISSING"

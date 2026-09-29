@@ -4,7 +4,7 @@
 
 `customer_eligibility_lifecycle` · v1 · prioridad **P1** · tipo `back_office` · dueño `OPERATIONS_MANAGER` · bloques `ATLAS_BACKEND`
 
-Cálculo de la habilitación crediticia con la regla eligibility-v1 (quince condiciones, lista completa de bloqueadores) y transiciones del estado del cliente por la máquina de estados: promoción automática desde under_review, decisión administrativa y decisiones de casos de revisión.
+Cálculo de la habilitación crediticia con la regla eligibility-v2 (las condiciones C1–C15 salvo las referencias, que dejaron de exigirse; lista completa de bloqueadores) y transiciones del estado del cliente por la máquina de estados: promoción automática desde under_review, decisión administrativa y decisiones de casos de revisión.
 
 ## Por qué existe
 
@@ -60,7 +60,7 @@ flowchart LR
 
 ### Evaluación de la regla de habilitación (`eligibility_evaluation`)
 
-Quince condiciones (C1–C15); la regla nunca corta en el primer bloqueador. Sólo desde under_review y con ACCOUNT_NOT_ACTIVE como único bloqueador promueve a active sola.
+Las condiciones C1–C15 menos las referencias (eligibility-v2); la regla nunca corta en el primer bloqueador. Sólo desde under_review y con ACCOUNT_NOT_ACTIVE como único bloqueador promueve a active sola.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|

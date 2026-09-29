@@ -10,7 +10,12 @@
  * versión, y las evaluaciones históricas siguen explicando por qué se decidió lo que se decidió.
  */
 
-export const ELIGIBILITY_RULE_VERSION = 'eligibility-v1';
+/*
+ * v2 (2026-09-28): el alta pide sólo los quince datos que fijó el dueño. Salen de lo obligatorio las
+ * referencias personales, la encuesta de consumo, los gastos mensuales y el origen de fondos. Las
+ * evaluaciones hechas con v1 siguen explicando lo que decidieron con su regla.
+ */
+export const ELIGIBILITY_RULE_VERSION = 'eligibility-v2';
 
 /** Códigos de bloqueo. Son parte del contrato con el frontend: no se renombran sin versionar. */
 export const ELIGIBILITY_BLOCKER_CODES = [
@@ -20,6 +25,7 @@ export const ELIGIBILITY_BLOCKER_CODES = [
   'PROFILE_INCOMPLETE',
   'FINANCIAL_PROFILE_INCOMPLETE',
   'ADDRESS_MISSING',
+  /** Histórico (eligibility-v1): desde v2 las referencias no bloquean. Se conserva por contrato. */
   'REFERENCES_INSUFFICIENT',
   'IDENTITY_DOCUMENT_MISSING',
   'IDENTITY_DOCUMENT_EXPIRED',
@@ -41,11 +47,14 @@ export type EligibilityBlockerCode = (typeof ELIGIBILITY_BLOCKER_CODES)[number];
  * había cuatro cálculos distintos de `nextStep` en cuatro módulos, con resultados incompatibles.
  */
 /*
- * El orden es el de las CUATRO FASES del alta (plan del 2026-09-17): contacto → identidad (el carnet
- * ANTES que los datos personales: el OCR prellena y la persona confirma) → situación (domicilio,
- * economía, referencias y los permisos del teléfono, que dejaron de pedirse al arrancar la app) →
- * hábitos (la encuesta de consumo). `device_permissions` se completa con una DECISIÓN, incluida la
- * negativa; `consumer_survey` con las seis preguntas contestadas.
+ * El orden es el de las FASES del alta: contacto → identidad (el carnet ANTES que los datos
+ * personales: el OCR prellena y la persona confirma) → situación (domicilio, economía y los permisos
+ * del teléfono, que dejaron de pedirse al arrancar la app). `device_permissions` se completa con una
+ * DECISIÓN, incluida la negativa.
+ *
+ * Desde eligibility-v2 (2026-09-28) `reference_contacts` y `consumer_survey` ya NO son secciones: el
+ * alta pide sólo quince datos. Sus rutas siguen vivas para las apps viejas, pero no bloquean ni
+ * cuentan para el porcentaje (ver `RETIRED_ONBOARDING_SECTION_CODES`).
  */
 export const ONBOARDING_SECTION_CODES = [
   'contact_verification',
@@ -53,10 +62,14 @@ export const ONBOARDING_SECTION_CODES = [
   'personal_data',
   'address',
   'financial_profile',
-  'reference_contacts',
   'device_permissions',
-  'consumer_survey',
 ] as const;
+
+/**
+ * Secciones que existieron (eligibility-v1) y ya no se exigen. Una etapa del catálogo de procesos que
+ * todavía las nombre se informa como «no aplica», no como pendiente para siempre.
+ */
+export const RETIRED_ONBOARDING_SECTION_CODES = ['reference_contacts', 'consumer_survey'] as const;
 
 /** Las finalidades cuya decisión (sí o no) cierra la sección `device_permissions`. Son los códigos que siembra `privacy`. */
 export const DEVICE_PERMISSION_PURPOSE_CODES = ['device_address_book', 'location_tracking'] as const;
@@ -90,17 +103,22 @@ export const REQUIRED_FINANCIAL_ATTRIBUTE_CODES = [
   'employment_status',
   'employment_seniority_months',
   'monthly_income_declared',
-  'monthly_expenses_declared',
   'economic_activity_code',
-  'source_of_funds',
 ] as const;
 
-/** Atributos económicos opcionales aceptados por el endpoint (no bloquean la habilitación). */
+/**
+ * Atributos económicos opcionales aceptados por el endpoint (no bloquean la habilitación).
+ *
+ * `monthly_expenses_declared` y `source_of_funds` fueron obligatorios hasta eligibility-v1; la app ya
+ * no los pide. Quien los consume (la suscripción del Motor) los trata como AUSENTES, nunca como cero.
+ */
 export const OPTIONAL_FINANCIAL_ATTRIBUTE_CODES = [
   'employer_name',
   'other_monthly_income',
   'monthly_income_band',
   'income_frequency',
+  'monthly_expenses_declared',
+  'source_of_funds',
 ] as const;
 
 export const FINANCIAL_ATTRIBUTE_CODES = [...REQUIRED_FINANCIAL_ATTRIBUTE_CODES, ...OPTIONAL_FINANCIAL_ATTRIBUTE_CODES] as const;
@@ -126,8 +144,7 @@ export const MONTHLY_INCOME_BAND_VALUES = [
 export const INCOME_FREQUENCY_VALUES = ['monthly', 'biweekly', 'weekly', 'irregular'] as const;
 export const SOURCE_OF_FUNDS_VALUES = ['salary', 'business_income', 'rental_income', 'pension', 'remittances', 'savings', 'other'] as const;
 
-/** Cantidad mínima de referencias personales. Ver decisión D-6. */
-export const REQUIRED_REFERENCE_CONTACTS = 2;
+/** Tope de referencias personales que se aceptan. Desde eligibility-v2 no hay mínimo: son opcionales. */
 export const MAXIMUM_REFERENCE_CONTACTS = 5;
 
 /**

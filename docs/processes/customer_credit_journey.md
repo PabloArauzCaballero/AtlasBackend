@@ -233,7 +233,7 @@ Verifica la completitud del paquete y mueve al cliente a `under_review` con su e
 
 ### Referencias personales (`reference_contacts`)
 
-Mínimo dos referencias personales; el máximo aceptado son cinco.
+Opcionales desde eligibility-v2 (antes, mínimo dos); el máximo aceptado son cinco.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|

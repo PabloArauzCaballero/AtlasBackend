@@ -26,13 +26,12 @@ function eligibleFacts(overrides: Partial<EligibilityFacts> = {}): EligibilityFa
     decidedDevicePermissionPurposes: ['device_address_book', 'location_tracking'],
     answeredSurveyQuestionCodes: ['gasto_fijo', 'dependientes', 'ahorro', 'imprevisto', 'cuota_maxima', 'frecuencia'],
     profile: { id: 1, firstName: 'Ana', lastName: 'Paz', birthDate: '1990-01-01' } as never,
+    // Los cuatro obligatorios desde eligibility-v2: gastos y origen de fondos ya no se piden.
     presentFinancialAttributeCodes: [
       'employment_status',
       'employment_seniority_months',
       'monthly_income_declared',
-      'monthly_expenses_declared',
       'economic_activity_code',
-      'source_of_funds',
     ],
     // Los VALORES numéricos son un hecho distinto de los códigos presentes: la completitud del
     // perfil mira que el código exista, y la elegibilidad POR PRODUCTO mira su valor
@@ -99,8 +98,10 @@ describe('buildBlockers', () => {
       NOW,
     );
     const codes = blockers.map((blocker) => blocker.code);
-    expect(codes).toEqual(expect.arrayContaining(['NO_CREDENTIALS', 'CONTACT_NOT_VERIFIED', 'ADDRESS_MISSING', 'REFERENCES_INSUFFICIENT']));
-    expect(codes.length).toBeGreaterThanOrEqual(4);
+    expect(codes).toEqual(expect.arrayContaining(['NO_CREDENTIALS', 'CONTACT_NOT_VERIFIED', 'ADDRESS_MISSING']));
+    expect(codes.length).toBeGreaterThanOrEqual(3);
+    // eligibility-v2: cero referencias ya no bloquea.
+    expect(codes).not.toContain('REFERENCES_INSUFFICIENT');
   });
 
   it('informa exactamente qué campos del perfil personal faltan', () => {
@@ -124,13 +125,7 @@ describe('buildBlockers', () => {
   it('informa exactamente qué atributos económicos faltan', () => {
     const blockers = buildBlockers(eligibleFacts({ presentFinancialAttributeCodes: ['employment_status'] }), 'active', NOW);
     const blocker = blockers.find((item) => item.code === 'FINANCIAL_PROFILE_INCOMPLETE');
-    expect(blocker?.fields).toEqual([
-      'employment_seniority_months',
-      'monthly_income_declared',
-      'monthly_expenses_declared',
-      'economic_activity_code',
-      'source_of_funds',
-    ]);
+    expect(blocker?.fields).toEqual(['employment_seniority_months', 'monthly_income_declared', 'economic_activity_code']);
   });
 
   it('distingue documento ausente de documento vencido', () => {
@@ -230,14 +225,14 @@ describe('buildSections y assess', () => {
       'onboarding_in_progress',
       NOW,
     );
-    expect(result.completionPercentage).toBe(63); // 5 de 8 secciones (faltan economía, domicilio y carnet)
+    expect(result.completionPercentage).toBe(50); // 3 de 6 secciones (faltan economía, domicilio y carnet)
   });
 
   /*
    * Las cuatro fases del alta (2026-09-18): el carnet va ANTES que los datos personales, los permisos
    * del teléfono se cierran con una decisión —también «no»— y la encuesta de hábitos es la última.
    */
-  it('el orden de las secciones es el de las cuatro fases: el carnet antes que los datos personales', () => {
+  it('el orden de las secciones es el de las fases: el carnet antes que los datos personales; sin referencias ni encuesta', () => {
     const codes = buildSections(eligibleFacts(), NOW).map((section) => section.code);
     expect(codes).toEqual([
       'contact_verification',
@@ -245,9 +240,7 @@ describe('buildSections y assess', () => {
       'personal_data',
       'address',
       'financial_profile',
-      'reference_contacts',
       'device_permissions',
-      'consumer_survey',
     ]);
     // Sin carnet ni perfil, lo primero que se pide es el carnet: el OCR prellena lo demás.
     expect(assess(eligibleFacts({ identityDocument: null, profile: null }), 'onboarding_in_progress', NOW).nextStep).toBe(
@@ -270,20 +263,29 @@ describe('buildSections y assess', () => {
     expect(sinDecidir.canSubmit).toBe(false);
   });
 
-  it('la encuesta de hábitos exige las seis preguntas; con cinco sigue en curso y es el siguiente paso', () => {
-    const cinco = assess(
-      eligibleFacts({ answeredSurveyQuestionCodes: ['gasto_fijo', 'dependientes', 'ahorro', 'imprevisto', 'cuota_maxima'] }),
-      'onboarding_in_progress',
-      NOW,
-    );
-    expect(cinco.nextStep).toBe('consumer_survey');
-    expect(cinco.sections.find((s) => s.code === 'consumer_survey')).toMatchObject({
-      status: 'in_progress',
-      missingFields: ['frecuencia'],
+  it('eligibility-v2: sin encuesta ni referencias el alta se puede enviar y no hay bloqueador por ellas', () => {
+    const sinNada = assess(eligibleFacts({ answeredSurveyQuestionCodes: [], referenceContactCount: 0 }), 'onboarding_in_progress', NOW);
+    expect(sinNada.canSubmit).toBe(true);
+    expect(sinNada.completionPercentage).toBe(100);
+    expect(sinNada.sections.map((s) => s.code)).not.toEqual(expect.arrayContaining(['consumer_survey']));
+    expect(sinNada.sections.map((s) => s.code)).not.toEqual(expect.arrayContaining(['reference_contacts']));
+    expect(sinNada.blockers.map((b) => b.code)).not.toContain('REFERENCES_INSUFFICIENT');
+    expect(sinNada.blockers.map((b) => b.code)).not.toContain('CONSUMER_SURVEY_INCOMPLETE');
+    expect(sinNada.ruleVersion).toBe('eligibility-v2');
+  });
+
+  it('eligibility-v2: el perfil económico se completa sin gastos ni origen de fondos; la antigüedad sólo si trabaja', () => {
+    const economia = (codes: string[], employment: string) =>
+      buildSections(
+        eligibleFacts({ presentFinancialAttributeCodes: codes, financialAttributeTexts: { employment_status: employment } }),
+        NOW,
+      ).find((s) => s.code === 'financial_profile');
+    expect(economia(['employment_status', 'monthly_income_declared', 'economic_activity_code'], 'student')).toMatchObject({
+      status: 'completed',
     });
-    expect(cinco.canSubmit).toBe(false);
-    // Los hechos nuevos no añaden BLOQUEADORES: la encuesta y los permisos cierran secciones, no
-    // habilitaciones. Un cliente ya activo no se degrada por una versión nueva de la app.
-    expect(cinco.blockers.map((b) => b.code)).not.toContain('CONSUMER_SURVEY_INCOMPLETE');
+    expect(economia(['employment_status', 'monthly_income_declared', 'economic_activity_code'], 'employee')).toMatchObject({
+      status: 'in_progress',
+      missingFields: ['employment_seniority_months'],
+    });
   });
 });

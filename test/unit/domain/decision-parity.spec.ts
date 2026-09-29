@@ -2,7 +2,8 @@
  * @file AT-016 — paridad de decisiones: mismos hechos y mismo reloj, misma salida.
  * @business Separar la política de elegibilidad de la persistencia no puede cambiar ni una decisión;
  *   una «mejora» de la regla colada en un refactor es una regresión de negocio.
- * @system Las fixtures (`fixtures/eligibility-parity.json`) se generaron con la regla vigente el
+ * @system Las fixtures (`fixtures/eligibility-parity.json`) se regeneraron el 2026-09-28 con eligibility-v2 (sin referencias,
+ *   encuesta, gastos ni origen de fondos; sólo cambian secciones, porcentaje y esos bloqueadores). Nacieron con la regla vigente el
  *   2026-09-11 en casos de frontera (documento que vence hoy, riesgo en el límite del TTL, 18 años
  *   cumplidos hoy…). La prueba compara la salida actual de `assess` con la registrada. Un cambio de
  *   regla intencional regenera las fixtures en su propia tarea, no aquí.
