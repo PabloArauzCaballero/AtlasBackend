@@ -32,7 +32,10 @@ describe('composición del portal (AT-031)', () => {
   });
 
   it('las lecturas del portal interno van por proyecciones read_api (ReadQueryService), no por repositorios de negocio', () => {
-    const source = readFileSync(resolve(rootDir, 'src/modules/internal-portal/application/admin-read.service.ts'), 'utf8');
+    // Las vistas se declaran en `admin-read.views.ts` y el servicio las consulta: se leen los dos.
+    const source = ['admin-read.service.ts', 'admin-read.views.ts']
+      .map((file) => readFileSync(resolve(rootDir, 'src/modules/internal-portal/application', file), 'utf8'))
+      .join('\n');
     expect(source).toMatch(/ReadQueryService/);
     expect(source).toMatch(/read_api\./);
     expect(source).not.toMatch(/Repository\b/);

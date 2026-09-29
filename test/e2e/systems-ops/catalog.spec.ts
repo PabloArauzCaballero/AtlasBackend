@@ -6,6 +6,7 @@ import { SystemsCatalogQueryService } from '../../../src/modules/systems-ops/sys
 import { SystemsToolInferenceService } from '../../../src/modules/systems-ops/systems-tool-inference.service.js';
 import { SystemsDataImpactInferenceService } from '../../../src/modules/systems-ops/systems-data-impact-inference.service.js';
 import { SystemsDomainOverviewService } from '../../../src/modules/systems-ops/systems-domain-overview.service.js';
+import { SystemsCatalogSummaryService } from '../../../src/modules/systems-ops/systems-catalog-summary.service.js';
 import { buildSystemsOpsTestApp, authHeader } from './support/systems-ops-test-app.js';
 
 describe('SystemsCatalogController (e2e/supertest)', () => {
@@ -39,6 +40,7 @@ describe('SystemsCatalogController (e2e/supertest)', () => {
         { provide: SystemsToolInferenceService, useValue: toolInferenceService },
         { provide: SystemsDataImpactInferenceService, useValue: dataImpactInferenceService },
         { provide: SystemsDomainOverviewService, useValue: domainOverviewService },
+        { provide: SystemsCatalogSummaryService, useValue: { summary: async () => ({}) } },
       ],
     );
   });
