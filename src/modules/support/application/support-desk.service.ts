@@ -7,7 +7,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { buildPaginationMeta, toOffset } from '../../../common/utils/pagination/pagination.util.js';
 import { SupportAgentRepository } from '../support-agent.repository.js';
 import { SupportCatalogRepository } from '../support-catalog.repository.js';
-import { SupportChannelRepository } from '../support-channel.repository.js';
+import { SupportDeskListRepository } from '../support-desk-list.repository.js';
 import {
   SUPPORT_CASE_TYPES,
   SUPPORT_IMPACTS,
@@ -37,7 +37,7 @@ const pageOf = (query: DeskPageQuery) => ({ limit: query.limit, offset: toOffset
 @Injectable()
 export class SupportDeskService {
   constructor(
-    private readonly channels: SupportChannelRepository,
+    private readonly channels: SupportDeskListRepository,
     private readonly agents: SupportAgentRepository,
     private readonly actors: SupportActorService,
     private readonly catalog: SupportCatalogRepository,

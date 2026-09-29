@@ -70,6 +70,7 @@ import { SupportCaseRepository } from './support-case.repository.js';
 import { SupportCaseTimelineRepository } from './support-case-timeline.repository.js';
 import { SupportCatalogRepository } from './support-catalog.repository.js';
 import { SupportChannelRepository } from './support-channel.repository.js';
+import { SupportDeskListRepository } from './support-desk-list.repository.js';
 import { SupportAttachmentsController } from './support-attachments.controller.js';
 import { SupportChatController } from './support-chat.controller.js';
 import { SupportKnowledgeAdminController } from './support-knowledge-admin.controller.js';
@@ -134,6 +135,7 @@ import { SupportMessageRepository } from './support-message.repository.js';
     SupportCaseRepository,
     SupportCaseTimelineRepository,
     SupportChannelRepository,
+    SupportDeskListRepository,
     SupportMessageRepository,
     SupportKnowledgeRepository,
     SupportActorService,

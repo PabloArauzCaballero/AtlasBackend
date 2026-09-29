@@ -51,10 +51,12 @@ function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr 
     createQrCode: jest.fn(async (values: Record<string, unknown>) => ({ ...values, id: '99', status: 'pending_review' })),
     markQrReplaced: jest.fn(async (viejo: Qr, nuevoId: string) => ({ ...viejo, status: 'replaced', replacedById: nuevoId })),
     markQrReviewed: jest.fn(async (target: Qr, review: Record<string, unknown>) => ({ ...target, ...review, verifiedAt: new Date() })),
-    listQrCodesPendingReview: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], count: 0 })),
     findBranchById: jest.fn(async () => null),
     listQrCodes: jest.fn(async () => []),
     findPosById: jest.fn(async () => ({ id: '9', status: 'active', partnerProfileId: '7', branchId: '3' })),
+  };
+  const cola = {
+    listQrCodesPendingReview: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], count: 0 })),
     summarizeQrPendingReview: jest.fn(async () => ({ total: 23, business: 20, bank: 3, oldestCreatedAt: null })),
     findBranchIdsMatching: jest.fn(async (..._args: unknown[]) => [] as string[]),
     findBranchesByIds: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
@@ -74,14 +76,14 @@ function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr 
   const metrics = { recordPartnerOnboardingStep: jest.fn() };
   const hooks = { alRegistrarArchivoDelComercio: jest.fn(async (..._args: unknown[]) => undefined) };
   const service = new PartnerQrService(network as never, profiles as never, storage as never, metrics as never, hooks as never);
-  const revision = new PartnerQrReviewService(network as never, profiles as never, metrics as never);
-  return { service, revision, network, profiles, storage, metrics, hooks };
+  const revision = new PartnerQrReviewService(network as never, cola as never, profiles as never, metrics as never);
+  return { service, revision, network, cola, profiles, storage, metrics, hooks };
 }
 
 describe('PartnerQrReviewService · cola de QR pendientes', () => {
   it('pagina en el servidor y resuelve los comercios en UNA consulta, no uno a uno en serie', async () => {
-    const { revision, network, profiles } = construir();
-    network.listQrCodesPendingReview.mockResolvedValueOnce({
+    const { revision, cola, profiles } = construir();
+    cola.listQrCodesPendingReview.mockResolvedValueOnce({
       rows: [
         qr({ id: '5', partnerProfileId: '7', createdAtValue: new Date() } as unknown as Partial<Qr>),
         qr({ id: '6', partnerProfileId: '7', createdAtValue: new Date() } as unknown as Partial<Qr>),
@@ -92,7 +94,7 @@ describe('PartnerQrReviewService · cola de QR pendientes', () => {
 
     const pagina = await revision.listPendingReview('t1', { page: 3, limit: 10 });
 
-    expect(network.listQrCodesPendingReview).toHaveBeenCalledWith('t1', { limit: 10, offset: 20, qrKind: undefined, search: undefined });
+    expect(cola.listQrCodesPendingReview).toHaveBeenCalledWith('t1', { limit: 10, offset: 20, qrKind: undefined, search: undefined });
     expect(profiles.findManyByIds).toHaveBeenCalledTimes(1);
     expect(profiles.requireProfile).not.toHaveBeenCalled();
     expect(pagina.meta).toEqual({ page: 3, limit: 10, total: 23, totalPages: 3 });
@@ -110,15 +112,15 @@ describe('PartnerQrReviewService · cola de QR pendientes', () => {
 
 describe('PartnerQrReviewService · buscador y filtro de la cola', () => {
   it('q resuelve los comercios y las sucursales que casan y los pasa junto al texto; qrKind viaja tal cual', async () => {
-    const { revision, network, profiles } = construir();
+    const { revision, cola, profiles } = construir();
     profiles.findIdsMatching.mockResolvedValueOnce(['7']);
-    network.findBranchIdsMatching.mockResolvedValueOnce(['3', '4']);
+    cola.findBranchIdsMatching.mockResolvedValueOnce(['3', '4']);
 
     await revision.listPendingReview('t1', { page: 1, limit: 10, q: '  sur ', qrKind: 'bank' });
 
     expect(profiles.findIdsMatching).toHaveBeenCalledWith('t1', 'sur');
-    expect(network.findBranchIdsMatching).toHaveBeenCalledWith('t1', 'sur');
-    expect(network.listQrCodesPendingReview).toHaveBeenCalledWith('t1', {
+    expect(cola.findBranchIdsMatching).toHaveBeenCalledWith('t1', 'sur');
+    expect(cola.listQrCodesPendingReview).toHaveBeenCalledWith('t1', {
       limit: 10,
       offset: 0,
       qrKind: 'bank',
@@ -127,22 +129,22 @@ describe('PartnerQrReviewService · buscador y filtro de la cola', () => {
   });
 
   it('sin q no se consultan comercios ni sucursales para buscar', async () => {
-    const { revision, profiles, network } = construir();
+    const { revision, profiles, cola } = construir();
     await revision.listPendingReview('t1', { page: 1, limit: 10 });
     expect(profiles.findIdsMatching).not.toHaveBeenCalled();
-    expect(network.findBranchIdsMatching).not.toHaveBeenCalled();
+    expect(cola.findBranchIdsMatching).not.toHaveBeenCalled();
   });
 
   it('cada QR trae su sucursal, o null si es del comercio entero', async () => {
-    const { revision, network } = construir();
-    network.listQrCodesPendingReview.mockResolvedValueOnce({
+    const { revision, cola } = construir();
+    cola.listQrCodesPendingReview.mockResolvedValueOnce({
       rows: [
         qr({ id: '5', partnerProfileId: '7', branchId: '3', createdAtValue: new Date() } as unknown as Partial<Qr>),
         qr({ id: '6', partnerProfileId: '7', branchId: null, createdAtValue: new Date() } as unknown as Partial<Qr>),
       ],
       count: 2,
     } as never);
-    network.findBranchesByIds.mockResolvedValueOnce([{ id: '3', branchCode: 'SUC-01', name: 'Sucursal Centro', city: null }] as never);
+    cola.findBranchesByIds.mockResolvedValueOnce([{ id: '3', branchCode: 'SUC-01', name: 'Sucursal Centro', city: null }] as never);
 
     const pagina = await revision.listPendingReview('t1', { page: 1, limit: 10 });
 

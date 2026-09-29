@@ -15,24 +15,13 @@ import type { SupportChannelModel, SupportChannelParticipantModel } from '../../
  * doble tic que no se excluye a sí mismo enseña al remitente su propio puntero como si fuera el del
  * otro.
  */
-type Doble = {
-  create: jest.Mock;
-  findOne: jest.Mock;
-  findAll: jest.Mock;
-  findAndCountAll: jest.Mock;
-  count: jest.Mock;
-  min: jest.Mock;
-  update: jest.Mock;
-};
+type Doble = { create: jest.Mock; findOne: jest.Mock; findAll: jest.Mock; update: jest.Mock };
 
 function doble(): Doble {
   return {
     create: jest.fn(async () => ({ id: 'x' })),
     findOne: jest.fn(async () => null),
     findAll: jest.fn(async () => []),
-    findAndCountAll: jest.fn(async () => ({ rows: [], count: 0 })),
-    count: jest.fn(async () => 0),
-    min: jest.fn(async () => null),
     update: jest.fn(async () => [0]),
   };
 }
@@ -121,29 +110,6 @@ describe('SupportChannelRepository', () => {
   });
 
   describe('cola y listados', () => {
-    it('la cola atiende por orden de llegada y sólo lo que aún no tiene agente', async () => {
-      channels.findAndCountAll.mockResolvedValueOnce({ rows: [], count: 0 } as never);
-      await repo.listQueuedChannels('t1', null, { limit: 50, offset: 0 });
-
-      const condicion = ultima(channels.findAndCountAll).where;
-      expect((condicion.status as Record<symbol, string[]>)[Op.in]).toEqual(['REQUESTED', 'QUEUED']);
-      expect(condicion).not.toHaveProperty('queueId');
-      expect(ultima(channels.findAndCountAll).order).toEqual([
-        ['requested_at', 'ASC'],
-        ['_id', 'ASC'],
-      ]);
-      expect(ultima(channels.findAndCountAll).limit).toBe(50);
-    });
-
-    it('con cola indicada se acota a esa cola', async () => {
-      await repo.listQueuedChannels('t1', 'q-vip', { limit: 10, offset: 20, channelType: 'CHAT' });
-
-      expect(ultima(channels.findAndCountAll).where.queueId).toBe('q-vip');
-      expect(ultima(channels.findAndCountAll).where.channelType).toBe('CHAT');
-      expect(ultima(channels.findAndCountAll).limit).toBe(10);
-      expect((ultima(channels.findAndCountAll) as { offset?: number }).offset).toBe(20);
-    });
-
     it('los canales de un caso salen del más reciente al más viejo y sin los borrados', async () => {
       await repo.listChannelsForCase('caso-1');
 

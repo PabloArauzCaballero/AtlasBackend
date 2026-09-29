@@ -20,10 +20,10 @@ import {
   SupportChannelModel,
 } from '../../../src/database/models/index.js';
 import { CatalogStagingReadService } from '../../../src/modules/catalog-management/application/catalog-staging-read.service.js';
-import { PartnerCommercialNetworkRepository } from '../../../src/modules/partner-onboarding/partner-commercial-network.repository.js';
+import { PartnerQrReviewRepository } from '../../../src/modules/partner-onboarding/partner-qr-review.repository.js';
 import { PartnerQrReviewService } from '../../../src/modules/partner-onboarding/application/partner-qr-review.service.js';
 import { PartnerOnboardingRepository } from '../../../src/modules/partner-onboarding/partner-onboarding.repository.js';
-import { SupportChannelRepository } from '../../../src/modules/support/support-channel.repository.js';
+import { SupportDeskListRepository } from '../../../src/modules/support/support-desk-list.repository.js';
 import { buildLoanBookHarness, type LoanBookHarness } from '../credit/support/loan-book-harness.js';
 import { openIntegrationDatabase, runToken, type IntegrationDatabase } from '../support/database.js';
 
@@ -87,7 +87,7 @@ describe('Tabla homogénea (E) · soporte: cola y «mis conversaciones» (Postgr
     await canal(`CH_user-${token}`, { orden: 3 });
     await canal(`CHXuser-${token}`, { orden: 4, channelType: 'ASYNC_MESSAGING' });
     await canal(`CH-ocupado-${token}`, { orden: 5, status: 'OPEN' });
-    const repo = new SupportChannelRepository(database.sequelize, SupportChannelModel, {} as never);
+    const repo = new SupportDeskListRepository(SupportChannelModel);
     const cola = (q?: string, extra: Record<string, unknown> = {}) =>
       repo.listQueuedChannels(tenantId, null, { limit: 10, offset: 0, ...(q ? { q } : {}), ...extra });
 
@@ -168,7 +168,7 @@ describe('Tabla homogénea (E) · soporte: cola y «mis conversaciones» (Postgr
     await mio(`MI-3-${token}`, 'WAITING_AGENT', 3);
     await mio(`MI-cerrada-${token}`, 'CLOSED', 4);
     await mio(`AJENA-${token}`, 'OPEN', 5, otro.id);
-    const repo = new SupportChannelRepository(database.sequelize, SupportChannelModel, {} as never);
+    const repo = new SupportDeskListRepository(SupportChannelModel);
 
     const todas = await repo.listAssignedChannels(tenantId, yo.id, { limit: 10, offset: 0 });
     expect(todas.rows.map((row) => row.channelCode)).toEqual([`MI-3-${token}`, `MI-2-${token}`, `MI-1-${token}`]);
@@ -237,38 +237,39 @@ describe('Tabla homogénea (E) · cola de QR de cobro (PostgreSQL real)', () => 
     await qr(sur.id, 'bank', { bankInstitutionCode: 'BCP', accountNumberMasked: '****50X9' });
     await qr(sur.id, 'bank', { status: 'active', bankInstitutionCode: 'BCP2', branchId: sucursal.id });
 
-    const network = new PartnerCommercialNetworkRepository({} as never, PartnerBranchModel, PartnerQrCodeModel, {} as never);
+    const cola = new PartnerQrReviewRepository(PartnerBranchModel, PartnerQrCodeModel);
     const perfiles = new PartnerOnboardingRepository(PartnerProfileModel, {} as never, PartnerBranchModel, PartnerQrCodeModel, {} as never);
     const servicio = new PartnerQrReviewService(
-      network,
+      {} as never,
+      cola,
       {
         findManyByIds: (t: string, ids: readonly string[]) => perfiles.findProfilesByIds(t, ids),
         findIdsMatching: (t: string, q: string) => perfiles.findProfileIdsMatching(t, q),
       } as never,
       {} as never,
     );
-    const cola = (query: Record<string, unknown>) => servicio.listPendingReview(tenantId, { page: 1, limit: 10, ...query } as never);
+    const pedir = (query: Record<string, unknown>) => servicio.listPendingReview(tenantId, { page: 1, limit: 10, ...query } as never);
 
-    const porComercio = await cola({ q: `ferretería sur ${token}` });
+    const porComercio = await pedir({ q: `ferretería sur ${token}` });
     expect(porComercio.items.map((item) => item.qrKind).sort()).toEqual(['bank', 'business']);
     expect(porComercio.items.every((item) => item.partnerId === String(sur.id))).toBe(true);
     // El NIT es del comercio (otra tabla), no del QR.
-    expect((await cola({ q: `nit-n-${token}` })).meta.total).toBe(2);
+    expect((await pedir({ q: `nit-n-${token}` })).meta.total).toBe(2);
     // La sucursal también vive en otra tabla: sólo cuenta el QR pendiente de esa sucursal (el activo no está en la cola).
-    const porSucursal = await cola({ q: `miraflores ${token}` });
+    const porSucursal = await pedir({ q: `miraflores ${token}` });
     expect(porSucursal.items).toHaveLength(1);
     expect(porSucursal.items[0]?.branch).toMatchObject({ name: `Sucursal Miraflores ${token}`, city: 'La Paz' });
     // Columnas del propio QR.
-    expect((await cola({ q: `bnb${corto}` })).meta.total).toBe(1);
-    expect((await cola({ q: String(qrSur.id) })).items.map((item) => item.qrId)).toContain(String(qrSur.id));
+    expect((await pedir({ q: `bnb${corto}` })).meta.total).toBe(1);
+    expect((await pedir({ q: String(qrSur.id) })).items.map((item) => item.qrId)).toContain(String(qrSur.id));
     // «%» y «_» son literales.
-    expect((await cola({ q: '50%' })).meta.total).toBe(1);
-    expect((await cola({ q: '****50_9' })).meta.total).toBe(0);
+    expect((await pedir({ q: '50%' })).meta.total).toBe(1);
+    expect((await pedir({ q: '****50_9' })).meta.total).toBe(0);
 
-    const soloBanco = await cola({ qrKind: 'bank' });
+    const soloBanco = await pedir({ qrKind: 'bank' });
     expect(soloBanco.items.every((item) => item.qrKind === 'bank')).toBe(true);
     expect(soloBanco.meta.total).toBe(2);
-    const combinado = await cola({ qrKind: 'bank', q: `norte ${token}` });
+    const combinado = await pedir({ qrKind: 'bank', q: `norte ${token}` });
     expect(combinado.meta.total).toBe(1);
 
     const pagina = await servicio.listPendingReview(tenantId, { page: 2, limit: 3 });

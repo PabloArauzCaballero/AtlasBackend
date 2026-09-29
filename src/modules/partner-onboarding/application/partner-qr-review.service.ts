@@ -9,6 +9,7 @@ import { buildPaginationMeta } from '../../../common/utils/pagination/pagination
 import { PartnerQrCodeModel } from '../../../database/models/index.js';
 import { toPartnerQrDto } from '../partner-onboarding.mapper.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
+import { PartnerQrReviewRepository } from '../partner-qr-review.repository.js';
 import { ReviewQrDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
 
@@ -26,6 +27,7 @@ export class PartnerQrReviewService {
 
   constructor(
     private readonly network: PartnerCommercialNetworkRepository,
+    private readonly queue: PartnerQrReviewRepository,
     private readonly profiles: PartnerProfileService,
     private readonly metrics: MetricsService,
   ) {}
@@ -86,24 +88,24 @@ export class PartnerQrReviewService {
       ? {
           q: text,
           partnerIds: await this.profiles.findIdsMatching(tenantId, text),
-          branchIds: await this.network.findBranchIdsMatching(tenantId, text),
+          branchIds: await this.queue.findBranchIdsMatching(tenantId, text),
         }
       : undefined;
     const [{ rows, count }, summary] = await Promise.all([
-      this.network.listQrCodesPendingReview(tenantId, {
+      this.queue.listQrCodesPendingReview(tenantId, {
         limit: query.limit,
         offset: (query.page - 1) * query.limit,
         qrKind: query.qrKind,
         search,
       }),
-      this.network.summarizeQrPendingReview(tenantId),
+      this.queue.summarizeQrPendingReview(tenantId),
     ]);
     const [perfiles, sucursales] = await Promise.all([
       this.profiles.findManyByIds(
         tenantId,
         rows.map((qr) => String(qr.partnerProfileId)),
       ),
-      this.network.findBranchesByIds(
+      this.queue.findBranchesByIds(
         tenantId,
         rows.flatMap((qr) => (qr.branchId ? [String(qr.branchId)] : [])),
       ),

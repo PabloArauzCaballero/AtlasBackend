@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { SupportDeskService } from '../../../src/modules/support/application/support-desk.service.js';
-import type { SupportChannelRepository } from '../../../src/modules/support/support-channel.repository.js';
+import type { SupportDeskListRepository } from '../../../src/modules/support/support-desk-list.repository.js';
 import type { SupportAgentRepository } from '../../../src/modules/support/support-agent.repository.js';
 import type { SupportActorService, SupportActor } from '../../../src/modules/support/application/support-actor.service.js';
 import type { SupportCatalogRepository } from '../../../src/modules/support/support-catalog.repository.js';
@@ -76,7 +76,7 @@ describe('SupportDeskService', () => {
       requireQueueByCode: jest.fn(async () => ({ id: 11 })),
     };
     service = new SupportDeskService(
-      channels as unknown as SupportChannelRepository,
+      channels as unknown as SupportDeskListRepository,
       agents as unknown as SupportAgentRepository,
       actors as unknown as SupportActorService,
       catalog as unknown as SupportCatalogRepository,
