@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import type { CreateChangeLogEntryInput, ResolveChangeLogEntryInput, SchemaChangeLogRow } from './schema-management.repository.js';
 
 /** Columnas que se devuelven de cada fila: una sola lista para las cinco consultas. */
@@ -14,6 +15,9 @@ const CHANGE_LOG_COLUMNS = `_id, schema_version_id, change_type, affected_entity
   change_payload, requester_platform_user_id, requester_internal_user_id, approval_status,
   approved_by_platform_user_id, approved_by_internal_user_id, approved_at, approval_notes,
   rolled_back, change_result, error_message, applied_by_migration, applied_at, created_at`;
+
+/** Filtros del change log; `q` busca en tipo de cambio, objeto afectado, tabla propuesta y notas. */
+export type SchemaChangeLogFilters = { approvalStatus?: string; changeType?: string; requesterUserId?: string; q?: string };
 
 interface CountRow {
   count: string;
@@ -88,20 +92,24 @@ export class SchemaChangeLogRepository {
   }
 
   async listChangeLog(
-    approvalStatus: string | undefined,
-    changeType: string | undefined,
-    requesterUserId: string | undefined,
+    { approvalStatus, changeType, requesterUserId, q }: SchemaChangeLogFilters,
     limit: number,
     offset: number,
   ): Promise<{ rows: SchemaChangeLogRow[]; total: number }> {
     const filters: string[] = [];
+    // El buscador era el ID numérico del solicitante (una letra daba 400). Ahora busca por lo que se
+    // lee en la tabla: el tipo de cambio, sobre qué clase de objeto, la tabla propuesta y las notas.
+    if (q)
+      filters.push(
+        "(change_type ILIKE :q OR affected_entity_type ILIKE :q OR change_payload->>'tableName' ILIKE :q OR approval_notes ILIKE :q)",
+      );
     if (approvalStatus) filters.push('approval_status = :approvalStatus');
     if (changeType) filters.push('change_type = :changeType');
     // El filtro no sabe de qué población es el id: casa con el proponente interno o con el de plataforma.
     if (requesterUserId) filters.push('(requester_platform_user_id = :requesterUserId OR requester_internal_user_id = :requesterUserId)');
     const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
 
-    const replacements = { approvalStatus, changeType, requesterUserId, limit, offset };
+    const replacements = { approvalStatus, changeType, requesterUserId, limit, offset, q: q ? containsLikePattern(q) : undefined };
 
     const rows = await this.sequelize.query<SchemaChangeLogRow>(
       `SELECT ${CHANGE_LOG_COLUMNS}

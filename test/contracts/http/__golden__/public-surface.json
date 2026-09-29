@@ -8627,6 +8627,7 @@
       "changeType",
       "limit",
       "offset",
+      "q",
       "requesterUserId"
     ],
     "path": [],
@@ -8671,6 +8672,7 @@
     "query": [
       "limit",
       "offset",
+      "q",
       "schemaName",
       "tableType",
       "versionId"
@@ -8735,7 +8737,8 @@
     "query": [
       "includeInactive",
       "limit",
-      "offset"
+      "offset",
+      "q"
     ],
     "path": [],
     "security": [
@@ -9752,6 +9755,7 @@
       "method",
       "module",
       "page",
+      "q",
       "requestId",
       "riskLevel",
       "statusCode",
@@ -10468,7 +10472,13 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "limit",
+      "page",
+      "q",
+      "reviewStatus",
+      "systemCode"
+    ],
     "path": [],
     "security": [
       "access-token"
@@ -11126,6 +11136,7 @@
       "limit",
       "module",
       "page",
+      "q",
       "reviewStatus",
       "type"
     ],

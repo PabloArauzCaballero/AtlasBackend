@@ -102,6 +102,38 @@ describe('ProcessCatalogService: cableado', () => {
     expect(detail.databaseHash).toBe(definitionHash(SIGNUP));
   });
 
+  it('la ficha trae el estado de prueba del flujo de cada paso, y la lista cuenta críticos y verificados', async () => {
+    // Lo único que aportaba «Procesos de negocio» (que leía el volcado y no el código) era esto:
+    // si el flujo tiene test y cuántos pasos son críticos o están verificados.
+    const { f, p } = internalAdminStep();
+    const path = p.path!.replace(/^\//, '').replace(/:[A-Za-z0-9_]+/g, ':p');
+    const flowRow = {
+      systemCode: p.system ?? 'ATLAS_BACKEND',
+      method: p.method!,
+      path,
+      flowId: 'F-9',
+      callers: ['ADMIN_PORTAL'],
+      verification: 'VERIFIED',
+      risk: 'CRITICAL',
+      testStatus: 'UNTESTED',
+    };
+    const { service } = build({ flowsFor: jest.fn(async () => [flowRow]) });
+    const detail = await service.detail(f.code);
+    const step = detail.stages.flatMap((s) => s.steps).find((s) => s.code === p.code)!;
+    expect(step).toMatchObject({ flowId: 'F-9', testStatus: 'UNTESTED', risk: 'CRITICAL', verification: 'VERIFIED' });
+    expect(detail.flowStats.critical).toBeGreaterThanOrEqual(1);
+    expect(detail.flowStats.verified).toBeGreaterThanOrEqual(1);
+    const item = (await service.list()).items.find((i) => i.code === f.code)!;
+    expect(item.flowStats).toEqual(detail.flowStats);
+  });
+
+  it('sin fila de Flujos el paso no inventa estado de prueba y los contadores quedan en cero', async () => {
+    const { service } = build();
+    const detail = await service.detail(SIGNUP.code);
+    expect(detail.stages[0]!.steps[0]!.testStatus).toBeNull();
+    expect(detail.flowStats).toEqual({ linked: 0, critical: 0, verified: 0 });
+  });
+
   it('un código que no existe es 404 PROCESS_NOT_FOUND', async () => {
     const { service } = build();
     await expect(service.detail('no_existe')).rejects.toBeInstanceOf(NotFoundException);

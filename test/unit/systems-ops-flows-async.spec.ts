@@ -4,6 +4,7 @@ import {
   DOMAIN_EVENT_CONSUMERS_SQL,
   DOMAIN_EVENTS_LIMIT,
   OUTBOX_HEALTH_SQL,
+  PENDING_WORK_LIMIT,
   PENDING_WORK_SQL,
 } from '../../src/modules/systems-ops/system-flows.sql.constants.js';
 
@@ -221,5 +222,24 @@ describe('SystemFlowsAsyncService.pendingWork · quién consume cada evento de d
     expect(DOMAIN_EVENT_CONSUMERS_SQL).not.toMatch(/COUNT\(m\._id\)/);
     expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(/FILTER \(WHERE o\.status = 'processed'\)/);
     expect(DOMAIN_EVENT_CONSUMERS_SQL).toMatch(new RegExp(`LIMIT ${DOMAIN_EVENTS_LIMIT + 1}$`));
+  });
+});
+
+describe('SystemFlowsAsyncService.pendingWork · corte del informe', () => {
+  it('pide una fila de más y, si llega, lo dice en `truncated` y no la enseña', async () => {
+    expect(PENDING_WORK_SQL).toContain(`LIMIT ${PENDING_WORK_LIMIT + 1}`);
+    const filas = Array.from({ length: PENDING_WORK_LIMIT + 1 }, (_, i) =>
+      fila({ path: `r/${i}`, pending: '0', events: '1', processed: '1' }),
+    );
+    const r = await servicio(filas).pendingWork();
+    expect(r.truncated).toBe(true);
+    expect(r.limit).toBe(PENDING_WORK_LIMIT);
+    expect(r.flows).toHaveLength(PENDING_WORK_LIMIT);
+    expect(r.flowsThatEnqueue).toBe(PENDING_WORK_LIMIT);
+  });
+
+  it('sin la fila de más, el informe está completo', async () => {
+    const r = await servicio([fila()]).pendingWork();
+    expect(r.truncated).toBe(false);
   });
 });

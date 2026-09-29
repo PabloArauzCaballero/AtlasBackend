@@ -260,9 +260,9 @@ describe('SchemaManagementService', () => {
       repo.getSchemaVersion.mockResolvedValue({ _id: '1', version_code: 'v1.0' });
       repo.listSchemaTables.mockResolvedValue({ rows: [], total: 0 });
 
-      const result = await service.listSchemaTables('1', undefined, 50, 0, 'iam');
+      const result = await service.listSchemaTables('1', undefined, 50, 0, { schemaName: 'iam' });
 
-      expect(repo.listSchemaTables).toHaveBeenCalledWith('1', undefined, 50, 0, 'iam');
+      expect(repo.listSchemaTables).toHaveBeenCalledWith('1', undefined, 50, 0, { schemaName: 'iam' });
       expect(result.schemaName).toBe('iam');
     });
 
@@ -550,9 +550,17 @@ describe('SchemaManagementService', () => {
     it('pasa filtros al repositorio y mapea filas a DTOs', async () => {
       repo.listChangeLog.mockResolvedValue({ rows: [makePendingChange()], total: 1 });
 
-      const result = await service.listSchemaChangeLog('pending', 'CREATE_TABLE', '10', 50, 0);
+      const result = await service.listSchemaChangeLog(
+        { approvalStatus: 'pending', changeType: 'CREATE_TABLE', requesterUserId: '10' },
+        50,
+        0,
+      );
 
-      expect(repo.listChangeLog).toHaveBeenCalledWith('pending', 'CREATE_TABLE', '10', 50, 0);
+      expect(repo.listChangeLog).toHaveBeenCalledWith(
+        { approvalStatus: 'pending', changeType: 'CREATE_TABLE', requesterUserId: '10' },
+        50,
+        0,
+      );
       expect(result.changes).toHaveLength(1);
       expect(result.changes[0]?.approvalStatus).toBe('pending');
       expect(result.changes[0]?.requesterPlatformUserId).toBe('10');

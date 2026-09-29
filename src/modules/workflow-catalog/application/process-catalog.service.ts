@@ -80,6 +80,25 @@ export class ProcessCatalogService {
     return { ...counts, personSteps: counts.wired + counts.unwired + counts.unknown };
   }
 
+  /**
+   * Cuántos pasos HTTP del proceso tienen flujo en el catálogo, cuántos de ellos son de riesgo
+   * CRITICAL y cuántos están verificados con corridas reales. Son los contadores que sólo enseñaba
+   * «Procesos de negocio», que leía el volcado en base y no el código desplegado.
+   */
+  private flowStats(f: WorkflowDefinitionFixture, flows: Map<string, FlowRow>) {
+    const found = f.stages.flatMap((s) =>
+      s.steps
+        .filter((p) => (p.kind ?? 'http') === 'http')
+        .map((p) => flows.get(flowKey(p.system ?? 'ATLAS_BACKEND', p.method ?? 'GET', p.path ?? '/')))
+        .filter((flow): flow is FlowRow => Boolean(flow)),
+    );
+    return {
+      linked: found.length,
+      critical: found.filter((flow) => flow.risk === 'CRITICAL').length,
+      verified: found.filter((flow) => flow.verification === 'VERIFIED').length,
+    };
+  }
+
   async list() {
     const [syncRows, flows] = await Promise.all([this.repository.syncRows(), this.flowsOf(WORKFLOW_DEFINITIONS)]);
     const sync = new Map(syncRows.map((r) => [r.workflowCode, r]));
@@ -100,6 +119,7 @@ export class ProcessCatalogService {
         stepCount: f.stages.reduce((n, s) => n + s.steps.length, 0),
         documentation: docStatus(f, sync.get(f.code)),
         wiring: this.wiringSummary(f, flows),
+        flowStats: this.flowStats(f, flows),
         hasInstances: f.instanceEntity?.system === 'ATLAS_BACKEND',
       }));
     const totals = {
@@ -119,6 +139,7 @@ export class ProcessCatalogService {
       ...f,
       documentation: docStatus(f, sync),
       wiring: this.wiringSummary(f, flows),
+      flowStats: this.flowStats(f, flows),
       codeHash: definitionHash(f),
       databaseHash: sync?.contentHash ?? null,
       stages: f.stages.map((s) => ({
@@ -133,6 +154,7 @@ export class ProcessCatalogService {
             flowId: flow?.flowId ?? null,
             verification: flow?.verification ?? null,
             risk: flow?.risk ?? null,
+            testStatus: flow?.testStatus ?? null,
             callers: flow?.callers ?? [],
           };
         }),

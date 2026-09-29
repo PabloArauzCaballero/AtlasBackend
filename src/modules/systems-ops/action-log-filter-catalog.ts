@@ -68,6 +68,14 @@ export interface ActionLogFilterCatalogInput {
  */
 /** Los que no dependen de los datos: se construyen una sola vez. */
 const CAMPOS_FIJOS: ActionLogFilterField[] = [
+  {
+    name: 'q',
+    label: 'Buscar',
+    source: 'SCHEMA',
+    control: 'text',
+    options: [],
+    help: 'Busca en la ruta (plantilla y URL saneada) y en el rol de quien hizo la petición.',
+  },
   { name: 'method', label: 'Método HTTP', source: 'SCHEMA', control: 'select', options: opcionesDeEnum('method') },
   {
     name: 'riskLevel',
@@ -137,7 +145,7 @@ export function buildActionLogFilterCatalog(input: ActionLogFilterCatalogInput):
       help: 'Quién ejecutó la acción: persona, servicio, trabajo programado…',
     },
   ];
-  // El orden importa: método y riesgo primero porque son los que más se usan, y
-  // los de texto al final porque quien los teclea ya sabe lo que busca.
-  return { fields: [CAMPOS_FIJOS[0], CAMPOS_FIJOS[1], ...desdeLosDatos, ...CAMPOS_FIJOS.slice(2)] };
+  // El buscador libre va primero: es la entrada por la que se empieza. Luego método y riesgo, que
+  // son los más usados, y los identificadores exactos al final: quien los teclea ya sabe qué busca.
+  return { fields: [CAMPOS_FIJOS[0], CAMPOS_FIJOS[1], CAMPOS_FIJOS[2], ...desdeLosDatos, ...CAMPOS_FIJOS.slice(3)] };
 }

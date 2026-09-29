@@ -8,7 +8,7 @@ import { SystemsHealthService } from '../../../src/modules/systems-ops/systems-h
  */
 describe('SystemsHealthService', () => {
   function build(rows: unknown[], redis: unknown = { ping: jest.fn(async (..._args: unknown[]) => 'PONG') }) {
-    const repository = { listTools: jest.fn(async (..._args: unknown[]) => ({ rows })) };
+    const repository = { listTools: jest.fn(async (..._args: unknown[]) => ({ rows, meta: { totalPages: 1 } })) };
     const sequelize = {
       authenticate: jest.fn(async (..._args: unknown[]) => undefined),
       query: jest.fn(async (..._args: unknown[]) => []),
@@ -164,5 +164,21 @@ describe('SystemsHealthService', () => {
       const { service } = build([]);
       await expect(service.onModuleDestroy()).resolves.toBeUndefined();
     });
+  });
+  it('lee TODAS las páginas del catálogo: la herramienta 101 también sale en la salud', async () => {
+    // Antes se leía una sola página de 100 y el resto desaparecía de la salud sin aviso.
+    const primera = Array.from({ length: 100 }, (_, i) => tool({ code: `T${i}` }));
+    const segunda = [tool({ code: 'T100' })];
+    const repository = {
+      listTools: jest.fn(async (query: unknown) =>
+        (query as { page: number }).page === 1 ? { rows: primera, meta: { totalPages: 2 } } : { rows: segunda, meta: { totalPages: 2 } },
+      ),
+    };
+    const sequelize = { authenticate: jest.fn(async () => undefined), query: jest.fn(async () => []), models: {} };
+    const service = new SystemsHealthService(repository as never, sequelize as never, null);
+    const res = await service.getToolsHealth();
+    expect(res).toHaveLength(101);
+    expect(res.map((r) => r.code)).toContain('T100');
+    expect(repository.listTools).toHaveBeenCalledTimes(2);
   });
 });

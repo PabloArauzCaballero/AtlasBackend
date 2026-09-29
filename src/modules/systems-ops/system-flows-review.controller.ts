@@ -4,8 +4,8 @@
  * @system valida la entrada con Zod, aplica el permiso fino de cada ruta y delega en los servicios de revisión y compuerta.
  */
 import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
-import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
+import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { zodObjectPropertySchemas, zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
@@ -55,6 +55,36 @@ export class SystemFlowsReviewController {
     summary: 'Cola de revisión humana de flujos',
     description:
       'Flujos de riesgo alto cuyo análisis no se puede dar por bueno solo, y los ya revisados cuyo código cambió. Cada fila lleva la huella del código actual, que hay que devolver al decidir.',
+  })
+  @ApiQuery({
+    name: 'reviewStatus',
+    required: false,
+    description: 'Estado de revisión (NEEDS_REVIEW por defecto).',
+    schema: zodObjectPropertySchemas(flowReviewQueueSchema).reviewStatus,
+  })
+  @ApiQuery({
+    name: 'systemCode',
+    required: false,
+    description: 'Bloque exacto (ATLAS_BACKEND, DECISION_ENGINE, ERP_BACKEND).',
+    schema: zodObjectPropertySchemas(flowReviewQueueSchema).systemCode,
+  })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Texto libre sin distinguir mayúsculas: ruta, método del controlador, módulo o slug del flujo.',
+    schema: zodObjectPropertySchemas(flowReviewQueueSchema).q,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Página (desde 1).',
+    schema: zodObjectPropertySchemas(flowReviewQueueSchema).page,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Filas por página (máximo 100).',
+    schema: zodObjectPropertySchemas(flowReviewQueueSchema).limit,
   })
   @ApiResponse({ status: 200, description: 'Flujos a revisar, con el motivo y la huella de cada uno.' })
   @Roles(...SYSTEMS_OPS_FINE_PERMISSION_ROLES)

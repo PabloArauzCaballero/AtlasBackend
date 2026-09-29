@@ -39,6 +39,12 @@ export class SystemsActionLogController {
   @ApiQuery({ name: 'containsPii', required: false, schema: zodObjectPropertySchemas(systemsActionLogQuerySchema).containsPii })
   @ApiQuery({ name: 'from', required: false, schema: zodObjectPropertySchemas(systemsActionLogQuerySchema).from })
   @ApiQuery({ name: 'to', required: false, schema: zodObjectPropertySchemas(systemsActionLogQuerySchema).to })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Texto libre (sin distinguir mayúsculas): busca en la plantilla de la ruta, la URL saneada y el rol del actor.',
+    schema: zodObjectPropertySchemas(systemsActionLogQuerySchema).q,
+  })
   @ApiQuery({ name: 'page', required: false, schema: zodObjectPropertySchemas(systemsActionLogQuerySchema).page })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(systemsActionLogQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Lista paginada de action logs.' })

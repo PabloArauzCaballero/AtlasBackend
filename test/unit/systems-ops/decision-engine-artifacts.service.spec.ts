@@ -11,12 +11,14 @@ import { DecisionEngineArtifactsService } from '../../../src/modules/systems-ops
 const mutable = env as unknown as Record<string, unknown>;
 const original = { base: env.DECISION_ENGINE_BASE_URL };
 
-function conMotor(artifacts: unknown[], deployments: unknown[]) {
+function conMotor(artifacts: unknown[], deployments: unknown[], totals: { artifacts?: number; deployments?: number } = {}) {
   const urls: string[] = [];
   (globalThis as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
     urls.push(String(url));
-    const items = String(url).includes('/v1/deployments') ? deployments : artifacts;
-    return { ok: true, status: 200, json: async () => ({ items }) } as unknown as Response;
+    const esDespliegue = String(url).includes('/v1/deployments');
+    const items = esDespliegue ? deployments : artifacts;
+    const total = esDespliegue ? totals.deployments : totals.artifacts;
+    return { ok: true, status: 200, json: async () => ({ items, ...(total === undefined ? {} : { total }) }) } as unknown as Response;
   });
   return urls;
 }
@@ -77,5 +79,27 @@ describe('DecisionEngineArtifactsService', () => {
 
     expect(urls.find((u) => u.includes('/v1/artifacts'))).toContain('pageSize=100');
     expect(urls.find((u) => u.includes('/v1/deployments'))).toContain('status=ACTIVE&pageSize=100');
+  });
+  it('avisa cuando el motor tiene más despliegues activos que los 100 que se leen', async () => {
+    conMotor([], [DESPLIEGUE], { artifacts: 0, deployments: 140 });
+
+    const report = await new DecisionEngineArtifactsService().listActiveArtifacts('token');
+
+    expect(report.truncated).toBe(true);
+    expect(report.deploymentsTotal).toBe(140);
+    expect(report.message).toContain('140 despliegue(s)');
+    expect(report.message).toContain('incompleta');
+  });
+
+  it('no inventa un corte: con el total igual a lo leído, o sin total (motor anterior), no está cortada', async () => {
+    conMotor([], [DESPLIEGUE], { artifacts: 0, deployments: 1 });
+    const completo = await new DecisionEngineArtifactsService().listActiveArtifacts('token');
+    expect(completo.truncated).toBe(false);
+    expect(completo.message).not.toContain('incompleta');
+
+    conMotor([], [DESPLIEGUE]);
+    const sinTotal = await new DecisionEngineArtifactsService().listActiveArtifacts('token');
+    expect(sinTotal.truncated).toBe(false);
+    expect(sinTotal.deploymentsTotal).toBeNull();
   });
 });

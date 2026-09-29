@@ -57,7 +57,8 @@ describe('SystemsActionLogRepository', () => {
     const fromDate = new Date('2026-01-01');
     await repo.getTrafficLatencyByRoute(fromDate, null);
     const opts = (sequelize.query as jest.Mock).mock.calls[0][1] as { replacements: Record<string, unknown> };
-    expect(opts.replacements).toEqual({ fromDate, tenantId: null });
+    // El tope de rutas viaja como parámetro: el servicio lo contrasta con `routes_total` para avisar del corte.
+    expect(opts.replacements).toEqual({ fromDate, tenantId: null, routesLimit: 50 });
   });
 
   it('getTrafficLatencyTimeseries convierte bucketMinutes a segundos en el replacement', async () => {

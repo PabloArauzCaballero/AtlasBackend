@@ -9,20 +9,31 @@ import { mapDataEntity, mapDataField, mapDataImpact, mapEndpoint, mapFieldImpact
 import { ReviewDecisionDto, SystemsReviewQueueDto } from './systems-ops.schemas.js';
 import { SystemsReviewRepository } from './systems-review.repository.js';
 import { actorId } from '../../common/utils/auth/actor.util.js';
+import { buildPaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 
 @Injectable()
 export class SystemsReviewService {
   constructor(private readonly reviewRepository: SystemsReviewRepository) {}
 
+  /**
+   * Cada familia lleva su `meta` (página, tamaño, total y páginas). Antes sólo traía `total`, y la
+   * pantalla no podía pasar de la primera página: todo lo que excedía el tamaño de página era
+   * inalcanzable. `total` se conserva para los clientes que ya lo leían.
+   */
   async getReviewQueue(query: SystemsReviewQueueDto) {
     const result = await this.reviewRepository.listReviewQueue(query);
+    const bucket = <R, T>(found: { rows: R[]; count: number }, map: (row: R) => T) => ({
+      items: found.rows.map(map),
+      total: found.count,
+      meta: buildPaginationMeta(query, found.count),
+    });
     return {
-      endpoints: { items: result.endpoints.rows.map(mapEndpoint), total: result.endpoints.count },
-      dataEntities: { items: result.dataEntities.rows.map(mapDataEntity), total: result.dataEntities.count },
-      dataEntityImpacts: { items: result.dataImpacts.rows.map((row) => mapDataImpact(row)), total: result.dataImpacts.count },
-      fieldImpacts: { items: result.fieldImpacts.rows.map((row) => mapFieldImpact(row)), total: result.fieldImpacts.count },
-      dataColumnImpacts: { items: result.dataColumns.rows.map(mapDataField), total: result.dataColumns.count },
-      toolRequirements: { items: result.toolRequirements.rows.map((row) => mapToolRequirement(row)), total: result.toolRequirements.count },
+      endpoints: bucket(result.endpoints, mapEndpoint),
+      dataEntities: bucket(result.dataEntities, mapDataEntity),
+      dataEntityImpacts: bucket(result.dataImpacts, (row) => mapDataImpact(row)),
+      fieldImpacts: bucket(result.fieldImpacts, (row) => mapFieldImpact(row)),
+      dataColumnImpacts: bucket(result.dataColumns, mapDataField),
+      toolRequirements: bucket(result.toolRequirements, (row) => mapToolRequirement(row)),
     };
   }
 

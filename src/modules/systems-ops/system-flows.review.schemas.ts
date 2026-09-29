@@ -9,6 +9,8 @@ import { reviewDecisionSchema } from './systems-ops.schemas.js';
 export const flowReviewQueueSchema = z.object({
   reviewStatus: z.enum(['AUTO_DETECTED', 'NEEDS_REVIEW', 'APPROVED', 'REJECTED']).default('NEEDS_REVIEW'),
   systemCode: z.string().trim().min(1).max(60).optional(),
+  /** Texto libre: ruta, método del controlador, módulo o identificador legible (`slug`) del flujo. */
+  q: z.string().trim().min(1).max(200).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 });

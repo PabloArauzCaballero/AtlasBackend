@@ -49,6 +49,23 @@ describe('SystemsReviewService', () => {
     expect(res.toolRequirements.total).toBe(7);
   });
 
+  it('getReviewQueue da a cada familia su meta de paginación: sin ella, pasada la primera página nada era alcanzable', async () => {
+    const { service, reviewRepository } = build();
+    const vacio = { rows: [], count: 0 };
+    (reviewRepository.listReviewQueue as jest.Mock).mockResolvedValueOnce({
+      endpoints: { rows: [], count: 45 },
+      dataEntities: vacio,
+      dataImpacts: vacio,
+      fieldImpacts: vacio,
+      dataColumns: { rows: [], count: 10 },
+      toolRequirements: vacio,
+    } as never);
+    const res = await service.getReviewQueue({ page: 2, limit: 10 } as never);
+    expect(res.endpoints.meta).toEqual({ page: 2, limit: 10, total: 45, totalPages: 5 });
+    expect(res.dataColumnImpacts.meta).toEqual({ page: 2, limit: 10, total: 10, totalPages: 1 });
+    expect(res.dataEntities.meta.totalPages).toBe(0);
+  });
+
   it('reviewEndpoint lanza NotFound cuando el repo no devuelve fila', async () => {
     const { service } = build();
     await expect(service.reviewEndpoint('1', decision, user)).rejects.toBeInstanceOf(NotFoundException);

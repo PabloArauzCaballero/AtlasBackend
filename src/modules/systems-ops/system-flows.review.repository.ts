@@ -9,6 +9,7 @@ import { literal, Op, Transaction } from 'sequelize';
 import { SystemCatalogReviewEventModel } from '../../database/models/system-catalog-review-events.model.js';
 import { SystemFlowCatalogModel } from '../../database/models/system-flow-catalog.model.js';
 import type { FlowReviewDecisionDto, FlowReviewQueueDto } from './system-flows.review.schemas.js';
+import { like } from './system-flows.where.util.js';
 
 export type ActorDeRevision = { id: string | null; role: string; tenantId: string | null };
 
@@ -106,7 +107,14 @@ export class SystemFlowsReviewRepository {
 
   listQueue(query: FlowReviewQueueDto) {
     return this.flows.findAndCountAll({
-      where: { reviewStatus: query.reviewStatus, ...(query.systemCode ? { systemCode: query.systemCode } : {}) },
+      where: {
+        reviewStatus: query.reviewStatus,
+        ...(query.systemCode ? { systemCode: query.systemCode } : {}),
+        // La cola no tenía buscador: con cien flujos pendientes no había forma de ir a uno concreto.
+        ...(query.q
+          ? { [Op.or]: [{ path: like(query.q) }, { handler: like(query.q) }, { module: like(query.q) }, { slug: like(query.q) }] }
+          : {}),
+      },
       // Por significado, como el listado de flujos: por alfabeto, LOW saldría antes que MEDIUM.
       order: [
         [literal(`CASE risk WHEN 'CRITICAL' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END`), 'ASC'],

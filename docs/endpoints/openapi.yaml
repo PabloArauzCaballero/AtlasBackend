@@ -24625,6 +24625,16 @@ paths:
           description: >-
             Tamaño de página. El backend impone un máximo por endpoint; pedir
             más lo recorta en vez de fallar.
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Texto libre sin distinguir mayúsculas: tipo de cambio, tipo de
+            objeto afectado, tabla propuesta o notas de aprobación.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
         - name: requesterUserId
           required: false
           in: query
@@ -24763,6 +24773,16 @@ paths:
           description: >-
             Tamaño de página. El backend impone un máximo por endpoint; pedir
             más lo recorta en vez de fallar.
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Texto libre sin distinguir mayúsculas: nombre cualificado de la
+            tabla (`esquema.tabla`) o su descripción.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
         - name: tableType
           required: false
           in: query
@@ -24999,6 +25019,16 @@ paths:
     get:
       operationId: SchemaManagementController_listVersions
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Texto libre sin distinguir mayúsculas: código de la versión o sus
+            notas.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
         - name: includeInactive
           required: false
           in: query
@@ -27497,6 +27527,16 @@ paths:
             exclusiveMinimum: 0
             maximum: 9007199254740991
           description: Página solicitada, empezando en 1.
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Texto libre (sin distinguir mayúsculas): busca en la plantilla de la
+            ruta, la URL saneada y el rol del actor.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
         - name: to
           required: false
           in: query
@@ -28720,6 +28760,13 @@ paths:
         - systems-ops
   /systems/flows/business:
     get:
+      deprecated: true
+      description: >-
+        OBSOLETO: lee el volcado en base de workflow_definitions, un subconjunto
+        de lo que ya sirve `GET /internal/processes` (que lee el código
+        desplegado y ahora incluye `testStatus` y los contadores
+        críticos/verificados). El portal ya no lo llama; se conserva por
+        compatibilidad.
       operationId: SystemFlowsController_businessFlows
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
@@ -29536,6 +29583,54 @@ paths:
         código actual, que hay que devolver al decidir.
       operationId: SystemFlowsReviewController_reviewQueue
       parameters:
+        - name: limit
+          required: false
+          in: query
+          description: Filas por página (máximo 100).
+          schema:
+            default: 20
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+        - name: page
+          required: false
+          in: query
+          description: Página (desde 1).
+          schema:
+            default: 1
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 9007199254740991
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Texto libre sin distinguir mayúsculas: ruta, método del controlador,
+            módulo o slug del flujo.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - name: systemCode
+          required: false
+          in: query
+          description: Bloque exacto (ATLAS_BACKEND, DECISION_ENGINE, ERP_BACKEND).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 60
+        - name: reviewStatus
+          required: false
+          in: query
+          description: Estado de revisión (NEEDS_REVIEW por defecto).
+          schema:
+            default: NEEDS_REVIEW
+            type: string
+            enum:
+              - AUTO_DETECTED
+              - NEEDS_REVIEW
+              - APPROVED
+              - REJECTED
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -30965,16 +31060,30 @@ paths:
           description: >-
             Estado de revisión humana de la ficha del catálogo técnico
             (`AUTO_DETECTED`, `APPROVED`, …).
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Texto libre sin distinguir mayúsculas. Rutas: código, ruta, nombre,
+            módulo y método del controlador. Tablas: tabla, entidad, esquema y
+            módulo. Columnas: esquema, tabla, columna y nombre de negocio.
+            Impactos: la ruta o la tabla a la que apuntan, la operación o el
+            campo. Herramientas: la ruta, el código, nombre o proveedor de la
+            herramienta y el uso.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
         - name: module
           required: false
           in: query
+          description: >-
+            Módulo exacto. En impactos y requisitos de herramienta se aplica al
+            módulo de la ruta; en columnas, al de la tabla.
           schema:
             type: string
             minLength: 1
             maxLength: 120
-          description: >-
-            Filtra por módulo funcional del backend (`auth`, `credit`,
-            `customer_onboarding`, …).
         - name: type
           required: false
           in: query
@@ -30993,7 +31102,9 @@ paths:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Cola de revisión paginada.
+          description: >-
+            Cola de revisión paginada: cada familia trae sus filas, su total y
+            su `meta` de paginación.
           content:
             application/json:
               schema:
