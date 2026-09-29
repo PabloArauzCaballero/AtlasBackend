@@ -9,6 +9,7 @@ import { NotificationPoliciesRepository } from './notification-policies.reposito
 import { NotificationsRepository } from './notifications.repository.js';
 import { NotificationBroadcastService, BroadcastResult } from './notification-broadcast.service.js';
 import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
+import { POLICY_EVENT_CODES_WITHOUT_SENDER } from './notification-rules.service.js';
 import {
   CreateBroadcastNotificationDto,
   CreateTemplateDto,
@@ -131,7 +132,11 @@ export class NotificationsService {
 
     const chosen = new Map(saved.map((preference) => [`${preference.eventCode}:${preference.channel}`, preference]));
 
-    const data = policies.map((policy) => {
+    // Un interruptor para un aviso que nadie envía es una promesa falsa: la mora y el vencimiento no se
+    // avisan al deudor (decisión de producto pendiente), así que su política no se ofrece en la pantalla.
+    const offered = policies.filter((policy) => !POLICY_EVENT_CODES_WITHOUT_SENDER.includes(policy.eventCode));
+
+    const data = offered.map((policy) => {
       const preference = chosen.get(`${policy.eventCode}:${policy.channel}`);
       return {
         eventCode: policy.eventCode,

@@ -5,8 +5,9 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
-import { Transaction } from 'sequelize';
+import { QueryTypes, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { atlasSchemaFor } from '../../../database/domain-schemas.js';
 import type { SupportSlaPolicyModel } from '../../../database/models/index.js';
 import { EventsService } from '../../events/events.service.js';
 import { addBusinessMinutes, calendarFromPolicy } from '../domain/business-hours.js';
@@ -173,12 +174,13 @@ export class SupportSlaService {
    * evento de integración va por outbox: si el motor de notificaciones está caído, el incumplimiento
    * igual queda marcado.
    *
-   * **El aviso, en cambio, no sale ni después, aunque este comentario decía que sí.** `support.sla.breached`
-   * está en `EVENT_REGISTRY` y lo toma `process_events`, pero no tiene canales en
-   * `notification-rules.service.ts`, así que el orquestador no genera ningún mensaje. Medido en el
-   * servidor el 2026-09-10 por `notification_messages.outbox_event_id`: 13 incumplimientos, 0 avisos. El
-   * incumplimiento sí queda en el expediente; a quién avisar —agente, supervisor— y por qué canal es una
-   * decisión pendiente.
+   * **El aviso interno sí sale**, y por la misma vía que el previo: `support.sla.breached` está en
+   * `EVENT_REGISTRY`, lo toma `process_events` y `notification-rules.service.ts` le da una regla de
+   * canal `operations`/`in_app` (plantilla `support_sla_breached_in_app`). Hasta el 2026-09-29 esa regla
+   * no existía y el orquestador no generaba ningún mensaje: medido en el servidor el 2026-09-10 por
+   * `notification_messages.outbox_event_id`, 13 incumplimientos y 0 avisos. Ahora el destinatario es
+   * `assignedTeamId` del payload o, sin él, el buzón `operations`; a quién más avisar —agente,
+   * supervisor— sigue siendo una decisión de operaciones.
    *
    * ## Por qué también se escribe en `support_case_events`
    *
@@ -203,21 +205,15 @@ export class SupportSlaService {
         minutesLate: Math.round((now.getTime() - new Date(clock.targetAt).getTime()) / 60_000),
       });
 
-      try {
-        await this.events.publish({
-          tenantId,
-          eventCode: 'support.sla.breached',
-          aggregateType: 'support_case',
-          aggregateId: String(clock.caseId),
-          payload: { caseId: String(clock.caseId), metricType: clock.metricType, targetAt: clock.targetAt },
-          idempotencyKey: `support-sla-breach-${clock.id}`,
-          sourceModule: 'support',
-          sourceAction: 'sweep_sla_breaches',
-        });
-      } catch (error) {
-        // El evento es un aviso; la marca de incumplimiento ya está escrita y no debe perderse por él.
-        this.logger.warn(`No se pudo publicar support.sla.breached para el reloj ${clock.id}: ${String(error)}`);
-      }
+      // El evento es un aviso; la marca de incumplimiento ya está escrita y no debe perderse por él.
+      await this.publishClockEvent({
+        tenantId,
+        eventCode: 'support.sla.breached',
+        clock,
+        payload: { caseId: String(clock.caseId), metricType: clock.metricType, targetAt: clock.targetAt },
+        idempotencyKey: `support-sla-breach-${clock.id}`,
+        sourceAction: 'sweep_sla_breaches',
+      });
     }
 
     return { breached };
@@ -235,6 +231,11 @@ export class SupportSlaService {
    * anota en el reloj al emitirse: por eso una pasada cada minuto no repite el aviso del 75 % sesenta
    * veces por hora. El avance se calcula en tiempo real, no hábil, a propósito — el aviso interno
    * debe llegar aunque el vencimiento caiga fuera de horario, que es justo cuando nadie mira.
+   *
+   * **El aviso llega a alguien**: cada umbral cruzado publica `support.sla.warning` al outbox, y
+   * `notification-rules.service.ts` lo convierte en un mensaje interno (`operations`/`in_app`). Antes sólo se
+   * escribía `SLA_WARNING` en la línea de tiempo del caso —que nadie mira a tiempo— y el evento estaba
+   * registrado sin productor.
    */
   async sweepWarnings(tenantId: string, now: Date = new Date()): Promise<{ warned: number }> {
     const clocks = await this.timeline.findRunningClocks(tenantId, now);
@@ -255,6 +256,28 @@ export class SupportSlaService {
       const due = thresholds.filter((percent) => elapsedPercent >= percent && !already.includes(percent));
       if (due.length === 0) continue;
 
+      const minutesRemaining = Math.round((targetAt - now.getTime()) / 60_000);
+
+      // Se publica ANTES de anotar el umbral: si el outbox falla, el umbral queda sin anotar y la pasada
+      // siguiente (un minuto después) lo reintenta. La clave de idempotencia lleva el umbral más alto
+      // cruzado, así que reintentar tras un fallo a medias no duplica el aviso.
+      const published = await this.publishClockEvent({
+        tenantId,
+        eventCode: 'support.sla.warning',
+        clock,
+        payload: {
+          caseId: String(clock.caseId),
+          metricType: clock.metricType,
+          targetAt: new Date(clock.targetAt).toISOString(),
+          reachedPercents: due,
+          reachedPercent: Math.max(...due),
+          minutesRemaining,
+        },
+        idempotencyKey: `support-sla-warning-${clock.id}-${Math.max(...due)}`,
+        sourceAction: 'sweep_sla_warnings',
+      });
+      if (!published) continue;
+
       await this.timeline.updateClock(String(clock.id), { warnedPercentsJson: [...already, ...due].sort((a, b) => a - b) });
       warned += 1;
 
@@ -264,11 +287,59 @@ export class SupportSlaService {
         metricType: clock.metricType,
         targetAt: new Date(clock.targetAt).toISOString(),
         reachedPercents: due,
-        minutesRemaining: Math.round((targetAt - now.getTime()) / 60_000),
+        minutesRemaining,
       });
     }
 
     return { warned };
+  }
+
+  /**
+   * Publica el evento de un reloj en el outbox, con versión del agregado e idempotencia.
+   *
+   * Devuelve `false` si no se pudo, sin lanzar: un fallo del outbox no puede tumbar el barrido, que
+   * tiene que seguir con el resto de los relojes. Quien llama decide si el reintento es la siguiente pasada.
+   */
+  private async publishClockEvent(input: {
+    tenantId: string;
+    eventCode: 'support.sla.warning' | 'support.sla.breached';
+    clock: { id: string | number; caseId: string | number };
+    payload: Record<string, unknown>;
+    idempotencyKey: string;
+    sourceAction: string;
+  }): Promise<boolean> {
+    try {
+      await this.events.publish({
+        tenantId: input.tenantId,
+        eventCode: input.eventCode,
+        aggregateType: 'support_case',
+        aggregateId: String(input.clock.caseId),
+        aggregateVersion: await this.nextCaseEventVersion(input.tenantId, String(input.clock.caseId)),
+        payload: input.payload,
+        idempotencyKey: input.idempotencyKey,
+        sourceModule: 'support',
+        sourceAction: input.sourceAction,
+      });
+      return true;
+    } catch (error) {
+      this.logger.warn(`No se pudo publicar ${input.eventCode} para el reloj ${input.clock.id}: ${String(error)}`);
+      return false;
+    }
+  }
+
+  /**
+   * La versión siguiente del agregado `support_case` en el outbox: el máximo ya escrito, más uno.
+   * Es la misma cuenta que `nextInstallmentVersion`; un consumidor que ya aplicó la N descarta la N-1
+   * que llegue tarde. Los barridos corren en serie por tenant, y la clave de idempotencia protege del
+   * doble aviso aunque dos barridos (el del job y el manual) coincidieran.
+   */
+  private async nextCaseEventVersion(tenantId: string, caseId: string): Promise<number> {
+    const rows = await this.sequelize.query<{ version: string | null }>(
+      `SELECT MAX(aggregate_version)::text AS version FROM ${atlasSchemaFor('outbox_events')}.outbox_events
+        WHERE _tenant_id = $tenantId AND aggregate_type = 'support_case' AND aggregate_id = $caseId`,
+      { type: QueryTypes.SELECT, bind: { tenantId, caseId } },
+    );
+    return Number(rows[0]?.version ?? 0) + 1;
   }
 
   /**

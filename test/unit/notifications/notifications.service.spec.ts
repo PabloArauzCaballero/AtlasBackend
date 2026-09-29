@@ -140,4 +140,39 @@ describe('NotificationsService', () => {
     // responde con la MISMA forma para que la app repinte sin quedarse en blanco tras guardar.
     expect(policies.listActive).toHaveBeenCalledTimes(2);
   });
+
+  /*
+   * La pantalla de avisos del cliente no ofrece un interruptor para un aviso que nadie envía. La mora y el
+   * vencimiento no se avisan al deudor (decisión de producto pendiente): ofrecer «Tu cuota venció» como
+   * aviso obligatorio prometía algo que ningún código cumplía.
+   */
+  it('getPreferences no ofrece las políticas cuyo aviso no se envía (cuota por vencer, cuota vencida)', async () => {
+    const { service, policies, repository } = build();
+    const politica = (eventCode: string, isMandatory = false) => ({
+      eventCode,
+      channel: 'push',
+      label: eventCode,
+      description: null,
+      category: 'pagos',
+      icon: null,
+      isMandatory,
+      mandatoryReason: isMandatory ? 'razón' : null,
+      defaultEnabled: true,
+      displayOrder: 10,
+    });
+    (policies.listActive as jest.Mock).mockResolvedValueOnce([
+      politica('cuota_por_vencer'),
+      politica('cuota_vencida', true),
+      politica('pago_acreditado', true),
+    ] as never);
+    // Lo que el cliente ya había elegido para un aviso retirado no se borra ni se enseña como «legado».
+    (repository.getPreferences as jest.Mock).mockResolvedValueOnce([
+      { eventCode: 'cuota_vencida', channel: 'push', isEnabled: true, isRequired: true },
+    ] as never);
+
+    const result = await service.getPreferences('1', '9');
+
+    expect(result.data.map((item) => item.eventCode)).toEqual(['pago_acreditado']);
+    expect(result.legacy).toHaveLength(0);
+  });
 });

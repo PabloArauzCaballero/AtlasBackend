@@ -20,7 +20,7 @@ Empieza cuando se abre un canal de chat o un caso (estado NEW) y termina cuando 
 
 ## Qué pasa cuando falla
 
-Sin catálogo de categorías sembrado toda apertura de caso falla con SUPPORT_CATEGORY_NOT_FOUND; un agente sin perfil en la mesa recibe 403 SUPPORT_AGENT_PROFILE_REQUIRED aunque sea administrador. Si el caso supera su plazo, el barrido programado sweep_support_sla lo marca y publica support.sla.breached; antes de que existiera ese job, los plazos vencían sin que nadie se enterara.
+Sin catálogo de categorías sembrado toda apertura de caso falla con SUPPORT_CATEGORY_NOT_FOUND; un agente sin perfil en la mesa recibe 403 SUPPORT_AGENT_PROFILE_REQUIRED aunque sea administrador. Si el caso supera su plazo, el barrido programado sweep_support_sla lo marca y publica support.sla.breached; antes de que existiera ese job, los plazos vencían sin que nadie se enterara. Desde el 2026-09-29 el aviso previo (support.sla.warning) y el incumplimiento llegan además a operaciones como mensaje de bandeja.
 
 ## Qué indicador dice que va bien
 
@@ -145,11 +145,11 @@ En la ficha del caso el agente lo clasifica, se lo asigna o lo transfiere, deja 
 
 ### Vigilancia de plazos (`support_sla_watch`)
 
-Cada intervalo el sistema recorre los relojes de plazo: primero avisa de los que están por vencer (SLA_WARNING en la historia) y después marca los vencidos y publica support.sla.breached.
+Cada intervalo el sistema recorre los relojes de plazo: primero avisa de los que están por vencer (SLA_WARNING en la historia y evento support.sla.warning, que llega a operaciones como mensaje de bandeja) y después marca los vencidos y publica support.sla.breached (mismo aviso interno).
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Barrido programado de plazos | job | ATLAS_BACKEND | job `sweep_support_sla` | — | support.sla.breached |
+| Barrido programado de plazos | job | ATLAS_BACKEND | job `sweep_support_sla` | — | support.sla.warning, support.sla.breached |
 
 ### Barrido de plazos a mano (`support_sla_manual_sweep`)
 

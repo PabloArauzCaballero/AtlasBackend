@@ -99,11 +99,11 @@ El caso del comercio aparece en /internal/support junto a los de clientes. El ag
 
 ### El sistema vigila el plazo (`msup_sla`)
 
-Barrido programado de plazos de la mesa: marca los casos vencidos y lo publica.
+Barrido programado de plazos de la mesa: avisa de los casos por vencer, marca los vencidos y lo publica.
 
 | Paso | Tipo | Bloque | Operación | Roles | Eventos |
 |---|---|---|---|---|---|
-| Barrer los plazos de soporte | job | ATLAS_BACKEND | job `sweep_support_sla` | — | support.sla.breached |
+| Barrer los plazos de soporte | job | ATLAS_BACKEND | job `sweep_support_sla` | — | support.sla.warning, support.sla.breached |
 
 ### El comercio sigue, cierra y valora (`msup_follow_and_close`)
 

@@ -45,7 +45,7 @@ export const CUSTOMER_SUPPORT_CASE: WorkflowDefinitionFixture = {
     startAndEnd:
       'Empieza cuando se abre un canal de chat o un caso (estado NEW) y termina cuando el agente lo resuelve con código de resolución y causa raíz (RESOLVED) y lo cierra (CLOSED). CLOSED sólo sale hacia REOPENED; DUPLICATE y CANCELLED también cierran el expediente sin resolverlo.',
     whenItFails:
-      'Sin catálogo de categorías sembrado toda apertura de caso falla con SUPPORT_CATEGORY_NOT_FOUND; un agente sin perfil en la mesa recibe 403 SUPPORT_AGENT_PROFILE_REQUIRED aunque sea administrador. Si el caso supera su plazo, el barrido programado sweep_support_sla lo marca y publica support.sla.breached; antes de que existiera ese job, los plazos vencían sin que nadie se enterara.',
+      'Sin catálogo de categorías sembrado toda apertura de caso falla con SUPPORT_CATEGORY_NOT_FOUND; un agente sin perfil en la mesa recibe 403 SUPPORT_AGENT_PROFILE_REQUIRED aunque sea administrador. Si el caso supera su plazo, el barrido programado sweep_support_sla lo marca y publica support.sla.breached; antes de que existiera ese job, los plazos vencían sin que nadie se enterara. Desde el 2026-09-29 el aviso previo (support.sla.warning) y el incumplimiento llegan además a operaciones como mensaje de bandeja.',
     healthIndicator:
       'Porcentaje de casos resueltos dentro de su plazo (eventos support.sla.breached frente a casos resueltos), casos abiertos por estado en la mesa, proporción de canales con caso asociado (support_channels.case_id) y calificación del cliente tras el cierre.',
   },
@@ -443,7 +443,7 @@ export const CUSTOMER_SUPPORT_CASE: WorkflowDefinitionFixture = {
       code: 'support_sla_watch',
       name: 'Vigilancia de plazos',
       description:
-        'Cada intervalo el sistema recorre los relojes de plazo: primero avisa de los que están por vencer (SLA_WARNING en la historia) y después marca los vencidos y publica support.sla.breached.',
+        'Cada intervalo el sistema recorre los relojes de plazo: primero avisa de los que están por vencer (SLA_WARNING en la historia y evento support.sla.warning, que llega a operaciones como mensaje de bandeja) y después marca los vencidos y publica support.sla.breached (mismo aviso interno).',
       module: 'runtime-jobs',
       actor: 'system',
       client: 'BLOCK',
@@ -455,7 +455,7 @@ export const CUSTOMER_SUPPORT_CASE: WorkflowDefinitionFixture = {
           kind: 'job',
           job: 'sweep_support_sla',
           repeatable: true,
-          events: ['support.sla.breached'],
+          events: ['support.sla.warning', 'support.sla.breached'],
         },
       ],
     },

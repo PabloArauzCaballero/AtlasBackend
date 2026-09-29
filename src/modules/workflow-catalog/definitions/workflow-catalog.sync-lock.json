@@ -1,6 +1,6 @@
 {
   "processes": {
-    "migration": "20260929120000-sync-workflow-catalog-9",
+    "migration": "20260929220000-sync-workflow-catalog-10",
     "hashes": {
       "customer_credit_journey": "46e9c949ee21f967",
       "post_login_first_screen": "6b88e3d8745e29e5",
@@ -17,8 +17,8 @@
       "installment_payment_claims": "cbe45e5a1e237484",
       "loan_servicing_collections": "d9625be6d8ad1e15",
       "customer_privacy_dsr": "74f59091f13ead3f",
-      "customer_support_case": "d2640f85bf6e28be",
-      "notifications_and_campaigns": "9dfc34fc9d8cdcd7",
+      "customer_support_case": "e1ddbde8aaa2900f",
+      "notifications_and_campaigns": "0fade41e683f4563",
       "atlas_assist_help": "739bca0ece3307b7",
       "device_signals_and_sessions": "f399ca99c47f0d56",
       "merchant_onboarding_chain": "d53ed57ab2990bb0",
@@ -27,7 +27,7 @@
       "merchant_contract_and_pricing": "bd738db00fb56c48",
       "bnpl_sale_mdr_billing": "35a74394257af6ab",
       "coverage_and_recovery": "849402bf7fb90b56",
-      "merchant_support": "82307b368464c102",
+      "merchant_support": "d6f68f9439270dea",
       "accounting_documents_cycle": "0020d8c1c11e463f",
       "dashboards_kpi_and_manual_inputs": "0c8b9ebb76fd0f93",
       "ads_advertisers": "5e5ad492be48d407",

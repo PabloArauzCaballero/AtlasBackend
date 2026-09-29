@@ -315,7 +315,7 @@ export const MERCHANT_SUPPORT: WorkflowDefinitionFixture = {
     {
       code: 'msup_sla',
       name: 'El sistema vigila el plazo',
-      description: 'Barrido programado de plazos de la mesa: marca los casos vencidos y lo publica.',
+      description: 'Barrido programado de plazos de la mesa: avisa de los casos por vencer, marca los vencidos y lo publica.',
       module: 'support',
       actor: 'system',
       client: 'BLOCK',
@@ -326,8 +326,9 @@ export const MERCHANT_SUPPORT: WorkflowDefinitionFixture = {
           name: 'Barrer los plazos de soporte',
           kind: 'job',
           job: 'sweep_support_sla',
-          description: 'Casos que superan su plazo publican support.sla.breached.',
-          events: ['support.sla.breached'],
+          description:
+            'Los casos por vencer publican support.sla.warning y los que superan su plazo, support.sla.breached; ambos llegan a operaciones como mensaje de bandeja.',
+          events: ['support.sla.warning', 'support.sla.breached'],
         },
       ],
     },
