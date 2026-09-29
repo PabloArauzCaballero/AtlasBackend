@@ -60,11 +60,14 @@ async function checkFigures(write: boolean): Promise<Problem[]> {
   const problems: Problem[] = [];
   const files = new Set([...trackedMarkdown({ include: ['docs/', 'README.md'] }), ...Object.keys(REQUIRED_MARKERS)]);
   for (const file of files) {
-    if (!existsSync(file)) {
+    let current: string;
+    try {
+      current = readFileSync(file, 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
       problems.push({ file, message: 'documento vigilado ausente' });
       continue;
     }
-    const current = readFileSync(file, 'utf8');
     for (const marker of REQUIRED_MARKERS[file] ?? []) {
       if (!current.includes(`<!-- ${marker} -->`)) problems.push({ file, message: `falta la marca obligatoria <!-- ${marker} -->` });
     }
