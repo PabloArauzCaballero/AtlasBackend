@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
+import { Op } from 'sequelize';
 import { SupportKnowledgeReadService } from '../../../src/modules/support/application/support-knowledge-read.service.js';
 
 const article = {
@@ -78,5 +79,21 @@ describe('SupportKnowledgeReadService', () => {
   it('un artículo o una versión que no existen son 404', async () => {
     await expect(build({ article: null }).service.getArticle('1', '99')).rejects.toBeInstanceOf(NotFoundException);
     await expect(build({ version: null }).service.getVersion('1', '99')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('la búsqueda mira la clave y el TÍTULO de la versión vigente, escapando comodines, y devuelve ese título', async () => {
+    const { service, articles, versions } = build();
+    articles.findAndCountAll.mockResolvedValueOnce({ rows: [{ ...article, currentVersionId: '11' as never }], count: 1 });
+    const page = await service.listArticles('1', { search: 'qr_50%', page: 1, pageSize: 20 });
+    const options = articles.findAndCountAll.mock.calls[0]![0] as {
+      where: Record<symbol, unknown[]>;
+      replacements: Record<string, string>;
+    };
+    const [porClave, porTitulo] = options.where[Op.or] as Array<Record<string, Record<symbol, unknown>>>;
+    expect(porClave!.articleKey![Op.iLike]).toBe('%qr\\_50\\%%');
+    expect((porTitulo!.currentVersionId![Op.in] as { val: string }).val).toMatch(/v\.title ILIKE :patronBusqueda/);
+    expect(options.replacements).toEqual({ tenantBusqueda: '1', patronBusqueda: '%qr\\_50\\%%' });
+    expect((versions.findAll.mock.calls.at(-1)![0] as { where: unknown }).where).toMatchObject({ tenantId: '1' });
+    expect(page.items[0]).toMatchObject({ articleKey: 'pagos-qr', currentTitle: 'Cómo verificar un QR' });
   });
 });

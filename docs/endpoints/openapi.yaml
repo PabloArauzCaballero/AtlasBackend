@@ -448,6 +448,13 @@ paths:
           description: >-
             Tamaño de página. El backend impone un máximo por endpoint; pedir
             más lo recorta en vez de fallar.
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Id de solicitud exacto (sólo dígitos) o, por partes, referencia del
+            proveedor, tipo de consulta o mensaje de error.
+          schema: {}
         - name: approvalStatus
           required: false
           in: query
@@ -8702,8 +8709,10 @@ paths:
   /external-data/consents:
     post:
       description: >-
-        Registra el consentimiento del cliente para consultar un proveedor de
-        datos externos específico (KYC, buró, telco, etc.).
+        Registra el consentimiento OTORGADO del cliente para consultar un
+        proveedor de datos externos (KYC, buró, telco, etc.). `accepted` sólo
+        admite `true`: una negativa no crea fila (400). No guarda versión del
+        texto legal ni documento de consentimiento.
       operationId: ExternalDataController_createConsent
       parameters:
         - $ref: '#/components/parameters/TenantId'
@@ -8723,14 +8732,10 @@ paths:
                   type: string
                   minLength: 3
                   maxLength: 100
-                legalTextVersion:
-                  default: v1
-                  type: string
-                  minLength: 1
-                  maxLength: 80
                 accepted:
                   default: true
                   type: boolean
+                  const: true
                 channel:
                   default: api
                   type: string
@@ -8745,7 +8750,6 @@ paths:
               required:
                 - customerId
                 - purpose
-                - legalTextVersion
                 - accepted
                 - channel
               additionalProperties: false
@@ -9348,6 +9352,11 @@ paths:
     get:
       operationId: NotificationsController_listMyNotifications
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: Busca por partes en el título, el asunto y el texto del aviso.
+          schema: {}
         - name: channel
           required: false
           in: query
@@ -11252,7 +11261,9 @@ paths:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Lista de permisos internos.
+          description: >-
+            Catálogo COMPLETO de permisos activos, sin paginar ni recortar (no
+            admite page ni limit).
           content:
             application/json:
               schema:
@@ -11699,7 +11710,9 @@ paths:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Lista de roles internos.
+          description: >-
+            Catálogo COMPLETO de roles internos, sin paginar (no admite page ni
+            limit).
           content:
             application/json:
               schema:
@@ -11840,8 +11853,18 @@ paths:
         - internal-portal
   /internal/support/cases:
     get:
+      description: >-
+        Pagina por cursor. `summary` cuenta el filtro ENTERO (total, P1/P2 y sin
+        agente) con la misma visibilidad de los casos restringidos.
       operationId: InternalSupportController_workQueue
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Busca por partes en el número de caso, el asunto y el código de
+            cliente.
+          schema: {}
         - name: x-tenant-id
           in: header
           required: false
@@ -12808,6 +12831,39 @@ paths:
     get:
       operationId: InternalUsersController_list
       parameters:
+        - name: role
+          required: false
+          in: query
+          description: Código exacto de un rol vivo asignado (p. ej. SUPER_ADMIN).
+          schema:
+            description: Código exacto de un rol vivo asignado (p. ej. SUPER_ADMIN).
+            type: string
+            pattern: ^[A-Z][A-Z0-9_]{1,79}$
+        - name: status
+          required: false
+          in: query
+          description: Estado de la cuenta.
+          schema:
+            description: Estado de la cuenta.
+            type: string
+            enum:
+              - active
+              - invited
+              - suspended
+              - locked
+              - disabled
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Busca, sin distinguir mayúsculas, en correo, nombre, departamento,
+            cargo y código de rol asignado.
+          schema:
+            description: >-
+              Busca, sin distinguir mayúsculas, en correo, nombre, departamento,
+              cargo y código de rol asignado.
+            type: string
+            maxLength: 120
         - name: limit
           required: false
           in: query
@@ -14609,6 +14665,27 @@ paths:
     get:
       operationId: MerchantUsersController_list
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: Busca por partes en correo, nombre y código de usuario.
+          schema: {}
+        - name: email
+          required: false
+          in: query
+          description: Correo EXACTO (sin distinguir mayúsculas).
+          schema: {}
+        - name: status
+          required: false
+          in: query
+          description: Estado del acceso.
+          schema:
+            enum:
+              - invited
+              - active
+              - suspended
+              - disabled
+            type: string
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -14636,6 +14713,26 @@ paths:
     get:
       operationId: MerchantUsersController_listRequests
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: Busca por partes en correo, nombre, cuenta y sucursal.
+          schema: {}
+        - name: email
+          required: false
+          in: query
+          description: Correo EXACTO (sin distinguir mayúsculas).
+          schema: {}
+        - name: status
+          required: false
+          in: query
+          description: Estado de la petición.
+          schema:
+            enum:
+              - pending
+              - provisioned
+              - rejected
+            type: string
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -21937,9 +22034,24 @@ paths:
         - notifications
   /operations/notifications/audience-segments:
     get:
+      description: Lista COMPLETA del estado pedido, sin paginar.
       operationId: NotificationAudienceSegmentsController_list
       parameters:
         - $ref: '#/components/parameters/TenantId'
+        - name: q
+          required: false
+          in: query
+          description: Busca por partes en el nombre y la descripción del segmento.
+          schema: {}
+        - name: status
+          required: false
+          in: query
+          description: Activos (por defecto) o archivados.
+          schema:
+            enum:
+              - active
+              - archived
+            type: string
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
@@ -23176,6 +23288,13 @@ paths:
     get:
       operationId: NotificationsController_listMessages
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Busca por partes en correlation ID, código de plantilla, título y
+            asunto.
+          schema: {}
         - name: channel
           required: false
           in: query
@@ -23477,6 +23596,13 @@ paths:
     get:
       operationId: NotificationTemplatesController_listTemplates
       parameters:
+        - name: q
+          required: false
+          in: query
+          description: >-
+            Busca por partes en el código, el título y el asunto de la
+            plantilla.
+          schema: {}
         - name: active
           required: false
           in: query

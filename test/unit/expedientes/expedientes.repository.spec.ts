@@ -101,10 +101,25 @@ describe('ExpedientesRepository', () => {
 
     it('un texto todo dígitos busca además por identificador exacto del sujeto; uno con letras no', async () => {
       await repo.listarExpedientes({ tenantId: 't1', q: '4321', offset: 0, limit: 20 });
-      expect(where(expedientes.findAndCountAll)[Op.or]).toHaveLength(2);
+      expect(where(expedientes.findAndCountAll)[Op.or]).toHaveLength(3);
+      expect(where(expedientes.findAndCountAll)[Op.or]).toContainEqual({ subjectId: '4321' });
 
       await repo.listarExpedientes({ tenantId: 't1', q: 'CLI-4321', offset: 0, limit: 20 });
-      expect(where(expedientes.findAndCountAll)[Op.or]).toHaveLength(1);
+      expect(where(expedientes.findAndCountAll)[Op.or]).toHaveLength(2);
+      expect(where(expedientes.findAndCountAll)[Op.or]).not.toContainEqual({ subjectId: 'CLI-4321' });
+    });
+
+    it('busca también la razón social, el nombre comercial y el NIT del comercio, con el patrón escapado', async () => {
+      await repo.listarExpedientes({ tenantId: 't1', q: 'Andina_50%', offset: 0, limit: 20 });
+      const opciones = expedientes.findAndCountAll.mock.calls.at(-1)?.[0] as { replacements: Record<string, string> };
+      const condiciones = where(expedientes.findAndCountAll)[Op.or] as Array<Record<string, unknown>>;
+      const delComercio = condiciones.find((condicion) => condicion.subjectType === 'partner') as {
+        subjectId: Record<symbol, { val: string }>;
+      };
+      expect(delComercio.subjectId[Op.in].val).toMatch(
+        /legal_name ILIKE :patronBusqueda OR p\.trade_name ILIKE :patronBusqueda OR p\.tax_id ILIKE/,
+      );
+      expect(opciones.replacements).toEqual({ tenantBusqueda: 't1', patronBusqueda: '%Andina\\_50\\%%' });
     });
 
     it('los filtros de tipo y estado se aplican sólo cuando llegan', async () => {

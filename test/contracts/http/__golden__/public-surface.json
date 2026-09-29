@@ -226,6 +226,7 @@
       "limit",
       "offset",
       "providerCode",
+      "q",
       "responseStatus"
     ],
     "path": [],
@@ -3305,6 +3306,7 @@
     "headers": [],
     "query": [
       "channel",
+      "q",
       "status"
     ],
     "path": [],
@@ -4209,7 +4211,9 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "q"
+    ],
     "path": [],
     "security": [
       "access-token"
@@ -4678,7 +4682,10 @@
     "headers": [],
     "query": [
       "limit",
-      "page"
+      "page",
+      "q",
+      "role",
+      "status"
     ],
     "path": [],
     "security": [
@@ -5457,7 +5464,11 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "email",
+      "q",
+      "status"
+    ],
     "path": [],
     "security": [
       "access-token"
@@ -5475,7 +5486,11 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "email",
+      "q",
+      "status"
+    ],
     "path": [],
     "security": [
       "access-token"
@@ -7722,7 +7737,10 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "q",
+      "status"
+    ],
     "path": [],
     "security": [
       "access-token"
@@ -8076,6 +8094,7 @@
     "headers": [],
     "query": [
       "channel",
+      "q",
       "status"
     ],
     "path": [],
@@ -8206,7 +8225,8 @@
     "query": [
       "active",
       "channel",
-      "code"
+      "code",
+      "q"
     ],
     "path": [],
     "security": [

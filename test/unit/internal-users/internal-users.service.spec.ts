@@ -318,13 +318,25 @@ describe('InternalUsersService security boundaries', () => {
 
     const result = await service.listUsers(currentUser, { page: 1, limit: 50 });
 
-    expect(repository.listUsers).toHaveBeenCalledWith('1', { page: 1, limit: 50 });
+    expect(repository.listUsers).toHaveBeenCalledWith('1', { page: 1, limit: 50 }, { q: undefined, status: undefined, role: undefined });
     // Un solo llamado con las 3 filas de la página, no 3 llamados individuales.
     expect(repository.buildAccessProfiles).toHaveBeenCalledTimes(1);
     expect(repository.buildAccessProfiles).toHaveBeenCalledWith(rows);
     expect(repository.buildAccessProfile).not.toHaveBeenCalled();
     expect(result.items.map((item) => item.id)).toEqual(['20', '21', '22']);
     expect(result.meta).toEqual({ page: 1, limit: 50, total: 3, totalPages: 1 });
+  });
+
+  it('listUsers pasa la búsqueda, el estado y el rol al repositorio (no filtra la página en memoria)', async () => {
+    const repository = makeRepository({ listUsers: jest.fn(async (..._args: unknown[]) => ({ rows: [], total: 0 })) });
+    const service = new InternalUsersService(
+      repository as never,
+      makeTokenRevocationService() as never,
+      makeAuthService() as never,
+      makeMailSender() as never,
+    );
+    await service.listUsers(currentUser, { page: 2, limit: 10, q: 'ana', status: 'active', role: 'SUPER_ADMIN' });
+    expect(repository.listUsers).toHaveBeenCalledWith('1', { page: 2, limit: 10 }, { q: 'ana', status: 'active', role: 'SUPER_ADMIN' });
   });
 });
 

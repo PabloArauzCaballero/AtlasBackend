@@ -72,4 +72,11 @@ describe('InternalAccessCatalogRepository', () => {
       requiresMfa: false,
     });
   });
+
+  it('el catálogo de permisos sale ENTERO: sin el tope silencioso de 1000 filas', async () => {
+    const { repo, permissionModel } = buildRepo();
+    (permissionModel.findAll as jest.Mock).mockResolvedValue([] as never);
+    await repo.listPermissions();
+    expect((permissionModel.findAll as jest.Mock).mock.calls[0]?.[0]).not.toHaveProperty('limit');
+  });
 });

@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op, WhereOptions, literal } from 'sequelize';
 import { KnowledgeArticleModel, KnowledgeArticleVersionModel } from '../../../database/models/index.js';
 import { containsLikePattern } from '../../../common/utils/strings/like-pattern.util.js';
+import { atlasSchemaFor } from '../../../database/domain-schemas.js';
 import type { ListKnowledgeArticlesQueryDto, ListKnowledgeVersionsQueryDto } from '../support-knowledge.schemas.js';
 
 const articleView = (a: KnowledgeArticleModel) => ({
@@ -49,6 +50,8 @@ const versionView = (v: KnowledgeArticleVersionModel) => ({
  * tenía que recibir el número de la versión de quien la redactó. Aquí no se filtra por audiencia: el
  * personal gobierna también las guías internas, y la ruta ya exige un rol interno.
  */
+const KNOWLEDGE_VERSIONS = `${atlasSchemaFor('knowledge_article_versions')}.knowledge_article_versions`;
+
 @Injectable()
 export class SupportKnowledgeReadService {
   constructor(
@@ -67,7 +70,7 @@ export class SupportKnowledgeReadService {
     const replacements = query.search ? { tenantBusqueda: tenantId, patronBusqueda: containsLikePattern(query.search) } : undefined;
     if (replacements) {
       const titled = literal(
-        `(SELECT v._id FROM knowledge_article_versions v WHERE v._tenant_id = :tenantBusqueda AND v.title ILIKE :patronBusqueda)`,
+        `(SELECT v._id FROM ${KNOWLEDGE_VERSIONS} v WHERE v._tenant_id = :tenantBusqueda AND v.title ILIKE :patronBusqueda)`,
       );
       const byKeyOrTitle = [{ articleKey: { [Op.iLike]: replacements.patronBusqueda } }, { currentVersionId: { [Op.in]: titled } }];
       Object.assign(where, { [Op.or]: byKeyOrTitle });

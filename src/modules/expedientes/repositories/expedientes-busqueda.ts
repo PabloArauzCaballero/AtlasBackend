@@ -5,10 +5,13 @@
  */
 import { Op, WhereOptions, literal } from 'sequelize';
 import { containsLikePattern } from '../../../common/utils/strings/like-pattern.util.js';
+import { atlasSchemaFor } from '../../../database/domain-schemas.js';
+
+const PARTNER_PROFILES = `${atlasSchemaFor('partner_profiles')}.partner_profiles`;
 
 /** Los comercios del tenant cuya razón social, nombre comercial o NIT contienen lo buscado. */
 const COMERCIOS_QUE_COINCIDEN = literal(`(
-  SELECT p._id FROM partner_profiles p
+  SELECT p._id FROM ${PARTNER_PROFILES} p
    WHERE p._tenant_id = :tenantBusqueda
      AND (p.legal_name ILIKE :patronBusqueda OR p.trade_name ILIKE :patronBusqueda OR p.tax_id ILIKE :patronBusqueda)
 )`);

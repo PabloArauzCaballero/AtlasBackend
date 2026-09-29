@@ -7,6 +7,10 @@ import { Op, WhereOptions, literal } from 'sequelize';
 import type { InternalUserModel } from '../../database/models/index.js';
 import { PaginationInput, toOffset } from '../../common/utils/pagination/pagination.util.js';
 import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
+import { atlasSchemaFor } from '../../database/domain-schemas.js';
+
+const USER_ROLES = `${atlasSchemaFor('internal_user_roles')}.internal_user_roles`;
+const ROLES = `${atlasSchemaFor('internal_roles')}.internal_roles`;
 
 export type ListedUsers = { rows: InternalUserModel[]; total: number };
 
@@ -24,8 +28,8 @@ export type InternalUsersListFilter = {
 const USERS_WITH_ROLE = (roleCondition: string) =>
   literal(`(
     SELECT ur.internal_user_id
-      FROM internal_user_roles ur
-      JOIN internal_roles r ON r._id = ur.role_id AND r.status = 'active' AND r._deleted = false
+      FROM ${USER_ROLES} ur
+      JOIN ${ROLES} r ON r._id = ur.role_id AND r.status = 'active' AND r._deleted = false
      WHERE ur._tenant_id = :listTenantId AND ur.revoked_at IS NULL AND ${roleCondition}
   )`);
 

@@ -52,7 +52,7 @@ function caso(overrides: Record<string, unknown> = {}): SupportCaseModel {
 }
 
 describe('SupportCaseReadService', () => {
-  let cases: { requireById: jest.Mock; listEvents: jest.Mock; listCases: jest.Mock };
+  let cases: { requireById: jest.Mock; listEvents: jest.Mock; listCases: jest.Mock; summarizeCases: jest.Mock };
   let timeline: {
     listAssignments: jest.Mock;
     listClocks: jest.Mock;
@@ -71,6 +71,7 @@ describe('SupportCaseReadService', () => {
       requireById: jest.fn(async () => caso()),
       listEvents: jest.fn(async () => []),
       listCases: jest.fn(async () => []),
+      summarizeCases: jest.fn(async () => ({ total: 0, highPriority: 0, unassigned: 0 })),
     };
     timeline = {
       listAssignments: jest.fn(async () => []),
@@ -260,6 +261,22 @@ describe('SupportCaseReadService', () => {
   });
 
   describe('cola de trabajo', () => {
+    it('la búsqueda y la visibilidad viajan a la consulta, y el resumen cuenta el mismo filtro sin cursor', async () => {
+      cases.summarizeCases.mockResolvedValueOnce({ total: 42, highPriority: 3, unassigned: 7 } as never);
+      const cola = await service.listWorkQueue({
+        tenantId: 't1',
+        actor: AGENTE,
+        query: { limit: 20, q: 'SUP-2026', cursorId: '9', cursorOpenedAt: '2026-09-01T00:00:00.000Z' } as never,
+      });
+      const listado = cases.listCases.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+      const resumen = cases.summarizeCases.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+      expect(listado).toMatchObject({ q: 'SUP-2026', restrictedVisibleTo: { isSupervisor: false }, cursorId: '9' });
+      expect(resumen).toMatchObject({ q: 'SUP-2026', restrictedVisibleTo: { isSupervisor: false } });
+      expect(resumen).not.toHaveProperty('cursorId');
+      expect(resumen).not.toHaveProperty('limit');
+      expect(cola.summary).toEqual({ total: 42, highPriority: 3, unassigned: 7 });
+    });
+
     it('sin filtro de estado se ve todo lo VIVO, no todo el histórico', async () => {
       await service.listWorkQueue({ tenantId: 't1', actor: AGENTE, query: { limit: 20 } as never });
 

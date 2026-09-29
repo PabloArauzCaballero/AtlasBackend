@@ -184,7 +184,7 @@ export class SupportCaseRepository {
         : {};
 
     return this.cases.findAll({
-      where: { [Op.and]: [where, cursor] },
+      where: { ...where, ...cursor },
       order: [
         ['opened_at', 'DESC'],
         ['_id', 'DESC'],
@@ -199,7 +199,8 @@ export class SupportCaseRepository {
    */
   async summarizeCases(filter: Omit<ListCasesFilter, 'limit' | 'cursorOpenedAt' | 'cursorId'>) {
     const where = this.listWhere(filter);
-    const count = (extra: WhereOptions) => this.cases.count({ where: { [Op.and]: [where, extra] } });
+    const andAlso = (extra: WhereOptions) => ({ ...where, [Op.and]: [...(where[Op.and] ?? []), extra] });
+    const count = (extra: WhereOptions) => this.cases.count({ where: andAlso(extra) });
     const [total, highPriority, unassigned] = await Promise.all([
       count({}),
       count({ priority: { [Op.in]: ['P1', 'P2'] } }),
@@ -208,7 +209,7 @@ export class SupportCaseRepository {
     return { total, highPriority, unassigned };
   }
 
-  private listWhere(filter: Omit<ListCasesFilter, 'limit'>): WhereOptions {
+  private listWhere(filter: Omit<ListCasesFilter, 'limit'>): Record<string | symbol, unknown> & { [Op.and]?: WhereOptions[] } {
     const where: WhereOptions = { tenantId: filter.tenantId, deleted: false };
     const conditions: Record<string, unknown> = {};
 
@@ -226,7 +227,7 @@ export class SupportCaseRepository {
     if (byResolution) conditions.id = byResolution;
 
     const search = supportCaseSearchConditions(filter.tenantId, filter, (value) => this.sequelize.escape(value));
-    return { [Op.and]: [{ ...where, ...conditions }, ...search] };
+    return { ...where, ...conditions, ...(search.length ? { [Op.and]: search } : {}) };
   }
 
   /**

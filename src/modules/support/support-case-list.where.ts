@@ -5,13 +5,16 @@
  */
 import { Op, WhereOptions, literal } from 'sequelize';
 import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
+import { atlasSchemaFor } from '../../database/domain-schemas.js';
+
+const CUSTOMERS = `${atlasSchemaFor('customers')}.customers`;
 
 /**
  * Casos cuyo cliente tiene un código que contiene lo buscado. El código de cliente es lo que llega
  * en un ticket o en una llamada; el caso guarda sólo el id interno del sujeto.
  */
 const casosDeClientesQueCoinciden = (tenantId: string, pattern: string) =>
-  literal(`(SELECT c._id FROM customers c WHERE c._tenant_id = ${tenantId} AND c.customer_code ILIKE ${pattern})`);
+  literal(`(SELECT c._id FROM ${CUSTOMERS} c WHERE c._tenant_id = ${tenantId} AND c.customer_code ILIKE ${pattern})`);
 
 export type SupportCaseSearch = {
   /** Número de caso, asunto o código de cliente, por partes y sin distinguir mayúsculas. */
