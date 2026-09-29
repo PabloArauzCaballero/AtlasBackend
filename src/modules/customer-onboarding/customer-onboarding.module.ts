@@ -53,6 +53,9 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
 import { CustomerOnboardingController } from './customer-onboarding.controller.js';
 import { CustomerPackagesController } from './customer-packages.controller.js';
 import { CustomerOnboardingProfileController } from './customer-onboarding-profile.controller.js';
+import { CustomerOnboardingAnswersController } from './customer-onboarding-answers.controller.js';
+import { CustomerOnboardingAnswersService } from './application/customer-onboarding-answers.service.js';
+import { CustomerOnboardingAnswersRepository } from './repositories/customer-onboarding-answers.repository.js';
 import { CustomerOnboardingStatusController } from './customer-onboarding-status.controller.js';
 import { CustomerVerificationController } from './customer-verification.controller.js';
 import { CustomerAddressPackageService } from './application/customer-address-package.service.js';
@@ -166,6 +169,7 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
     CustomerOnboardingController,
     CustomerPackagesController,
     CustomerOnboardingProfileController,
+    CustomerOnboardingAnswersController,
     CustomerOnboardingStatusController,
     CustomerVerificationController,
     ConsumerSurveyController,
@@ -206,6 +210,8 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
     CustomerReferenceContactsService,
     CustomerContactMethodsService,
     CustomerProfileDataRepository,
+    CustomerOnboardingAnswersRepository,
+    CustomerOnboardingAnswersService,
     CustomerVerificationRepository,
     OnboardingAbandonmentService,
     OnboardingDeviceSessionService,

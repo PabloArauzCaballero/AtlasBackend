@@ -18,7 +18,7 @@ import { CustomerOnboardingRepository } from '../customer-onboarding.repository.
 import { CustomerProfileDataRepository } from '../repositories/customer-profile-data.repository.js';
 
 /** Traducción entre el contrato HTTP (camelCase) y el `attribute_code` del catálogo (snake_case). */
-const FIELD_TO_ATTRIBUTE_CODE: Readonly<Record<keyof FinancialProfileDto, FinancialAttributeCode>> = {
+export const FIELD_TO_ATTRIBUTE_CODE: Readonly<Record<keyof FinancialProfileDto, FinancialAttributeCode>> = {
   employmentStatus: 'employment_status',
   employerName: 'employer_name',
   employmentSeniorityMonths: 'employment_seniority_months',
