@@ -32,6 +32,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN yarn build
+# Identidad del artefacto (commit e instante del build) sellada DENTRO de dist/. Va en su propia capa, después
+# de `yarn build`, para que cambiar SOURCE_COMMIT no invalide la caché de la compilación. Si el argumento
+# llega vacío, el script lo saca de .git; si tampoco puede, deja null (sin inventar).
+ARG SOURCE_COMMIT=""
+RUN node dist/scripts/write-build-info.js
 
 # ---------------------------------------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime

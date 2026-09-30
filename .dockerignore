@@ -20,6 +20,10 @@ logs/
 
 # Historial y metadatos de desarrollo
 .git/
+# Sólo los punteros que dan el commit (no el historial ni los objetos): los lee scripts/write-build-info.ts.
+!.git/HEAD
+!.git/packed-refs
+!.git/refs
 .github/
 .claude/
 .agents/

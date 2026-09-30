@@ -5,7 +5,7 @@
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Transaction } from 'sequelize';
-import { env } from '../../config/env.js';
+import { buildInfo } from '../../config/build-info.js';
 import { type RouteRuns, verificationFromRuns } from './system-flows.verification.util.js';
 import { ACCESS_EVIDENCE, type EvidenciaDeBloque } from './system-flows.evidence.js';
 import { PlatformCatalogFederationClient } from './platform-catalog-federation.client.js';
@@ -101,7 +101,7 @@ export class SystemFlowsService {
       return {
         systemCode: dto.systemCode,
         windowDays: dto.windowDays,
-        deployedCommit: env.APP_COMMIT_SHA ?? null,
+        deployedCommit: buildInfo.commit,
         routesWithRuns: runs.size,
         federation: federado ? { ok: federado.ok, message: federado.message } : undefined,
         ...counts,
