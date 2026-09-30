@@ -53,6 +53,9 @@ export class InternalMailController {
       to: [body.to],
       subject: body.subject,
       text: body.text,
+      html: body.html ?? null,
+      replyTo: body.replyTo ?? null,
+      fromName: body.fromName ?? null,
       boundarySeed: body.reference,
       attachments: body.attachments.map((attachment) => ({
         filename: attachment.filename,
