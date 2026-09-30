@@ -6,6 +6,7 @@ import { CreditBusinessAcceptanceService } from '../../../src/modules/credit/app
 import { CreditDecisionService } from '../../../src/modules/credit/application/credit-decision.service.js';
 import { CreditLineService } from '../../../src/modules/credit/application/credit-line.service.js';
 import { CreditProductService } from '../../../src/modules/credit/application/credit-product.service.js';
+import { CreditProductStatusService } from '../../../src/modules/credit/application/credit-product-status.service.js';
 import { authHeader, buildGenericTestApp, TENANT_HEADER } from '../support/generic-test-app.js';
 
 /**
@@ -32,6 +33,7 @@ describe('CreditOperationsController (e2e/supertest)', () => {
   const businessAcceptance = { decide: jest.fn(async (..._args: unknown[]) => ({ applicationId: '5', businessAcceptance: 'accepted' })) };
   const decisionService = { decide: jest.fn(), getApplicationDetail: jest.fn() };
   const productService = { listForOperations: jest.fn(), createProduct: jest.fn(), changeStatus: jest.fn() };
+  const productStatus = { changeStatus: jest.fn() };
 
   beforeAll(async () => {
     app = await buildGenericTestApp(
@@ -41,6 +43,7 @@ describe('CreditOperationsController (e2e/supertest)', () => {
         { provide: CreditDecisionService, useValue: decisionService },
         { provide: CreditBusinessAcceptanceService, useValue: businessAcceptance },
         { provide: CreditLineService, useValue: creditLines },
+        { provide: CreditProductStatusService, useValue: productStatus },
       ],
     );
   });

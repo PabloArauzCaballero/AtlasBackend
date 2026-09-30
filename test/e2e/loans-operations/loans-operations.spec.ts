@@ -3,6 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { LoansOperationsController } from '../../../src/modules/loans/loans-operations.controller.js';
 import { LoanDelinquencyService } from '../../../src/modules/loans/application/loan-delinquency.service.js';
+import { LoanQueryService } from '../../../src/modules/loans/application/loan-query.service.js';
 import { OutcomeDispatchService } from '../../../src/modules/decision-engine/outcome-dispatch.service.js';
 import { authHeader, buildGenericTestApp, TENANT_HEADER } from '../support/generic-test-app.js';
 
@@ -29,6 +30,7 @@ describe('LoansOperationsController (e2e/supertest) — POST operations/loans/de
       [
         { provide: LoanDelinquencyService, useValue: delinquency },
         { provide: OutcomeDispatchService, useValue: outcomes },
+        { provide: LoanQueryService, useValue: { findMany: jest.fn(), findById: jest.fn() } },
       ],
     );
   });

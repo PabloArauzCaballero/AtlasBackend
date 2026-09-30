@@ -4,6 +4,7 @@ import request from 'supertest';
 import { OperationsController } from '../../../src/modules/operations/operations.controller.js';
 import { OperationsService } from '../../../src/modules/operations/operations.service.js';
 import { FraudService } from '../../../src/modules/fraud/fraud.service.js';
+import { OperationsWorkQueueService } from '../../../src/modules/operations/operations-work-queue.service.js';
 import { PendingContactVerificationService } from '../../../src/modules/operations/pending-contact-verification.service.js';
 import { OnboardingBehaviorSummaryService } from '../../../src/modules/customer-telemetry/application/onboarding-behavior-summary.service.js';
 import { authHeader, buildGenericTestApp, IDEMPOTENCY_HEADER, TENANT_HEADER } from '../support/generic-test-app.js';
@@ -40,6 +41,7 @@ describe('OperationsController (e2e/supertest) — decisiones', () => {
       [OperationsController],
       [
         { provide: OperationsService, useValue: operationsService },
+        { provide: OperationsWorkQueueService, useValue: { list: jest.fn(), summary: jest.fn() } },
         { provide: FraudService, useValue: fraudService },
         { provide: PendingContactVerificationService, useValue: pendingContacts },
         { provide: OnboardingBehaviorSummaryService, useValue: comportamiento },

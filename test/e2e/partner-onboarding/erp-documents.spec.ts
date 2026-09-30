@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { ErpDocumentsController } from '../../../src/modules/partner-onboarding/erp-documents.controller.js';
+import { ErpMerchantExpedienteService } from '../../../src/modules/partner-onboarding/application/erp-merchant-expediente.service.js';
 import { ErpDocumentsService } from '../../../src/modules/partner-onboarding/application/erp-documents.service.js';
 import { authHeader, buildGenericTestApp, TENANT_HEADER } from '../support/generic-test-app.js';
 
@@ -28,7 +29,10 @@ describe('ErpDocumentsController — upload-url (e2e/supertest)', () => {
   };
 
   beforeAll(async () => {
-    app = await buildGenericTestApp([ErpDocumentsController], [{ provide: ErpDocumentsService, useValue: documentsService }]);
+    app = await buildGenericTestApp([ErpDocumentsController], [
+      { provide: ErpDocumentsService, useValue: documentsService },
+      { provide: ErpMerchantExpedienteService, useValue: { ensureExpediente: jest.fn() } },
+    ]);
   });
 
   afterAll(async () => {
