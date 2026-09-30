@@ -26,10 +26,7 @@ describe('ExpedientesJobsController (e2e/supertest)', () => {
   };
 
   beforeAll(async () => {
-    app = await buildGenericTestApp(
-      [ExpedientesJobsController],
-      [{ provide: ExpedientesMantenimientoService, useValue: expedientes }],
-    );
+    app = await buildGenericTestApp([ExpedientesJobsController], [{ provide: ExpedientesMantenimientoService, useValue: expedientes }]);
   });
 
   afterAll(async () => {

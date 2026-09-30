@@ -22,7 +22,9 @@ import { authHeader, buildGenericTestApp, TENANT_HEADER } from '../support/gener
 describe('PartnerOperationsController — kyb-review (e2e/supertest)', () => {
   let app: INestApplication;
 
-  const profiles = { requireProfile: jest.fn(async (..._args: unknown[]) => ({ legalName: 'X', tradeName: 'X', onboardingStatus: 'under_review' })) };
+  const profiles = {
+    requireProfile: jest.fn(async (..._args: unknown[]) => ({ legalName: 'X', tradeName: 'X', onboardingStatus: 'under_review' })),
+  };
   const qr = { listPendingReview: jest.fn(async () => []), review: jest.fn(async () => ({})) };
   const verification = {
     listAwaitingDecision: jest.fn(async () => ({ items: [] })),
@@ -36,7 +38,9 @@ describe('PartnerOperationsController — kyb-review (e2e/supertest)', () => {
 
   // El permiso se concede por usuario interno: `usuario-con-permiso` lo tiene, `usuario-sin-permiso` no.
   const rbacRepository = {
-    hasPermissions: jest.fn(async (_tenantId: string, internalUserId: string, _permissions: string[]) => internalUserId === 'usuario-con-permiso'),
+    hasPermissions: jest.fn(
+      async (_tenantId: string, internalUserId: string, _permissions: string[]) => internalUserId === 'usuario-con-permiso',
+    ),
   };
 
   beforeAll(async () => {

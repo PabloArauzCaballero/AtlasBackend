@@ -29,10 +29,13 @@ describe('ErpDocumentsController — upload-url (e2e/supertest)', () => {
   };
 
   beforeAll(async () => {
-    app = await buildGenericTestApp([ErpDocumentsController], [
-      { provide: ErpDocumentsService, useValue: documentsService },
-      { provide: ErpMerchantExpedienteService, useValue: { ensureExpediente: jest.fn() } },
-    ]);
+    app = await buildGenericTestApp(
+      [ErpDocumentsController],
+      [
+        { provide: ErpDocumentsService, useValue: documentsService },
+        { provide: ErpMerchantExpedienteService, useValue: { ensureExpediente: jest.fn() } },
+      ],
+    );
   });
 
   afterAll(async () => {

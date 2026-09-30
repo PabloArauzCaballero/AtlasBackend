@@ -29,10 +29,7 @@ describe('DecisionArtifactBindingController (e2e/supertest) — POST /internal/d
   };
 
   beforeAll(async () => {
-    app = await buildGenericTestApp(
-      [DecisionArtifactBindingController],
-      [{ provide: DecisionArtifactBindingService, useValue: bindings }],
-    );
+    app = await buildGenericTestApp([DecisionArtifactBindingController], [{ provide: DecisionArtifactBindingService, useValue: bindings }]);
   });
 
   afterAll(async () => {

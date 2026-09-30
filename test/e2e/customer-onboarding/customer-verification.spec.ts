@@ -85,7 +85,10 @@ describe('CustomerVerificationController (e2e/supertest)', () => {
 
   describe('POST operations/customers/:customerId/compliance/screening', () => {
     it('rechaza con 401 sin token', async () => {
-      await request(app.getHttpServer()).post('/operations/customers/1/compliance/screening').set(...TENANT_HEADER).expect(401);
+      await request(app.getHttpServer())
+        .post('/operations/customers/1/compliance/screening')
+        .set(...TENANT_HEADER)
+        .expect(401);
       expect(screeningService.screen).not.toHaveBeenCalled();
     });
 

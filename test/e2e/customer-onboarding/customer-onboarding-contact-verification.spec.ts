@@ -142,7 +142,9 @@ describe('CustomerOnboardingController — verificación de contacto (e2e/supert
         .expect(200);
 
       expect(response.body).toMatchObject({ verified: true });
-      const [[input]] = onboarding.submitContactVerification.mock.calls as unknown as [[{ customerId: string; body: { verificationCode: string } }]];
+      const [[input]] = onboarding.submitContactVerification.mock.calls as unknown as [
+        [{ customerId: string; body: { verificationCode: string } }],
+      ];
       expect(input.customerId).toBe('42');
       expect(input.body.verificationCode).toBe('135790');
     });

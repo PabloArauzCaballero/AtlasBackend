@@ -22,7 +22,11 @@ describe('MobilePaymentClaimsController (e2e/supertest) — POST .../payment-cla
     submit: jest.fn(async (..._args: unknown[]) => ({ claimId: '1', status: 'pending' })),
   };
   const instructions = {
-    paymentInstruction: jest.fn(async (..._args: unknown[]) => ({ amount: '100.00', beneficiary: 'Comercio X', qr: 'data:image/png;base64,AA==' })),
+    paymentInstruction: jest.fn(async (..._args: unknown[]) => ({
+      amount: '100.00',
+      beneficiary: 'Comercio X',
+      qr: 'data:image/png;base64,AA==',
+    })),
   };
 
   beforeAll(async () => {
