@@ -6,6 +6,7 @@
 import 'dotenv/config';
 import { envBaseSchema, type RawAppEnv } from './env.schema.js';
 import { applyEnvCrossChecks } from './env-cross-checks.js';
+import { federationCredentialWarnings } from './env-federation-warnings.js';
 
 // El esquema por campo vive en `env.schema.ts` y las validaciones cruzadas en `env-cross-checks.ts`.
 // Este archivo solo compone ambos, parsea una vez al arrancar y expone el resultado tipado.
@@ -47,6 +48,10 @@ function parseEnv(): AppEnv {
         'entorno. Configura KMS_KEY_ID + AWS_REGION y ejecuta `yarn crypto:reencrypt-pii` para migrar ' +
         'los valores existentes al proveedor KMS.',
     );
+  }
+
+  if (parsed.data.NODE_ENV === 'production') {
+    for (const warning of federationCredentialWarnings(parsed.data)) console.warn(warning);
   }
 
   return {

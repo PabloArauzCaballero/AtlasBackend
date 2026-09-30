@@ -181,6 +181,7 @@ deliberado (nadie queda fuera de su cuenta), pero significa que **en producción
 | **AWS KMS** (cifrado de PII) | `KMS_KEY_ID` + `AWS_REGION` | 🟠 | La PII se cifra con una clave derivada de variable de entorno, no con un HSM. **En producción se emite un aviso ruidoso al arrancar.** Comprometer esa variable descifra toda la PII. Migración con `yarn crypto:reencrypt-pii`. |
 | **Almacenamiento S3** (evidencia documental) | `STORAGE_S3_ENDPOINT`, `STORAGE_S3_BUCKET`, `STORAGE_S3_ACCESS_KEY_ID`, `STORAGE_S3_SECRET_ACCESS_KEY` | 🟠 | El endpoint de subida responde 503 y el paquete de identidad **rechaza** la evidencia, en vez de aceptar un `storageKey` que nadie puede verificar. Compatible con AWS, MinIO, R2, B2. |
 | **MongoDB** (visor de logs) | `MONGO_DB_URL_CONNECTION` | 🟠 | El sync de `Archivo.log` queda apagado y `GET /systems/logs/mongo` responde `NOT_CONFIGURED`. El backend arranca igual. |
+| **Federación de bloques** (ERP, Tableros) | `ERP_BACKEND_CATALOG_API_KEY` ↔ `PLATFORM_CATALOG_API_KEY` del ERP; `DASHBOARDS_CATALOG_API_KEY` ↔ el de Tableros | 🟠 | Con dirección y sin llave, el panel de salud de red muestra el bloque como «Falta configurar». Aviso `[ATLAS][FEDERACIÓN]` al arrancar en producción. Ver [runbook](../runbooks/despliegue-produccion.md). |
 | **OpenTelemetry** | `OTEL_ENABLED=true` + `OTEL_EXPORTER_OTLP_ENDPOINT` | 🟠 | Trazas apagadas (no-op, coste cero). Las métricas Prometheus funcionan igual. |
 
 ---

@@ -20,6 +20,28 @@ El arranque **falla con un mensaje claro** si alguna de estas no está bien conf
 - [ ] `DB_SSL=true` con `DB_SSL_REJECT_UNAUTHORIZED=true` (validación de certificado de PostgreSQL).
 - [ ] `CORS_ORIGINS` / `INTERNAL_FRONTEND_ORIGIN` apuntando a los orígenes reales del frontend.
 
+### Federación entre bloques (panel `/internal/systems/network-health`)
+
+Cada bloque federado se lee con una credencial de UN SOLO propósito, y **el mismo valor** tiene que
+estar en los dos lados. Faltando cualquiera, el bloque responde `200` en salud pero el panel lo
+muestra como «Falta configurar». Pasó en TEST el 2026-09-30: `ERP_BACKEND_CATALOG_API_KEY` existía en
+las variables de Coolify de atlas-backend pero **vacía**, y la del ERP tenía 48 caracteres.
+
+| Bloque | En AtlasBackend (lee) | En el bloque (sirve) | Sin ella |
+|---|---|---|---|
+| ERP | `ERP_BACKEND_BASE_URL` + `ERP_BACKEND_CATALOG_API_KEY` | `PLATFORM_CATALOG_API_KEY` (≥ 20 car.) | Panel: «Falta configurar»; el ERP responde 503 al manifiesto |
+| Tableros | `DASHBOARDS_BASE_URL` + `DASHBOARDS_CATALOG_API_KEY` | `PLATFORM_CATALOG_API_KEY` (≥ 32 car.) | Panel: «Falta configurar» |
+
+- [ ] Generar una llave por bloque (`openssl rand -hex 32`); no reutilizar el JWT ni el token de métricas.
+- [ ] Ponerla en las **Environment Variables de Coolify de las DOS aplicaciones** y redesplegar ambas.
+      Una variable creada y vacía cuenta como ausente; comprobar que tiene valor, no sólo que existe.
+- [ ] Comprobar: abrir el panel y ver el bloque «En pie» con catálogo medido, no «Sin medir».
+- [ ] Al arrancar en producción, AtlasBackend registra `[ATLAS][FEDERACIÓN] … falta …` si hay dirección y
+      no credencial. Es un aviso y no un error a propósito: el hueco es de observabilidad y tumbar la
+      API por él sería peor. Buscarlo: `docker logs <api> | grep FEDERACI`.
+- [ ] Rotarla: cambiar primero el lado que sirve y luego el que lee en la misma ventana; entre medias el
+      bloque se ve «no federado».
+
 ## 2. Base de datos: migraciones
 
 - [ ] Correr `yarn db:migration:up` con la identidad de migración (`DB_MIGRATION_USER`, sin que el
