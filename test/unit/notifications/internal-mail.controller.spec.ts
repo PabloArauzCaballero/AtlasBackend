@@ -26,6 +26,17 @@ describe('InternalMailController', () => {
     );
   });
 
+  it('pasa el HTML, el nombre de quien envía y su correo para las respuestas', async () => {
+    const gmail = { isEnabled: () => true, sendEmail: jest.fn(async () => ({ id: 'gm-2', threadId: null, response: {} })) };
+    await new InternalMailController(gmail as never).send(
+      internalMailSchema.parse({ ...body, html: '<p>Hola</p>', replyTo: 'Ana@Atlas.bo', fromName: 'Ana Pérez · ATLAS' }),
+      user,
+    );
+    expect(gmail.sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ html: '<p>Hola</p>', replyTo: 'ana@atlas.bo', fromName: 'Ana Pérez · ATLAS' }),
+    );
+  });
+
   it('sin Gmail como proveedor responde 503 y no manda nada', async () => {
     const gmail = { isEnabled: () => false, sendEmail: jest.fn() };
     await expect(new InternalMailController(gmail as never).send(body, user)).rejects.toThrow(ServiceUnavailableException);

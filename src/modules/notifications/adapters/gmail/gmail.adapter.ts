@@ -33,6 +33,8 @@ export type GmailSendInput = {
   cc?: string[];
   bcc?: string[];
   replyTo?: string | null;
+  /** Nombre visible del remitente para ESTE envío (p. ej. «Ana Pérez · ATLAS»); por defecto el del entorno. */
+  fromName?: string | null;
   subject: string;
   text: string;
   html?: string | null;
@@ -126,7 +128,7 @@ export class GmailApiAdapter implements NotificationChannelAdapter {
     const credentials = this.readCredentials();
     const raw = buildGmailRawMessage({
       from: credentials.fromEmail,
-      fromName: env.GMAIL_FROM_NAME,
+      fromName: input.fromName?.trim() || env.GMAIL_FROM_NAME,
       to: this.validateAddresses(input.to, 'destinatario'),
       cc: this.validateAddresses(input.cc ?? [], 'copia'),
       bcc: this.validateAddresses(input.bcc ?? [], 'copia oculta'),
