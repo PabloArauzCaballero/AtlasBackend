@@ -22,8 +22,14 @@ Con el prefijo global (`API_PREFIX=api/v1`):
 |---|---|---|---|
 | `POST /api/v1/mobile/assist/chat` | `customer` | `{ prompt, clientMessageId, conversationId?, screen? }` (`screen` del catálogo del móvil) | `{ reply, suggestHandoff, conversationId, turnId }` |
 | `GET /api/v1/mobile/assist/conversation` | `customer` | — | `{ conversationId, turns[] }` |
+| `GET /api/v1/mobile/assist/conversations` | `customer` | — | `{ conversations: [{ conversationId, title, updatedAt, turnCount }] }` (hasta 20; ilegible = vacía) |
+| `GET /api/v1/mobile/assist/conversations/:id` | `customer` | — | `{ conversationId, title, turns[] }`; 404 `ASSIST_CONVERSATION_NOT_FOUND` si no es suya |
+| `DELETE /api/v1/mobile/assist/conversations/:id` | `customer` | — | `{ deleted: 0 \| 1 }` |
 | `POST /api/v1/internal/assist/chat` | personal interno o comercio, según superficie | `{ surface, prompt, clientMessageId, conversationId?, screen? }` | lo del móvil más `mode?: 'sin-ia'` |
 | `GET /api/v1/internal/assist/conversation?surface=` | personal interno o comercio, según superficie | `surface` obligatoria | `{ conversationId, turns[] }` |
+| `GET /api/v1/internal/assist/conversations?surface=` | ídem | `surface` obligatoria | lo del móvil: `{ conversations[] }` de ESA superficie |
+| `GET /api/v1/internal/assist/conversations/:id?surface=` | ídem | `surface` obligatoria | `{ conversationId, title, turns[] }` |
+| `DELETE /api/v1/internal/assist/conversations/:id?surface=` | ídem | `surface` obligatoria | `{ deleted: 0 \| 1 }` |
 
 En los portales `screen` es texto libre corto —la sección donde está la persona, p. ej.
 «Contabilidad › Cierres»—: 1 a 80 caracteres, letras (con tildes), números, espacios y `› / · _ - ( ) . ,`.

@@ -3,7 +3,7 @@
  * @business Esta pieza responde dudas de uso de la app sin hacer esperar a una persona del equipo.
  * @system expone el chat del asistente y la conversación vigente del cliente autenticado.
  */
-import { Body, Controller, Get, HttpCode, HttpException, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpException, Param, ParseUUIDPipe, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
@@ -90,6 +90,66 @@ export class AssistController {
   @Get('conversation')
   conversation(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     return this.service.conversation(tenantId, exigirCliente(currentUser));
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Roles('customer')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'El historial de conversaciones con el asistente',
+    description:
+      'Hasta 20 conversaciones del cliente con al menos un turno guardado, la más reciente primero: ' +
+      '`{ conversations: [{ conversationId, title, updatedAt, turnCount }] }`. `title` es la primera pregunta. ' +
+      'Si el historial no se puede leer se contesta la lista vacía.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional: se toma del token.' })
+  @ApiResponse({ status: 200, description: 'La lista, o vacía si no hay conversaciones.' })
+  @ApiResponse({ status: 404, description: 'ASSIST_DISABLED — el asistente está apagado; la app esconde el botón.' })
+  @Get('conversations')
+  conversations(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
+    return this.service.conversations(tenantId, exigirCliente(currentUser));
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Roles('customer')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Una conversación del historial',
+    description:
+      'Los últimos 30 turnos de una conversación del cliente, en orden cronológico: `{ conversationId, title, turns }`. ' +
+      'El id de otra persona contesta 404 igual que uno inexistente.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional: se toma del token.' })
+  @ApiResponse({ status: 200, description: 'La conversación con sus turnos.' })
+  @ApiResponse({ status: 404, description: 'ASSIST_DISABLED (apagado) o ASSIST_CONVERSATION_NOT_FOUND (no existe o no es suya).' })
+  @ApiResponse({ status: 503, description: 'ASSIST_UNAVAILABLE — el asistente no contesta.' })
+  @Get('conversations/:id')
+  conversationById(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.service.conversationById(tenantId, exigirCliente(currentUser), id);
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Roles('customer')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Borrar una conversación del historial',
+    description: 'Borra una conversación del cliente: `{ deleted: 1 }`, o `{ deleted: 0 }` si no existía o no era suya.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional: se toma del token.' })
+  @ApiResponse({ status: 200, description: '`{ deleted: 0 | 1 }`.' })
+  @ApiResponse({ status: 404, description: 'ASSIST_DISABLED — el asistente está apagado; la app esconde el botón.' })
+  @ApiResponse({ status: 503, description: 'ASSIST_UNAVAILABLE — el asistente no contesta.' })
+  @Delete('conversations/:id')
+  deleteConversation(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.service.deleteConversation(tenantId, exigirCliente(currentUser), id);
   }
 }
 

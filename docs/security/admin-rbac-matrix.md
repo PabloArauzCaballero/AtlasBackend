@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (121 controladores) | 584 |
+| Total montadas (121 controladores) | 590 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 9 |
 | Sin sesión de usuario (`@Public`) | 28 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 3 |
-| Con `@Roles` | 529 |
+| Con `@Roles` | 535 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 78 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -47,8 +47,14 @@
 |---|---|---|---|---|---|
 | `POST` | `/internal/assist/chat` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor`, `merchant` | — | `PortalAssistController.chat` | guards: `TenantGuard` |
 | `GET` | `/internal/assist/conversation` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor`, `merchant` | — | `PortalAssistController.conversation` | guards: `TenantGuard` |
+| `GET` | `/internal/assist/conversations` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor`, `merchant` | — | `PortalAssistController.conversations` | guards: `TenantGuard` |
+| `DELETE` | `/internal/assist/conversations/:id` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor`, `merchant` | — | `PortalAssistController.deleteConversation` | guards: `TenantGuard` |
+| `GET` | `/internal/assist/conversations/:id` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system_admin`, `qa_engineer`, `devops`, `readonly_auditor`, `merchant` | — | `PortalAssistController.conversationById` | guards: `TenantGuard` |
 | `POST` | `/mobile/assist/chat` | `customer` | — | `AssistController.chat` | guards: `TenantGuard` |
 | `GET` | `/mobile/assist/conversation` | `customer` | — | `AssistController.conversation` | guards: `TenantGuard` |
+| `GET` | `/mobile/assist/conversations` | `customer` | — | `AssistController.conversations` | guards: `TenantGuard` |
+| `DELETE` | `/mobile/assist/conversations/:id` | `customer` | — | `AssistController.deleteConversation` | guards: `TenantGuard` |
+| `GET` | `/mobile/assist/conversations/:id` | `customer` | — | `AssistController.conversationById` | guards: `TenantGuard` |
 
 ## `audit`
 

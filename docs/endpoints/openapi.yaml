@@ -9822,6 +9822,192 @@ paths:
       summary: La conversación vigente con el asistente del portal
       tags:
         - internal-assist
+  /internal/assist/conversations:
+    get:
+      description: >-
+        Hasta 20 conversaciones de la persona en ESA superficie, la más reciente
+        primero: `{ conversations: [{ conversationId, title, updatedAt,
+        turnCount }] }`. Cada portal ve sólo su historial. Si el historial no se
+        puede leer se contesta la lista vacía.
+      operationId: PortalAssistController_conversations
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: 'Opcional: se toma del token.'
+          required: false
+          schema:
+            type: string
+        - name: surface
+          required: true
+          in: query
+          description: El portal desde el que se abre el asistente.
+          schema:
+            enum:
+              - admin-portal
+              - erp-staff
+              - merchant-portal
+              - risk-portal
+              - dashboards
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: La lista, o vacía si no hay conversaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: >-
+            ASSIST_SURFACE_FORBIDDEN — esa superficie no es de este tipo de
+            usuario.
+        '404':
+          description: >-
+            ASSIST_DISABLED — el asistente está apagado; el portal esconde el
+            botón.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: El historial de conversaciones con el asistente del portal
+      tags:
+        - internal-assist
+  /internal/assist/conversations/{id}:
+    get:
+      description: >-
+        Los últimos 30 turnos de una conversación de la persona en ESA
+        superficie, en orden cronológico: `{ conversationId, title, turns }`. El
+        id de otra persona o de otro portal contesta 404.
+      operationId: PortalAssistController_conversationById
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+          description: >-
+            Identificador de ruta `id` del recurso direccionado por la
+            operación.
+        - name: x-tenant-id
+          in: header
+          description: 'Opcional: se toma del token.'
+          required: false
+          schema:
+            type: string
+        - name: surface
+          required: true
+          in: query
+          description: El portal desde el que se abre el asistente.
+          schema:
+            enum:
+              - admin-portal
+              - erp-staff
+              - merchant-portal
+              - risk-portal
+              - dashboards
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: La conversación con sus turnos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: >-
+            ASSIST_SURFACE_FORBIDDEN — esa superficie no es de este tipo de
+            usuario.
+        '404':
+          description: >-
+            ASSIST_DISABLED (apagado) o ASSIST_CONVERSATION_NOT_FOUND (no existe
+            o no es suya).
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: ASSIST_UNAVAILABLE — el asistente no contesta.
+      security:
+        - access-token: []
+      summary: Una conversación del historial del portal
+      tags:
+        - internal-assist
+    delete:
+      description: >-
+        Borra una conversación de la persona en ESA superficie: `{ deleted: 1
+        }`, o `{ deleted: 0 }` si no existía o no era suya.
+      operationId: PortalAssistController_deleteConversation
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+          description: >-
+            Identificador de ruta `id` del recurso direccionado por la
+            operación.
+        - name: x-tenant-id
+          in: header
+          description: 'Opcional: se toma del token.'
+          required: false
+          schema:
+            type: string
+        - name: surface
+          required: true
+          in: query
+          description: El portal desde el que se abre el asistente.
+          schema:
+            enum:
+              - admin-portal
+              - erp-staff
+              - merchant-portal
+              - risk-portal
+              - dashboards
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: '`{ deleted: 0 | 1 }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: >-
+            ASSIST_SURFACE_FORBIDDEN — esa superficie no es de este tipo de
+            usuario.
+        '404':
+          description: >-
+            ASSIST_DISABLED — el asistente está apagado; el portal esconde el
+            botón.
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: ASSIST_UNAVAILABLE — el asistente no contesta.
+      security:
+        - access-token: []
+      summary: Borrar una conversación del historial del portal
+      tags:
+        - internal-assist
   /internal/auth/login:
     post:
       description: Autentica usuarios internos para el panel administrativo ATLAS.
@@ -15154,6 +15340,150 @@ paths:
       security:
         - access-token: []
       summary: La conversación vigente con el asistente
+      tags:
+        - mobile-assist
+  /mobile/assist/conversations:
+    get:
+      description: >-
+        Hasta 20 conversaciones del cliente con al menos un turno guardado, la
+        más reciente primero: `{ conversations: [{ conversationId, title,
+        updatedAt, turnCount }] }`. `title` es la primera pregunta. Si el
+        historial no se puede leer se contesta la lista vacía.
+      operationId: AssistController_conversations
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: 'Opcional: se toma del token.'
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: La lista, o vacía si no hay conversaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: >-
+            ASSIST_DISABLED — el asistente está apagado; la app esconde el
+            botón.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: El historial de conversaciones con el asistente
+      tags:
+        - mobile-assist
+  /mobile/assist/conversations/{id}:
+    get:
+      description: >-
+        Los últimos 30 turnos de una conversación del cliente, en orden
+        cronológico: `{ conversationId, title, turns }`. El id de otra persona
+        contesta 404 igual que uno inexistente.
+      operationId: AssistController_conversationById
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+          description: >-
+            Identificador de ruta `id` del recurso direccionado por la
+            operación.
+        - name: x-tenant-id
+          in: header
+          description: 'Opcional: se toma del token.'
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: La conversación con sus turnos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: >-
+            ASSIST_DISABLED (apagado) o ASSIST_CONVERSATION_NOT_FOUND (no existe
+            o no es suya).
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: ASSIST_UNAVAILABLE — el asistente no contesta.
+      security:
+        - access-token: []
+      summary: Una conversación del historial
+      tags:
+        - mobile-assist
+    delete:
+      description: >-
+        Borra una conversación del cliente: `{ deleted: 1 }`, o `{ deleted: 0 }`
+        si no existía o no era suya.
+      operationId: AssistController_deleteConversation
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+          description: >-
+            Identificador de ruta `id` del recurso direccionado por la
+            operación.
+        - name: x-tenant-id
+          in: header
+          description: 'Opcional: se toma del token.'
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: '`{ deleted: 0 | 1 }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: >-
+            ASSIST_DISABLED — el asistente está apagado; la app esconde el
+            botón.
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: ASSIST_UNAVAILABLE — el asistente no contesta.
+      security:
+        - access-token: []
+      summary: Borrar una conversación del historial
       tags:
         - mobile-assist
   /mobile/customers/{customerId}/payment-claims:

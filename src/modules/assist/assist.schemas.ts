@@ -105,3 +105,22 @@ export type AssistConversationView = {
   conversationId: string | null;
   turns: AssistTurnView[];
 };
+
+/** Una conversación en la lista del historial. `title` es la primera pregunta, recortada por el servicio. */
+export type AssistConversationSummaryView = {
+  conversationId: string;
+  title: string;
+  updatedAt: string;
+  turnCount: number;
+};
+
+export type AssistConversationListView = { conversations: AssistConversationSummaryView[] };
+
+/** Una conversación concreta del historial: como la vigente, más su título. */
+export type AssistConversationDetailView = { conversationId: string; title: string; turns: AssistTurnView[] };
+
+/** Cuántas conversaciones se borraron: 1, o 0 si ya no existía o no era del actor. */
+export type AssistConversationDeleteView = { deleted: 0 | 1 };
+
+/** El `:id` de una conversación en la ruta. */
+export const assistConversationIdSchema = z.string().uuid('El id de la conversación debe ser un UUID.');
