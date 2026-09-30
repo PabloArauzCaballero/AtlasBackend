@@ -78,6 +78,36 @@ describe('gmail-mime.util', () => {
       expect(decodeBase64Body(body)).toBe('línea uno\r\nlínea dos');
     });
 
+    it('con adjunto emite multipart/mixed: el texto primero y el PDF íntegro detrás', () => {
+      const pdf = Buffer.from('%PDF-1.7 propuesta ñ');
+      const decoded = decodeRaw(
+        buildGmailRawMessage({
+          ...base,
+          text: 'Adjuntamos la propuesta.',
+          attachments: [{ filename: 'propuesta-PROP-1.pdf', contentType: 'application/pdf', content: pdf }],
+        }),
+      );
+      const mixed = decoded.match(/multipart\/mixed; boundary="([^"]+)"/)?.[1];
+      expect(mixed).toBe('atlas-msg1-mixed');
+      const partes = decoded.split(`--${mixed}`);
+      expect(partes[1]).toContain('Content-Type: text/plain; charset="UTF-8"');
+      expect(decodeBase64Body(partes[1]!.split('\r\n\r\n')[1]!.trim())).toBe('Adjuntamos la propuesta.');
+      expect(partes[2]).toContain('Content-Disposition: attachment; filename="propuesta-PROP-1.pdf"');
+      const cuerpo = partes[2]!.split('\r\n\r\n')[1]!.trim();
+      expect(Buffer.from(cuerpo.split(/\r\n/).join(''), 'base64').equals(pdf)).toBe(true);
+      expect(decoded.trimEnd().endsWith(`--${mixed}--`)).toBe(true);
+    });
+
+    it('un nombre de adjunto con salto de línea o comillas no inyecta cabeceras', () => {
+      const decoded = decodeRaw(
+        buildGmailRawMessage({
+          ...base,
+          attachments: [{ filename: 'a"\r\nBcc: x@y.com.pdf', contentType: 'application/pdf', content: Buffer.from('x') }],
+        }),
+      );
+      expect(decoded).not.toMatch(/\r\nBcc: x@y\.com/);
+    });
+
     it('con html emite multipart/alternative con ambas partes íntegras', () => {
       const decoded = decodeRaw(buildGmailRawMessage({ ...base, html: '<p>hola ñ</p>' }));
       const boundary = decoded.match(/boundary="([^"]+)"/)?.[1];

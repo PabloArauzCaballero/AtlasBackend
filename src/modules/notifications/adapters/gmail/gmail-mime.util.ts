@@ -40,6 +40,14 @@ export type GmailMimeInput = {
    * boundary aleatorio haría imposible asertar sobre el correo generado en las pruebas.
    */
   boundarySeed: string;
+  /** Archivos adjuntos (p. ej. el PDF de una propuesta). Con ellos el correo va en `multipart/mixed`. */
+  attachments?: GmailMimeAttachment[];
+};
+
+export type GmailMimeAttachment = {
+  filename: string;
+  contentType: string;
+  content: Buffer;
 };
 
 export function isValidEmailAddress(value: string): boolean {
@@ -101,7 +109,45 @@ function addressHeader(name: string, addresses: string[] | undefined): string[] 
   return list.length > 0 ? [`${name}: ${list.join(', ')}`] : [];
 }
 
+/** Base64 en líneas de 76, que es lo que exige MIME para un adjunto binario. */
+function base64Binary(content: Buffer): string {
+  return (content.toString('base64').match(new RegExp(`.{1,${BASE64_LINE_LENGTH}}`, 'g')) ?? ['']).join(CRLF);
+}
+
+/** Nombre de archivo sin comillas ni saltos: dentro de una cabecera, cualquiera de los dos la rompe. */
+function safeFilename(name: string): string {
+  return name.replace(/[\r\n"]+/g, ' ').trim() || 'adjunto';
+}
+
+/**
+ * Sin adjuntos, el cuerpo de siempre. Con adjuntos, `multipart/mixed`: la primera parte es ese
+ * mismo cuerpo (texto o texto+HTML) y detrás va cada archivo en base64.
+ */
 function bodyLines(input: GmailMimeInput): string[] {
+  const attachments = input.attachments ?? [];
+  if (attachments.length === 0) return contentLines(input);
+  const boundary = `${boundaryFrom(input.boundarySeed)}-mixed`;
+  return [
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    ...contentLines(input),
+    ...attachments.flatMap((attachment) => {
+      const name = safeFilename(attachment.filename);
+      return [
+        `--${boundary}`,
+        `Content-Type: ${attachment.contentType.replace(/[\r\n]+/g, '')}; name="${encodeHeaderValue(name)}"`,
+        `Content-Disposition: attachment; filename="${encodeHeaderValue(name)}"`,
+        'Content-Transfer-Encoding: base64',
+        '',
+        base64Binary(attachment.content),
+      ];
+    }),
+    `--${boundary}--`,
+  ];
+}
+
+function contentLines(input: GmailMimeInput): string[] {
   const html = input.html?.trim();
   if (!html) {
     return ['Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: base64', '', base64Body(input.text)];

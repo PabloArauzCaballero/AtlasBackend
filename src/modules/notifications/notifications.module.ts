@@ -3,6 +3,7 @@
  * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
+import { InternalMailController } from './internal-mail.controller.js';
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
@@ -83,6 +84,8 @@ import { NotificationCampaignsRepository } from './campaigns/notification-campai
     CustomerNotificationsController,
     NotificationTemplatesController,
     NotificationBroadcastController,
+    // El ERP manda por aquí la propuesta comercial (con su PDF) desde la cuenta de correo de ATLAS.
+    InternalMailController,
     NotificationPoliciesOperationsController,
     NotificationCampaignsController,
     NotificationAudienceSegmentsController,

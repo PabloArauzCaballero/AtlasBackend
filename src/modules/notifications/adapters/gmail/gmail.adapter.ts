@@ -11,7 +11,7 @@ import { failedDelivery, getAllDeliveryTargets, postJson, sentDelivery } from '.
 import { NotificationChannelAdapter } from '../notification-channel-adapter.js';
 import { NotificationProviderConfigService } from '../notification-provider-config.service.js';
 import { readAddressList, readHtmlBody, readString } from '../email-payload.util.js';
-import { buildGmailRawMessage, isValidEmailAddress } from './gmail-mime.util.js';
+import { buildGmailRawMessage, isValidEmailAddress, type GmailMimeAttachment } from './gmail-mime.util.js';
 import { GmailOAuthError, GmailOAuthTokenService } from './gmail-oauth-token.service.js';
 
 export const GMAIL_PROVIDER = 'gmail_api';
@@ -37,6 +37,7 @@ export type GmailSendInput = {
   text: string;
   html?: string | null;
   boundarySeed: string;
+  attachments?: GmailMimeAttachment[];
 };
 
 export type GmailSendResult = {
@@ -134,6 +135,7 @@ export class GmailApiAdapter implements NotificationChannelAdapter {
       text: input.text,
       html: input.html ?? null,
       boundarySeed: input.boundarySeed,
+      attachments: input.attachments ?? [],
     });
 
     const response = await this.postWithFreshTokenOn401(credentials, raw);
