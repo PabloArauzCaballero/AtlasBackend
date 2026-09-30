@@ -3,7 +3,21 @@
  * @business Esta pieza responde dudas de uso de los portales de Atlas sin hacer esperar a una persona del equipo.
  * @system expone el chat del asistente en los portales y decide qué superficie puede usar cada usuario.
  */
-import { Body, Controller, ForbiddenException, Get, HttpCode, HttpException, Post, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  HttpException,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { createHash } from 'node:crypto';
 import { Throttle } from '@nestjs/throttler';
@@ -152,6 +166,94 @@ export class PortalAssistController {
     @Query(new ZodValidationPipe(portalAssistConversationQuerySchema)) query: PortalAssistConversationQueryDto,
   ) {
     return this.service.conversationEnPortal(autorizarSuperficie(currentUser, query.surface, tenantId));
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 30, getTracker: rastreoPorPersona } })
+  @Roles(...ASSIST_STAFF_ROLES, ...ASSIST_PARTNER_ROLES)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'El historial de conversaciones con el asistente del portal',
+    description:
+      'Hasta 20 conversaciones de la persona en ESA superficie, la más reciente primero: ' +
+      '`{ conversations: [{ conversationId, title, updatedAt, turnCount }] }`. Cada portal ve sólo su historial. ' +
+      'Si el historial no se puede leer se contesta la lista vacía.',
+  })
+  @ApiQuery({
+    name: 'surface',
+    required: true,
+    enum: [...PORTAL_ASSIST_SURFACES],
+    description: 'El portal desde el que se abre el asistente.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional: se toma del token.' })
+  @ApiResponse({ status: 200, description: 'La lista, o vacía si no hay conversaciones.' })
+  @ApiResponse({ status: 403, description: 'ASSIST_SURFACE_FORBIDDEN — esa superficie no es de este tipo de usuario.' })
+  @ApiResponse({ status: 404, description: 'ASSIST_DISABLED — el asistente está apagado; el portal esconde el botón.' })
+  @Get('conversations')
+  async conversations(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Query(new ZodValidationPipe(portalAssistConversationQuerySchema)) query: PortalAssistConversationQueryDto,
+  ) {
+    return this.service.conversationsEnPortal(autorizarSuperficie(currentUser, query.surface, tenantId));
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 30, getTracker: rastreoPorPersona } })
+  @Roles(...ASSIST_STAFF_ROLES, ...ASSIST_PARTNER_ROLES)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Una conversación del historial del portal',
+    description:
+      'Los últimos 30 turnos de una conversación de la persona en ESA superficie, en orden cronológico: ' +
+      '`{ conversationId, title, turns }`. El id de otra persona o de otro portal contesta 404.',
+  })
+  @ApiQuery({
+    name: 'surface',
+    required: true,
+    enum: [...PORTAL_ASSIST_SURFACES],
+    description: 'El portal desde el que se abre el asistente.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional: se toma del token.' })
+  @ApiResponse({ status: 200, description: 'La conversación con sus turnos.' })
+  @ApiResponse({ status: 403, description: 'ASSIST_SURFACE_FORBIDDEN — esa superficie no es de este tipo de usuario.' })
+  @ApiResponse({ status: 404, description: 'ASSIST_DISABLED (apagado) o ASSIST_CONVERSATION_NOT_FOUND (no existe o no es suya).' })
+  @ApiResponse({ status: 503, description: 'ASSIST_UNAVAILABLE — el asistente no contesta.' })
+  @Get('conversations/:id')
+  async conversationById(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query(new ZodValidationPipe(portalAssistConversationQuerySchema)) query: PortalAssistConversationQueryDto,
+  ) {
+    return this.service.conversationByIdEnPortal(autorizarSuperficie(currentUser, query.surface, tenantId), id);
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 30, getTracker: rastreoPorPersona } })
+  @Roles(...ASSIST_STAFF_ROLES, ...ASSIST_PARTNER_ROLES)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Borrar una conversación del historial del portal',
+    description:
+      'Borra una conversación de la persona en ESA superficie: `{ deleted: 1 }`, o `{ deleted: 0 }` si no existía o no era suya.',
+  })
+  @ApiQuery({
+    name: 'surface',
+    required: true,
+    enum: [...PORTAL_ASSIST_SURFACES],
+    description: 'El portal desde el que se abre el asistente.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional: se toma del token.' })
+  @ApiResponse({ status: 200, description: '`{ deleted: 0 | 1 }`.' })
+  @ApiResponse({ status: 403, description: 'ASSIST_SURFACE_FORBIDDEN — esa superficie no es de este tipo de usuario.' })
+  @ApiResponse({ status: 404, description: 'ASSIST_DISABLED — el asistente está apagado; el portal esconde el botón.' })
+  @ApiResponse({ status: 503, description: 'ASSIST_UNAVAILABLE — el asistente no contesta.' })
+  @Delete('conversations/:id')
+  async deleteConversation(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query(new ZodValidationPipe(portalAssistConversationQuerySchema)) query: PortalAssistConversationQueryDto,
+  ) {
+    return this.service.deleteConversationEnPortal(autorizarSuperficie(currentUser, query.surface, tenantId), id);
   }
 }
 

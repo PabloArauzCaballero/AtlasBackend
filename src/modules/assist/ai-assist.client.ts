@@ -66,8 +66,23 @@ export class AiAssistClient {
     return this.fetchOnce('GET', '/v1/assist/conversations/latest', actorRef, surface);
   }
 
+  /** Las conversaciones del actor con turnos guardados, la más reciente primero. */
+  async listConversations(actorRef: string, surface?: PortalAssistSurface): Promise<AiAssistResult> {
+    return this.fetchOnce('GET', '/v1/assist/conversations', actorRef, surface);
+  }
+
+  /** Una conversación del actor por id; el servicio contesta 404 si no es suya. `id` ya viene validado como UUID. */
+  async getConversation(actorRef: string, id: string, surface?: PortalAssistSurface): Promise<AiAssistResult> {
+    return this.fetchOnce('GET', `/v1/assist/conversations/${encodeURIComponent(id)}`, actorRef, surface);
+  }
+
+  /** Borra una conversación del actor: `{ deleted: 0 | 1 }`. */
+  async deleteConversation(actorRef: string, id: string, surface?: PortalAssistSurface): Promise<AiAssistResult> {
+    return this.fetchOnce('DELETE', `/v1/assist/conversations/${encodeURIComponent(id)}`, actorRef, surface);
+  }
+
   private async fetchOnce(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'DELETE',
     path: string,
     actorRef: string,
     surface: PortalAssistSurface | undefined,

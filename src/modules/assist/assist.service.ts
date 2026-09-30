@@ -3,7 +3,6 @@
  * @business Esta pieza responde dudas de uso de la app y de los portales sin hacer esperar a una persona del equipo.
  * @system reenvía la pregunta al servicio de IA y traduce sus desenlaces al lenguaje de quien pregunta.
  */
-import { createHash } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -14,12 +13,16 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { env } from '../../config/env.js';
+import { canalDePortal, canalMovil, type Canal } from './assist.canal.js';
+import { vistaDeConversacion, vistaDeDetalle, vistaDeLista } from './assist.views.js';
 import { AiAssistClient, type AiAssistResult } from './ai-assist.client.js';
 import type {
+  AssistConversationDeleteView,
+  AssistConversationDetailView,
+  AssistConversationListView,
   AssistChatDto,
   AssistChatView,
   AssistConversationView,
-  AssistTurnView,
   PortalAssistChatDto,
   PortalAssistChatView,
   PortalAssistSurface,
@@ -43,6 +46,10 @@ const NO_DISPONIBLE: Record<AssistAudience, string> = {
 /** Apagado responde 404 en toda la superficie; la app y los portales lo leen como «esconde el botón». */
 const APAGADO = { code: 'ASSIST_DISABLED', message: 'El asistente no está disponible.' };
 
+/** Lo que contesta el servicio de IA cuando el id no existe o es de otro actor; se distingue del 404 de «apagado». */
+const CONVERSACION_NO_ENCONTRADA = 'Conversación no encontrada';
+const SIN_CONVERSACION = { code: 'ASSIST_CONVERSATION_NOT_FOUND', message: 'Esa conversación ya no existe.' };
+
 /** Quién pregunta desde un portal, YA autorizado para esa superficie por el controlador. */
 export type PortalAssistActor = {
   surface: PortalAssistSurface;
@@ -50,9 +57,6 @@ export type PortalAssistActor = {
   userId: string;
   audience: Exclude<AssistAudience, 'cliente'>;
 };
-
-/** Por dónde viaja una consulta: la referencia opaca, la superficie (sólo portales) y a quién se le habla. */
-type Canal = { actorRef: string; surface?: PortalAssistSurface; audience: AssistAudience };
 
 type Pregunta = Pick<AssistChatDto, 'prompt' | 'clientMessageId' | 'conversationId'> & { screen?: string };
 
@@ -93,6 +97,62 @@ export class AssistService {
   /** La conversación vigente de ESA superficie: cada portal tiene su hilo aunque la persona sea la misma. */
   async conversationEnPortal(actor: PortalAssistActor): Promise<AssistConversationView> {
     return this.leerConversacion(canalDePortal(actor));
+  }
+
+  /** El historial del cliente: sus conversaciones, la más reciente primero. Ilegible = lista vacía. */
+  async conversations(tenantId: string, customerId: string): Promise<AssistConversationListView> {
+    return this.listarConversaciones(canalMovil(tenantId, customerId));
+  }
+
+  async conversationsEnPortal(actor: PortalAssistActor): Promise<AssistConversationListView> {
+    return this.listarConversaciones(canalDePortal(actor));
+  }
+
+  /** Una conversación del cliente por id. Un id ajeno o inexistente es 404, igual que uno que no existe. */
+  async conversationById(tenantId: string, customerId: string, id: string): Promise<AssistConversationDetailView> {
+    return this.leerPorId(canalMovil(tenantId, customerId), id);
+  }
+
+  async conversationByIdEnPortal(actor: PortalAssistActor, id: string): Promise<AssistConversationDetailView> {
+    return this.leerPorId(canalDePortal(actor), id);
+  }
+
+  async deleteConversation(tenantId: string, customerId: string, id: string): Promise<AssistConversationDeleteView> {
+    return this.borrarPorId(canalMovil(tenantId, customerId), id);
+  }
+
+  async deleteConversationEnPortal(actor: PortalAssistActor, id: string): Promise<AssistConversationDeleteView> {
+    return this.borrarPorId(canalDePortal(actor), id);
+  }
+
+  private async listarConversaciones(canal: Canal): Promise<AssistConversationListView> {
+    this.exigirEncendido(canal.audience);
+    let resultado: AiAssistResult;
+    try {
+      resultado = await this.client.listConversations(canal.actorRef, canal.surface);
+    } catch (error) {
+      this.logger.warn(`No se pudo listar las conversaciones del asistente: ${describir(error)}`);
+      return { conversations: [] };
+    }
+    if (resultado.ok) return vistaDeLista(resultado.json);
+    if (resultado.status === 404) throw new NotFoundException(APAGADO);
+    this.logger.warn(`El servicio de IA respondió ${resultado.status} al listar las conversaciones.`);
+    return { conversations: [] };
+  }
+
+  private async leerPorId(canal: Canal, id: string): Promise<AssistConversationDetailView> {
+    this.exigirEncendido(canal.audience);
+    const resultado = await this.llamar(canal.audience, () => this.client.getConversation(canal.actorRef, id, canal.surface));
+    if (resultado.ok) return vistaDeDetalle(resultado.json, id);
+    if (resultado.status === 404 && mensajeDe(resultado.json) === CONVERSACION_NO_ENCONTRADA) throw new NotFoundException(SIN_CONVERSACION);
+    throw this.traducirFallo(resultado, canal.audience);
+  }
+
+  private async borrarPorId(canal: Canal, id: string): Promise<AssistConversationDeleteView> {
+    this.exigirEncendido(canal.audience);
+    const resultado = await this.llamar(canal.audience, () => this.client.deleteConversation(canal.actorRef, id, canal.surface));
+    if (!resultado.ok) throw this.traducirFallo(resultado, canal.audience);
+    return { deleted: resultado.json.deleted === 1 ? 1 : 0 };
   }
 
   private async preguntar(canal: Canal, dto: Pregunta): Promise<Record<string, unknown>> {
@@ -204,31 +264,6 @@ function indisponible(audience: AssistAudience): ServiceUnavailableException {
 }
 
 /**
- * La referencia opaca con la que el servicio de IA particiona conversaciones. Lleva el inquilino
- * para que el mismo UUID en dos inquilinos jamás comparta hilo; nunca lleva el JWT.
- */
-function canalMovil(tenantId: string, customerId: string): Canal {
-  return { actorRef: `${tenantId}:${customerId}`, audience: 'cliente' };
-}
-
-/** Lo que el servicio de IA admite en un segmento de la referencia, sin `:` que la partiría. */
-const SEGMENTO_SEGURO = /^[A-Za-z0-9_-]{1,64}$/;
-
-/**
- * `<superficie>:<tenantId>:<userId>`. La superficie va DELANTE para que la misma persona tenga un
- * hilo por portal: lo que preguntó en Tableros no aparece al abrir el asistente del Motor, y un
- * usuario de comercio nunca comparte hilo con uno interno aunque sus ids coincidan.
- *
- * El servicio exige `[A-Za-z0-9:_-]{1,128}`. Un id con otros caracteres (un `sub` con `@` o `.`)
- * se sustituye por un hash corto y estable: sigue identificando a la misma persona sin viajar tal
- * cual y sin partir la referencia.
- */
-function canalDePortal(actor: PortalAssistActor): Canal {
-  const id = SEGMENTO_SEGURO.test(actor.userId) ? actor.userId : createHash('sha256').update(actor.userId).digest('hex').slice(0, 16);
-  return { actorRef: `${actor.surface}:${actor.tenantId}:${id}`, surface: actor.surface, audience: actor.audience };
-}
-
-/**
  * Lo que se le enseña a quien pregunta: el texto, si amerita ofrecer el chat humano, y los
  * identificadores para continuar el hilo. `usage`, modelo y latencia se quedan en el servidor.
  */
@@ -244,24 +279,6 @@ function vistaDeRespuesta(json: Record<string, unknown>, audience: AssistAudienc
     conversationId: typeof json.conversationId === 'string' ? json.conversationId : null,
     turnId: typeof json.turnId === 'string' ? json.turnId : null,
   };
-}
-
-function vistaDeConversacion(json: Record<string, unknown>): AssistConversationView {
-  const turnsCrudos = Array.isArray(json.turns) ? json.turns : [];
-  const turns: AssistTurnView[] = [];
-  for (const crudo of turnsCrudos) {
-    if (!crudo || typeof crudo !== 'object') continue;
-    const turno = crudo as Record<string, unknown>;
-    if (typeof turno.turnId !== 'string' || typeof turno.prompt !== 'string' || typeof turno.reply !== 'string') continue;
-    turns.push({
-      turnId: turno.turnId,
-      prompt: turno.prompt,
-      reply: turno.reply,
-      suggestHandoff: turno.suggestHandoff === true,
-      createdAt: typeof turno.createdAt === 'string' ? turno.createdAt : '',
-    });
-  }
-  return { conversationId: typeof json.conversationId === 'string' ? json.conversationId : null, turns };
 }
 
 /** El `message` del cuerpo de error de Nest, si vino y es texto. */

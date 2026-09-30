@@ -3463,6 +3463,76 @@
     ],
     "body": false
   },
+  "GET /internal/assist/conversations": {
+    "operationId": "PortalAssistController_conversations",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [
+      "surface"
+    ],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /internal/assist/conversations/{id}": {
+    "operationId": "PortalAssistController_conversationById",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500",
+      "503"
+    ],
+    "headers": [],
+    "query": [
+      "surface"
+    ],
+    "path": [
+      "id"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "DELETE /internal/assist/conversations/{id}": {
+    "operationId": "PortalAssistController_deleteConversation",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500",
+      "503"
+    ],
+    "headers": [],
+    "query": [
+      "surface"
+    ],
+    "path": [
+      "id"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
   "POST /internal/auth/login": {
     "operationId": "InternalAuthController_login",
     "responses": [
@@ -5671,6 +5741,70 @@
     "headers": [],
     "query": [],
     "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /mobile/assist/conversations": {
+    "operationId": "AssistController_conversations",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /mobile/assist/conversations/{id}": {
+    "operationId": "AssistController_conversationById",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500",
+      "503"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "id"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "DELETE /mobile/assist/conversations/{id}": {
+    "operationId": "AssistController_deleteConversation",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500",
+      "503"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "id"
+    ],
     "security": [
       "access-token"
     ],
