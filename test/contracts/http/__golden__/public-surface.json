@@ -8249,6 +8249,26 @@
     ],
     "body": false
   },
+  "POST /operations/notifications/internal-mail": {
+    "operationId": "InternalMailController_send",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "409",
+      "429",
+      "500",
+      "503"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
   "GET /operations/notifications/messages": {
     "operationId": "NotificationsController_listMessages",
     "responses": [

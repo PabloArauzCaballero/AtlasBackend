@@ -23800,6 +23800,94 @@ paths:
       summary: Devolver a borrador una campaña programada que aún no empezó
       tags:
         - notification-campaigns
+  /operations/notifications/internal-mail:
+    post:
+      operationId: InternalMailController_send
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to:
+                  type: string
+                  maxLength: 254
+                  format: email
+                  pattern: >-
+                    ^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+                subject:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 20000
+                reference:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                attachments:
+                  default: []
+                  maxItems: 3
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      filename:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                      contentType:
+                        type: string
+                        const: application/pdf
+                      contentBase64:
+                        type: string
+                        minLength: 1
+                        maxLength: 7340032
+                    required:
+                      - filename
+                      - contentType
+                      - contentBase64
+                    additionalProperties: false
+              required:
+                - to
+                - subject
+                - text
+                - reference
+                - attachments
+              additionalProperties: false
+      responses:
+        '200':
+          description: Gmail aceptó el mensaje; devuelve su id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: >-
+            MAIL_PROVIDER_NOT_CONFIGURED: el entorno no tiene Gmail como
+            proveedor de correo.
+      security:
+        - access-token: []
+      summary: Enviar un correo con adjuntos PDF por el canal de ATLAS (uso del ERP)
+      tags:
+        - notifications
   /operations/notifications/messages:
     get:
       operationId: NotificationsController_listMessages

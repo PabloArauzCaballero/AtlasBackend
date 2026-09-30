@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (121 controladores) | 590 |
+| Total montadas (122 controladores) | 591 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 9 |
 | Sin sesión de usuario (`@Public`) | 28 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 3 |
-| Con `@Roles` | 535 |
+| Con `@Roles` | 536 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 78 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -515,6 +515,7 @@
 | `POST` | `/operations/notifications/campaigns/:campaignId/test-send` | `admin`, `platform_admin` | — | `NotificationCampaignsController.sendTest` | guards: `TenantGuard` |
 | `POST` | `/operations/notifications/campaigns/:campaignId/unschedule` | `admin`, `platform_admin` | — | `NotificationCampaignsController.unschedule` | guards: `TenantGuard` |
 | `POST` | `/operations/notifications/campaigns/audience/estimate` | `internal_operator`, `admin`, `platform_admin`, `system` | — | `NotificationCampaignsController.estimate` | guards: `TenantGuard` |
+| `POST` | `/operations/notifications/internal-mail` | `internal_operator`, `admin`, `platform_admin`, `system_admin`, `system` | — | `InternalMailController.send` | — |
 | `GET` | `/operations/notifications/messages` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `readonly_auditor`, `admin`, `platform_admin`, `system` | — | `NotificationsController.listMessages` | guards: `TenantGuard` |
 | `GET` | `/operations/notifications/messages/:messageId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `readonly_auditor`, `admin`, `platform_admin`, `system` | — | `NotificationsController.getMessage` | guards: `TenantGuard` |
 | `POST` | `/operations/notifications/messages/:messageId/cancel` | `admin`, `platform_admin`, `system`, `internal_operator` | — | `NotificationsController.cancelMessage` | guards: `TenantGuard` |
