@@ -5,6 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { loadBuildIdentity, mergeBuildIdentity } from './build-identity.js';
 import { env } from './env.js';
 
 export type BuildInfo = {
@@ -33,6 +34,9 @@ export type BuildInfo = {
  *     raíz de la app.
  *  4. `0.0.0-unknown` — explícitamente desconocida, nunca un número inventado que parezca real.
  *
+ * `commit` y `builtAt` salen de `dist/build-info.json` (sellado en el build, ver `build-identity.ts`); las
+ * variables `APP_COMMIT_SHA` y `APP_BUILT_AT` sólo rellenan lo que el archivo no trae.
+ *
  * Se calcula UNA vez al importar: es información inmutable del proceso y `/health` es un endpoint de
  * sondeo que se llama con mucha frecuencia.
  */
@@ -48,11 +52,11 @@ function readVersionFromPackageJson(): string | null {
 
 function resolveBuildInfo(): BuildInfo {
   const version = env.APP_VERSION ?? process.env['npm_package_version'] ?? readVersionFromPackageJson() ?? '0.0.0-unknown';
-  return {
-    version,
-    commit: env.APP_COMMIT_SHA ?? null,
-    builtAt: env.APP_BUILT_AT ?? null,
-  };
+  const identity = mergeBuildIdentity(loadBuildIdentity(resolve(process.cwd(), 'dist', 'build-info.json')), {
+    commit: env.APP_COMMIT_SHA,
+    builtAt: env.APP_BUILT_AT,
+  });
+  return { version, ...identity };
 }
 
 export const buildInfo: BuildInfo = resolveBuildInfo();
