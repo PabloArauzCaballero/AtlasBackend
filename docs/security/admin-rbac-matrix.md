@@ -29,7 +29,7 @@
 | Sin sesión de usuario (`@Public`) | 28 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 3 |
 | Con `@Roles` | 536 |
-| Con permiso fino `@InternalPermissions` (además del rol) | 78 |
+| Con permiso fino `@InternalPermissions` (además del rol) | 77 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
 ## `app-content`
@@ -395,7 +395,7 @@
 | `POST` | `/internal/auth/login` | **sin sesión** (`@Public`) | — | `InternalAuthController.login` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `POST` | `/internal/auth/login/pin` | **sin sesión** (`@Public`) | — | `InternalAuthController.verifyLoginPin` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `POST` | `/internal/auth/logout` | **sin sesión** (`@Public`) | — | `InternalAuthController.logout` | guards: `TenantGuard`, `InternalPermissionsGuard` |
-| `GET` | `/internal/auth/me` | cualquier sesión autenticada | `auth.internal.me.read` | `InternalAuthController.me` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `GET` | `/internal/auth/me` | cualquier sesión autenticada | — | `InternalAuthController.me` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `POST` | `/internal/auth/refresh` | **sin sesión** (`@Public`) | — | `InternalAuthController.refresh` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `POST` | `/internal/auth/signup` | cualquier sesión autenticada | `internal.users.manage`, `internal.roles.manage` | `InternalAuthController.signup` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `GET` | `/internal/permissions` | cualquier sesión autenticada | `internal.permissions.read` | `InternalAccessCatalogController.listPermissions` | guards: `InternalPermissionsGuard` |

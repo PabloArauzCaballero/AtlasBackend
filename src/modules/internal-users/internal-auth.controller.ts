@@ -195,7 +195,10 @@ export class InternalAuthController {
   })
   @ApiResponse({ status: 200, description: 'Perfil, roles y permisos efectivos del usuario interno actual.' })
   @Get('me')
-  @InternalPermissions('auth.internal.me.read')
+  // Sin permiso fino a propósito: el portal llama esta ruta en CADA pantalla para saber quién es la
+  // sesión y renderizar el menú, no es la operación propia de ninguna pantalla. Exigir un permiso
+  // que además ya está en los 20 roles internos sin excepción no protegía nada y ensuciaba la
+  // deriva de permisos con ~10 falsos "el menú pide otro permiso" en cada corrida.
   me(@CurrentUser() currentUser: AuthenticatedUser) {
     return this.internalUsersService.getMyProfile(currentUser);
   }
