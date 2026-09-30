@@ -41,7 +41,9 @@ describe('AppFileLogger — degradación cuando el archivo no se puede escribir'
     stderrSpy.mockRestore();
     stdoutSpy.mockRestore();
     await chmod(directory, 0o700).catch(() => undefined);
-    await rm(directory, { recursive: true, force: true });
+    // Con el directorio escribible otra vez, el reintento del logger puede crear `Archivo.log`
+    // mientras `rm` lo vacía: `ENOTEMPTY`. Reintentar el borrado cierra esa carrera.
+    await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   });
 
   soloDondeChmodMuerde('avisa UNA vez aunque fallen 25 líneas seguidas', async () => {
