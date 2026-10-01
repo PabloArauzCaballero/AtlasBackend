@@ -140,6 +140,28 @@ describe('MobileIdentityService', () => {
     expect(engine.execute.mock.calls[0]?.[2]).toEqual({ timeoutMs: env.DECISION_ENGINE_IDENTITY_TIMEOUT_MS, maxAttempts: 1 });
   });
 
+  it('el requestId lleva el cliente (identity-<cliente>-…): es lo que ata el caso del Motor a su expediente', async () => {
+    const { service, engine } = montar({ output: { identidad_resultado: 'VERIFICADO' } });
+
+    await service.start('1', cuerpo(), 'idem-1', { role: 'customer', customerId: '54' } as never);
+    await dejarResolver();
+
+    const envio = engine.execute.mock.calls[0]?.[1] as { requestId: string; correlationId: string };
+    expect(envio.requestId).toMatch(/^identity-54-[0-9a-f-]{36}$/);
+    // El correlationId sigue siendo el intento: los casos ya abiertos y el anexo lo usan.
+    expect(envio.correlationId).toBe('5501');
+  });
+
+  it('sin cliente el requestId queda como UUID, sin inventar un sujeto', async () => {
+    const { service, engine } = montar({ output: { identidad_resultado: 'VERIFICADO' } });
+
+    await service.start('1', cuerpo(), 'idem-1');
+    await dejarResolver();
+
+    const envio = engine.execute.mock.calls[0]?.[1] as { requestId: string };
+    expect(envio.requestId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
   /** La política de revisión humana, encendida o apagada sólo durante una prueba. */
   async function conRevisionHumana(valor: boolean, prueba: () => Promise<void>): Promise<void> {
     const anterior = env.IDENTITY_REQUIRE_HUMAN_REVIEW;
