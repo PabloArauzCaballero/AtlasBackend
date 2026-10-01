@@ -5,7 +5,9 @@
  */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { IdentityVerificationAttemptModel } from '../../database/models/index.js';
+import { EvidenceDocumentModel, IdentityVerificationAttemptModel } from '../../database/models/index.js';
+import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
+import { IdentityEngineReconciler } from './identity-engine-reconciler.service.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { CustomerOnboardingModule } from '../customer-onboarding/customer-onboarding.module.js';
 import { CustomerTelemetryModule } from '../customer-telemetry/customer-telemetry.module.js';
@@ -34,13 +36,19 @@ import { MobileIdentitySignalsService } from './mobile-identity-signals.service.
    */
   // `CustomerTelemetryModule` por UNA cosa: el resumen de comportamiento del alta, la tercera señal.
   imports: [
-    SequelizeModule.forFeature([IdentityVerificationAttemptModel]),
+    SequelizeModule.forFeature([IdentityVerificationAttemptModel, EvidenceDocumentModel]),
     DecisionEngineModule,
     CustomerOnboardingModule,
     CustomerTelemetryModule,
   ],
   controllers: [MobileIdentityController],
-  providers: [MobileIdentityRepository, MobileIdentityService, MobileIdentitySignalsService],
+  providers: [
+    MobileIdentityRepository,
+    MobileIdentityService,
+    MobileIdentitySignalsService,
+    IdentityEngineReconciler,
+    DocumentStorageService,
+  ],
   exports: [MobileIdentityService],
 })
 export class MobileIdentityModule {}

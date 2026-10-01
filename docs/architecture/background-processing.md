@@ -23,7 +23,7 @@ Obtenido de `setInterval` / `OnApplicationBootstrap` / entregas *fire-and-forget
 | 6 | Métricas del pool de conexiones | [db-pool-metrics.service.ts](../../src/common/observability/db-pool-metrics.service.ts) | `OnModuleInit`, lectura por scrape | **No: en TODOS los procesos** — mide *este* pool |
 | 7 | Carga del registro de proveedores externos | [external-provider-registry.service.ts](../../src/modules/external-data/application/external-provider-registry.service.ts) | `OnModuleInit`, solo lee | **No: en TODOS los procesos** — es caché de arranque |
 
-Además de estas siete piezas, <!-- fig:jobs.intervalSources -->8<!-- /fig --> archivos de `src/` arrancan su propio
+Además de estas siete piezas, <!-- fig:jobs.intervalSources -->9<!-- /fig --> archivos de `src/` arrancan su propio
 `setInterval` fuera del planificador (tabla generada; la columna dice qué variable lo enciende o condiciona):
 
 <!-- gen:interval-sources -->
@@ -31,6 +31,7 @@ Además de estas siete piezas, <!-- fig:jobs.intervalSources -->8<!-- /fig --> a
 |---|---|
 | `src/bootstrap/messaging-relay-loop.service.ts` | — (sin variable propia: ver el archivo) |
 | `src/modules/log-sync/log-sync.service.ts` | `MONGO_DB_URL_CONNECTION` |
+| `src/modules/mobile-identity/identity-engine-reconciler.service.ts` | — (sin variable propia: ver el archivo) |
 | `src/modules/qa-orchestration/application/qa-journey-consumer.service.ts` | — (sin variable propia: ver el archivo) |
 | `src/modules/qa-orchestration/application/qa-run-execution.service.ts` | — (sin variable propia: ver el archivo) |
 | `src/modules/runtime-jobs/runtime-jobs-scheduler.service.ts` | `RUNTIME_JOBS_SCHEDULER_ENABLED` |
