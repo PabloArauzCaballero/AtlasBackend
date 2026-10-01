@@ -1,0 +1,145 @@
+/**
+ * @file Reconciliador: manda al Motor todo paquete de identidad que se quedó sin verificación.
+ * @business Una persona que subió su carnet no puede quedar fuera de la cola de revisión del Motor porque una llamada de la app falló.
+ * @system cada pocos minutos busca intentos `onboarding_package` en revisión sin intento del canal móvil y los verifica con las imágenes ya guardadas.
+ */
+import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
+import { Op, type FindOptions } from 'sequelize';
+import { EvidenceDocumentModel, IdentityVerificationAttemptModel } from '../../database/models/index.js';
+import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
+import { LIVENESS_IDENTITY_CHANNEL } from '../../common/utils/identity/identity-result.util.js';
+import { MobileIdentityService } from './mobile-identity.service.js';
+import { startIdentityVerificationSchema } from './mobile-identity.schemas.js';
+
+const CANAL_PAQUETE = 'onboarding_package';
+/** Margen para que la app haga su propia llamada al Motor antes de que se la haga el servidor. */
+const ESPERA_MS = 10 * 60_000;
+/** Más viejo que esto ya no se rescata solo: lo ve una persona desde el portal. */
+const VIGENCIA_MS = 14 * 24 * 3_600_000;
+const CADA_MS = 5 * 60_000;
+const POR_PASADA = 20;
+
+/**
+ * Por qué existe.
+ *
+ * La app guarda el paquete de identidad y DESPUÉS pregunta al Motor; esa segunda llamada traga
+ * cualquier error a propósito para no cortar el alta. Resultado medido en TEST (cliente 53,
+ * 2026-09-30): el intento quedó `pending_review` en el portal y el Motor nunca supo de él, sin que
+ * nada lo señalara. La garantía no puede depender de un cliente que falla en silencio: la da el
+ * servidor, que tiene las imágenes y vuelve a intentarlo hasta que el Motor las vea.
+ *
+ * Es idempotente por intento: `start` crea la fila del canal móvil, y con ella el cliente deja de
+ * ser candidato. Cada rescate y cada fallo quedan en el log con `evento: identity_reconcile_*`.
+ */
+@Injectable()
+export class IdentityEngineReconciler implements OnApplicationBootstrap, OnModuleDestroy {
+  private readonly logger = new Logger(IdentityEngineReconciler.name);
+  private timer: NodeJS.Timeout | null = null;
+  private corriendo = false;
+
+  constructor(
+    @InjectModel(IdentityVerificationAttemptModel) private readonly attempts: typeof IdentityVerificationAttemptModel,
+    @InjectModel(EvidenceDocumentModel) private readonly evidencias: typeof EvidenceDocumentModel,
+    private readonly storage: DocumentStorageService,
+    private readonly identidad: MobileIdentityService,
+  ) {}
+
+  onApplicationBootstrap(): void {
+    if (process.env.NODE_ENV === 'test' || process.env.IDENTITY_RECONCILE_DISABLED === 'true') return;
+    this.timer = setInterval(() => void this.pasada(), CADA_MS);
+    this.timer.unref();
+  }
+
+  onModuleDestroy(): void {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  /** Una pasada. Devuelve cuántos paquetes mandó al Motor. Nunca lanza. */
+  async pasada(ahora: Date = new Date()): Promise<number> {
+    if (this.corriendo) return 0;
+    this.corriendo = true;
+    let enviados = 0;
+    try {
+      const pendientes = await this.attempts.findAll({
+        where: {
+          verificationChannel: CANAL_PAQUETE,
+          finalResult: 'pending_review',
+          requestedAt: { [Op.between]: [new Date(ahora.getTime() - VIGENCIA_MS), new Date(ahora.getTime() - ESPERA_MS)] },
+        },
+        order: [['id', 'DESC']],
+        limit: POR_PASADA,
+      } as FindOptions);
+      const vistos = new Set<string>();
+      for (const intento of pendientes) {
+        const clave = `${intento.tenantId}:${intento.customerId}`;
+        if (!intento.customerId || vistos.has(clave)) continue;
+        vistos.add(clave);
+        const resultado = await this.reconciliar(intento);
+        if (resultado === 'sin-motor') break;
+        if (resultado === 'enviado') enviados += 1;
+      }
+    } catch (error: unknown) {
+      this.log('identity_reconcile_failed', { reason: describir(error) });
+    } finally {
+      this.corriendo = false;
+    }
+    return enviados;
+  }
+
+  private async reconciliar(intento: IdentityVerificationAttemptModel): Promise<'enviado' | 'omitido' | 'sin-motor'> {
+    const base = { tenantId: intento.tenantId, customerId: intento.customerId, packageAttemptId: intento.id };
+    try {
+      const yaPreguntado = await this.attempts.count({
+        where: { tenantId: intento.tenantId, customerId: intento.customerId, verificationChannel: LIVENESS_IDENTITY_CHANNEL },
+      } as FindOptions);
+      if (yaPreguntado > 0) return 'omitido';
+
+      const documentos = await this.evidencias.findAll({
+        where: { tenantId: intento.tenantId, customerId: intento.customerId, deleted: { [Op.ne]: true } },
+        order: [['id', 'ASC']],
+      } as FindOptions);
+      const ultimo = (tipo: string) => [...documentos].reverse().find((doc) => doc.documentType === tipo && doc.s3Key);
+      const frente = ultimo('identity_front');
+      const selfie = ultimo('selfie');
+      if (!frente?.s3Key || !selfie?.s3Key) {
+        this.log('identity_reconcile_skipped', { ...base, reason: 'FALTAN_IMAGENES' });
+        return 'omitido';
+      }
+      const reverso = ultimo('identity_back');
+      const [bf, bs, br] = await Promise.all([
+        this.storage.readObject(frente.s3Key),
+        this.storage.readObject(selfie.s3Key),
+        reverso?.s3Key ? this.storage.readObject(reverso.s3Key) : Promise.resolve(null),
+      ]);
+      if (!bf || !bs) {
+        this.log('identity_reconcile_skipped', { ...base, reason: 'OBJETO_AUSENTE' });
+        return 'omitido';
+      }
+      const cuerpo = startIdentityVerificationSchema.parse({
+        documentFront: bf.toString('base64'),
+        selfie: bs.toString('base64'),
+        ...(br ? { documentBack: br.toString('base64') } : {}),
+        customerId: intento.customerId,
+      });
+      const vista = await this.identidad.start(intento.tenantId, cuerpo, `reconcile-identity-${intento.id}`);
+      this.log('identity_reconcile_sent', { ...base, verificationId: vista.verificationId });
+      return 'enviado';
+    } catch (error: unknown) {
+      // El Motor sin configurar no es un fallo de este paquete: se corta la pasada sin ruido.
+      if (error instanceof ServiceUnavailableException) return 'sin-motor';
+      this.log('identity_reconcile_failed', { ...base, reason: describir(error) });
+      return 'omitido';
+    }
+  }
+
+  private log(evento: string, datos: Record<string, unknown>): void {
+    const linea = JSON.stringify({ evento, ...datos });
+    if (evento === 'identity_reconcile_sent') this.logger.log(linea);
+    else this.logger.warn(linea);
+  }
+}
+
+function describir(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
