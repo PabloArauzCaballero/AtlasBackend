@@ -1,7 +1,7 @@
 import { contentSurfaceSchema, upsertContentSchema } from '../../../src/modules/app-content/app-content.schemas.js';
 
 describe('superficies del contenido de la app', () => {
-  it.each(['onboarding', 'home', 'faq', 'help', 'legal', 'profile', 'credit', 'tour', 'privacy', 'signup', 'payments'])(
+  it.each(['onboarding', 'home', 'faq', 'help', 'legal', 'profile', 'credit', 'tour', 'privacy', 'signup', 'payments', 'copy'])(
     'acepta %s',
     (surface) => {
       expect(contentSurfaceSchema.safeParse(surface).success).toBe(true);

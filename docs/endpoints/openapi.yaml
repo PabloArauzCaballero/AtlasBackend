@@ -1840,6 +1840,7 @@ paths:
               - privacy
               - signup
               - payments
+              - copy
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -16429,6 +16430,7 @@ paths:
                     - privacy
                     - signup
                     - payments
+                    - copy
                 contentKey:
                   type: string
                   minLength: 1
