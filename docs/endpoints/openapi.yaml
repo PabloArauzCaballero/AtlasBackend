@@ -1836,6 +1836,10 @@ paths:
               - legal
               - profile
               - credit
+              - tour
+              - privacy
+              - signup
+              - payments
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -16394,6 +16398,10 @@ paths:
                     - legal
                     - profile
                     - credit
+                    - tour
+                    - privacy
+                    - signup
+                    - payments
                 contentKey:
                   type: string
                   minLength: 1
