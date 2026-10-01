@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction } from 'sequelize';
 import { ExpedienteActividadModel, ExpedienteModel, ExpedienteNodoModel } from '../../../database/models/index.js';
+import { buscarPorMomento, type ConsultaPorMomento } from './expedientes-por-momento.query.js';
 import type { AccionActividad, EstadoExpediente } from '../expedientes.types.js';
 import { busquedaDeExpedientes } from './expedientes-busqueda.js';
 
@@ -88,6 +89,11 @@ export class ExpedientesRepository {
       offset: input.offset,
       limit: input.limit,
     });
+  }
+
+  /** Ver `buscarPorMomento`: candidatos por coincidencia de hora para casos que no dicen de quién son. */
+  expedientesConImagenesEntre(input: ConsultaPorMomento) {
+    return buscarPorMomento(this.nodos, this.expedientes, input);
   }
 
   async actualizarExpediente(

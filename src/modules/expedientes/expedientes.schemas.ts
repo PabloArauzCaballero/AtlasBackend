@@ -32,6 +32,22 @@ export const listarExpedientesQuerySchema = z
   .strict();
 export type ListarExpedientesQueryDto = z.infer<typeof listarExpedientesQuerySchema>;
 
+/**
+ * Ventana de tiempo para localizar el expediente de un caso viejo que no dice de quién es.
+ * Tope de una hora: es una búsqueda de coincidencia, no un listado de archivos por fecha.
+ */
+export const expedientesPorMomentoQuerySchema = z
+  .object({
+    desde: z.coerce.date(),
+    hasta: z.coerce.date(),
+    subjectType: z.enum(['customer', 'partner']).default('customer'),
+  })
+  .strict()
+  .refine((q) => q.hasta.getTime() >= q.desde.getTime() && q.hasta.getTime() - q.desde.getTime() <= 3_600_000, {
+    message: 'La ventana debe ir de `desde` a `hasta` y durar como máximo una hora.',
+  });
+export type ExpedientesPorMomentoQueryDto = z.infer<typeof expedientesPorMomentoQuerySchema>;
+
 export const listarNodosQuerySchema = z
   .object({
     parentId: idPositivo.optional(),

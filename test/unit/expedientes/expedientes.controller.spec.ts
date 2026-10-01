@@ -223,4 +223,28 @@ describe('ExpedientesController', () => {
       expect(pagina).toMatchObject({ total: 1, totalPages: 1, hasNextPage: false });
     });
   });
+
+  describe('por-momento', () => {
+    it('devuelve candidatos con sus imágenes y sin storage_key, usando el nivel base del actor', async () => {
+      (repository as unknown as { expedientesConImagenesEntre: jest.Mock }).expedientesConImagenesEntre = jest.fn(async () => [
+        {
+          expediente: expediente({ id: '54' }),
+          imagenes: [{ id: 'n1', nombre: 'carnet.jpg', createdAtValue: new Date('2026-09-28T15:27:00Z'), storageKey: 'secreto' }],
+        },
+      ]);
+
+      const r = await controller.porMomento(
+        't1',
+        { desde: new Date('2026-09-28T15:20:00Z'), hasta: new Date('2026-09-28T15:30:00Z'), subjectType: 'customer' },
+        peticion(),
+      );
+
+      expect(r).toHaveLength(1);
+      expect(r[0]).toMatchObject({
+        expedienteId: '54',
+        imagenes: [{ nodoId: 'n1', nombre: 'carnet.jpg', creadoEn: '2026-09-28T15:27:00.000Z' }],
+      });
+      expect(JSON.stringify(r)).not.toContain('secreto');
+    });
+  });
 });

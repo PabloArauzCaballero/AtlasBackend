@@ -17,10 +17,12 @@ import { toActividadDto, toExpedienteDto } from './expedientes.mapper.js';
 import {
   actividadQuerySchema,
   expedienteParamsSchema,
+  expedientesPorMomentoQuerySchema,
   listarExpedientesQuerySchema,
   sujetoParamsSchema,
   type ActividadQueryDto,
   type ExpedienteParamsDto,
+  type ExpedientesPorMomentoQueryDto,
   type ListarExpedientesQueryDto,
   type SujetoParamsDto,
 } from './expedientes.schemas.js';
@@ -125,6 +127,36 @@ export class ExpedientesController {
       nodos: nodos.filter((nodo) => nodo.tipo === 'archivo').length,
       bytes: String(nodos.reduce((total, nodo) => total + Number(nodo.sizeBytes ?? 0), 0)),
     });
+  }
+
+  /**
+   * Expedientes con imágenes del alta subidas en una ventana de tiempo.
+   *
+   * Para el caso del Motor que no dice de quién es (anterior a `identity-<cliente>-…` en el
+   * `requestId`). Devuelve CANDIDATOS por coincidencia de hora, no una identificación: quien llama
+   * debe presentarlos como tales. Va ANTES de `:id` para que `por-momento` no se lea como un id.
+   */
+  @Get('por-momento')
+  @ApiOperation({ summary: 'Expedientes con imágenes del alta subidas en una ventana de tiempo' })
+  @ApiOkResponse({ description: 'Candidatos por coincidencia de hora, con sus imágenes en la ventana.' })
+  @NivelRequerido('leer')
+  async porMomento(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(expedientesPorMomentoQuerySchema)) query: ExpedientesPorMomentoQueryDto,
+    @Req() request: RequestConExpediente,
+  ) {
+    const candidatos = await this.repository.expedientesConImagenesEntre({
+      tenantId,
+      subjectType: query.subjectType,
+      desde: query.desde,
+      hasta: query.hasta,
+      limite: 10,
+    });
+    const nivel = this.concesiones.nivelBase(request.expediente!.actor);
+    return candidatos.map(({ expediente, imagenes }) => ({
+      ...toExpedienteDto(expediente, { nivelEfectivo: nivel }),
+      imagenes: imagenes.map((nodo) => ({ nodoId: nodo.id, nombre: nodo.nombre, creadoEn: nodo.createdAtValue.toISOString() })),
+    }));
   }
 
   @Get(':id')

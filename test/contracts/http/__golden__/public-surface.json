@@ -2645,6 +2645,24 @@
     ],
     "body": false
   },
+  "GET /expedientes/por-momento": {
+    "operationId": "ExpedientesController_porMomento",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
   "GET /expedientes/por-sujeto/{subjectType}/{subjectId}": {
     "operationId": "ExpedientesController_porSujeto",
     "responses": [
