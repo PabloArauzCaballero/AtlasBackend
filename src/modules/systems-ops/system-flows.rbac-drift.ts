@@ -75,6 +75,17 @@ export type RolePermissions = ReadonlyMap<string, ReadonlySet<string>> | null;
 const LECTURAS = new Set(['GET', 'HEAD']);
 
 /**
+ * Llamadas de sesión que CUALQUIER pantalla con menú dispara (quién soy, refrescar, cerrar sesión),
+ * no la operación propia de ninguna pantalla concreta. `SIN_GUARDA` las marcaba como avería porque
+ * sólo llevan `JwtAuthGuard` —sin permiso fino ni rol—, pero eso es lo correcto: devuelven el perfil
+ * de QUIEN YA inició sesión, no datos de otro. Antes de esta lista, sacarle el permiso fino a
+ * `auth/me` (2026-10-01) sólo migró el hallazgo de `MENU_PERMISO_DISTINTO` a `SIN_GUARDA`: el total
+ * no bajaba nunca porque 5 pantallas de menú distinto llaman a la MISMA ruta de sesión, y ningún
+ * permiso único las deja a las cinco alineadas a la vez.
+ */
+const SESIONES_COMPARTIDAS = new Set(['GET internal/auth/me']);
+
+/**
  * Los roles que ven la entrada del menú (tienen ALGUNO de sus permisos, como `hasAnyPermission` del
  * portal) y no pueden hacer la llamada (les falta ALGUNO de los que exige, como el guard con `every`).
  * Vacío: nadie que entra por el menú se queda fuera, así que no es avería.
@@ -143,6 +154,7 @@ const faltan = (exigidos: readonly string[], tiene: ReadonlySet<string> | readon
 export function classifyCall(fila: DriftRow, catalogo: ReadonlySet<string> | null, reparto: RolePermissions = null): DriftCall | null {
   const permissions = [...(fila.internal_permissions ?? [])];
   const base = { flowId: fila.flow_id, method: fila.method, path: fila.path, roles: fila.roles, permissions };
+  if (!permissions.length && SESIONES_COMPARTIDAS.has(`${(fila.method ?? '').toUpperCase()} ${fila.path}`)) return null;
   if (permissions.length) {
     const missingFromCatalog = catalogo ? faltan(permissions, catalogo) : [];
     // Un menú sólo por rol no se puede comparar con un permiso sin el reparto rol→permiso de la base.
