@@ -173,6 +173,11 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
     expect(screens[0].calls).toEqual([expect.objectContaining({ severity: 'SIN_GUARDA' })]);
   });
 
+  it('GET internal/auth/me no es avería aunque no tenga permiso ni rol: es la sesión, no la pantalla', async () => {
+    const { screens } = await deriva([fila({ method: 'GET', path: 'internal/auth/me' })]).resultado;
+    expect(screens).toEqual([]);
+  });
+
   it('con roles NO se llama desprotegido: es otra puerta, no una abierta', async () => {
     const { screens } = await deriva([fila({ roles: ['system_admin', 'qa_engineer'] })]).resultado;
     expect(screens[0].calls).toEqual([expect.objectContaining({ severity: 'SOLO_ROL' })]);
