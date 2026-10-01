@@ -654,29 +654,29 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Audit dependencies (high/critical)
-        # `yarn audit --level high` NO hace lo que el nombre del paso promete: `--level` sólo filtra
-        # lo que se IMPRIME, mientras que el código de salida es una máscara de bits con TODAS las
-        # severidades encontradas (1 info, 2 low, 4 moderate, 8 high, 16 critical). Con `set -e` el
-        # paso fallaba por un 4 —seis avisos moderados— y el mensaje decía «high/critical», así que
-        # el gate parecía estar cazando algo que no era. Aquí se lee la máscara y se falla sólo por
-        # los bits 8 y 16, que es la regla que este paso siempre quiso aplicar.
-        #
-        # No se usa `continue-on-error` a propósito: un CVE high/critical debe bloquear el
-        # merge, no quedar como advertencia ignorable. Si una dependencia específica tiene un
-        # falso positivo o no aplica al código realmente usado, documentarlo explícitamente en
-        # docs/pending/pending-items.md con el ID del advisory antes de silenciarlo.
-        run: |
-          set +e
-          yarn audit --level high
-          codigo=$?
-          set -e
-          if [ $(( codigo & 24 )) -ne 0 ]; then
-            echo "::error::yarn audit encontró vulnerabilidades high o critical (máscara $codigo)."
-            exit 1
-          fi
-          echo "Sin vulnerabilidades high/critical (máscara $codigo: sólo severidades por debajo del umbral)."
+      - name: Verify (before trusting it) the audit gate rejects incomplete reports
+        run: node --test .github/tests/audit-dependencies.test.mjs
 
+      - name: Audit dependencies (high/critical)
+        # ATL-11: el bloque anterior leía `yarn audit` con una máscara de bits sobre el exit code. Yarn Classic sale con 1 tanto
+        # para «sólo INFO» como para un error operativo, así que exit 1 sin reporte (o 32) pasaba como
+        # «sin vulnerabilidades». El wrapper exige una ejecución COMPLETA (resumen terminal válido que
+        # cuadra con el código de yarn) y sólo entonces aplica la política high/critical. Sale 0 sólo
+        # en PASS, 2 con hallazgos, 3 si el reporte falta o es inválido, 4 con configuración inválida.
+        # Sin tolerancia de fallos ni tuberías que enmascaren: el código del wrapper es el del paso.
+        # Protocolo y casos AU-01..AU-20: scripts/security/AUDIT_PROTOCOL.md.
+        run: node scripts/security/audit-dependencies.mjs
+        env:
+          AUDIT_EVIDENCE_DIR: audit-evidence
+
+      # Evidencia también cuando el gate falla o se cancela; nunca sustituye al resultado del paso.
+      - name: Upload dependency audit evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-audit-evidence
+          path: audit-evidence/
+          if-no-files-found: warn
 
   # Fase 4.1 del plan 10/10: análisis estático de seguridad (SAST). Complementa `yarn audit` (CVEs de
   # dependencias) buscando vulnerabilidades en el CÓDIGO de Atlas (inyección, path traversal, etc.).
