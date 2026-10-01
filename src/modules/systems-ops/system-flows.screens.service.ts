@@ -123,18 +123,19 @@ export class SystemFlowsScreensService {
    * Ver `RBAC_DRIFT_SQL` y `system-flows.rbac-drift.ts`.
    */
   async rbacDrift(query: Partial<RbacDriftQueryDto> = {}) {
-    const [filas, catalogo, menus, conPermiso] = await Promise.all([
+    const [filas, catalogo, menus, conPermiso, reparto] = await Promise.all([
       this.repository.rbacDrift(),
       this.repository.rbacCatalogPermissions(),
       this.repository.menusWithPermissions(CLIENTES_DEL_CATALOGO),
       this.repository.flowsWithPermissions(),
+      this.repository.rolePermissions(),
     ]);
     const porPantalla = new Map<
       string,
       { clientCode: string; route: string; navPermissions: string[]; navRoles: string[]; calls: DriftCall[] }
     >();
     for (const fila of filas) {
-      const call = classifyCall(fila, catalogo);
+      const call = classifyCall(fila, catalogo, reparto);
       // Un endpoint con permiso fino que el menú ya pide y que la base tiene está bien: no es deriva.
       if (!call) continue;
       const clave = `${fila.client_code} ${fila.route}`;

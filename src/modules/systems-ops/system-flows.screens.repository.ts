@@ -12,7 +12,9 @@ import {
   FLOWS_WITH_PERMISSIONS_SQL,
   MENU_PERMISSIONS_SQL,
   RBAC_CATALOG_PERMISSIONS_SQL,
+  ROLE_PERMISSIONS_SQL,
   type DriftRow,
+  type RolePermissions,
 } from './system-flows.rbac-drift.js';
 
 /** Cubeta del tráfico que no declaró cliente. No se atribuye a nadie: se cuenta aparte. */
@@ -144,6 +146,14 @@ export class SystemFlowsScreensRepository {
       type: QueryTypes.SELECT,
     });
     return rows.length ? new Set(rows.map((row) => row.permission_code)) : null;
+  }
+
+  /** Permisos por rol activo, de la base. Nulo si no hay ninguno: sin reparto no se decide por personas. */
+  async rolePermissions(): Promise<RolePermissions> {
+    const rows = await this.screens.sequelize!.query<{ role_code: string; permission_codes: string[] }>(ROLE_PERMISSIONS_SQL, {
+      type: QueryTypes.SELECT,
+    });
+    return rows.length ? new Map(rows.map((row) => [row.role_code, new Set(row.permission_codes)])) : null;
   }
 
   /** Menús con permiso de los clientes indicados, se hayan usado o no. */

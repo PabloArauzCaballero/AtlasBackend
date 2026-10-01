@@ -18,6 +18,7 @@ import {
 } from '../../database/models/index.js';
 import { PaginationInput } from '../../common/utils/pagination/pagination.util.js';
 import { CreateInternalUserInput, InternalAccessProfile } from './internal-users.types.js';
+import { expandPermissionAliases, hasPermissionOrAlias } from '../../common/utils/permission-aliases.js';
 import { InternalUsersListFilter, ListedUsers, internalUsersListQuery } from './internal-users-list.filter.js';
 
 export type InternalRolePermissionRow = {
@@ -40,35 +41,6 @@ export type InternalAuditInput = {
 
 function uniqueSorted(values: Array<string | null | undefined>): string[] {
   return [...new Set(values.filter((value): value is string => typeof value === 'string' && value.length > 0))].sort();
-}
-
-const permissionAliases: Readonly<Record<string, readonly string[]>> = {
-  'internal.users.read': ['rbac.internal_users.read'],
-  'internal.users.manage': [
-    'rbac.internal_users.create',
-    'rbac.internal_users.disable',
-    'rbac.internal_users.manage_roles',
-    'rbac.internal_users.update',
-  ],
-  'internal.roles.read': ['rbac.roles.read'],
-  'internal.roles.manage': ['rbac.internal_users.manage_roles'],
-  'internal.permissions.read': ['rbac.roles.read'],
-};
-
-function expandPermissionAliases(permissions: string[]): string[] {
-  const expanded = new Set(permissions);
-  for (const [canonical, aliases] of Object.entries(permissionAliases)) {
-    if (expanded.has(canonical) || aliases.some((alias) => expanded.has(alias))) {
-      expanded.add(canonical);
-      for (const alias of aliases) expanded.add(alias);
-    }
-  }
-  return [...expanded].sort();
-}
-
-function hasPermissionOrAlias(permissions: ReadonlySet<string>, requiredPermission: string): boolean {
-  if (permissions.has(requiredPermission)) return true;
-  return permissionAliases[requiredPermission]?.some((alias) => permissions.has(alias)) ?? false;
 }
 
 @Injectable()

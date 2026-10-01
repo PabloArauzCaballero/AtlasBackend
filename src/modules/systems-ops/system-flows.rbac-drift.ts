@@ -4,10 +4,13 @@
  * @system clasifica cada llamada observada pantalla→endpoint y cruza los permisos exigidos con el catálogo RBAC interno de la base.
  */
 import { atlasSchemaFor } from '../../database/domain-schemas.js';
+import { hasPermissionOrAlias } from '../../common/utils/permission-aliases.js';
 
 const FLOWS = atlasSchemaFor('system_flow_catalog');
 const SCREENS = atlasSchemaFor('system_screen_catalog');
 const PERMISSIONS = atlasSchemaFor('internal_permissions');
+const ROLES = atlasSchemaFor('internal_roles');
+const ROLE_PERMISSIONS = atlasSchemaFor('internal_role_permissions');
 
 /**
  * Las clases de desajuste, de la más grave a la menos. Las tres primeras rompen a usuarios reales:
@@ -51,6 +54,44 @@ export const FLOWS_WITH_PERMISSIONS_SQL = `SELECT flow_id, http_method AS method
         WHERE system_code = 'ATLAS_BACKEND'
           AND jsonb_typeof(internal_permissions) = 'array' AND jsonb_array_length(internal_permissions) > 0
         ORDER BY path, http_method`;
+
+/**
+ * Qué permisos tiene cada rol activo, tal como está EN LA BASE. Sin esto la deriva marcaba como avería
+ * cualquier permiso que el menú no nombrara, aunque todos los roles que ven el menú lo tuvieran: el
+ * 2026-10-01 eran 24 «averías» en TEST y casi todas eran `GET internal/auth/me` («quién soy»), que lo
+ * tiene todo usuario interno.
+ */
+export const ROLE_PERMISSIONS_SQL = `SELECT r.role_code, array_agg(DISTINCT p.permission_code) AS permission_codes
+         FROM ${ROLES}.internal_roles r
+         JOIN ${ROLE_PERMISSIONS}.internal_role_permissions rp ON rp.role_id = r._id
+         JOIN ${PERMISSIONS}.internal_permissions p ON p._id = rp.permission_id
+        WHERE r._deleted = false AND r.status = 'active' AND p._deleted = false AND p.status = 'active'
+        GROUP BY r.role_code`;
+
+/** Permisos por rol. Nulo si no se pudo leer: entonces no se afirma quién se queda fuera. */
+export type RolePermissions = ReadonlyMap<string, ReadonlySet<string>> | null;
+
+/** Lecturas: lo que la pantalla necesita para mostrarse. Una escritura que pide más es una puerta, no una avería. */
+const LECTURAS = new Set(['GET', 'HEAD']);
+
+/**
+ * Los roles que ven la entrada del menú (tienen ALGUNO de sus permisos, como `hasAnyPermission` del
+ * portal) y no pueden hacer la llamada (les falta ALGUNO de los que exige, como el guard con `every`).
+ * Vacío: nadie que entra por el menú se queda fuera, así que no es avería.
+ */
+export function rolesLeftOut(
+  navPermissions: readonly string[],
+  required: readonly string[],
+  reparto: ReadonlyMap<string, ReadonlySet<string>>,
+): string[] {
+  const fuera: string[] = [];
+  for (const [rol, permisos] of reparto) {
+    const veElMenu = navPermissions.some((permiso) => hasPermissionOrAlias(permisos, permiso));
+    const puedeLlamar = required.every((permiso) => hasPermissionOrAlias(permisos, permiso));
+    if (veElMenu && !puedeLlamar) fuera.push(rol);
+  }
+  return fuera.sort();
+}
 
 export type DriftRow = {
   client_code: string;
@@ -99,7 +140,7 @@ const faltan = (exigidos: readonly string[], tiene: ReadonlySet<string> | readon
  * `catalogo` nulo significa que el catálogo de la base no se pudo leer o está vacío: entonces no se
  * afirma que falte nada, porque «falta todo» sería un artefacto del entorno.
  */
-export function classifyCall(fila: DriftRow, catalogo: ReadonlySet<string> | null): DriftCall | null {
+export function classifyCall(fila: DriftRow, catalogo: ReadonlySet<string> | null, reparto: RolePermissions = null): DriftCall | null {
   const permissions = [...(fila.internal_permissions ?? [])];
   const base = { flowId: fila.flow_id, method: fila.method, path: fila.path, roles: fila.roles, permissions };
   if (permissions.length) {
@@ -107,8 +148,13 @@ export function classifyCall(fila: DriftRow, catalogo: ReadonlySet<string> | nul
     // Un menú sólo por rol no se puede comparar con un permiso sin el reparto rol→permiso de la base.
     const missingFromMenu = fila.nav_permissions.length ? faltan(permissions, fila.nav_permissions) : [];
     if (missingFromCatalog.length) return { ...base, severity: 'PERMISO_FUERA_DEL_CATALOGO', missingFromMenu, missingFromCatalog };
-    if (missingFromMenu.length) return { ...base, severity: 'MENU_PERMISO_DISTINTO', missingFromMenu, missingFromCatalog };
-    return null;
+    if (!missingFromMenu.length) return null;
+    // Una escritura que pide más que el menú es lo esperado: ver no es lo mismo que aprobar o borrar.
+    if (!LECTURAS.has((fila.method ?? '').toUpperCase())) return null;
+    // Con el reparto de la base se decide por personas reales: sólo es avería si algún rol que ve el
+    // menú no puede leer lo que la pantalla necesita. Sin reparto se conserva la lectura textual.
+    if (reparto && !rolesLeftOut(fila.nav_permissions, permissions, reparto).length) return null;
+    return { ...base, severity: 'MENU_PERMISO_DISTINTO', missingFromMenu, missingFromCatalog };
   }
   const severity: DriftSeverity = fila.is_public ? 'PUBLIC' : fila.roles.length ? 'SOLO_ROL' : 'SIN_GUARDA';
   return { ...base, severity, missingFromMenu: [], missingFromCatalog: [] };
