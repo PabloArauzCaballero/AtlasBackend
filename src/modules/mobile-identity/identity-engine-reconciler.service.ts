@@ -19,6 +19,10 @@ const ESPERA_MS = 10 * 60_000;
 const VIGENCIA_MS = 14 * 24 * 3_600_000;
 const CADA_MS = 5 * 60_000;
 const POR_PASADA = 20;
+/** Un intento del canal móvil que sigue PENDING más de esto se dio por perdido (el Motor no contestó). */
+const PENDIENTE_VIVO_MS = 15 * 60_000;
+/** Tope de intentos por cliente: un fallo permanente no se reintenta para siempre ni inunda el Motor. */
+const MAX_INTENTOS = 5;
 
 /**
  * Por qué existe.
@@ -30,7 +34,8 @@ const POR_PASADA = 20;
  * servidor, que tiene las imágenes y vuelve a intentarlo hasta que el Motor las vea.
  *
  * Es idempotente por intento: `start` crea la fila del canal móvil, y con ella el cliente deja de
- * ser candidato. Cada rescate y cada fallo quedan en el log con `evento: identity_reconcile_*`.
+ * ser candidato mientras esa fila viva (resuelta, o PENDING reciente); si el Motor no contestó
+ * (`UNAVAILABLE`) se reintenta, hasta 5 veces por cliente. Cada rescate y cada fallo quedan en el log con `evento: identity_reconcile_*`.
  */
 @Injectable()
 export class IdentityEngineReconciler implements OnApplicationBootstrap, OnModuleDestroy {
@@ -60,6 +65,7 @@ export class IdentityEngineReconciler implements OnApplicationBootstrap, OnModul
     if (this.corriendo) return 0;
     this.corriendo = true;
     let enviados = 0;
+    const atascados: IdentityVerificationAttemptModel[] = [];
     try {
       const pendientes = await this.attempts.findAll({
         where: {
@@ -78,22 +84,46 @@ export class IdentityEngineReconciler implements OnApplicationBootstrap, OnModul
         const resultado = await this.reconciliar(intento);
         if (resultado === 'sin-motor') break;
         if (resultado === 'enviado') enviados += 1;
+        else if (resultado === 'fallido') atascados.push(intento);
       }
     } catch (error: unknown) {
       this.log('identity_reconcile_failed', { reason: describir(error) });
     } finally {
       this.corriendo = false;
     }
+    // La alarma: paquetes que ESTA pasada no pudo mandar. Si el Motor está caído o falta una imagen,
+    // quien lea el log lo ve en cada pasada en vez de descubrirlo cuando alguien pregunte por un caso.
+    if (atascados.length > 0) this.alarmar(atascados);
     return enviados;
   }
 
-  private async reconciliar(intento: IdentityVerificationAttemptModel): Promise<'enviado' | 'omitido' | 'sin-motor'> {
+  private async reconciliar(intento: IdentityVerificationAttemptModel): Promise<'enviado' | 'omitido' | 'fallido' | 'sin-motor'> {
     const base = { tenantId: intento.tenantId, customerId: intento.customerId, packageAttemptId: intento.id };
     try {
-      const yaPreguntado = await this.attempts.count({
+      /*
+       * «Ya lo vio el Motor» es un intento del canal móvil que NO se perdió: resuelto (VERIFIED,
+       * REJECTED, IN_REVIEW) o todavía PENDING y reciente. Uno `UNAVAILABLE` (el Motor estaba caído)
+       * o PENDING desde hace rato NO cuenta: es exactamente el paquete que hay que volver a mandar.
+       */
+      const vigentes = await this.attempts.count({
+        where: {
+          tenantId: intento.tenantId,
+          customerId: intento.customerId,
+          verificationChannel: LIVENESS_IDENTITY_CHANNEL,
+          [Op.or]: [
+            { finalResult: { [Op.in]: ['VERIFIED', 'REJECTED', 'IN_REVIEW'] } },
+            { finalResult: 'PENDING', requestedAt: { [Op.gt]: new Date(Date.now() - PENDIENTE_VIVO_MS) } },
+          ],
+        },
+      } as FindOptions);
+      if (vigentes > 0) return 'omitido';
+      const hechos = await this.attempts.count({
         where: { tenantId: intento.tenantId, customerId: intento.customerId, verificationChannel: LIVENESS_IDENTITY_CHANNEL },
       } as FindOptions);
-      if (yaPreguntado > 0) return 'omitido';
+      if (hechos >= MAX_INTENTOS) {
+        this.log('identity_reconcile_gave_up', { ...base, intentos: hechos });
+        return 'omitido';
+      }
 
       const documentos = await this.evidencias.findAll({
         where: { tenantId: intento.tenantId, customerId: intento.customerId, deleted: { [Op.ne]: true } },
@@ -104,7 +134,7 @@ export class IdentityEngineReconciler implements OnApplicationBootstrap, OnModul
       const selfie = ultimo('selfie');
       if (!frente?.s3Key || !selfie?.s3Key) {
         this.log('identity_reconcile_skipped', { ...base, reason: 'FALTAN_IMAGENES' });
-        return 'omitido';
+        return 'fallido';
       }
       const reverso = ultimo('identity_back');
       const [bf, bs, br] = await Promise.all([
@@ -114,7 +144,7 @@ export class IdentityEngineReconciler implements OnApplicationBootstrap, OnModul
       ]);
       if (!bf || !bs) {
         this.log('identity_reconcile_skipped', { ...base, reason: 'OBJETO_AUSENTE' });
-        return 'omitido';
+        return 'fallido';
       }
       const cuerpo = startIdentityVerificationSchema.parse({
         documentFront: bf.toString('base64'),
@@ -129,8 +159,17 @@ export class IdentityEngineReconciler implements OnApplicationBootstrap, OnModul
       // El Motor sin configurar no es un fallo de este paquete: se corta la pasada sin ruido.
       if (error instanceof ServiceUnavailableException) return 'sin-motor';
       this.log('identity_reconcile_failed', { ...base, reason: describir(error) });
-      return 'omitido';
+      return 'fallido';
     }
+  }
+
+  private alarmar(atascados: IdentityVerificationAttemptModel[]): void {
+    const fechas = atascados.map((a) => a.requestedAt?.getTime() ?? Number.POSITIVE_INFINITY);
+    const masAntiguo = Math.min(...fechas);
+    this.log('identity_reconcile_backlog', {
+      atascados: atascados.length,
+      masAntiguo: Number.isFinite(masAntiguo) ? new Date(masAntiguo).toISOString() : null,
+    });
   }
 
   private log(evento: string, datos: Record<string, unknown>): void {

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ServiceUnavailableException } from '@nestjs/common';
+import { inspect } from 'node:util';
+import { Op } from 'sequelize';
 import { IdentityEngineReconciler } from '../../../src/modules/mobile-identity/identity-engine-reconciler.service.js';
 
 /**
@@ -46,7 +48,7 @@ describe('IdentityEngineReconciler', () => {
     expect(clave).toBe('reconcile-identity-77');
   });
 
-  it('no repite si el cliente ya tiene un intento del canal móvil', async () => {
+  it('no repite si el cliente ya tiene un intento del canal móvil vigente', async () => {
     attempts.count.mockResolvedValue(1);
     expect(await reconciliador.pasada()).toBe(0);
     expect(identidad.start).not.toHaveBeenCalled();
@@ -79,5 +81,55 @@ describe('IdentityEngineReconciler', () => {
   it('un mismo cliente con dos paquetes pendientes se manda una sola vez', async () => {
     attempts.findAll.mockResolvedValue([paquete, { ...paquete, id: '70' }]);
     expect(await reconciliador.pasada()).toBe(1);
+  });
+});
+
+describe('IdentityEngineReconciler: reintentos y alarma', () => {
+  type Mock = jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+  const paquete = { id: '77', tenantId: '1', customerId: '53', requestedAt: new Date('2026-09-30T23:52:57Z') };
+  const docs = [
+    { documentType: 'identity_front', s3Key: 'k/front' },
+    { documentType: 'selfie', s3Key: 'k/selfie' },
+  ];
+  let attempts: { findAll: Mock; count: Mock };
+  let identidad: { start: Mock };
+  let reconciliador: IdentityEngineReconciler;
+
+  beforeEach(() => {
+    attempts = { findAll: jest.fn(async () => [paquete]), count: jest.fn(async () => 0) };
+    identidad = { start: jest.fn(async () => ({ verificationId: '900' })) };
+    reconciliador = new IdentityEngineReconciler(
+      attempts as never,
+      { findAll: jest.fn(async () => docs) } as never,
+      { readObject: jest.fn(async () => Buffer.from('A'.repeat(100))) } as never,
+      identidad as never,
+    );
+  });
+
+  it('un intento UNAVAILABLE no cuenta como vigente: se reintenta (la consulta sólo reconoce resueltos o PENDING recientes)', async () => {
+    await reconciliador.pasada();
+
+    // `JSON.stringify` descarta las claves-símbolo de Sequelize (`Op.or`, `Op.in`): `inspect` las enseña.
+    const donde = (attempts.count.mock.calls[0]?.[0] as { where: Record<symbol, unknown> }).where;
+    const filtro = inspect(donde[Op.or as unknown as symbol], { depth: 8 });
+    expect(filtro).toContain('VERIFIED');
+    expect(filtro).toContain('IN_REVIEW');
+    expect(filtro).not.toContain('UNAVAILABLE');
+    expect(identidad.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('se rinde tras 5 intentos del cliente', async () => {
+    attempts.count.mockResolvedValueOnce(0).mockResolvedValueOnce(5);
+    expect(await reconciliador.pasada()).toBe(0);
+    expect(identidad.start).not.toHaveBeenCalled();
+  });
+
+  it('si no puede mandar un paquete lo declara en la alarma de atascados', async () => {
+    identidad.start.mockRejectedValue(new Error('motor caído'));
+    const aviso = jest.spyOn((reconciliador as unknown as { logger: { warn: (m: string) => void } }).logger, 'warn');
+
+    await reconciliador.pasada();
+
+    expect(aviso.mock.calls.some(([m]) => String(m).includes('identity_reconcile_backlog'))).toBe(true);
   });
 });
