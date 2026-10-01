@@ -5,4 +5,4 @@
  */
 export type { ListContentQueryDto, UpsertContentDto, ContentIdParamsDto } from './app-content.schemas.js';
 export type ContentSurface =
-  'onboarding' | 'home' | 'faq' | 'help' | 'legal' | 'profile' | 'credit' | 'tour' | 'privacy' | 'signup' | 'payments';
+  'onboarding' | 'home' | 'faq' | 'help' | 'legal' | 'profile' | 'credit' | 'tour' | 'privacy' | 'signup' | 'payments' | 'copy';

@@ -19,6 +19,7 @@ export const contentSurfaceSchema = z.enum([
   'privacy',
   'signup',
   'payments',
+  'copy',
 ]);
 
 /**
