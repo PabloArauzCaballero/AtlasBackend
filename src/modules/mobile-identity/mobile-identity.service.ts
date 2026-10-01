@@ -200,7 +200,9 @@ export class MobileIdentityService {
       const respuesta = await this.engine.execute(
         artifactCode ?? env.DECISION_ENGINE_IDENTITY_ARTIFACT,
         {
-          requestId: randomUUID(),
+          // El cliente va en el `requestId` (el Motor lo guarda en claro; `context` no): ata el caso al
+          // expediente aunque el intento se purgue. Sin cliente queda el UUID de siempre.
+          requestId: customerId ? `identity-${customerId}-${randomUUID()}` : randomUUID(),
           correlationId: verificationId,
           // Derivada del intento y de la clave del cliente: reintentar la misma
           // verificación no debe cobrarse dos veces al motor.
