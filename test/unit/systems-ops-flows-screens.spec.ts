@@ -134,13 +134,21 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
    */
   const deriva = (
     filas: unknown[],
-    over: { conRutas?: number; conPuerta?: string[]; catalogo?: Set<string> | null; menus?: unknown[]; conPermiso?: unknown[] } = {},
+    over: {
+      conRutas?: number;
+      conPuerta?: string[];
+      catalogo?: Set<string> | null;
+      menus?: unknown[];
+      conPermiso?: unknown[];
+      reparto?: Map<string, Set<string>> | null;
+    } = {},
   ) => {
     const repo = {
       rbacDrift: async () => filas,
       rbacCatalogPermissions: async () => (over.catalogo === undefined ? new Set(['audit.events.read', 'partner.qr.read']) : over.catalogo),
       menusWithPermissions: jest.fn(async () => over.menus ?? []),
       flowsWithPermissions: async () => over.conPermiso ?? [],
+      rolePermissions: async () => over.reparto ?? null,
       screensWithObservedRoutes: jest.fn(async () => over.conRutas ?? 2),
       clientsWithMenuGates: async () => over.conPuerta ?? ['ADMIN_PORTAL', 'MOTOR_PORTAL'],
     };
@@ -181,6 +189,56 @@ describe('SystemFlowsScreensService.rbacDrift', () => {
       expect.objectContaining({ severity: 'MENU_PERMISO_DISTINTO', missingFromMenu: ['partner.qr.read'], missingFromCatalog: [] }),
     ]);
     expect(r.summary.breaking).toBe(1);
+  });
+
+  /*
+   * Los tres casos que el 2026-10-01 llenaban la pantalla de TEST con 24 «averías»: casi todas eran
+   * falsas y escondían la única real (el Laboratorio QA entraba con un permiso y leía con otro).
+   */
+  describe('con el reparto rol→permiso de la base se decide por personas reales', () => {
+    const reparto = new Map([
+      ['AUDITOR', new Set(['audit.events.read', 'auth.internal.me.read'])],
+      ['QA_ANALYST', new Set(['systems.endpoints.read', 'auth.internal.me.read'])],
+      ['QA_LEAD', new Set(['systems.endpoints.read', 'systems.qa.read', 'auth.internal.me.read'])],
+    ]);
+    const catalogo = new Set([
+      'audit.events.read',
+      'auth.internal.me.read',
+      'systems.endpoints.read',
+      'systems.qa.read',
+      'systems.flows.review',
+    ]);
+
+    it('«quién soy» lo tiene todo rol que ve el menú: NO es avería', async () => {
+      const r = await deriva([fila({ path: 'internal/auth/me', internal_permissions: ['auth.internal.me.read'] })], { reparto, catalogo })
+        .resultado;
+      expect(r.items).toEqual([]);
+      expect(r.summary.breaking).toBe(0);
+    });
+
+    it('una escritura que pide más que el menú es una puerta, no una avería', async () => {
+      const r = await deriva([fila({ method: 'PATCH', path: 'systems/flows/:p/review', internal_permissions: ['systems.flows.review'] })], {
+        reparto,
+        catalogo,
+      }).resultado;
+      expect(r.items).toEqual([]);
+    });
+
+    it('un rol que ve el Laboratorio QA y no puede leer sus corridas SÍ es avería', async () => {
+      const r = await deriva(
+        [
+          fila({
+            route: '/internal/qa/lab',
+            nav_permissions: ['systems.endpoints.read'],
+            path: 'systems/qa/runs',
+            internal_permissions: ['systems.qa.read'],
+          }),
+        ],
+        { reparto, catalogo },
+      ).resultado;
+      expect(r.items).toEqual([expect.objectContaining({ severity: 'MENU_PERMISO_DISTINTO', missingFromMenu: ['systems.qa.read'] })]);
+      expect(r.summary.breaking).toBe(1);
+    });
   });
 
   it('un endpoint con permiso fino que el menú ya pide y la base tiene NO es deriva', async () => {

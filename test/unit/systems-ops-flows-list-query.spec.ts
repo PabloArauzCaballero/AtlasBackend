@@ -103,6 +103,7 @@ describe('SystemFlowsScreensService.rbacDrift · buscar, filtrar y paginar', () 
       rbacCatalogPermissions: async () => new Set(['audit.events.read']),
       menusWithPermissions: async () => [],
       flowsWithPermissions: async () => [],
+      rolePermissions: async () => null,
       screensWithObservedRoutes: jest.fn(async () => 9),
       clientsWithMenuGates: async () => ['ADMIN_PORTAL', 'MOTOR_PORTAL'],
     } as never);
