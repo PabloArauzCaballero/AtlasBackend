@@ -4,4 +4,5 @@
  * @system reexporta los tipos del catálogo de contenidos para quien no valida.
  */
 export type { ListContentQueryDto, UpsertContentDto, ContentIdParamsDto } from './app-content.schemas.js';
-export type ContentSurface = 'onboarding' | 'home' | 'faq' | 'help' | 'legal' | 'profile' | 'credit';
+export type ContentSurface =
+  'onboarding' | 'home' | 'faq' | 'help' | 'legal' | 'profile' | 'credit' | 'tour' | 'privacy' | 'signup' | 'payments';

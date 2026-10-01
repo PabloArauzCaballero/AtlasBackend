@@ -7,7 +7,19 @@ import { z } from 'zod';
 import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 
 /** A qué pantalla va la pieza. Cerrado a propósito: la app tiene que saber pintar cada superficie. */
-export const contentSurfaceSchema = z.enum(['onboarding', 'home', 'faq', 'help', 'legal', 'profile', 'credit']);
+export const contentSurfaceSchema = z.enum([
+  'onboarding',
+  'home',
+  'faq',
+  'help',
+  'legal',
+  'profile',
+  'credit',
+  'tour',
+  'privacy',
+  'signup',
+  'payments',
+]);
 
 /**
  * Qué hace el botón del final de la pieza.
