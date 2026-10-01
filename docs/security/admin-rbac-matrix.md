@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (122 controladores) | 591 |
+| Total montadas (122 controladores) | 592 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 9 |
 | Sin sesión de usuario (`@Public`) | 28 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 3 |
-| Con `@Roles` | 536 |
+| Con `@Roles` | 537 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 77 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -286,6 +286,7 @@
 | `DELETE` | `/expedientes/:id/papelera` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesNodosController.purgar` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |
 | `POST` | `/expedientes/:id/subidas` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesNodosController.crearSubida` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |
 | `POST` | `/expedientes/:id/subidas/:ticketId/confirmar` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesNodosController.confirmarSubida` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |
+| `GET` | `/expedientes/por-momento` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesController.porMomento` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |
 | `GET` | `/expedientes/por-sujeto/:subjectType/:subjectId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesController.porSujeto` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |
 
 ## `external-data`

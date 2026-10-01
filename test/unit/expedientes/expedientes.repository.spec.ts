@@ -58,6 +58,39 @@ describe('ExpedientesRepository', () => {
     );
   });
 
+  describe('expedientes por momento', () => {
+    it('acota por tenant, por imágenes del alta no borradas y por la ventana; agrupa por expediente', async () => {
+      const desde = new Date('2026-09-28T15:20:00Z');
+      const hasta = new Date('2026-09-28T15:30:00Z');
+      nodos.findAll.mockResolvedValue([
+        { id: 'n1', expedienteId: '54' },
+        { id: 'n2', expedienteId: '54' },
+      ] as never);
+      expedientes.findAll.mockResolvedValue([{ id: '54' }] as never);
+
+      const r = await repo.expedientesConImagenesEntre({ tenantId: 't1', subjectType: 'customer', desde, hasta, limite: 10 });
+
+      const w = where(nodos.findAll);
+      expect(w).toMatchObject({ tenantId: 't1', tipo: 'archivo', origen: 'onboarding', borradoEn: null });
+      expect(w.createdAtValue).toEqual({ [Op.between]: [desde, hasta] });
+      expect(where(expedientes.findAll)).toMatchObject({ tenantId: 't1', subjectType: 'customer' });
+      expect(r).toHaveLength(1);
+      expect(r[0]?.imagenes).toHaveLength(2);
+    });
+
+    it('sin imágenes en la ventana no consulta expedientes', async () => {
+      const r = await repo.expedientesConImagenesEntre({
+        tenantId: 't1',
+        subjectType: 'customer',
+        desde: new Date(),
+        hasta: new Date(),
+        limite: 10,
+      });
+      expect(r).toEqual([]);
+      expect(expedientes.findAll).not.toHaveBeenCalled();
+    });
+  });
+
   describe('expedientes', () => {
     it('nace abierto: el estado no lo elige quien llama', async () => {
       await repo.crearExpediente({

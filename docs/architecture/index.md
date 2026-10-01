@@ -37,8 +37,8 @@ cambia y esta tabla no, CI falla. Se regeneran con `yarn docs:figures`.
 | Modelos Sequelize | <!-- fig:code.ormModels -->211<!-- /fig --> | clases `@Table` en `src/` |
 | Migraciones | <!-- fig:code.migrations -->167<!-- /fig --> | `src/database/migrations/*.ts` |
 | Tablas / esquemas de dominio | <!-- fig:db.tables -->219<!-- /fig --> / <!-- fig:db.schemas -->15<!-- /fig --> | `ATLAS_DOMAIN_TABLES` (`src/database/domain-tables.ts`) |
-| Rutas montadas | <!-- fig:code.routes -->591<!-- /fig --> | metadata de los controladores; incluye las internas fuera del contrato |
-| Rutas / operaciones del contrato | <!-- fig:openapi.paths -->544<!-- /fig --> / <!-- fig:openapi.operations -->582<!-- /fig --> | `docs/endpoints/openapi.yaml` |
+| Rutas montadas | <!-- fig:code.routes -->592<!-- /fig --> | metadata de los controladores; incluye las internas fuera del contrato |
+| Rutas / operaciones del contrato | <!-- fig:openapi.paths -->545<!-- /fig --> / <!-- fig:openapi.operations -->583<!-- /fig --> | `docs/endpoints/openapi.yaml` |
 | Aristas módulo → módulo | <!-- fig:arch.moduleEdges -->92<!-- /fig --> | inventario de imports (`scripts/architecture/inventory-imports.ts`) |
 | Ciclos entre módulos | <!-- fig:arch.cycles -->1<!-- /fig --> | mismo inventario; cada uno con excepción declarada |
 
