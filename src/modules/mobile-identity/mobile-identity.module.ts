@@ -7,6 +7,7 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { EvidenceDocumentModel, IdentityVerificationAttemptModel } from '../../database/models/index.js';
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
+import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
 import { IdentityEngineReconciler } from './identity-engine-reconciler.service.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { CustomerOnboardingModule } from '../customer-onboarding/customer-onboarding.module.js';
@@ -48,6 +49,8 @@ import { MobileIdentitySignalsService } from './mobile-identity-signals.service.
     MobileIdentitySignalsService,
     IdentityEngineReconciler,
     DocumentStorageService,
+    // Lo exige el constructor de `DocumentStorageService`; sin él el contenedor no arranca.
+    MalwareScannerService,
   ],
   exports: [MobileIdentityService],
 })
