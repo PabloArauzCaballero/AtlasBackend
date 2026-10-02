@@ -155,7 +155,7 @@ describe('ErpMerchantExpedienteService', () => {
     const completo = {
       ...entrada,
       commercialRegistry: '00008022',
-      businessCategory: 'retail',
+      businessCategory: 'RETAIL',
       legalRepresentative: {
         fullName: 'Pablo Arauz Caballero',
         documentType: 'ci' as const,
@@ -187,7 +187,7 @@ describe('ErpMerchantExpedienteService', () => {
 
       expect(profiles.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }), {
         commercialRegistry: '00008022',
-        businessCategory: 'retail',
+        businessCategory: 'RETAIL',
       });
       expect(representatives.addLegalRepresentative).toHaveBeenCalledWith('1', 'p1', completo.legalRepresentative);
       expect(commerce.registerBranch).toHaveBeenCalledWith('1', 'p1', completo.branch);
@@ -206,7 +206,7 @@ describe('ErpMerchantExpedienteService', () => {
 
     it('no repite lo que ya estaba: ni matrícula, ni el mismo representante, ni la misma sucursal, ni otro QR con uno vigente', async () => {
       const { service, profiles, representatives, commerce, qr } = build({
-        porCuenta: { ...perfil, commercialRegistry: '00008022', businessCategory: 'retail' },
+        porCuenta: { ...perfil, commercialRegistry: '00008022', businessCategory: 'RETAIL' },
         representantes: [{ documentNumber: '1234567' }],
         sucursales: [{ branchCode: 'CASA-MATRIZ' }],
         qrVigente: { id: 'q0' },
