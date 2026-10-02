@@ -9,6 +9,7 @@ import { ExpedientesRepository } from '../../expedientes/repositories/expediente
 import type { PartnerProfileModel } from '../../../database/models/index.js';
 import { PartnerOnboardingRepository, EDITABLE_PARTNER_STATUSES } from '../partner-onboarding.repository.js';
 import { startPartnerOnboardingSchema } from '../partner-onboarding.schemas.js';
+import { normalizeBusinessCategory } from '../partner-business-categories.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
 import { PartnerCommerceService } from './partner-commerce.service.js';
 import { PartnerProfileService } from './partner-profile.service.js';
@@ -162,8 +163,10 @@ export class ErpMerchantExpedienteService {
       cambios.commercialRegistry = input.commercialRegistry;
       loaded.push('commercial_registry');
     }
-    if (input.businessCategory && !profile.businessCategory) {
-      cambios.businessCategory = input.businessCategory;
+    // El rubro del ERP es texto libre de su CRM; sólo entra si cae en el catálogo del expediente.
+    const rubro = input.businessCategory ? normalizeBusinessCategory(input.businessCategory) : null;
+    if (rubro && !profile.businessCategory) {
+      cambios.businessCategory = rubro;
       loaded.push('business_category');
     }
     if (Object.keys(cambios).length > 0) profile = await this.profiles.updateProfile(profile, cambios);

@@ -239,7 +239,7 @@ describe('ErpMerchantExpedienteService', () => {
 
       await service.asegurar('1', completo);
 
-      expect(profiles.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }), { businessCategory: 'retail' });
+      expect(profiles.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }), { businessCategory: 'RETAIL' });
       expect(representatives.addLegalRepresentative).not.toHaveBeenCalled();
       expect(profileService.submit).not.toHaveBeenCalled();
     });
@@ -249,6 +249,12 @@ describe('ErpMerchantExpedienteService', () => {
       const resultado = await service.asegurar('1', { ...completo, submitWhenComplete: false });
       expect(profileService.submit).not.toHaveBeenCalled();
       expect(resultado.onboardingStatus).toBe('draft');
+    });
+
+    it('un rubro del ERP fuera del catálogo del expediente no entra: el ERP usa texto libre', async () => {
+      const { service, profiles } = build({ porCuenta: perfil });
+      await service.asegurar('1', { ...completo, businessCategory: 'Venta de repuestos', submitWhenComplete: false });
+      expect(profiles.updateProfile).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }), { commercialRegistry: '00008022' });
     });
   });
 });
