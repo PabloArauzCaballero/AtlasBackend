@@ -12,6 +12,7 @@ import { ExpedienteHooksService } from '../../expedientes/application/expediente
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
 import { PaymentQrForPosResponse, QrUploadUrlDto, RegisterQrDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
+import { PartnerQrNoticeService } from './partner-qr-notice.service.js';
 import { assertPaymentQrEditable } from './partner-profile.guards.js';
 
 /**
@@ -29,13 +30,16 @@ import { assertPaymentQrEditable } from './partner-profile.guards.js';
  * Se reemplaza. El anterior queda en `replaced` apuntando al nuevo. Si un cobro salió mal hay que
  * poder reconstruir contra qué QR se cobró ese día, y un UPDATE en sitio destruye exactamente eso.
  *
- * ## Por qué un QR lo revisa una persona antes de que lo vea un cliente
+ * ## Por qué un QR lo confirma el comercio y no una persona de Atlas (desde el 2026-10-02)
  *
- * Nace en `pending_review` y sólo pasa a `active` cuando alguien del portal interno lo aprueba
- * (`PartnerQrReviewService`). Hasta el 2026-09-14 no existía esa ruta: ningún QR salía nunca de `pending_review`,
- * el índice de «un activo por ámbito» no se ejercía y el cliente recibía en la app un QR que nadie
- * había mirado. Un QR de cobro dice a qué cuenta va el dinero de otra persona; ésa es la razón de
- * que se mire.
+ * Entre el 2026-09-14 y el 2026-10-02 el QR nacía en `pending_review` y sólo pasaba a `active`
+ * cuando alguien del portal interno lo aprobaba (`PartnerQrReviewService`): el comercio veía
+ * «esperando revisión de Atlas · sus clientes aún no lo ven» y la activación de todo comercio
+ * dependía de una cola interna. Pablo lo retiró: el que cobra es el comercio, y si sube un QR que
+ * no sirve se perjudica él solo. El QR nace ACTIVO al registrarlo; lo que protege contra un usuario
+ * robado que cambie la cuenta de cobro es el aviso por correo al contacto del comercio en cada
+ * cambio, no una cola. La revisión interna queda para REVOCAR (`PartnerQrReviewService.review`
+ * con `approved=false` sobre un activo), nunca como puerta.
  */
 /** Sólo el QR de una sucursal lleva nombre propio; el de la empresa toma el del mapa de carpetas. */
 function nombreDelQrEnExpediente(qrKind: string, branchId: string | null): string | null {
@@ -53,6 +57,7 @@ export class PartnerQrService {
     private readonly storage: DocumentStorageService,
     private readonly metrics: MetricsService,
     private readonly expedienteHooks: ExpedienteHooksService,
+    private readonly notice: PartnerQrNoticeService,
   ) {}
 
   /**
@@ -108,16 +113,13 @@ export class PartnerQrService {
     await this.assertImagenContieneQr(dto.qrKind, dto.storageKey, metadata.contentType);
 
     /*
-     * Qué reemplaza el alta, y qué no.
-     *
-     * Un QR anterior que todavía esperaba revisión queda `replaced`: el comercio lo corrigió antes
-     * de que nadie lo mirara y no hay nada que conservar vigente. Un QR ACTIVO no se toca aquí: sigue
-     * siendo el que ven los clientes hasta que el nuevo se apruebe, y es la aprobación (`PartnerQrReviewService`) la
-     * que lo archiva. Reemplazarlo ya, como se hacía antes, dejaba al comercio sin QR de cobro
-     * durante toda la revisión —una ventana en la que ningún cliente podía pagarle—.
+     * El nuevo QR reemplaza al vigente —esté activo o aún en `pending_review` de antes del
+     * 2026-10-02— y queda activo en el acto. Orden: crear el nuevo, archivar el anterior y SÓLO
+     * ENTONCES activar el nuevo; el índice único de «un activo por ámbito» no admite dos a la vez
+     * y crearlo ya activo con el viejo en pie fallaría. El comercio nunca se queda sin QR: el
+     * viejo sigue `active` hasta la misma escritura que activa el nuevo.
      */
     const previous = await this.network.findLiveQr(tenantId, partnerId, dto.qrKind, branchId);
-    const previousPending = previous?.status === 'pending_review' ? previous : null;
     const created = await this.network.createQrCode({
       tenantId,
       partnerProfileId: partnerId,
@@ -132,7 +134,8 @@ export class PartnerQrService {
       bankInstitutionCode: dto.bankInstitutionCode ?? null,
       accountNumberMasked: dto.accountNumberMasked ?? null,
     });
-    if (previousPending) await this.network.markQrReplaced(previousPending, created.id);
+    if (previous) await this.network.markQrReplaced(previous, created.id);
+    const activo = await this.network.markQrActive(created, 'Confirmado por el comercio al registrarlo.');
 
     /*
      * El QR también se ve en Operaciones › Archivos, en la carpeta del comercio. Se anota con lo
@@ -150,12 +153,11 @@ export class PartnerQrService {
 
     this.metrics.recordPartnerOnboardingStep({ step: `qr_${dto.qrKind}`, outcome: 'ok' });
     this.logger.log(
-      `QR de partner registrado: partnerId=${partnerId} tipo=${dto.qrKind} ` +
-        `sucursal=${branchId ?? 'empresa'} reemplaza=${previousPending?.id ?? 'ninguno'} activoVigente=${
-          previous && !previousPending ? previous.id : 'ninguno'
-        }`,
+      `QR de partner registrado y activo: partnerId=${partnerId} tipo=${dto.qrKind} ` +
+        `sucursal=${branchId ?? 'empresa'} reemplaza=${previous?.id ?? 'ninguno'}`,
     );
-    return created;
+    await this.notice.avisarCambioDeQrDeCobro(profile, activo);
+    return activo;
   }
 
   /**

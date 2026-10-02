@@ -1,15 +1,20 @@
 /**
  * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
- * @business Esta pieza garantiza que el comercio que el ERP da de alta tenga su carpeta de archivos desde el primer día.
- * @system busca o abre la ficha del comercio por la cuenta del ERP, la enlaza y asegura su expediente con qr/documentos/otros.
+ * @business Esta pieza garantiza que el comercio que el ERP da de alta tenga su carpeta de archivos y su expediente completos desde el primer día.
+ * @system busca o abre la ficha del comercio por la cuenta del ERP, la enlaza, asegura su expediente y carga lo que el ERP capturó en el alta.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { ExpedientesRepository } from '../../expedientes/repositories/expedientes.repository.js';
 import type { PartnerProfileModel } from '../../../database/models/index.js';
-import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
+import { PartnerOnboardingRepository, EDITABLE_PARTNER_STATUSES } from '../partner-onboarding.repository.js';
 import { startPartnerOnboardingSchema } from '../partner-onboarding.schemas.js';
+import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
+import { PartnerCommerceService } from './partner-commerce.service.js';
 import { PartnerProfileService } from './partner-profile.service.js';
+import { PartnerQrService } from './partner-qr.service.js';
+import { PartnerRepresentativeService } from './partner-representative.service.js';
+import { PartnerVerificationService } from './partner-verification.service.js';
 import type { ErpMerchantExpedienteDto } from '../erp-documents.schemas.js';
 
 export interface ErpMerchantExpedienteResult {
@@ -19,21 +24,30 @@ export interface ErpMerchantExpedienteResult {
   created: boolean;
   /** Por qué no hay carpeta, cuando no la hay. */
   reason: 'SIN_CORREO_DE_CONTACTO' | 'DATOS_DE_LA_CUENTA_INVALIDOS' | 'CUENTA_ENLAZADA_A_OTRA_FICHA' | null;
+  /** Qué partes del expediente cargó ESTA llamada (lo que ya estaba no se repite). */
+  loaded: ErpExpedienteParte[];
+  /** Lo que sigue faltando para enviar a revisión, tras cargar. Vacío = listo. */
+  gaps: string[];
+  /** Estado del expediente al terminar (p. ej. `under_review` si se envió). */
+  onboardingStatus: string | null;
 }
 
+export type ErpExpedienteParte = 'commercial_registry' | 'business_category' | 'legal_representative' | 'branch' | 'bank_qr' | 'submitted';
+
 /**
- * La carpeta del comercio (Operaciones › Archivos) cuando el alta la origina el ERP.
+ * La carpeta y el expediente del comercio cuando el alta la origina el ERP.
  *
  * Hasta el 2026-09-26 la carpeta sólo nacía cuando el comercio abría su ficha desde su portal, así
- * que un onboarding creado en el ERP —y todo lo que el ERP guardaba después, como el contrato
- * firmado— no tenía dónde anotarse: el objeto quedaba en el almacén y nadie lo veía en Archivos.
- * Pablo pidió que la carpeta exista desde que se crea el onboarding, y que el ERP abra la ficha si
- * falta.
+ * que un onboarding creado en el ERP no tenía dónde anotarse. Y hasta el 2026-10-02 el ERP mandaba
+ * seis campos: el expediente nacía con los cuatro requisitos vacíos («Falta 4 requisitos para
+ * enviar a revisión») y el comercio tenía que volver a llenar en su portal lo que el vendedor ya
+ * había capturado. Pablo: «el usuario te lo pasa una vez y esto debe estar listo y cargado».
  *
- * Idempotente: el ERP la llama al crear el caso y otra vez antes de cada subida de contrato. Busca
- * primero por la cuenta, luego por NIT; sólo abre una ficha nueva si no hay ninguna. La ficha que
- * abre el ERP queda SIN dueño en el portal del comercio (igual que una abierta por personal
- * interno en `start`): el dueño lo pone el alta de su usuario (`approve`) o, si ésta ya ocurrió, esta llamada.
+ * Idempotente: el ERP la llama al crear el caso y otra vez antes de cada subida de contrato. Cada
+ * parte se carga sólo si no estaba (una matrícula ya puesta no se pisa; un representante con el
+ * mismo documento no se duplica; una sucursal con el mismo código no se repite; con un QR bancario
+ * vigente no se registra otro). Lo que el expediente no admita en su estado actual (p. ej. ya
+ * aprobado) se salta sin romper la llamada: el ERP necesita la carpeta igual.
  */
 @Injectable()
 export class ErpMerchantExpedienteService {
@@ -44,37 +58,19 @@ export class ErpMerchantExpedienteService {
     private readonly profileService: PartnerProfileService,
     private readonly expedienteHooks: ExpedienteHooksService,
     private readonly expedientes: ExpedientesRepository,
+    private readonly network: PartnerCommercialNetworkRepository,
+    private readonly representatives: PartnerRepresentativeService,
+    private readonly commerce: PartnerCommerceService,
+    private readonly qr: PartnerQrService,
+    private readonly verification: PartnerVerificationService,
   ) {}
 
   async asegurar(tenantId: string, input: ErpMerchantExpedienteDto): Promise<ErpMerchantExpedienteResult> {
-    let created = false;
-    let profile = await this.buscar(tenantId, input);
+    const abierta = await this.abrirOEnlazar(tenantId, input);
+    if (!abierta.profile) return abierta.resultado;
+    const { created } = abierta;
+    let profile = abierta.profile;
 
-    if (!profile) {
-      if (!input.contactEmail) return vacio('SIN_CORREO_DE_CONTACTO');
-      const datos = startPartnerOnboardingSchema.safeParse({
-        legalName: input.legalName,
-        tradeName: input.tradeName || undefined,
-        taxId: input.taxId,
-        contactEmail: input.contactEmail,
-        contactPhone: input.contactPhone || undefined,
-      });
-      if (!datos.success) {
-        this.logger.warn(
-          `La cuenta ERP ${input.erpAccountId} no tiene datos válidos para abrir la ficha: ${datos.error.issues[0]?.message ?? ''}`,
-        );
-        return vacio('DATOS_DE_LA_CUENTA_INVALIDOS');
-      }
-      // Sin dueño: la abre el sistema en nombre del ERP, no un comercio.
-      profile = await this.profileService.start(tenantId, datos.data, undefined);
-      created = true;
-    }
-
-    if (profile.erpAccountId && profile.erpAccountId !== input.erpAccountId) {
-      // Dos cuentas del ERP reclamando la misma ficha es un problema de datos: se dice, no se pisa.
-      return { partnerId: profile.id, expedienteId: null, created, reason: 'CUENTA_ENLAZADA_A_OTRA_FICHA' };
-    }
-    if (!profile.erpAccountId) profile = await this.profiles.updateProfile(profile, { erpAccountId: input.erpAccountId });
     // El dueño es la primera persona concedida por esta cuenta: si el acceso se dio ANTES de que existiera
     // el enlace, `approve` no tenía a quién dárselo. Idempotente; nunca reasigna.
     await this.profiles.adoptOwnerForAccount(tenantId, input.erpAccountId);
@@ -87,7 +83,116 @@ export class ErpMerchantExpedienteService {
       customerCode: profile.tradeName?.trim() || `NIT ${profile.taxId}`,
     });
     const expediente = await this.expedientes.findExpedientePorSujeto(tenantId, 'partner', profile.id, null);
-    return { partnerId: profile.id, expedienteId: expediente?.id ?? null, created, reason: null };
+
+    const cargado = await this.completar(tenantId, profile, input);
+    profile = cargado.profile;
+    const { loaded } = cargado;
+    const gaps = (await this.verification.findSubmissionGaps(tenantId, profile)).map((gap) => gap.requirement);
+
+    if (input.submitWhenComplete === true && gaps.length === 0 && esEditable(profile)) {
+      profile = (await this.profileService.submit(tenantId, profile.id)).profile;
+      loaded.push('submitted');
+    }
+    if (loaded.length > 0) {
+      this.logger.log(
+        `Expediente de partner cargado desde el ERP: partnerId=${profile.id} partes=${loaded.join(',')} faltan=${gaps.join(',') || 'nada'}`,
+      );
+    }
+    return {
+      partnerId: profile.id,
+      expedienteId: expediente?.id ?? null,
+      created,
+      reason: null,
+      loaded,
+      gaps,
+      onboardingStatus: profile.onboardingStatus,
+    };
+  }
+
+  /** Encuentra la ficha por cuenta o NIT, o la abre; y la enlaza a la cuenta del ERP. */
+  private async abrirOEnlazar(
+    tenantId: string,
+    input: ErpMerchantExpedienteDto,
+  ): Promise<{ profile: PartnerProfileModel; created: boolean } | { profile: null; resultado: ErpMerchantExpedienteResult }> {
+    let created = false;
+    let profile = await this.buscar(tenantId, input);
+
+    if (!profile) {
+      if (!input.contactEmail) return { profile: null, resultado: vacio('SIN_CORREO_DE_CONTACTO') };
+      const datos = startPartnerOnboardingSchema.safeParse({
+        legalName: input.legalName,
+        tradeName: input.tradeName || undefined,
+        taxId: input.taxId,
+        commercialRegistry: input.commercialRegistry || undefined,
+        businessCategory: input.businessCategory || undefined,
+        contactEmail: input.contactEmail,
+        contactPhone: input.contactPhone || undefined,
+      });
+      if (!datos.success) {
+        this.logger.warn(
+          `La cuenta ERP ${input.erpAccountId} no tiene datos válidos para abrir la ficha: ${datos.error.issues[0]?.message ?? ''}`,
+        );
+        return { profile: null, resultado: vacio('DATOS_DE_LA_CUENTA_INVALIDOS') };
+      }
+      // Sin dueño: la abre el sistema en nombre del ERP, no un comercio.
+      profile = await this.profileService.start(tenantId, datos.data, undefined);
+      created = true;
+    }
+
+    if (profile.erpAccountId && profile.erpAccountId !== input.erpAccountId) {
+      // Dos cuentas del ERP reclamando la misma ficha es un problema de datos: se dice, no se pisa.
+      return {
+        profile: null,
+        resultado: { ...vacio('CUENTA_ENLAZADA_A_OTRA_FICHA'), partnerId: profile.id, created, onboardingStatus: profile.onboardingStatus },
+      };
+    }
+    if (!profile.erpAccountId) profile = await this.profiles.updateProfile(profile, { erpAccountId: input.erpAccountId });
+    return { profile, created };
+  }
+
+  /** Carga lo que el ERP capturó, parte a parte y sólo lo que falta. */
+  private async completar(
+    tenantId: string,
+    profile: PartnerProfileModel,
+    input: ErpMerchantExpedienteDto,
+  ): Promise<{ profile: PartnerProfileModel; loaded: ErpExpedienteParte[] }> {
+    const loaded: ErpExpedienteParte[] = [];
+    const cambios: Record<string, string> = {};
+    if (input.commercialRegistry && !profile.commercialRegistry && esEditable(profile)) {
+      cambios.commercialRegistry = input.commercialRegistry;
+      loaded.push('commercial_registry');
+    }
+    if (input.businessCategory && !profile.businessCategory) {
+      cambios.businessCategory = input.businessCategory;
+      loaded.push('business_category');
+    }
+    if (Object.keys(cambios).length > 0) profile = await this.profiles.updateProfile(profile, cambios);
+
+    if (input.legalRepresentative && esEditable(profile)) {
+      const existentes = await this.network.listRepresentatives(tenantId, profile.id);
+      const mismo = existentes.find((item) => item.documentNumber === input.legalRepresentative?.documentNumber);
+      if (!mismo) {
+        await this.representatives.addLegalRepresentative(tenantId, profile.id, input.legalRepresentative);
+        loaded.push('legal_representative');
+      }
+    }
+
+    if (input.branch) {
+      const sucursales = await this.network.listBranches(tenantId, profile.id);
+      if (!sucursales.some((item) => item.branchCode === input.branch?.branchCode)) {
+        await this.commerce.registerBranch(tenantId, profile.id, input.branch);
+        loaded.push('branch');
+      }
+    }
+
+    if (input.bankQr) {
+      const vigente = await this.network.findLiveQr(tenantId, profile.id, 'bank', null);
+      if (!vigente) {
+        await this.qr.register(tenantId, profile.id, { ...input.bankQr, qrKind: 'bank' });
+        loaded.push('bank_qr');
+      }
+    }
+    return { profile, loaded };
   }
 
   private async buscar(tenantId: string, input: ErpMerchantExpedienteDto): Promise<PartnerProfileModel | null> {
@@ -101,6 +206,10 @@ export class ErpMerchantExpedienteService {
   }
 }
 
+function esEditable(profile: PartnerProfileModel): boolean {
+  return EDITABLE_PARTNER_STATUSES.includes(profile.onboardingStatus as (typeof EDITABLE_PARTNER_STATUSES)[number]);
+}
+
 function vacio(reason: ErpMerchantExpedienteResult['reason']): ErpMerchantExpedienteResult {
-  return { partnerId: null, expedienteId: null, created: false, reason };
+  return { partnerId: null, expedienteId: null, created: false, reason, loaded: [], gaps: [], onboardingStatus: null };
 }

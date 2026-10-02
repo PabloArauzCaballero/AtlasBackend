@@ -12,7 +12,12 @@
 import { atlasMailShell, mailCode, mailField, mailNotice, mailParagraph } from './mail-layout.js';
 
 export type MailTemplateName =
-  'atlas-password-reset' | 'atlas-password-change' | 'atlas-login-pin' | 'atlas-credenciales-iniciales' | 'atlas-verificacion-contacto';
+  | 'atlas-password-reset'
+  | 'atlas-password-change'
+  | 'atlas-login-pin'
+  | 'atlas-credenciales-iniciales'
+  | 'atlas-verificacion-contacto'
+  | 'atlas-qr-cobro-cambiado';
 
 export type MailTemplateDefinition = {
   nombre: MailTemplateName;
@@ -157,5 +162,35 @@ export const MAIL_TEMPLATE_DEFINITIONS: Record<MailTemplateName, MailTemplateDef
       'Usuario: {{email}}\nContraseña temporal: {{password}}\n\n' +
       'Por seguridad, deberás cambiar esta contraseña en tu primer inicio de sesión.',
     variablesRequeridas: ['nombre', 'email', 'password', 'producto'],
+  },
+  /*
+   * Desde el 2026-10-02 el QR de cobro lo confirma el comercio y queda activo sin revisión de Atlas.
+   * Este aviso es la salvaguarda que sustituye a la cola: si alguien con el usuario robado cambia la
+   * cuenta de cobro, el contacto del comercio se entera en el acto. Nunca lleva la cuenta completa.
+   */
+  'atlas-qr-cobro-cambiado': {
+    nombre: 'atlas-qr-cobro-cambiado',
+    descripcion: 'Aviso al comercio de que su QR de cobro cambió y ya lo ven sus clientes.',
+    emailAsunto: 'ATLAS — Cambió el QR de cobro de {{empresa}}',
+    emailHtmlBody: atlasMailShell({
+      product: '{{producto}}',
+      preheader: 'Tu QR de cobro cambió y ya lo ven tus clientes.',
+      eyebrow: 'Cobros',
+      title: 'Cambió tu QR de cobro',
+      blocks: [
+        mailParagraph('Hola,'),
+        mailParagraph('Se registró un nuevo QR de cobro para {{empresa}} y desde ahora es el que ven tus clientes al pagar.'),
+        mailField('Entidad', '{{entidad}}'),
+        mailField('Cuenta', '{{cuenta}}'),
+        mailField('Registrado', '{{fecha}}'),
+        mailNotice('Si no fuiste tú, entra ahora a tu portal, sube tu QR correcto y avisa a soporte de ATLAS.'),
+      ],
+    }),
+    emailTextBody:
+      'Hola,\n\n' +
+      'Se registró un nuevo QR de cobro para {{empresa}} y desde ahora es el que ven tus clientes al pagar.\n\n' +
+      'Entidad: {{entidad}}\nCuenta: {{cuenta}}\nRegistrado: {{fecha}}\n\n' +
+      'Si no fuiste tú, entra ahora a tu portal, sube tu QR correcto y avisa a soporte de ATLAS.',
+    variablesRequeridas: ['empresa', 'entidad', 'cuenta', 'fecha', 'producto'],
   },
 };

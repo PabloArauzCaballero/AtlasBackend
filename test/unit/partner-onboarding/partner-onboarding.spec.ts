@@ -535,6 +535,7 @@ describe('PartnerQrService', () => {
       findLiveQr: jest.fn(async (..._a: unknown[]) => null as AnyRecord | null),
       createQrCode: jest.fn(async (..._a: unknown[]) => ({ id: '99' })),
       markQrReplaced: jest.fn(async (..._a: unknown[]) => ({})),
+      markQrActive: jest.fn(async (target: AnyRecord, note: string) => ({ ...target, status: 'active', reviewNote: note })),
       findBranchById: jest.fn(async (..._a: unknown[]) => ({ id: '5' }) as AnyRecord | null),
       ...repositoryOverrides,
     };
@@ -557,8 +558,16 @@ describe('PartnerQrService', () => {
       readObject: jest.fn(async (..._a: unknown[]) => (metadata?.contentType === 'image/jpeg' ? qrJpeg() : qrPng())),
     };
     const hooks = hooksDouble();
-    const service = new PartnerQrService(repository as never, profiles as never, storage as never, metricsDouble(), hooks as never);
-    return { service, repository, storage, hooks };
+    const notice = { avisarCambioDeQrDeCobro: jest.fn(async (..._a: unknown[]) => undefined) };
+    const service = new PartnerQrService(
+      repository as never,
+      profiles as never,
+      storage as never,
+      metricsDouble(),
+      hooks as never,
+      notice as never,
+    );
+    return { service, repository, storage, hooks, notice };
   }
 
   /*
@@ -625,25 +634,27 @@ describe('PartnerQrService', () => {
   });
 
   /*
-   * El ACTIVO no se toca al subir otro: sigue siendo el que ven los clientes hasta que el nuevo se
-   * apruebe (`review`). Retirarlo aquí, como se hacía, dejaba al comercio sin QR de cobro durante
-   * toda la revisión.
+   * Desde el 2026-10-02 el QR lo confirma el comercio: el nuevo nace ACTIVO y archiva al activo
+   * anterior en la misma operación. El viejo se archiva ANTES de activar el nuevo (índice único de
+   * un activo por ámbito), y el comercio recibe el aviso de que cambió su cuenta de cobro.
    */
-  it('al subir un QR nuevo, el ACTIVO sigue vigente: lo archiva la aprobación, no la subida', async () => {
+  it('al subir un QR nuevo, el ACTIVO anterior queda archivado y el nuevo queda activo en el acto', async () => {
     const activo = { id: '50', status: 'active' };
-    const { service, repository } = build(
+    const { service, repository, notice } = build(
       { findLiveQr: jest.fn(async () => activo) },
       { contentType: 'image/png', sizeBytes: 2048, sha256Hex: 'b'.repeat(64) },
     );
 
-    await service.register('1', '10', {
+    const creado = await service.register('1', '10', {
       qrKind: 'bank',
       storageKey: '1/partner-10/qr-bank/b.png',
       bankInstitutionCode: 'BNB',
       accountNumberMasked: '****7890',
     });
 
-    expect(repository.markQrReplaced).not.toHaveBeenCalled();
+    expect(repository.markQrReplaced).toHaveBeenCalledWith(activo, '99');
+    expect(creado.status).toBe('active');
+    expect(notice.avisarCambioDeQrDeCobro).toHaveBeenCalledTimes(1);
   });
 
   /* El hash se calcula sobre el contenido descargado: uno que aporte el cliente prueba lo que el
@@ -958,6 +969,7 @@ describe('PartnerQrService · clave de objeto', () => {
     const repository = {
       findLiveQr: jest.fn(async () => null),
       createQrCode: jest.fn(async (values: AnyRecord) => ({ id: '1', ...values })),
+      markQrActive: jest.fn(async (target: AnyRecord, note: string) => ({ ...target, status: 'active', reviewNote: note })),
       markQrReplaced: jest.fn(async () => undefined),
       findBranchById: jest.fn(async () => ({ id: '5' })),
     };
@@ -972,7 +984,15 @@ describe('PartnerQrService · clave de objeto', () => {
       readObject: jest.fn(async () => qrPng()),
     };
     const hooks = hooksDouble();
-    const service = new PartnerQrService(repository as never, profiles as never, storage as never, metricsDouble(), hooks as never);
+    const notice = { avisarCambioDeQrDeCobro: jest.fn(async (..._a: unknown[]) => undefined) };
+    const service = new PartnerQrService(
+      repository as never,
+      profiles as never,
+      storage as never,
+      metricsDouble(),
+      hooks as never,
+      notice as never,
+    );
     return { service, repository, storage, hooks };
   }
 
