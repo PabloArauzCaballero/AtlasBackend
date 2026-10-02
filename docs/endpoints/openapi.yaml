@@ -23901,7 +23901,9 @@ paths:
                         maxLength: 120
                       contentType:
                         type: string
-                        const: application/pdf
+                        enum:
+                          - application/pdf
+                          - application/xml
                       contentBase64:
                         type: string
                         minLength: 1

@@ -24,7 +24,8 @@ export const internalMailSchema = z.object({
     .array(
       z.object({
         filename: z.string().trim().min(1).max(120),
-        contentType: z.literal('application/pdf'),
+        // PDF (propuesta, factura) y el XML de la factura, que el SIN obliga a entregar al comprador.
+        contentType: z.enum(['application/pdf', 'application/xml']),
         contentBase64: z.string().min(1).max(MAX_BASE64),
       }),
     )
