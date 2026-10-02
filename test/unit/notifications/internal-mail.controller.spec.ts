@@ -43,7 +43,7 @@ describe('InternalMailController', () => {
     expect(gmail.sendEmail).not.toHaveBeenCalled();
   });
 
-  it('sólo admite PDF como adjunto', () => {
+  it('sólo admite PDF o XML como adjunto', () => {
     expect(
       internalMailSchema.safeParse({
         ...body,

@@ -14,6 +14,7 @@
     "src/modules/health/health.controller.ts": 3,
     "src/modules/internal-users/internal-auth.controller.ts": 4,
     "src/modules/merchant-identity/merchant-auth.controller.ts": 3,
+    "src/modules/notifications/erp-mail.controller.ts": 1,
     "src/modules/notifications/notification-provider-callbacks.controller.ts": 2,
     "src/modules/risk/risk-review-callback.controller.ts": 2
   },
@@ -26,6 +27,7 @@
     "src/modules/customer-onboarding/identity-review-callback.controller.ts",
     "src/modules/health/health.controller.ts",
     "src/modules/merchant-identity/merchant-auth.controller.ts",
+    "src/modules/notifications/erp-mail.controller.ts",
     "src/modules/notifications/notification-provider-callbacks.controller.ts",
     "src/modules/risk/risk-review-callback.controller.ts"
   ]
