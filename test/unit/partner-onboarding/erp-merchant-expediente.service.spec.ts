@@ -10,6 +10,7 @@ function build(opts: { porCuenta?: Perfil | null; porNit?: Perfil | null } = {})
     findProfilesByExternalKeys: jest.fn(async (..._args: unknown[]) => ({ rows: opts.porCuenta ? [opts.porCuenta] : [], count: 0 })),
     findProfileByTaxId: jest.fn(async (..._args: unknown[]) => opts.porNit ?? null),
     updateProfile: jest.fn(async (perfil: unknown, values: unknown) => ({ ...(perfil as Perfil), ...(values as object) })),
+    adoptOwnerForAccount: jest.fn(async (..._args: unknown[]) => 0),
   };
   const profileService = {
     start: jest.fn(async (...args: unknown[]) => {
@@ -36,6 +37,14 @@ describe('ErpMerchantExpedienteService', () => {
     taxId: '1023456029',
     contactEmail: 'ventas@dismac.bo',
   };
+
+  it('recoge como dueño a quien ya tenía acceso por esa cuenta (el orden de los dos sucesos no está garantizado)', async () => {
+    const { service, profiles } = build({ porCuenta: { id: 'p1', erpAccountId: CUENTA, tradeName: 'Dismac', taxId: '1023456029' } });
+
+    await service.asegurar('t1', entrada);
+
+    expect(profiles.adoptOwnerForAccount).toHaveBeenCalledWith('t1', CUENTA);
+  });
 
   it('una cuenta sin ficha en Atlas abre la ficha SIN dueño, la enlaza y asegura la carpeta', async () => {
     const { service, profileService, profiles, hooks } = build();

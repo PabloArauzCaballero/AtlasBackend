@@ -5,7 +5,8 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, Transaction } from 'sequelize';
+import { Op, Sequelize, Transaction } from 'sequelize';
+import { adoptPartnerOwnerForAccount } from '../../database/partner-owner-adoption.js';
 import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import {
   PartnerBranchModel,
@@ -64,6 +65,14 @@ export class PartnerOnboardingRepository {
     @InjectModel(PartnerQrCodeModel) private readonly qrModel: typeof PartnerQrCodeModel,
     @InjectModel(PartnerPosTerminalModel) private readonly posModel: typeof PartnerPosTerminalModel,
   ) {}
+
+  /**
+   * Da dueño a los expedientes sin dueño de una cuenta del ERP (ver `adoptPartnerOwnerForAccount`).
+   * Idempotente: nunca reasigna un dueño existente.
+   */
+  adoptOwnerForAccount(tenantId: string, erpAccountId: string): Promise<number> {
+    return adoptPartnerOwnerForAccount(this.profileModel.sequelize as Sequelize, { tenantId, erpAccountId });
+  }
 
   findProfileById(tenantId: string, partnerId: string, options: RepositoryOptions = {}): Promise<PartnerProfileModel | null> {
     return this.profileModel.findOne({

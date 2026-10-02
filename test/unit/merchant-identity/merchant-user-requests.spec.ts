@@ -41,7 +41,10 @@ describe('Cola de altas de identidad de comercio', () => {
         fullName: 'Marisol Quiroga',
         status: 'invited',
       })),
-      connection: { transaction: jest.fn(async (work: never) => (work as (t: unknown) => unknown)({ LOCK: { UPDATE: 'UPDATE' } })) },
+      connection: {
+        transaction: jest.fn(async (work: never) => (work as (t: unknown) => unknown)({ LOCK: { UPDATE: 'UPDATE' } })),
+        query: jest.fn(async (..._args: unknown[]) => [[], 1]),
+      },
     };
 
     const mailSender = { sendInitialCredentials: jest.fn(async (..._args: unknown[]) => undefined) };
@@ -110,6 +113,28 @@ describe('Cola de altas de identidad de comercio', () => {
     expect(resultado.temporaryPassword).toEqual(expect.any(String));
     expect(resultado.temporaryPassword.length).toBeGreaterThanOrEqual(10);
     expect(actualizada[0]).toMatchObject({ status: 'provisioned', merchantUserId: 'm7' });
+  });
+
+  it('aprobar con cuenta del ERP da dueño al expediente sin dueño de esa cuenta, en la misma transacción', async () => {
+    const { service, merchantUsersService } = buildService({ ...peticionPendiente, accountReference: 'cuenta-9' });
+
+    await service.approve('t1', 'r1', {}, { internalUserId: 'i1' });
+
+    const query = merchantUsersService.connection.query as jest.Mock;
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain('owner_merchant_user_id IS NULL');
+    expect(query.mock.calls[0]?.[1]).toMatchObject({
+      replacements: { tenantId: 't1', erpAccountId: 'cuenta-9' },
+      transaction: { LOCK: { UPDATE: 'UPDATE' } },
+    });
+  });
+
+  it('aprobar sin cuenta del ERP no toca ningún expediente', async () => {
+    const { service, merchantUsersService } = buildService({ ...peticionPendiente, accountReference: null });
+
+    await service.approve('t1', 'r1', {}, { internalUserId: 'i1' });
+
+    expect(merchantUsersService.connection.query).not.toHaveBeenCalled();
   });
 
   it('al aprobar, la contraseña provisional viaja por correo al responsable del comercio', async () => {

@@ -20,6 +20,7 @@ import {
   PaginatedMerchantUserRequests,
 } from './merchant-identity.types.js';
 import { MerchantUsersService } from './merchant-users.service.js';
+import { adoptPartnerOwnerForAccount } from '../../database/partner-owner-adoption.js';
 import { merchantListConditions, merchantListPage } from './merchant-identity-list.filter.js';
 import { CredentialsNotifierService } from '../auth/credentials-notifier.service.js';
 
@@ -210,6 +211,13 @@ export class MerchantUserRequestsService {
         } as never,
         { transaction },
       );
+
+      // El expediente que abrió el ERP nace sin dueño; sin esto «Mi empresa» le pediría abrirlo de cero.
+      // Misma transacción: conceder el acceso y quedar como dueño son un solo hecho.
+      if (request.accountReference) {
+        const erpAccountId = request.accountReference;
+        await adoptPartnerOwnerForAccount(this.merchantUsersService.connection, { tenantId, erpAccountId }, transaction);
+      }
 
       return { request: toProvisioningRequest(request), merchantUser, temporaryPassword };
     });
