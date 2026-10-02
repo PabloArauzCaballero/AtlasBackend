@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (123 controladores) | 593 |
+| Total montadas (123 controladores) | 594 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 3 |
-| Con `@Roles` | 537 |
+| Con `@Roles` | 538 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 77 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -549,6 +549,7 @@
 | `POST` | `/merchant-qr/resolve` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `MerchantQrController.resolve` | guards: `TenantGuard` |
 | `GET` | `/operations/erp-documents/content` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `ErpDocumentsController.content` | guards: `TenantGuard` |
 | `POST` | `/operations/erp-documents/merchant-expediente` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `ErpDocumentsController.merchantExpedienteDeCuenta` | guards: `TenantGuard` |
+| `POST` | `/operations/erp-documents/merchant-expediente/:partnerId/upload-url` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `ErpDocumentsController.merchantExpedienteUploadUrl` | guards: `TenantGuard` |
 | `POST` | `/operations/erp-documents/upload-url` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `ErpDocumentsController.uploadUrl` | guards: `TenantGuard` |
 | `POST` | `/operations/erp-documents/verify` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `ErpDocumentsController.verify` | guards: `TenantGuard` |
 | `GET` | `/operations/partner-contract-templates` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `PartnerContractTemplatesController.list` | guards: `TenantGuard`, `InternalPermissionsGuard` |
