@@ -3,6 +3,7 @@
  * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
+import { ErpMailController, ErpMailSignatureGuard } from './erp-mail.controller.js';
 import { InternalMailController } from './internal-mail.controller.js';
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
@@ -86,6 +87,8 @@ import { NotificationCampaignsRepository } from './campaigns/notification-campai
     NotificationBroadcastController,
     // El ERP manda por aquí la propuesta comercial (con su PDF) desde la cuenta de correo de ATLAS.
     InternalMailController,
+    // Y el worker del ERP manda las facturas por aquí, firmado servicio a servicio (sin sesión).
+    ErpMailController,
     NotificationPoliciesOperationsController,
     NotificationCampaignsController,
     NotificationAudienceSegmentsController,
@@ -93,6 +96,7 @@ import { NotificationCampaignsRepository } from './campaigns/notification-campai
     NotificationProviderCallbacksController,
   ],
   providers: [
+    ErpMailSignatureGuard,
     LocalNotificationRequestAdapter,
     { provide: NOTIFICATION_REQUEST_PORT, useExisting: LocalNotificationRequestAdapter },
     // AT-035: Mensajería se registra como consumidor de eventos; el relay la recibe por el token.

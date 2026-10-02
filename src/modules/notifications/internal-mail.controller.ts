@@ -3,7 +3,7 @@
  * @business La propuesta comercial que prepara el ERP tiene que llegarle al comercio desde ATLAS, con su PDF.
  * @system el ERP reenvía la sesión de quien envía; aquí se manda por la misma Gmail API que ya usa ATLAS.
  */
-import { Body, Controller, HttpCode, HttpStatus, Logger, Post, ServiceUnavailableException, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Logger, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -14,6 +14,7 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { GmailApiAdapter } from './adapters/gmail/gmail.adapter.js';
 import { internalMailSchema, type InternalMailDto } from './internal-mail.schemas.js';
+import { sendInternalMail } from './internal-mail.sender.js';
 
 /**
  * Hasta el 2026-09-30 el ERP intentaba mandar el correo por su cuenta, con SendGrid, que no está
@@ -43,28 +44,9 @@ export class InternalMailController {
     @Body(new ZodValidationPipe(internalMailSchema)) body: InternalMailDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ provider: string; messageId: string | null }> {
-    if (!this.gmail.isEnabled()) {
-      throw new ServiceUnavailableException({
-        code: 'MAIL_PROVIDER_NOT_CONFIGURED',
-        message: 'Este entorno no tiene la Gmail API como proveedor de correo (NOTIFICATION_EMAIL_PROVIDER=gmail_api).',
-      });
-    }
-    const sent = await this.gmail.sendEmail({
-      to: [body.to],
-      subject: body.subject,
-      text: body.text,
-      html: body.html ?? null,
-      replyTo: body.replyTo ?? null,
-      fromName: body.fromName ?? null,
-      boundarySeed: body.reference,
-      attachments: body.attachments.map((attachment) => ({
-        filename: attachment.filename,
-        contentType: attachment.contentType,
-        content: Buffer.from(attachment.contentBase64, 'base64'),
-      })),
-    });
+    const sent = await sendInternalMail(this.gmail, body);
     // Sin el destinatario: un correo es dato personal y este log no es el sitio.
-    this.logger.log(`Correo interno enviado (${body.reference}) por ${user.sub}: ${sent.id ?? 'sin id'}.`);
-    return { provider: 'gmail_api', messageId: sent.id };
+    this.logger.log(`Correo interno enviado (${body.reference}) por ${user.sub}: ${sent.messageId ?? 'sin id'}.`);
+    return sent;
   }
 }

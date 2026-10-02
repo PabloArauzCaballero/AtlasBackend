@@ -35,7 +35,8 @@ import { malwareScannerStartupNotice } from './common/storage/malware-scanner-st
  * Las únicas rutas cuyo cuerpo crudo se conserva, porque quien llama firma esos bytes: el webhook de
  * eventos de SendGrid y el receptor de eventos firmados del ERP (P-14).
  */
-const RAW_BODY_PATHS = ['/internal/notifications/sendgrid-events', '/internal/integration/erp/events'];
+// Rutas firmadas sobre el cuerpo CRUDO: sin él no se puede verificar la firma (`erp/mail`: facturas del ERP).
+const RAW_BODY_PATHS = ['/internal/notifications/sendgrid-events', '/internal/integration/erp/events', '/internal/integration/erp/mail'];
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('AtlasBootstrap');

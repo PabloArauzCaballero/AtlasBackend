@@ -24,9 +24,9 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (122 controladores) | 592 |
-| Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 9 |
-| Sin sesión de usuario (`@Public`) | 28 |
+| Total montadas (123 controladores) | 593 |
+| Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
+| Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 3 |
 | Con `@Roles` | 537 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 77 |
@@ -494,6 +494,7 @@
 | `POST` | `/internal-users/me/notifications/:notificationId/read` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `qa_engineer`, `readonly_auditor`, `admin`, `platform_admin`, `system` | — | `NotificationsController.markMyNotificationRead` | guards: `TenantGuard` |
 | `POST` | `/internal-users/me/notifications/read-all` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `qa_engineer`, `readonly_auditor`, `admin`, `platform_admin`, `system` | — | `NotificationsController.markAllMyNotificationsRead` | guards: `TenantGuard` |
 | `GET` | `/internal-users/me/notifications/unread-count` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `qa_engineer`, `readonly_auditor`, `admin`, `platform_admin`, `system` | — | `NotificationsController.myUnreadNotificationsCount` | guards: `TenantGuard` |
+| `POST` | `/internal/integration/erp/mail` | **sin sesión** (`@Public`) | — | `ErpMailController.send` | guards: `ErpMailSignatureGuard` · fuera del contrato OpenAPI |
 | `POST` | `/internal/notifications/brevo-sms-events/:secreto` | **sin sesión** (`@Public`) | — | `NotificationProviderCallbacksController.brevoSmsEvents` | fuera del contrato OpenAPI |
 | `POST` | `/internal/notifications/sendgrid-events` | **sin sesión** (`@Public`) | — | `NotificationProviderCallbacksController.sendGridEvents` | fuera del contrato OpenAPI |
 | `POST` | `/internal/notifications/twilio-status` | **sin sesión** (`@Public`) | — | `NotificationProviderCallbacksController.twilioStatus` | fuera del contrato OpenAPI |
