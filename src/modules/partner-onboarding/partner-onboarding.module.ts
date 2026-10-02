@@ -28,6 +28,9 @@ import { DecisionEngineModule } from '../decision-engine/decision-engine.module.
 import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { PartnerQrService } from './application/partner-qr.service.js';
+import { PartnerQrNoticeService } from './application/partner-qr-notice.service.js';
+import { PARTNER_QR_NOTICE_MAIL } from './application/partner-qr-notice.port.js';
+import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { PartnerQrReviewService } from './application/partner-qr-review.service.js';
 import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { MerchantQrController } from './merchant-qr.controller.js';
@@ -98,6 +101,10 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     PartnerKybSyncService,
     PartnerCommerceService,
     PartnerQrService,
+    PartnerQrNoticeService,
+    // El aviso de cambio de QR sale por el remitente de correo, pero `partner-onboarding` no puede
+    // depender de `mail-sender` (fronteras): el módulo —raíz de composición— hace el enlace.
+    { provide: PARTNER_QR_NOTICE_MAIL, useExisting: MailSenderService },
     PartnerQrReviewService,
     PartnerContactVerificationService,
     DocumentStorageService,

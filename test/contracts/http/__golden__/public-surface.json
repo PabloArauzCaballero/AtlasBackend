@@ -7221,6 +7221,29 @@
     ],
     "body": true
   },
+  "POST /operations/erp-documents/merchant-expediente/{partnerId}/upload-url": {
+    "operationId": "ErpDocumentsController_merchantExpedienteUploadUrl",
+    "responses": [
+      "201",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500",
+      "503"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "partnerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
   "POST /operations/erp-documents/upload-url": {
     "operationId": "ErpDocumentsController_uploadUrl",
     "responses": [

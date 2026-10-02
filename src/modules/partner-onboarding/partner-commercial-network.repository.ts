@@ -151,6 +151,21 @@ export class PartnerCommercialNetworkRepository {
   }
 
   /**
+   * Activa un QR recién registrado SIN revisión interna: lo confirma el propio comercio.
+   *
+   * Va en una escritura aparte de `createQrCode`, y después de archivar el activo anterior, porque
+   * el índice único de «un activo por ámbito» rechazaría crear el nuevo ya activo mientras el viejo
+   * siga en `active`. `verified_at` marca el momento de la confirmación; no hay revisor interno.
+   */
+  markQrActive(qr: PartnerQrCodeModel, note: string, options: RepositoryOptions = {}): Promise<PartnerQrCodeModel> {
+    const now = new Date();
+    return qr.update(
+      { status: 'active', verifiedAt: now, reviewedByInternalUserId: null, reviewNote: note, updatedAtValue: now },
+      { transaction: options.transaction },
+    );
+  }
+
+  /**
    * El QR ACTIVO de un ámbito: el único que se le enseña a un cliente.
    *
    * Es distinto de `findLiveQr` a propósito. Aquél incluye `pending_review` porque el comercio y el

@@ -33,13 +33,16 @@ export class PartnerQrReviewService {
   ) {}
 
   /**
-   * Aprobar lo pasa a `active` y archiva como `replaced` el que estuviera activo en el mismo ámbito
-   * —en ese orden, para que nunca haya dos activos a la vez (el índice único parcial lo impediría) ni
-   * un hueco sin ninguno—. Rechazar exige nota: es lo único que le dice al comercio qué corregir.
+   * Desde el 2026-10-02 el QR nace activo (lo confirma el comercio; ver `PartnerQrService`), así
+   * que esta ruta ya no es la puerta: es la REVOCACIÓN. Rechazar un QR `active` lo pasa a
+   * `rejected` con la nota que explica el motivo (un fraude detectado, una cuenta que no es del
+   * comercio), y el comercio se queda sin QR vigente hasta subir otro. Aprobar sigue existiendo
+   * para los QR que quedaron en `pending_review` antes del cambio: los activa y archiva como
+   * `replaced` el que estuviera activo en el mismo ámbito —en ese orden, para que nunca haya dos
+   * activos a la vez (el índice único parcial lo impediría)—.
    *
-   * Sólo se revisa lo que está `pending_review`. Volver a revisar un QR ya decidido responde 409:
-   * un QR aprobado que alguien quiera retirar se reemplaza con otro, no se «des-aprueba», porque los
-   * cobros que ya se hicieron contra él tienen que seguir siendo explicables.
+   * Un QR ya `rejected` o `replaced` no admite revisión: 409. Los cobros que se hicieron contra él
+   * tienen que seguir siendo explicables, y una fila archivada no vuelve a la vida.
    */
   async review(
     tenantId: string,
@@ -50,7 +53,8 @@ export class PartnerQrReviewService {
     await this.profiles.requireProfile(tenantId, partnerId);
     const qr = await this.network.findQrById(tenantId, partnerId, qrId);
     if (!qr) throw new NotFoundException('QR_NOT_FOUND');
-    if (qr.status !== 'pending_review') {
+    const revocable = qr.status === 'active' && !dto.approved;
+    if (qr.status !== 'pending_review' && !revocable) {
       throw new ConflictException(`QR_NOT_PENDING_REVIEW: el QR ${qrId} está en «${qr.status}» y no admite revisión.`);
     }
 

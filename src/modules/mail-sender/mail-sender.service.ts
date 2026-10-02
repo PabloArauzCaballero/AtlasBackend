@@ -149,6 +149,32 @@ export class MailSenderService {
     });
   }
 
+  /** Aviso al contacto del comercio de que su QR de cobro cambió (lo confirma el comercio, no Atlas). */
+  async sendPaymentQrChanged(input: {
+    to: string;
+    companyName: string;
+    bankInstitutionCode: string | null;
+    accountNumberMasked: string | null;
+    registeredAt: Date;
+    reference: string;
+    product?: string | undefined;
+  }): Promise<{ trackingId: string }> {
+    return this.deliver({
+      template: 'atlas-qr-cobro-cambiado',
+      to: input.to,
+      recipientName: null,
+      sourceModule: 'partner-onboarding',
+      reference: input.reference,
+      variables: {
+        empresa: input.companyName,
+        entidad: input.bankInstitutionCode ?? 'no declarada',
+        cuenta: input.accountNumberMasked ?? 'no declarada',
+        fecha: input.registeredAt.toISOString().slice(0, 16).replace('T', ' ') + ' UTC',
+        producto: this.productName(input.product),
+      },
+    });
+  }
+
   /** Código de verificación del correo declarado por un cliente durante el onboarding. */
   async sendContactVerificationCode(input: {
     to: string;

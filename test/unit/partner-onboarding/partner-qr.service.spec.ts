@@ -51,6 +51,7 @@ function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr 
     createQrCode: jest.fn(async (values: Record<string, unknown>) => ({ ...values, id: '99', status: 'pending_review' })),
     markQrReplaced: jest.fn(async (viejo: Qr, nuevoId: string) => ({ ...viejo, status: 'replaced', replacedById: nuevoId })),
     markQrReviewed: jest.fn(async (target: Qr, review: Record<string, unknown>) => ({ ...target, ...review, verifiedAt: new Date() })),
+    markQrActive: jest.fn(async (target: Qr, note: string) => ({ ...target, status: 'active', reviewNote: note, verifiedAt: new Date() })),
     findBranchById: jest.fn(async () => null),
     listQrCodes: jest.fn(async () => []),
     findPosById: jest.fn(async () => ({ id: '9', status: 'active', partnerProfileId: '7', branchId: '3' })),
@@ -75,9 +76,17 @@ function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr 
   };
   const metrics = { recordPartnerOnboardingStep: jest.fn() };
   const hooks = { alRegistrarArchivoDelComercio: jest.fn(async (..._args: unknown[]) => undefined) };
-  const service = new PartnerQrService(network as never, profiles as never, storage as never, metrics as never, hooks as never);
+  const notice = { avisarCambioDeQrDeCobro: jest.fn(async (..._args: unknown[]) => undefined) };
+  const service = new PartnerQrService(
+    network as never,
+    profiles as never,
+    storage as never,
+    metrics as never,
+    hooks as never,
+    notice as never,
+  );
   const revision = new PartnerQrReviewService(network as never, cola as never, profiles as never, metrics as never);
-  return { service, revision, network, cola, profiles, storage, metrics, hooks };
+  return { service, revision, network, cola, profiles, storage, metrics, hooks, notice };
 }
 
 describe('PartnerQrReviewService · cola de QR pendientes', () => {
@@ -191,8 +200,19 @@ describe('PartnerQrReviewService · revisión', () => {
     expect(network.markQrReplaced).not.toHaveBeenCalled();
   });
 
-  it('un QR que no está en revisión responde 409: un QR aprobado se reemplaza, no se «des-aprueba»', async () => {
-    const { revision } = construir({ porId: qr({ id: '3', status: 'active' }) });
+  it('un QR activo se puede REVOCAR con nota (es la única puerta que queda desde el 2026-10-02), pero no «re-aprobar»', async () => {
+    const activo = qr({ id: '3', status: 'active' });
+    const { revision, network } = construir({ porId: activo });
+
+    const revocado = await revision.review('1', '7', '3', { approved: false, note: 'La cuenta no es del comercio', internalUserId: '42' });
+
+    expect(revocado.status).toBe('rejected');
+    expect(network.markQrReplaced).not.toHaveBeenCalled();
+    await expect(revision.review('1', '7', '3', { approved: true, internalUserId: null })).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('un QR archivado o ya rechazado no admite revisión: los cobros hechos contra él tienen que seguir siendo explicables', async () => {
+    const { revision } = construir({ porId: qr({ id: '3', status: 'replaced' }) });
     await expect(revision.review('1', '7', '3', { approved: false, note: 'x', internalUserId: null })).rejects.toBeInstanceOf(
       ConflictException,
     );
@@ -254,23 +274,37 @@ describe('PartnerQrService · registrar un QR nuevo', () => {
     accountNumberMasked: '****1',
   };
 
-  it('NO retira el QR activo: sigue cobrando hasta que el nuevo se apruebe', async () => {
+  it('nace ACTIVO sin revisión de Atlas, archiva el activo anterior ANTES de activar el nuevo, y avisa al comercio', async () => {
     const activo = qr({ id: '3', status: 'active' });
-    const { service, network } = construir({ live: activo });
+    const { service, network, notice, profiles } = construir({ live: activo });
 
     const creado = await service.register('1', '7', dto);
 
-    expect(creado.status).toBe('pending_review');
-    expect(network.markQrReplaced).not.toHaveBeenCalled();
+    expect(creado.status).toBe('active');
+    expect(network.markQrReplaced).toHaveBeenCalledWith(activo, '99');
+    expect(network.markQrActive).toHaveBeenCalledWith(expect.objectContaining({ id: '99' }), expect.any(String));
+    // Orden: el viejo se archiva antes de que el nuevo quede activo (índice único de un activo por ámbito).
+    expect(network.markQrReplaced.mock.invocationCallOrder[0]).toBeLessThan(network.markQrActive.mock.invocationCallOrder[0] ?? 0);
+    expect(notice.avisarCambioDeQrDeCobro).toHaveBeenCalledWith(
+      await profiles.requireProfile(),
+      expect.objectContaining({ id: '99', status: 'active' }),
+    );
   });
 
-  it('sí archiva un QR anterior que todavía esperaba revisión: el comercio lo corrigió antes de que nadie lo mirara', async () => {
+  it('también archiva un QR anterior que quedó en `pending_review` antes del 2026-10-02', async () => {
     const pendiente = qr({ id: '4', status: 'pending_review' });
     const { service, network } = construir({ live: pendiente });
 
     await service.register('1', '7', dto);
 
     expect(network.markQrReplaced).toHaveBeenCalledWith(pendiente, '99');
+  });
+
+  it('sin QR anterior no archiva nada y queda activo igual', async () => {
+    const { service, network } = construir({ live: null });
+    const creado = await service.register('1', '7', dto);
+    expect(creado.status).toBe('active');
+    expect(network.markQrReplaced).not.toHaveBeenCalled();
   });
 
   it('una clave fuera del expediente se rechaza antes de mirar el almacén', async () => {

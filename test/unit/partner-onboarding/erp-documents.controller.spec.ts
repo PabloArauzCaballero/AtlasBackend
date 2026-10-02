@@ -13,8 +13,48 @@ describe('ErpDocumentsController', () => {
     const merchantExpediente = {
       asegurar: jest.fn(async (..._args: unknown[]) => ({ partnerId: 'p1', expedienteId: 'e1', created: false, reason: null })),
     };
-    return { documents, merchantExpediente, controller: new ErpDocumentsController(documents as never, merchantExpediente as never) };
+    const representatives = {
+      createDocumentUploadTicket: jest.fn((..._args: unknown[]) => ({
+        uploadUrl: 'https://almacen/poder',
+        storageKey: '1/partner-7/power-of-attorney/x.pdf',
+      })),
+    };
+    const qr = {
+      createUploadTicket: jest.fn(async (..._args: unknown[]) => ({
+        uploadUrl: 'https://almacen/qr',
+        storageKey: '1/partner-7/qr-bank/x.png',
+      })),
+    };
+    return {
+      documents,
+      merchantExpediente,
+      representatives,
+      qr,
+      controller: new ErpDocumentsController(documents as never, merchantExpediente as never, representatives as never, qr as never),
+    };
   }
+
+  it('el permiso de subida dentro de la carpeta del comercio va al QR o al poder según el tipo, con el tenant de la cabecera', async () => {
+    const { controller, representatives, qr } = build();
+    await controller.merchantExpedienteUploadUrl(
+      '1',
+      { partnerId: '7' },
+      { documentKind: 'bank-qr', contentType: 'image/png', sizeBytes: 12 },
+    );
+    expect(qr.createUploadTicket).toHaveBeenCalledWith('1', '7', { qrKind: 'bank', contentType: 'image/png', sizeBytes: 12 });
+    expect(representatives.createDocumentUploadTicket).not.toHaveBeenCalled();
+
+    await controller.merchantExpedienteUploadUrl(
+      '1',
+      { partnerId: '7' },
+      { documentKind: 'power-of-attorney', contentType: 'application/pdf', sizeBytes: 99 },
+    );
+    expect(representatives.createDocumentUploadTicket).toHaveBeenCalledWith('1', '7', {
+      documentKind: 'power-of-attorney',
+      contentType: 'application/pdf',
+      sizeBytes: 99,
+    });
+  });
 
   it('asegurar la carpeta de una cuenta del ERP usa el tenant de la cabecera', async () => {
     const { controller, merchantExpediente } = build();

@@ -3,8 +3,8 @@
  * @business Esta pieza es el almacén de documentos que el ERP promete y hasta ahora no tenía.
  * @system permiso de subida firmado, verificación del objeto y lectura por bytes, sólo para roles internos.
  */
-import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post, Query, Res, StreamableFile, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Query, Res, StreamableFile, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -15,6 +15,8 @@ import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { ErpDocumentsService } from './application/erp-documents.service.js';
 import { ErpMerchantExpedienteService } from './application/erp-merchant-expediente.service.js';
+import { PartnerQrService } from './application/partner-qr.service.js';
+import { PartnerRepresentativeService } from './application/partner-representative.service.js';
 import {
   ErpDocumentContentQueryDto,
   erpDocumentContentQuerySchema,
@@ -24,7 +26,10 @@ import {
   erpDocumentVerifySchema,
   ErpMerchantExpedienteDto,
   erpMerchantExpedienteSchema,
+  ErpMerchantExpedienteUploadUrlDto,
+  erpMerchantExpedienteUploadUrlSchema,
 } from './erp-documents.schemas.js';
+import { partnerIdParamsSchema, PartnerIdParamsDto } from './partner-onboarding.schemas.js';
 
 /**
  * `/operations/erp-documents`: lo que el ERP usa para guardar los documentos KYB de sus cuentas y
@@ -40,16 +45,18 @@ export class ErpDocumentsController {
   constructor(
     private readonly documents: ErpDocumentsService,
     private readonly merchantExpediente: ErpMerchantExpedienteService,
+    private readonly representatives: PartnerRepresentativeService,
+    private readonly qr: PartnerQrService,
   ) {}
 
   @ApiOperation({
-    summary: 'Asegurar la carpeta del comercio de una cuenta del ERP',
+    summary: 'Asegurar la carpeta y el expediente del comercio de una cuenta del ERP',
     description:
-      'Busca la ficha del comercio por la cuenta del ERP o por NIT; si no existe la abre (sin dueño). La enlaza a la cuenta y asegura su expediente con las carpetas qr, documentos y otros. Idempotente.',
+      'Busca la ficha del comercio por la cuenta del ERP o por NIT; si no existe la abre (sin dueño). La enlaza a la cuenta, asegura su expediente con las carpetas qr, documentos y otros, y carga lo que el ERP capturó en el alta (matrícula, representante legal con poder, sucursal, QR bancario) sin repetir lo que ya estaba. Con `submitWhenComplete` y sin huecos, lo envía a revisión. Idempotente.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiBody({ schema: zodToApiSchema(erpMerchantExpedienteSchema) })
-  @ApiResponse({ status: 200, description: '{ partnerId, expedienteId, created, reason }.' })
+  @ApiResponse({ status: 200, description: '{ partnerId, expedienteId, created, reason, loaded, gaps, onboardingStatus }.' })
   @Post('merchant-expediente')
   @HttpCode(HttpStatus.OK)
   merchantExpedienteDeCuenta(
@@ -57,6 +64,37 @@ export class ErpDocumentsController {
     @Body(new ZodValidationPipe(erpMerchantExpedienteSchema)) body: ErpMerchantExpedienteDto,
   ) {
     return this.merchantExpediente.asegurar(tenantId, body);
+  }
+
+  @ApiOperation({
+    summary: 'Permiso de subida DENTRO de la carpeta del comercio (poder notarial o QR bancario capturados en el ERP)',
+    description:
+      'La ruta la impone el servidor bajo `<tenant>/partner-<id>/`, igual que cuando sube el propio comercio: así el objeto pasa las mismas comprobaciones de propiedad al registrarse.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
+  @ApiBody({ schema: zodToApiSchema(erpMerchantExpedienteUploadUrlSchema) })
+  @ApiResponse({ status: 201, description: 'Permiso emitido.' })
+  @ApiResponse({ status: 503, description: 'DOCUMENT_STORAGE_NOT_CONFIGURED.' })
+  @Post('merchant-expediente/:partnerId/upload-url')
+  @HttpCode(HttpStatus.CREATED)
+  merchantExpedienteUploadUrl(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
+    @Body(new ZodValidationPipe(erpMerchantExpedienteUploadUrlSchema)) body: ErpMerchantExpedienteUploadUrlDto,
+  ) {
+    if (body.documentKind === 'bank-qr') {
+      return this.qr.createUploadTicket(tenantId, params.partnerId, {
+        qrKind: 'bank',
+        contentType: body.contentType as 'image/png' | 'image/jpeg',
+        sizeBytes: body.sizeBytes,
+      });
+    }
+    return this.representatives.createDocumentUploadTicket(tenantId, params.partnerId, {
+      documentKind: 'power-of-attorney',
+      contentType: body.contentType,
+      sizeBytes: body.sizeBytes,
+    });
   }
 
   @ApiOperation({
