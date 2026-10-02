@@ -52,6 +52,9 @@ export class IdentityReviewCallbackController {
     @Body()
     body: {
       executionId?: string;
+      /** El id del intento (`correlationId` de la ejecución) y el `requestId`: respaldo si el intento no guardó `executionId`. */
+      correlationId?: string;
+      requestId?: string;
       decision?: string;
       reason?: string;
       resolvedByInternalUserId?: string;
@@ -70,36 +73,41 @@ export class IdentityReviewCallbackController {
       return { applied: false, reason: 'DECISION_NO_APLICABLE' };
     }
 
-    const attempt = await this.verifications.findAttemptByExecutionId(tenantId, executionId);
-    if (!attempt) {
-      throw new NotFoundException(`Ningun intento de identidad nacio de la ejecucion ${executionId}.`);
-    }
-
-    /*
-     * Quien resolvio, SOLO si es una persona de esta base.
-     *
-     * El motor manda su principal, y ese principal no siempre es un usuario: cuando la resolucion
-     * llega por clave de gestion vale `bootstrap-management`, que es texto. `reviewed_by` es un
-     * bigint con FK a `internal_users`, asi que meterlo tal cual reventaba el callback entero con
-     * «invalid input syntax for type bigint» y la identidad se quedaba sin aplicar —el mismo tipo
-     * de fallo que este circuito existe para evitar—.
-     *
-     * Sin id numerico se guarda `null`: es preferible no saber quien fue a inventar una referencia
-     * que no apunta a nadie.
-     */
     const revisadoPor = /^[1-9][0-9]*$/u.test(body.resolvedByInternalUserId ?? '') ? (body.resolvedByInternalUserId as string) : null;
+    const decision = body.decision === 'APPROVE' ? 'approved' : 'rejected';
+    const notes = body.reason ?? 'Resuelto en el motor de decision.';
 
-    /*
-     * Se resuelve EXACTAMENTE el intento que encontramos por `executionId`, no «el último del cliente».
-     * Con dos intentos abiertos, volver a buscar por cliente podía caer en el otro y escribir en él
-     * el veredicto de una revisión que era de éste.
-     */
-    return this.outcome.apply({
-      tenantId,
-      attemptId: String(attempt.id),
-      decision: body.decision === 'APPROVE' ? 'approved' : 'rejected',
-      reviewedByInternalUserId: revisadoPor,
-      notes: body.reason ?? 'Resuelto en el motor de decision.',
-    });
+    const destino = await this.localizar(tenantId, executionId, body);
+    if (!destino) throw new NotFoundException(`Ningun intento de identidad nacio de la ejecucion ${executionId}.`);
+    const resolucion = { tenantId, decision, reviewedByInternalUserId: revisadoPor, notes } as const;
+    return 'attemptId' in destino
+      ? this.outcome.apply({ ...resolucion, attemptId: destino.attemptId })
+      : this.outcome.applyForCustomer({ ...resolucion, customerId: destino.customerId });
+  }
+
+  /**
+   * A quién se aplica la decisión: el intento por `executionId`; si no lo guardó, por `correlationId`
+   * (id del intento) y, en último término, el cliente que lleva el `requestId`.
+   *
+   * RESPALDO: pasa cuando el Motor tardó más que el plazo del móvil. El intento se marcó `UNAVAILABLE`
+   * sin conocer la ejecución, pero el Motor la terminó y abrió su caso; aprobarlo allí daba 404 y la
+   * aprobación no llegaba nunca al expediente (cliente 53 de TEST, 2026-10-01). El `tenantId` va en la
+   * búsqueda, no se comprueba después, y el `correlationId` sólo se consulta si es un id numérico.
+   */
+  private async localizar(
+    tenantId: string,
+    executionId: string,
+    body: { correlationId?: string; requestId?: string },
+  ): Promise<{ attemptId: string } | { customerId: string } | null> {
+    const porEjecucion = await this.verifications.findAttemptByExecutionId(tenantId, executionId);
+    if (porEjecucion) return { attemptId: String(porEjecucion.id) };
+
+    const correlationId = body.correlationId?.trim() ?? '';
+    if (/^[1-9][0-9]*$/u.test(correlationId)) {
+      const porIntento = await this.verifications.findAttemptById(tenantId, correlationId);
+      if (porIntento?.customerId) return { attemptId: String(porIntento.id) };
+    }
+    const cliente = /^identity-([1-9][0-9]*)-[0-9a-f-]{36}$/iu.exec(body.requestId?.trim() ?? '')?.[1];
+    return cliente ? { customerId: cliente } : null;
   }
 }
