@@ -33,7 +33,7 @@ export interface ErpMerchantExpedienteResult {
  * Idempotente: el ERP la llama al crear el caso y otra vez antes de cada subida de contrato. Busca
  * primero por la cuenta, luego por NIT; sólo abre una ficha nueva si no hay ninguna. La ficha que
  * abre el ERP queda SIN dueño en el portal del comercio (igual que una abierta por personal
- * interno en `start`): el dueño lo pone el alta de su usuario, no esta llamada.
+ * interno en `start`): el dueño lo pone el alta de su usuario (`approve`) o, si ésta ya ocurrió, esta llamada.
  */
 @Injectable()
 export class ErpMerchantExpedienteService {
@@ -75,6 +75,9 @@ export class ErpMerchantExpedienteService {
       return { partnerId: profile.id, expedienteId: null, created, reason: 'CUENTA_ENLAZADA_A_OTRA_FICHA' };
     }
     if (!profile.erpAccountId) profile = await this.profiles.updateProfile(profile, { erpAccountId: input.erpAccountId });
+    // El dueño es la primera persona concedida por esta cuenta: si el acceso se dio ANTES de que existiera
+    // el enlace, `approve` no tenía a quién dárselo. Idempotente; nunca reasigna.
+    await this.profiles.adoptOwnerForAccount(tenantId, input.erpAccountId);
 
     // `start` ya abrió la carpeta de una ficha nueva; para una anterior al 2026-09-17 esto la crea.
     // Abrir es idempotente, así que no importa cuál de los dos casos sea.

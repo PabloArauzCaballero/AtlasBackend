@@ -241,12 +241,21 @@ export class PartnerVerificationService {
    * verificación de un comercio en el de otro, y nada lo delataría después.
    */
   async linkErpAccount(tenantId: string, partnerId: string, erpAccountId: string): Promise<PartnerProfileModel> {
-    const profile = await this.requireProfile(tenantId, partnerId);
+    let profile = await this.requireProfile(tenantId, partnerId);
     if (profile.erpAccountId && profile.erpAccountId !== erpAccountId) {
       throw new ConflictException(`PARTNER_ERP_ACCOUNT_ALREADY_LINKED: el expediente ya apunta a la cuenta ${profile.erpAccountId}.`);
     }
-    if (profile.erpAccountId === erpAccountId) return profile;
-    return this.repository.updateProfile(profile, { erpAccountId });
+    if (profile.erpAccountId !== erpAccountId) {
+      profile = await this.repository.updateProfile(profile, { erpAccountId });
+    }
+    /*
+     * Si a esa cuenta ya se le había concedido acceso, el expediente que acaba de enlazarse (o que ya
+     * lo estaba) toma como dueño a esa persona. El enlace y el acceso llegan en cualquier orden.
+     * Se llama también cuando ya estaba enlazado: es idempotente y repara el caso de los expedientes
+     * enlazados antes de que esto existiera.
+     */
+    await this.repository.adoptOwnerForAccount(tenantId, erpAccountId);
+    return this.repository.findProfileById(tenantId, partnerId).then((fresh) => fresh ?? profile);
   }
 
   /**
