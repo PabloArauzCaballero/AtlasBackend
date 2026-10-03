@@ -33,7 +33,7 @@ export async function runCoreSmoke(): Promise<void> {
     path: `/customers/${CUSTOMER_ID}/privacy/data-subject-requests`,
     role: 'customer',
     idempotencyKey: uniqueKey('smoke-dsr'),
-    body: { requestType: 'access', description: 'Smoke test local de solicitud de acceso a datos.' },
+    body: { requestType: 'rectification', description: 'Smoke test local de solicitud de corrección de datos.' },
   });
 }
 

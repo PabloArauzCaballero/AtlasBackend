@@ -27,7 +27,14 @@ export type OneTimeCodePurpose =
  * distingue una recuperación de cuenta legítima de una toma de control con la sesión ya robada.
  */
 export type AuthEventType =
-  'login' | 'logout' | 'login_pin_challenge' | 'password_reset_request' | 'password_reset' | 'password_change_request' | 'password_change';
+  | 'login'
+  | 'logout'
+  | 'login_pin_challenge'
+  | 'password_reset_request'
+  | 'password_reset'
+  | 'password_change_request'
+  | 'password_change'
+  | 'pin_verify';
 
 /** Una entrada de esa bitácora, tal como la escribe `AuthRepository.recordLoginAttemptEvent`. */
 export type LoginAttemptEvent = {

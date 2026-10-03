@@ -95,6 +95,13 @@ export const passwordChangeRequestSchema = z.object({
 
 export type PasswordChangeRequestDto = z.infer<typeof passwordChangeRequestSchema>;
 
+/** El PIN que se vuelve a pedir. Sin regla de longitud a propósito: aquí se COMPARA, no se crea. */
+export const pinVerifySchema = z.object({
+  pin: z.string().min(1).max(128),
+});
+
+export type PinVerifyDto = z.infer<typeof pinVerifySchema>;
+
 export const passwordChangeConfirmSchema = z.object({
   challengeToken: z.string().trim().min(20),
   code: z

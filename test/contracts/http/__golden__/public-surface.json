@@ -939,6 +939,25 @@
     ],
     "body": true
   },
+  "POST /auth/pin/verify": {
+    "operationId": "AuthPinVerifyController_verify",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
   "POST /auth/provision-credentials": {
     "operationId": "AuthController_provisionCredentials",
     "responses": [

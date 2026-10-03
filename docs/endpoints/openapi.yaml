@@ -2351,6 +2351,55 @@ paths:
       summary: Solicitar cambio de contraseña
       tags:
         - auth
+  /auth/pin/verify:
+    post:
+      description: >-
+        Comprueba que el PIN escrito es el de la cuenta de la SESIÓN (la
+        identidad sale del access token). No crea sesión, no envía correo y no
+        abre ningún desafío. Responde `{ verified: true, verifiedAt }`; un PIN
+        incorrecto es un 400 `PIN_INCORRECT` (no 401: la sesión sigue siendo
+        válida). Cada intento queda en la bitácora de autenticación.
+      operationId: AuthPinVerifyController_verify
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pin:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+              required:
+                - pin
+              additionalProperties: false
+      responses:
+        '200':
+          description: 'PIN correcto — `{ verified: true, verifiedAt }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: '`PIN_INCORRECT`: el PIN no coincide.'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          description: Más de 5 intentos en un minuto.
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Volver a pedir el PIN
+      tags:
+        - auth
   /auth/provision-credentials:
     post:
       description: >-
@@ -6330,12 +6379,8 @@ paths:
                 requestType:
                   type: string
                   enum:
-                    - access
                     - rectification
                     - deletion
-                    - portability
-                    - revocation
-                    - restriction
                 description:
                   type: string
                   minLength: 5
