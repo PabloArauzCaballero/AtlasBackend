@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (123 controladores) | 594 |
+| Total montadas (124 controladores) | 595 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 3 |
-| Con `@Roles` | 538 |
+| Con `@Roles` | 539 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 77 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -76,6 +76,7 @@
 | `POST` | `/auth/password-reset/request` | **sin sesión** (`@Public`) | — | `AuthController.requestPasswordReset` | guards: `TenantGuard` |
 | `POST` | `/auth/password/change/confirm` | cualquier sesión autenticada | — | `AuthPasswordChangeController.confirmPasswordChange` | guards: `TenantGuard` |
 | `POST` | `/auth/password/change/request` | cualquier sesión autenticada | — | `AuthPasswordChangeController.requestPasswordChange` | guards: `TenantGuard` |
+| `POST` | `/auth/pin/verify` | `customer` | — | `AuthPinVerifyController.verify` | guards: `TenantGuard` |
 | `POST` | `/auth/provision-credentials` | `admin`, `platform_admin` | — | `AuthController.provisionCredentials` | guards: `TenantGuard` |
 | `POST` | `/auth/refresh` | **sin sesión** (`@Public`) | — | `AuthController.refresh` | guards: `TenantGuard` |
 
