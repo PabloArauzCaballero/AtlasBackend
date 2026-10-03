@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (124 controladores) | 595 |
+| Total montadas (125 controladores) | 596 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 3 |
-| Con `@Roles` | 539 |
+| Con `@Roles` | 540 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 77 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -121,6 +121,7 @@
 | `GET` | `/customers/:customerId/credit-line` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.creditLine` | guards: `TenantGuard` |
 | `GET` | `/customers/:customerId/credit-line/history` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.creditLineHistory` | guards: `TenantGuard` |
 | `GET` | `/customers/:customerId/credit-products` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.listProducts` | guards: `TenantGuard` |
+| `GET` | `/customers/:customerId/progress` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditProgressController.progressOf` | guards: `TenantGuard` |
 | `POST` | `/internal/credit/bank-statement-review-callback` | sin sesión · clave del Motor (`x-engine-callback-key`) | — | `BankStatementReviewCallbackController.aplicar` | guards: `EngineCallbackKeyGuard` · fuera del contrato OpenAPI |
 | `POST` | `/internal/credit/manual-review-callback` | **sin sesión** (`@Public`) | — | `CreditReviewCallbackController.aplicar` | fuera del contrato OpenAPI |
 | `GET` | `/merchant/partners/:partnerId/credit-applications` | `merchant`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `MerchantCreditController.list` | guards: `TenantGuard` |

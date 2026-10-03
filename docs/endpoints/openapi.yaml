@@ -6414,6 +6414,54 @@ paths:
       summary: Crear solicitud de derechos ARCO/GDPR
       tags:
         - customer-privacy
+  /customers/{customerId}/progress:
+    get:
+      description: >-
+        El nivel Atlas (de «Nuevo» a «Preferente»), la puntuación de relación
+        0-100, los puntos que faltan para el siguiente nivel, cómo se reparte la
+        puntuación, las misiones para subir y la evolución de la línea. Se
+        calcula con datos de la base —antigüedad, pagos, compras cerradas,
+        identidad—, NO con el motor, así que existe aunque la línea de crédito
+        todavía no se haya calculado. Ninguna misión premia endeudarse.
+      operationId: CreditProgressController_progressOf
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: Opcional para `customer` (se toma del token).
+          required: false
+          schema:
+            type: string
+        - name: customerId
+          in: path
+          required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Nivel, puntos, componentes, misiones, señales e historial.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Nivel del cliente y su evolución
+      tags:
+        - credit
   /customers/{customerId}/risk-assessments:
     post:
       description: >-

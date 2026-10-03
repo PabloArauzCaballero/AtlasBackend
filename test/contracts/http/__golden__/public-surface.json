@@ -2196,6 +2196,27 @@
     ],
     "body": true
   },
+  "GET /customers/{customerId}/progress": {
+    "operationId": "CreditProgressController_progressOf",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
   "POST /customers/{customerId}/risk-assessments": {
     "operationId": "RiskController_createRiskAssessment",
     "responses": [
