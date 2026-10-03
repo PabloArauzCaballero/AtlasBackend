@@ -61,19 +61,38 @@ export class PaymentCapacityService {
     termMonths?: number;
     now?: Date;
   }): Promise<PaymentCapacityAssessment> {
+    return (await this.assessDetailed(input)).assessment;
+  }
+
+  /**
+   * Lo mismo que `assess`, devolviendo además la entrada de relación con la que se calculó.
+   *
+   * La pantalla de nivel necesita las dos cosas —el puntaje y las conductas que lo componen— y pedirlas por
+   * separado habría repetido las consultas de préstamos, actividad e identidad. No llama al motor: es sólo la
+   * base de datos, así que un cliente SIN línea de crédito calculada también tiene nivel.
+   */
+  async assessDetailed(input: {
+    tenantId: string;
+    customerId: string;
+    declaredMonthlyIncome: number | null;
+    currentLimit: number | null;
+    termMonths?: number;
+    now?: Date;
+  }): Promise<{ assessment: PaymentCapacityAssessment; relationship: RelationshipInput }> {
     const now = input.now ?? new Date();
     const [statement, relationship] = await Promise.all([
       this.statementCapacity(input.tenantId, input.customerId),
       this.relationship(input.tenantId, input.customerId, now),
     ]);
 
-    return assessPaymentCapacity({
+    const assessment = assessPaymentCapacity({
       statement,
       relationship,
       declaredMonthlyIncome: input.declaredMonthlyIncome,
       currentLimit: input.currentLimit,
       policy: input.termMonths ? { termMonths: input.termMonths } : undefined,
     });
+    return { assessment, relationship };
   }
 
   /**

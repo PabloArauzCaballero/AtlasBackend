@@ -50,6 +50,8 @@ import { CreditUnderwritingService } from './application/credit-underwriting.ser
 import { CreditOperationsController } from './credit-operations.controller.js';
 import { CreditReviewCallbackController } from './credit-review-callback.controller.js';
 import { CreditController } from './credit.controller.js';
+import { CreditProgressController } from './credit-progress.controller.js';
+import { CreditProgressService } from './application/credit-progress.service.js';
 import { CreditRepository } from './credit.repository.js';
 import { CreditReviewCaseRepository } from './credit-review-case.repository.js';
 import { CreditSubmittedReconciliationService } from './application/credit-submitted-reconciliation.service.js';
@@ -105,6 +107,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
   ],
   controllers: [
     CreditController,
+    CreditProgressController,
     CreditOperationsController,
     MerchantCreditController,
     CreditReviewCallbackController,
@@ -131,6 +134,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     CreditApplicationAdmissionService,
     CreditLineRefreshService,
     PaymentCapacityService,
+    CreditProgressService,
     BankStatementService,
     BankStatementReviewWorker,
     // A6: cierra el extracto que el Motor mandó a revisión humana (aviso del Motor y barrido del job).
