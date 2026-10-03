@@ -1,0 +1,44 @@
+# APIs de AtlasBackend y del Motor en TEST con respaldo automático. Va en /data/coolify/proxy/dynamic/
+# (patrón de atlas-erp-failover.yaml). Sin `retry`: en una API un reintento podría duplicar una escritura.
+# `atlas-backend` y `motor` son alias de la red `coolify` que declaran los compose de cada repo.
+http:
+  services:
+    atlas-backend-api:
+      failover: { healthCheck: {}, service: atlas-backend-api-principal, fallback: atlas-backend-api-respaldo }
+    atlas-backend-api-principal:
+      loadBalancer:
+        healthCheck: { path: /api/v1/health/readiness, interval: 2s, unhealthyInterval: 2s, timeout: 2s }
+        servers: [{ url: 'http://atlas-backend:3005' }]
+    atlas-backend-api-respaldo:
+      loadBalancer:
+        healthCheck: { path: /api/v1/health/readiness, interval: 30s, timeout: 3s }
+        servers: [{ url: 'http://atlas-backend-respaldo:3005' }]
+
+    atlas-motor-api:
+      failover: { healthCheck: {}, service: atlas-motor-api-principal, fallback: atlas-motor-api-respaldo }
+    atlas-motor-api-principal:
+      loadBalancer:
+        healthCheck: { path: /health/live, interval: 2s, unhealthyInterval: 2s, timeout: 2s }
+        servers: [{ url: 'http://motor:3000' }]
+    atlas-motor-api-respaldo:
+      loadBalancer:
+        healthCheck: { path: /health/live, interval: 30s, timeout: 3s }
+        servers: [{ url: 'http://motor-respaldo:3000' }]
+
+  routers:
+    atlas-backend-api-http:
+      entryPoints: [http]
+      rule: Host(`api.161.97.85.216.sslip.io`)
+      priority: 200
+      service: atlas-backend-api
+    atlas-backend-api-https:
+      entryPoints: [https]
+      rule: Host(`api.161.97.85.216.sslip.io`)
+      priority: 200
+      service: atlas-backend-api
+      tls: { certResolver: letsencrypt }
+    atlas-motor-api-http:
+      entryPoints: [http]
+      rule: Host(`motor-api.161.97.85.216.sslip.io`)
+      priority: 200
+      service: atlas-motor-api

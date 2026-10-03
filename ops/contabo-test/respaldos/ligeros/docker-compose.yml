@@ -1,0 +1,81 @@
+# Respaldo de las apps LIGERAS de TEST (Contabo), FUERA de Coolify, mismo patrón que respaldo-erp/:
+# portal admin (app 5), web del Motor (7), app web del cliente (14) y mock de proveedores (9).
+# Se instala en /opt/atlas/respaldo-ligeros/ con `sh instalar.sh`.
+#
+# Cada servicio corre la ÚLTIMA IMAGEN QUE SIRVIÓ SANA (`:estable`, la retaguea el guardián tras
+# 10 min sanos). Traefik manda el tráfico público a la principal y pasa al respaldo cuando no
+# responde (atlas-ligeros-failover.yaml). Al mock lo llaman otros contenedores por el alias
+# `external-providers-mock`: mientras su principal no esté en marcha, el guardián le presta ese alias.
+#
+# Nunca construye. Estas apps de Coolify no tienen `.env`: instalar.sh vuelca las variables de cada
+# contenedor principal a <servicio>.env (600), sin las de Coolify.
+name: atlas-respaldo-ligeros
+
+x-comun: &comun
+  restart: always
+  init: true
+  logging:
+    driver: json-file
+    options: { max-size: '10m', max-file: '3' }
+
+services:
+  admin-web-respaldo:
+    <<: *comun
+    image: atlas-admin-portal:estable
+    container_name: atlas-admin-web-respaldo
+    env_file: admin-web.env
+    networks: { coolify: { aliases: [admin-web-respaldo] } }
+    deploy: { resources: { limits: { memory: 384m } } }
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:5273/ || exit 1']
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3
+
+  motor-web-respaldo:
+    <<: *comun
+    image: atlas-engine-frontend:estable
+    container_name: atlas-motor-web-respaldo
+    env_file: motor-web.env
+    networks: { coolify: { aliases: [motor-web-respaldo] } }
+    deploy: { resources: { limits: { memory: 384m } } }
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:5173/login || exit 1']
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3
+
+  consumer-web-respaldo:
+    <<: *comun
+    image: atlas-consumer-web:estable
+    container_name: atlas-consumer-web-respaldo
+    env_file: consumer-web.env
+    networks: { coolify: { aliases: [consumer-web-respaldo] } }
+    deploy: { resources: { limits: { memory: 128m } } }
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1']
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  mock-respaldo:
+    <<: *comun
+    image: atlas-provider-mockup-server:estable
+    container_name: atlas-mock-respaldo
+    env_file: mock.env
+    networks: { coolify: { aliases: [mock-respaldo] } }
+    deploy: { resources: { limits: { memory: 384m } } }
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:4010/mock/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+networks:
+  coolify:
+    external: true
+    name: coolify

@@ -1,0 +1,81 @@
+# Respaldo de las APIs de AtlasBackend (app 1) y del Motor (app 2) en TEST (Contabo), FUERA de
+# Coolify, mismo patrón que respaldo-erp/. Se instala en /opt/atlas/respaldo-apis/ con `sh instalar.sh`.
+#
+# Sólo el proceso de API, con la ÚLTIMA IMAGEN QUE SIRVIÓ SANA (`:estable`, la retaguea el guardián
+# tras 10 min sanos). Workers, messaging-worker, migrate, redis y minio NO se duplican: un segundo
+# consumidor procesaría colas dos veces. Por eso aquí van APAGADOS los consumidores que la API
+# principal corre dentro (QA/estrés en AtlasBackend; relé del outbox y barrido en el Motor).
+#
+# El tráfico público entra por Traefik (atlas-apis-failover.yaml). Los demás contenedores llaman por
+# alias (`atlas-backend:3005`, `motor:3000`): mientras la principal no esté sana, el guardián presta
+# ese alias al respaldo y lo devuelve al volver.
+#
+# Los Redis de cada proyecto sólo están en la red propia del proyecto (`<uuid de Coolify>`, estable
+# entre despliegues), así que el respaldo se une también a ella.
+name: atlas-respaldo-apis
+
+x-comun: &comun
+  restart: always
+  init: true
+  logging:
+    driver: json-file
+    options: { max-size: '10m', max-file: '3' }
+
+services:
+  atlas-backend-respaldo:
+    <<: *comun
+    image: atlas-backend:estable
+    container_name: atlas-backend-respaldo
+    env_file: atlas-backend.env
+    environment:
+      APP_ROLE: api
+      RUNTIME_JOBS_SCHEDULER_ENABLED: 'false'
+      RUNTIME_JOBS_QA_CONSUMER_ENABLED: 'false'
+      RUNTIME_JOBS_STRESS_CONSUMER_ENABLED: 'false'
+      SYSTEMS_CATALOG_AUTO_SYNC_ENABLED: 'false'
+      DATABASE_SEED_ON_STARTUP: 'false'
+      # Bucle de la API (sin guarda de rol) que reenvía al Motor casos de identidad atascados.
+      IDENTITY_RECONCILE_DISABLED: 'true'
+    networks:
+      coolify: { aliases: [atlas-backend-respaldo] }
+      proyecto-backend: {}
+    deploy: { resources: { limits: { memory: 768m } } }
+    healthcheck:
+      test: ['CMD', 'node', '/app/ops/docker/healthcheck.mjs']
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  motor-respaldo:
+    <<: *comun
+    image: atlas-decision:estable
+    container_name: atlas-motor-respaldo
+    env_file: motor.env
+    environment:
+      WORKER_ROLE: API
+      OUTBOX_RELAY_ENABLED: 'false'
+      RUNTIME_RETENTION_SWEEP_ENABLED: 'false'
+      JOB_SCHEDULER_ENABLED: 'false'
+      STARTUP_SEED_ENABLED: 'false'
+    networks:
+      coolify: { aliases: [motor-respaldo] }
+      proyecto-motor: {}
+    deploy: { resources: { limits: { memory: 768m } } }
+    healthcheck:
+      test: ['CMD', 'node', 'docker/healthcheck.mjs']
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+networks:
+  coolify:
+    external: true
+    name: coolify
+  proyecto-backend:
+    external: true
+    name: bhhuqeuq5lchwcwbg7fxpy75
+  proyecto-motor:
+    external: true
+    name: p4d7owzr3lihnkxxjjntgeun

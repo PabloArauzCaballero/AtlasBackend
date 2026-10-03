@@ -1,0 +1,68 @@
+# Respaldo del ERP de TEST (Contabo), FUERA de Coolify, como atlas-postgres y pdf-worker.
+# Se instala en /opt/atlas/respaldo-erp/ con `sh instalar.sh` (ver README.md).
+#
+# Qué es: una segunda instancia del ERP frontend y de la API con la ÚLTIMA IMAGEN QUE SIRVIÓ SANA
+# (`:estable`; se retaguea a mano tras un despliegue sano, ver README.md). Traefik manda el tráfico a la principal de Coolify y sólo
+# pasa al respaldo cuando la principal no responde (atlas-erp-failover.yaml).
+#
+# Nunca construye (no añade builds al host) y nunca migra: comparte atlas_erp con la principal.
+# El outbox NO corre aquí: es el proceso aparte `worker-outbox` de Coolify, así que no se duplican envíos.
+name: atlas-respaldo-erp
+
+x-logs: &logs
+  logging:
+    driver: json-file
+    options: { max-size: '10m', max-file: '3' }
+
+services:
+  erp-web-respaldo:
+    <<: *logs
+    image: atlas-erp-frontend:estable
+    container_name: atlas-erp-web-respaldo
+    restart: always
+    init: true
+    # Las variables (no secretas) que Coolify da al frontend principal. ERP_API_ORIGIN va horneado
+    # en la imagen: llama a `erp:3007`, el alias de la API principal.
+    env_file: /data/coolify/applications/boffxwlo9x4gmqhhvfno2mnx/.env
+    networks:
+      coolify:
+        aliases: [erp-web-respaldo]
+    deploy: { resources: { limits: { memory: 512m } } }
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3010/version').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  erp-api-respaldo:
+    <<: *logs
+    image: atlas-erp-backend:estable
+    container_name: atlas-erp-api-respaldo
+    restart: always
+    init: true
+    env_file: /data/coolify/applications/cpzbl0hojfjtzg2ym4tk4shr/.env
+    environment:
+      OUTBOX_WORKER_ENABLED: 'false'
+      STARTUP_SEEDS_ENABLED: 'false'
+      ACCOUNTING_APPROVAL_POLICY: '${ACCOUNTING_APPROVAL_POLICY:-ALL_MANUAL_REQUIRE_APPROVAL}'
+      APP_VERSION: '1.0.0'
+    # Sin alias `erp` a propósito: con los dos a la vez, el DNS de Docker repartiría entre versiones
+    # distintas. Si la API principal cae, el frontend (que llama a `erp:3007`, horneado) se queda sin
+    # API hasta que se le preste: `docker network disconnect coolify atlas-erp-api-respaldo &&
+    # docker network connect --alias erp-api-respaldo --alias erp coolify atlas-erp-api-respaldo`.
+    networks:
+      coolify:
+        aliases: [erp-api-respaldo]
+    deploy: { resources: { limits: { memory: 768m } } }
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3007/api/v1/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+
+networks:
+  coolify:
+    external: true
+    name: coolify
