@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (124 controladores) | 595 |
+| Total montadas (126 controladores) | 598 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
-| Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 3 |
-| Con `@Roles` | 539 |
+| Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
+| Con `@Roles` | 540 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 77 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -793,6 +793,9 @@
 | `GET` | `/systems/impact/by-table/:schemaName/:tableName` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsCatalogController.getImpactByTable` | — |
 | `PATCH` | `/systems/impact/data/:impactId/review` | `system_admin`, `platform_admin`, `admin` | — | `SystemsReviewController.reviewDataImpact` | — |
 | `PATCH` | `/systems/impact/fields/:fieldImpactId/review` | `system_admin`, `platform_admin`, `admin` | — | `SystemsReviewController.reviewFieldImpact` | — |
+| `GET` | `/systems/monitor/host` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsMonitorHostController.getHost` | — |
+| `POST` | `/systems/monitor/host-snapshot` | identidad de servicio `{"scope":"systems:monitor:write","audienceContext":"systems","allowedServices":["atlas-monitor"]}` | — | `SystemsMonitorController.ingestHostSnapshot` | guards: `ServiceTokenGuard` |
+| `GET` | `/systems/monitor/summary` | identidad de servicio `{"scope":"systems:monitor:read","audienceContext":"systems","allowedServices":["atlas-monitor"]}` | — | `SystemsMonitorController.getSummary` | guards: `ServiceTokenGuard` |
 | `GET` | `/systems/reports/traffic-latency` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsActionLogController.getTrafficLatencyReport` | — |
 | `GET` | `/systems/reports/traffic-latency-timeseries` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsActionLogController.getTrafficLatencyTimeseries` | — |
 | `GET` | `/systems/review-queue` | `system_admin`, `platform_admin`, `admin`, `qa_engineer`, `devops`, `risk_analyst`, `compliance_analyst`, `readonly_auditor` | — | `SystemsReviewController.getReviewQueue` | — |
