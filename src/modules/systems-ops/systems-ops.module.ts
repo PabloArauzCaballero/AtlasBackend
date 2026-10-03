@@ -204,6 +204,8 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
   ],
   // Lo unico que sale de aqui es el consumidor de la cola de estres, que el planificador de
   // `runtime-jobs` necesita para darle cadencia. El resto del modulo sigue siendo interno.
-  exports: [SystemsStressConsumerService],
+  // Lo demás de este módulo es interno; sale además lo que el resumen de monitoreo (módulo aparte,
+  // sólo en la API HTTP) compone: red, herramientas y tráfico.
+  exports: [SystemsStressConsumerService, SystemsNetworkHealthService, SystemsHealthService, SystemsActionLogRepository],
 })
 export class SystemsOpsModule {}

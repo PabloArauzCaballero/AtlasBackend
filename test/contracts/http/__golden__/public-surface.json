@@ -11148,6 +11148,57 @@
     ],
     "body": false
   },
+  "GET /systems/monitor/host": {
+    "operationId": "SystemsMonitorHostController_getHost",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "POST /systems/monitor/host-snapshot": {
+    "operationId": "SystemsMonitorController_ingestHostSnapshot",
+    "responses": [
+      "204",
+      "400",
+      "401",
+      "409",
+      "429",
+      "500",
+      "503"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": false
+  },
+  "GET /systems/monitor/summary": {
+    "operationId": "SystemsMonitorController_getSummary",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "429",
+      "500",
+      "503"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": false
+  },
   "GET /systems/qa/campaigns": {
     "operationId": "QaRunsController_campaigns",
     "responses": [
