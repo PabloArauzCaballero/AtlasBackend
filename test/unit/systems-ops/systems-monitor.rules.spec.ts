@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   criticalToolsStatus,
+  hostStatus,
   networkStatus,
   outcomesStatus,
   providersStatus,
@@ -75,5 +76,41 @@ describe('systems-monitor.rules', () => {
     expect(reviewQueueStatus(null)).toBe('ok');
     expect(reviewQueueStatus(24)).toBe('ok');
     expect(reviewQueueStatus(24.1)).toBe('warn');
+  });
+});
+
+describe('hostStatus', () => {
+  const sano = { ramAvailableMb: 8000, diskPct: 59, load15: 10, cores: 8, backupAgeHours: 3, ageMinutes: 1 };
+
+  it('todo en orden y fresco es verde', () => {
+    expect(hostStatus(sano)).toEqual({ ram: 'ok', disk: 'ok', load: 'ok', backup: 'ok', stale: false, overall: 'ok' });
+  });
+
+  it('RAM disponible por debajo de 2 GB es rojo', () => {
+    expect(hostStatus({ ...sano, ramAvailableMb: 2047 })).toMatchObject({ ram: 'bad', overall: 'bad' });
+    expect(hostStatus({ ...sano, ramAvailableMb: 2048 }).ram).toBe('ok');
+  });
+
+  it('disco: 85 ámbar, 90 rojo', () => {
+    expect(hostStatus({ ...sano, diskPct: 84 }).disk).toBe('ok');
+    expect(hostStatus({ ...sano, diskPct: 85 }).disk).toBe('warn');
+    expect(hostStatus({ ...sano, diskPct: 90 })).toMatchObject({ disk: 'bad', overall: 'bad' });
+  });
+
+  it('carga: más de 3 por núcleo es ámbar', () => {
+    expect(hostStatus({ ...sano, load15: 24 }).load).toBe('ok');
+    expect(hostStatus({ ...sano, load15: 24.1 })).toMatchObject({ load: 'warn', overall: 'warn' });
+  });
+
+  it('copia de bases: sin dato no se juzga; 7 h o más es rojo', () => {
+    expect(hostStatus({ ...sano, backupAgeHours: null }).backup).toBe('unknown');
+    expect(hostStatus({ ...sano, backupAgeHours: 6.9 }).backup).toBe('ok');
+    expect(hostStatus({ ...sano, backupAgeHours: 7 })).toMatchObject({ backup: 'bad', overall: 'bad' });
+  });
+
+  it('una instantánea vieja nunca es verde, y si ya había rojo sigue rojo', () => {
+    expect(hostStatus({ ...sano, ageMinutes: 11 })).toMatchObject({ stale: true, overall: 'warn' });
+    expect(hostStatus({ ...sano, ageMinutes: 10 }).stale).toBe(false);
+    expect(hostStatus({ ...sano, ageMinutes: 30, diskPct: 95 }).overall).toBe('bad');
   });
 });

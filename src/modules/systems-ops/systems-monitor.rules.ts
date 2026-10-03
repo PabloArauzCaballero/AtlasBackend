@@ -78,3 +78,34 @@ export function reviewQueueStatus(oldestOpenAgeHours: number | null): MonitorSta
   if (oldestOpenAgeHours === null) return 'ok';
   return oldestOpenAgeHours > REVIEW_QUEUE_WARN_HOURS ? 'warn' : 'ok';
 }
+
+/**
+ * Servidor de TEST (la instantánea que manda el informador). Mismos umbrales que sus alertas de Telegram:
+ * RAM disponible < 2 GB rojo, disco ≥85 % ámbar y ≥90 % rojo, carga a 15 min > 3 por núcleo ámbar,
+ * copia de bases con más de 7 h rojo. Una instantánea con más de 10 min está «vieja» y no se pinta de verde.
+ */
+export const HOST_RAM_MIN_MB = 2048;
+export const HOST_DISK_WARN_PCT = 85;
+export const HOST_DISK_BAD_PCT = 90;
+export const HOST_LOAD_PER_CORE = 3;
+export const HOST_BACKUP_MAX_HOURS = 7;
+export const HOST_SNAPSHOT_STALE_MINUTES = 10;
+
+export function hostStatus(host: {
+  ramAvailableMb: number;
+  diskPct: number;
+  load15: number;
+  cores: number;
+  backupAgeHours: number | null;
+  ageMinutes: number;
+}) {
+  const ram: MonitorStatus = host.ramAvailableMb < HOST_RAM_MIN_MB ? 'bad' : 'ok';
+  const disk: MonitorStatus = host.diskPct >= HOST_DISK_BAD_PCT ? 'bad' : host.diskPct >= HOST_DISK_WARN_PCT ? 'warn' : 'ok';
+  const load: MonitorStatus = host.load15 > host.cores * HOST_LOAD_PER_CORE ? 'warn' : 'ok';
+  const backup: MonitorStatus = host.backupAgeHours === null ? 'unknown' : host.backupAgeHours >= HOST_BACKUP_MAX_HOURS ? 'bad' : 'ok';
+  const stale = host.ageMinutes > HOST_SNAPSHOT_STALE_MINUTES;
+  // Sin datos frescos no hay verde: el peor de los demás, y como mínimo ámbar.
+  const worst = worstStatus([ram, disk, load, backup]);
+  const overall: MonitorStatus = stale ? worstStatus([worst === 'ok' || worst === 'unknown' ? 'warn' : worst]) : worst;
+  return { ram, disk, load, backup, stale, overall };
+}

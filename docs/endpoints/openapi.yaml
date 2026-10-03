@@ -31923,6 +31923,63 @@ paths:
       summary: Listar logs sincronizados a MongoDB (Archivo.log remoto)
       tags:
         - systems-ops
+  /systems/monitor/host:
+    get:
+      operationId: SystemsMonitorHostController_getHost
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: '`available: false` si el informador no ha mandado nada en 15 min.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Estado del servidor de TEST según la última instantánea del informador
+      tags:
+        - systems-ops
+  /systems/monitor/host-snapshot:
+    post:
+      description: >-
+        El informador manda cada 5 min memoria, disco, carga, caché de build y
+        estado de cada app con su respaldo. Se guarda 15 min por tenant: si deja
+        de llegar, el portal lo ve caducado en vez de enseñar un dato viejo.
+      operationId: SystemsMonitorController_ingestHostSnapshot
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '204':
+          description: Instantánea guardada.
+        '400':
+          description: Cuerpo fuera de contrato.
+        '401':
+          description: >-
+            Token de servicio ausente, inválido, de otra audiencia o sin el
+            permiso de escritura.
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: Identidad de servicio no configurada en este despliegue.
+      security: []
+      summary: Recibir la instantánea del servidor de TEST (identidad de servicio)
+      tags:
+        - systems-ops
   /systems/monitor/summary:
     get:
       description: >-
