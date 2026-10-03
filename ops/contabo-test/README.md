@@ -13,7 +13,7 @@ arrancar (`restart: unless-stopped` no actúa ahí).
 | Carpeta | Qué es | Dónde queda en el servidor |
 |---|---|---|
 | `guardian/` | Cada minuto: arranca contenedores que un despliegue dejó en `created`, avisa de apps caídas, presta el alias de una API a su respaldo mientras la principal no está sana y retaguea `:estable` | `/opt/atlas/guardian/` + `atlas-guardian-test.{service,timer}` |
-| `monitor/` | Cada minuto: RAM, swap, carga, disco, caché de build, apps, respaldos, copia de bases; cada 5 min el resumen de AtlasBackend; alertas por Telegram al **cambiar** de estado; informe diario 08:00 y `/estado` a demanda; poda la caché de build | `/opt/atlas/monitor/` + `atlas-monitor.{service,timer}` |
+| `monitor/` | Cada minuto: RAM, swap, carga, disco, caché de build, apps, respaldos, copia de bases; cada 5 min el resumen de AtlasBackend; alertas por Telegram al **cambiar** de estado; informe diario 08:00 y comandos del bot (ver abajo); poda la caché de build | `/opt/atlas/monitor/` + `atlas-monitor.{service,timer}` |
 | `respaldos/{erp,tableros,ligeros,apis}/` | Segunda instancia de cada app, con la última imagen que sirvió sana (`:estable`). Sin build, sin migrate, sin workers | `/opt/atlas/respaldo-*/` |
 | `traefik/` | Failover principal → respaldo (sondas a 2 s). Traefik los vigila: entran al instante | `/data/coolify/proxy/dynamic/` |
 | `lib/avisar.sh` | Función `avisar` común (journal + Telegram + correo firmado). Copia de referencia | `/opt/atlas/lib/` |
@@ -47,10 +47,28 @@ Como root en el VPS, con este directorio copiado (por ejemplo `scp -r ops/contab
    proveedores y negocio): `sh habilitar-monitor.sh` (crea `CONTEXT_SERVICE_TOKEN_SECRET` en Coolify para la
    app 1 y en `/opt/atlas/monitor/monitor.env`; entra en vigor en el siguiente despliegue de AtlasBackend).
 
+## Comandos del bot
+
+Sólo atiende al chat de Pablo (`TELEGRAM_CHAT_ID`); lo que llegue de otros chats se ignora sin contestar. Todos
+son de lectura, salvo `/silenciar` y `/podar`. No hay `/reiniciar` ni `/desplegar` a propósito: si alguien
+consiguiera escribir al bot, no debería poder tocar el servidor. El monitor lee los mensajes una vez por
+minuto, así que la respuesta tarda hasta un minuto.
+
+| Comando | Qué responde |
+|---|---|
+| `/status` (`/estado`, `/ram`, `/grafico`) | Informe del servidor y de las apps, con el gráfico PNG de 24 h de RAM libre, disco y carga |
+| `/apps` | Cada app: principal, respaldo, memoria y reinicios |
+| `/alertas` | Qué está en rojo ahora y desde cuándo (y si los avisos están silenciados) |
+| `/despliegues` | Últimos 8 despliegues de Coolify (app, commit, estado, duración) y la cola |
+| `/negocio`, `/trafico`, `/proveedores` | Del resumen de AtlasBackend; sin el secreto de servicio contestan que no está habilitado |
+| `/copias` | Última copia de las bases: antigüedad, peso y filas por base |
+| `/silenciar 1h` | Calla los avisos hasta 6 h; `/silenciar off` los reactiva. Los cambios de estado se siguen registrando |
+| `/podar` → `/podar confirmar` | Poda la caché de build; la confirmación caduca a los 2 min y corre en una unidad systemd aparte |
+
 ## Qué avisa el monitor (sólo al cambiar de estado, con «RECUPERADO» al volver)
 
-Host: RAM disponible < 2 GB · disco ≥ 85 % y ≥ 90 % · caché de build > 150 GB (la poda actúa sola, una vez
-al día, con `docker builder prune --reserved-space 100GB`, nunca `-a`) · carga > 3×núcleos sostenida ·
+Host: RAM disponible < 2 GB · disco ≥ 85 % y ≥ 90 % · caché de build > 150 GB (la poda actúa sola, como mucho cada
+6 h, con `docker builder prune --reserved-space 100GB`, nunca `-a`) · carga > 3×núcleos sostenida ·
 contenedor de Atlas al > 90 % de su límite o reiniciándose.
 Servicio: principal en marcha pero no sana · respaldo no sano · bloque de red DOWN · herramienta crítica
 caída · 5xx > 2 % o p95 > 2 s en 15 min.

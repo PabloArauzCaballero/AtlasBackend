@@ -9,7 +9,7 @@
 #   3. Informe diario a las 08:00 (hora del servidor, Bolivia) y a demanda: escribir /status (o /estado) al bot.
 #      Sólo contesta al chat de Pablo.
 #   4. Poda la caché de build cuando pasa de CACHE_MAX_GB (docker builder prune --reserved-space, nunca
-#      -a ni system prune), como mucho una vez cada 24 h.
+#      -a ni system prune), como mucho una vez cada 6 h.
 #   5. Si hay MONITOR_URL + secreto de servicio (monitor.env), añade al informe y a las alertas el
 #      resumen de AtlasBackend: red, tráfico, proveedores y negocio (ver resumen_backend).
 #
@@ -64,6 +64,14 @@ telegram_informe() { # texto
   fi
 }
 
+# Los avisos de los chequeos respetan /silenciar: si hay silencio activo se anotan en el journal y no salen.
+# Las funciones de los comandos del bot viven en comandos.sh.
+alertar() { # texto
+  hasta=0; [ -f "$E/silencio-hasta" ] && hasta=$(cat "$E/silencio-hasta")
+  if [ "$(date +%s)" -lt "$hasta" ]; then log "silenciado: $1"; else avisar "$1"; fi
+}
+[ -f "$DIR/comandos.sh" ] && . "$DIR/comandos.sh"
+
 # chequeo clave malo(0|1) lecturas_seguidas texto_mal texto_bien
 # Avisa una vez al pasar a MAL (tras N lecturas malas seguidas) y una vez al volver a OK.
 chequeo() {
@@ -71,10 +79,10 @@ chequeo() {
   s=OK; [ -f "$E/s-$1" ] && s=$(cat "$E/s-$1")
   if [ "$2" = 1 ]; then
     c=$((c + 1)); echo "$c" > "$E/c-$1"
-    if [ "$c" -ge "$3" ] && [ "$s" != MAL ]; then echo MAL > "$E/s-$1"; avisar "$4"; fi
+    if [ "$c" -ge "$3" ] && [ "$s" != MAL ]; then echo MAL > "$E/s-$1"; alertar "$4"; fi
   else
     echo 0 > "$E/c-$1"
-    if [ "$s" = MAL ]; then echo OK > "$E/s-$1"; avisar "RECUPERADO: $5"; fi
+    if [ "$s" = MAL ]; then echo OK > "$E/s-$1"; alertar "RECUPERADO: $5"; fi
   fi
 }
 
@@ -110,14 +118,14 @@ chequeo disco90 "$([ "$disco" -ge 90 ] && echo 1 || echo 0)" 1 \
   "DISCO CRÍTICO al ${disco}%: la copia de bases deja de respaldar por encima del 90%." \
   "el disco baja del 90% (${disco}%)."
 chequeo cache "$([ "$cache_gb" -gt "$CACHE_MAX_GB" ] && echo 1 || echo 0)" 1 \
-  "la caché de build ocupa ${cache_gb} GB (tope ${CACHE_MAX_GB}). La poda automática actúa una vez al día." \
+  "la caché de build ocupa ${cache_gb} GB (tope ${CACHE_MAX_GB}). La poda automática actúa cada 6 h como máximo." \
   "la caché de build baja a ${cache_gb} GB."
 chequeo carga "$(mayor "$load15" "$((nproc * 3))")" 15 \
   "CARGA del servidor ${load15} (15 min) con ${nproc} núcleos: más de 3 por núcleo sostenido. Suele ser un build o un proyecto vecino." \
   "la carga baja a ${load15}."
 
-# --- 4. Poda de la caché de build (una vez cada 24 h) ----------------------------------------
-if [ "$cache_gb" -gt "$CACHE_MAX_GB" ] && [ -z "$(find "$E/poda" -mmin -1440 2>/dev/null)" ]; then
+# --- 4. Poda de la caché de build (como mucho una vez cada 6 h: otros proyectos del servidor la regeneran a ~10 GB/h) ----------------------------------------
+if [ "$cache_gb" -gt "$CACHE_MAX_GB" ] && [ -z "$(find "$E/poda" -mmin -360 2>/dev/null)" ]; then
   : > "$E/poda"
   docker builder prune -f --reserved-space "${CACHE_KEEP_GB}GB" >/dev/null 2>&1
   if [ $? -eq 0 ]; then
@@ -184,7 +192,7 @@ if [ ! -f "$E/mem.txt" ] || [ -n "$(find "$E/mem.txt" -mmin +4 2>/dev/null)" ]; 
   [ -n "$nombres" ] && docker inspect -f '{{.Name}} {{.RestartCount}}' $nombres 2>/dev/null | sed 's#^/##' | while read -r n r; do
     antes=$r; [ -f "$E/r-$n" ] && antes=$(cat "$E/r-$n")
     echo "$r" > "$E/r-$n"
-    [ "$r" -gt "$antes" ] && avisar "REINICIO: $n se reinició $((r - antes)) vez/veces (total $r). Mirar docker logs $n."
+    [ "$r" -gt "$antes" ] && alertar "REINICIO: $n se reinició $((r - antes)) vez/veces (total $r). Mirar docker logs $n."
   done
 fi
 if [ -f "$E/mem.txt" ]; then
@@ -318,12 +326,22 @@ $RESUMEN"
   printf '%s' "$t"
 }
 
-# Menú de comandos del bot (lo que aparece al escribir «/»). Idempotente; una vez por arranque del día.
-if [ -n "$TELEGRAM_TOKEN" ] && [ ! -f "$E/menu-$(date +%Y%m%d)" ]; then
-  : > "$E/menu-$(date +%Y%m%d)"; rm -f "$E"/menu-2*.old 2>/dev/null
+# Menú de comandos del bot (lo que aparece al escribir «/»). Una vez al día; el número cambia si cambia la lista.
+if [ -n "$TELEGRAM_TOKEN" ] && [ ! -f "$E/menu2-$(date +%Y%m%d)" ]; then
+  : > "$E/menu2-$(date +%Y%m%d)"
   printf 'url = "https://api.telegram.org/bot%s/setMyCommands"\n' "$TELEGRAM_TOKEN" |
-    curl -s -m 10 -o /dev/null -K - -H 'content-type: application/json' \
-      -d '{"commands":[{"command":"status","description":"Estado del servidor de TEST con gráfico de 24 h"},{"command":"estado","description":"Lo mismo que /status"}]}'
+    curl -s -m 10 -o /dev/null -K - -H 'content-type: application/json' -d '{"commands":[
+      {"command":"status","description":"Estado del servidor con gráfico de 24 h"},
+      {"command":"apps","description":"Cada app con su respaldo y su memoria"},
+      {"command":"alertas","description":"Qué está en rojo ahora y desde cuándo"},
+      {"command":"despliegues","description":"Últimos despliegues de Coolify y la cola"},
+      {"command":"negocio","description":"Clientes, solicitudes, préstamos y pagos de 24 h"},
+      {"command":"trafico","description":"Errores y latencia de la API"},
+      {"command":"proveedores","description":"Estado de los proveedores externos"},
+      {"command":"copias","description":"Última copia de las bases de datos"},
+      {"command":"silenciar","description":"Callar los avisos un rato (ej. /silenciar 1h)"},
+      {"command":"podar","description":"Podar la caché de build (pide confirmación)"},
+      {"command":"ayuda","description":"Lista de comandos"}]}'
 fi
 
 # A demanda: /status al bot (sólo del chat de Pablo).
@@ -333,13 +351,25 @@ if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
     curl -s -m 10 -K - --data-urlencode "offset=$off" --data-urlencode "timeout=0" > "$E/upd.json" 2>/dev/null
   if jq -e '.ok == true' "$E/upd.json" >/dev/null 2>&1; then
     pedir=0
-    for fila in $(jq -r '.result[] | "\(.update_id)|\(.message.chat.id // 0)|\((.message.text // "") | split(" ")[0] | split("@")[0])"' "$E/upd.json"); do
-      id=${fila%%|*}; resto=${fila#*|}; chat=${resto%%|*}; cmd=${resto#*|}
+    for fila in $(jq -r '.result[] | (.message.text // "" | split(" ")) as $p | "\(.update_id)|\(.message.chat.id // 0)|\($p[0] | split("@")[0])|\($p[1] // "-")"' "$E/upd.json"); do
+      id=${fila%%|*}; resto=${fila#*|}; chat=${resto%%|*}; resto=${resto#*|}; cmd=${resto%%|*}; arg=${resto#*|}
+      [ "$arg" = - ] && arg=""
       off=$((id + 1))
-      # /status, /estado, /ram y /grafico piden lo mismo: el informe con el gráfico de 24 h.
-      if [ "$chat" = "$TELEGRAM_CHAT_ID" ]; then
-        case "$cmd" in /status | /estado | /ram | /grafico | /start) pedir=1 ;; esac
-      fi
+      # Sólo el chat de Pablo manda; lo de otros chats se ignora sin contestar.
+      [ "$chat" = "$TELEGRAM_CHAT_ID" ] || continue
+      case "$cmd" in
+        /status | /estado | /ram | /grafico | /start) pedir=1 ;;
+        /ayuda | /help) cmd_ayuda ;;
+        /alertas) cmd_alertas ;;
+        /apps) cmd_apps ;;
+        /despliegues) cmd_despliegues ;;
+        /negocio) cmd_negocio ;;
+        /trafico) cmd_trafico ;;
+        /proveedores) cmd_proveedores ;;
+        /copias) cmd_copias ;;
+        /silenciar) cmd_silenciar "$arg" ;;
+        /podar) cmd_podar "$arg" ;;
+      esac
     done
     echo "$off" > "$E/offset"
     [ "$pedir" = 1 ] && telegram_informe "$(informe)"
