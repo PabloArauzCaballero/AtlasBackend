@@ -1,0 +1,120 @@
+# Portal admin, web del Motor, app web y mock de TEST con respaldo automático. Va en
+# /data/coolify/proxy/dynamic/ (patrón de atlas-erp-failover.yaml).
+#
+# OJO: `admin-web`, `motor-web` y `consumer-web` son alias que declaran los compose de cada repo
+# desde los PR AtlasAdminPortal #116, AtlasDecisionEngineFrontend #31 y AtlasFrontend #27. Copiar
+# este fichero ANTES de que esos PR estén desplegados en `test` deja la principal sin sonda y todo
+# el tráfico en el respaldo (falla hacia lo seguro, pero sirve la versión anterior).
+http:
+  services:
+    atlas-admin-web:
+      failover: { healthCheck: {}, service: atlas-admin-web-principal, fallback: atlas-admin-web-respaldo }
+    atlas-admin-web-principal:
+      loadBalancer:
+        healthCheck: { path: /, interval: 2s, unhealthyInterval: 2s, timeout: 2s }
+        servers: [{ url: 'http://admin-web:5273' }]
+    atlas-admin-web-respaldo:
+      loadBalancer:
+        healthCheck: { path: /, interval: 30s, timeout: 3s }
+        servers: [{ url: 'http://admin-web-respaldo:5273' }]
+
+    atlas-motor-web:
+      failover: { healthCheck: {}, service: atlas-motor-web-principal, fallback: atlas-motor-web-respaldo }
+    atlas-motor-web-principal:
+      loadBalancer:
+        healthCheck: { path: /login, interval: 2s, unhealthyInterval: 2s, timeout: 2s }
+        servers: [{ url: 'http://motor-web:5173' }]
+    atlas-motor-web-respaldo:
+      loadBalancer:
+        healthCheck: { path: /login, interval: 30s, timeout: 3s }
+        servers: [{ url: 'http://motor-web-respaldo:5173' }]
+
+    atlas-consumer-web:
+      failover: { healthCheck: {}, service: atlas-consumer-web-principal, fallback: atlas-consumer-web-respaldo }
+    atlas-consumer-web-principal:
+      loadBalancer:
+        healthCheck: { path: /, interval: 2s, unhealthyInterval: 2s, timeout: 2s }
+        servers: [{ url: 'http://consumer-web:8080' }]
+    atlas-consumer-web-respaldo:
+      loadBalancer:
+        healthCheck: { path: /, interval: 30s, timeout: 3s }
+        servers: [{ url: 'http://consumer-web-respaldo:8080' }]
+
+    atlas-mock:
+      failover: { healthCheck: {}, service: atlas-mock-principal, fallback: atlas-mock-respaldo }
+    atlas-mock-principal:
+      loadBalancer:
+        healthCheck: { path: /mock/health, interval: 2s, unhealthyInterval: 2s, timeout: 2s }
+        servers: [{ url: 'http://external-providers-mock:4010' }]
+    atlas-mock-respaldo:
+      loadBalancer:
+        healthCheck: { path: /mock/health, interval: 30s, timeout: 3s }
+        servers: [{ url: 'http://mock-respaldo:4010' }]
+
+  middlewares:
+    # Sólo en los portales (GET de páginas y assets); nunca en el mock, que recibe escrituras.
+    atlas-ligeros-reintento:
+      retry: { attempts: 5, initialInterval: 500ms }
+
+  routers:
+    # priority 200: gana a atlas-por-ip.yaml, atlas-dominios-propios.yaml y a las etiquetas de Coolify.
+    atlas-admin-web-ip:
+      entryPoints: [portal]
+      rule: PathPrefix(`/`)
+      priority: 200
+      middlewares: [atlas-ligeros-reintento]
+      service: atlas-admin-web
+    atlas-admin-web-http:
+      entryPoints: [http]
+      rule: Host(`portal.161.97.85.216.sslip.io`) || Host(`atlas.adminportal.test.arauzsoftware.com`)
+      priority: 200
+      middlewares: [atlas-ligeros-reintento]
+      service: atlas-admin-web
+    atlas-admin-web-https:
+      entryPoints: [https]
+      rule: Host(`atlas.adminportal.test.arauzsoftware.com`)
+      priority: 200
+      middlewares: [atlas-ligeros-reintento]
+      service: atlas-admin-web
+      tls: { certResolver: letsencrypt }
+
+    atlas-motor-web-ip:
+      entryPoints: [motor]
+      rule: PathPrefix(`/`)
+      priority: 200
+      middlewares: [atlas-ligeros-reintento]
+      service: atlas-motor-web
+    atlas-motor-web-http:
+      entryPoints: [http]
+      rule: Host(`motor.161.97.85.216.sslip.io`) || Host(`atlas.decisionengine.test.arauzsoftware.com`)
+      priority: 200
+      middlewares: [atlas-ligeros-reintento]
+      service: atlas-motor-web
+    atlas-motor-web-https:
+      entryPoints: [https]
+      rule: Host(`atlas.decisionengine.test.arauzsoftware.com`)
+      priority: 200
+      middlewares: [atlas-ligeros-reintento]
+      service: atlas-motor-web
+      tls: { certResolver: letsencrypt }
+
+    atlas-consumer-web-http:
+      entryPoints: [http]
+      # La IP en bruto deja fuera /ai/ (atlas-ai-por-ip.yaml): con priority 200 se lo comería.
+      rule: Host(`app.161.97.85.216.sslip.io`) || Host(`atlas.consumerweb.test.arauzsoftware.com`) || (Host(`161.97.85.216`) && !PathPrefix(`/ai/`))
+      priority: 200
+      middlewares: [atlas-ligeros-reintento]
+      service: atlas-consumer-web
+    atlas-consumer-web-https:
+      entryPoints: [https]
+      rule: Host(`atlas.consumerweb.test.arauzsoftware.com`)
+      priority: 200
+      middlewares: [atlas-ligeros-reintento]
+      service: atlas-consumer-web
+      tls: { certResolver: letsencrypt }
+
+    atlas-mock-http:
+      entryPoints: [http]
+      rule: Host(`mock.161.97.85.216.sslip.io`)
+      priority: 200
+      service: atlas-mock
