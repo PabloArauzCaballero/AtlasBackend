@@ -69,11 +69,16 @@ export class SupportChannelService {
           : null;
     if (existing) return { ...toChannelDto(existing), reused: true, agentsAvailable: null as number | null };
 
-    const category = input.dto.categoryCode ? await this.catalog.findCategoryByCode(input.tenantId, input.dto.categoryCode) : null;
     const defaultQueueCode = input.actor.actorType === 'PARTNER_USER' ? SUPPORT_QUEUE_CODES.PARTNER_L1 : SUPPORT_QUEUE_CODES.CONSUMER_L1;
+    // La categoría y la cola por defecto no dependen una de otra: se piden a la vez. Sólo si la categoría
+    // trae su propia cola se descarta la de por defecto (una ida a la base de más, no una espera de más).
+    const [category, defaultQueue] = await Promise.all([
+      input.dto.categoryCode ? this.catalog.findCategoryByCode(input.tenantId, input.dto.categoryCode) : Promise.resolve(null),
+      this.catalog.findQueueByCode(input.tenantId, defaultQueueCode),
+    ]);
     const queue = category?.defaultQueueId
       ? await this.catalog.findQueueById(input.tenantId, String(category.defaultQueueId))
-      : await this.catalog.findQueueByCode(input.tenantId, defaultQueueCode);
+      : defaultQueue;
 
     const reserved = await this.disponibilidad.reserveAvailableAgent({
       tenantId: input.tenantId,
@@ -83,28 +88,32 @@ export class SupportChannelService {
 
     const channel = await this.apertura.persistRequestedChannel({ input, queue, reserved });
 
-    // El aviso de seguridad lo manda el SISTEMA, no el agente: así aparece siempre, incluso a las
-    // once de la noche cuando quien atiende está cansado y no se acuerda de escribirlo.
-    await this.messages.append({
-      tenantId: input.tenantId,
-      channelId: String(channel.id),
-      actor: { ...input.actor, actorType: 'SYSTEM', actorId: 'system' },
-      clientMessageId: `warning-${channel.id}`,
-      body: SUPPORT_NEVER_ASKS_WARNING,
-      messageType: 'SECURITY_WARNING',
-      visibility: 'SYSTEM',
-    });
-
-    await this.audit.publish({
-      tenantId: input.tenantId,
-      eventCode: 'support.channel.opened',
-      aggregateType: 'support_channel',
-      aggregateId: String(channel.id),
-      payload: { queueId: channel.queueId, assigned: Boolean(reserved) },
-      idempotencyKey: `support-channel-opened-${channel.id}`,
-    });
-
-    const agentsAvailable = reserved ? null : await this.disponibilidad.countAvailable(input.tenantId, queue ? String(queue.id) : null);
+    /*
+      Tres cosas que no se esperan entre sí: el aviso de seguridad, la auditoría y el conteo de agentes.
+      Iban una detrás de otra, y cada una es una ida a la base que la persona pagaba mirando un círculo.
+      El aviso lo manda el SISTEMA, no el agente: así aparece siempre, incluso a las once de la noche
+      cuando quien atiende está cansado y no se acuerda de escribirlo.
+    */
+    const [, , agentsAvailable] = await Promise.all([
+      this.messages.append({
+        tenantId: input.tenantId,
+        channelId: String(channel.id),
+        actor: { ...input.actor, actorType: 'SYSTEM', actorId: 'system' },
+        clientMessageId: `warning-${channel.id}`,
+        body: SUPPORT_NEVER_ASKS_WARNING,
+        messageType: 'SECURITY_WARNING',
+        visibility: 'SYSTEM',
+      }),
+      this.audit.publish({
+        tenantId: input.tenantId,
+        eventCode: 'support.channel.opened',
+        aggregateType: 'support_channel',
+        aggregateId: String(channel.id),
+        payload: { queueId: channel.queueId, assigned: Boolean(reserved) },
+        idempotencyKey: `support-channel-opened-${channel.id}`,
+      }),
+      reserved ? Promise.resolve(null) : this.disponibilidad.countAvailable(input.tenantId, queue ? String(queue.id) : null),
+    ]);
     return { ...toChannelDto(channel), reused: false, agentsAvailable };
   }
 

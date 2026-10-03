@@ -58,9 +58,15 @@ export class SupportKnowledgeService {
     const articles = await this.knowledge.listFeaturedFaq(input.tenantId, this.actors.knowledgeAudiences(input.actor));
     const versions = await Promise.all(
       articles.map(async (article) => {
+        /*
+          Sin enlace (`current_version_id` nulo) NO se descarta el artículo: se usa su última versión
+          publicada. La siembra fundamental nunca actualiza filas que ya existen, así que una base nueva
+          o ya sembrada nacía con los artículos sin enlazar, y la ayuda de la app salía VACÍA hasta que
+          alguien escribía algo en el buscador. El enlace explícito, cuando existe, sigue mandando.
+        */
         const version = article.currentVersionId
           ? await this.knowledge.findVersionById(input.tenantId, String(article.currentVersionId))
-          : null;
+          : await this.knowledge.findPublishedVersion(String(article.id), 'es-BO');
         return version ? toKnowledgeVersionDto(version, article.articleKey) : null;
       }),
     );

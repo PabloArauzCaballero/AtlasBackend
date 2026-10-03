@@ -63,7 +63,10 @@ describe('SupportKnowledgeRepository', () => {
       await repo.search({ tenantId: 't1', query: 'tarjeta', audiences: ['CUSTOMER'], limit: 5 });
 
       const [sql] = query.mock.calls.at(-1) as [string];
-      expect(sql).toContain('article.current_version_id = version._id');
+      // El enlace explícito manda; sin él se usa la última versión publicada (la siembra no enlaza).
+      expect(sql).toContain('version._id = COALESCE(');
+      expect(sql).toContain('article.current_version_id,');
+      expect(sql).toContain("latest.status = 'PUBLISHED'");
       expect(sql).toContain("article.status = 'PUBLISHED'");
       expect(sql).toContain("version.status = 'PUBLISHED'");
       expect(sql).toContain('article._deleted = FALSE');

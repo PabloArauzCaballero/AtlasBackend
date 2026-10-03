@@ -214,6 +214,49 @@ describe('SupportChannelService', () => {
     });
   });
 
+  describe('abrir sin esperas de más', () => {
+    it('el aviso, la auditoría y el conteo de agentes se lanzan JUNTOS, no uno tras otro', async () => {
+      // Sin agente libre, para que también se pida el conteo.
+      disponibilidad.reserveAvailableAgent.mockResolvedValueOnce(null as never);
+      const lanzados: string[] = [];
+      let soltar: () => void = () => undefined;
+      const compuerta = new Promise<void>((resolver) => {
+        soltar = resolver;
+      });
+      messages.append.mockImplementation(async () => {
+        lanzados.push('aviso');
+        await compuerta;
+        return { id: 9 };
+      });
+      audit.publish.mockImplementation(async () => {
+        lanzados.push('auditoria');
+        await compuerta;
+      });
+      disponibilidad.countAvailable.mockImplementation(async () => {
+        lanzados.push('conteo');
+        await compuerta;
+        return 3;
+      });
+
+      const pendiente = service.requestChannel({ tenantId: 't1', actor: CLIENTE, dto: {} as never });
+      // Con la compuerta cerrada, si fueran en serie sólo habría arrancado el primero.
+      await new Promise((resolver) => setImmediate(resolver));
+      expect(lanzados.sort()).toEqual(['auditoria', 'aviso', 'conteo']);
+      soltar();
+      expect(await pendiente).toMatchObject({ reused: false, agentsAvailable: 3 });
+    });
+
+    it('la categoría y la cola por defecto se piden a la vez; si la categoría trae cola propia, manda ésa', async () => {
+      catalog.findCategoryByCode.mockResolvedValueOnce({ defaultQueueId: 22 } as never);
+
+      await service.requestChannel({ tenantId: 't1', actor: CLIENTE, dto: { categoryCode: 'QR' } as never });
+
+      expect(catalog.findQueueByCode).toHaveBeenCalledTimes(1);
+      expect(catalog.findQueueById).toHaveBeenCalledWith('t1', '22');
+      expect(disponibilidad.reserveAvailableAgent).toHaveBeenCalledWith(expect.objectContaining({ queueId: '22', requiredSkills: ['qr'] }));
+    });
+  });
+
   describe('tomar un canal', () => {
     it('sólo un agente habilitado lo toma', async () => {
       actors.assertIsAgent.mockImplementationOnce(() => {
