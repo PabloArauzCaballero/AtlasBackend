@@ -26,7 +26,11 @@ export const consentDecisionsSchema = z.object({
 });
 
 export const dataSubjectRequestSchema = z.object({
-  requestType: z.enum(['access', 'rectification', 'deletion', 'portability', 'revocation', 'restriction']),
+  // Sólo lo que Atlas ofrece desde la app: corregir un dato y borrar la cuenta. Llevarse los datos, limitar
+  // el uso y retirar consentimientos NO se ofrecen (decisión de producto, 2026-10-02) y «ver mis datos» ya
+  // no es una solicitud: es una pantalla siempre disponible tras volver a pedir el PIN. El vocabulario
+  // completo —con lo histórico— sigue en `DATA_SUBJECT_REQUEST_TYPES`, que gobierna la cola de operaciones.
+  requestType: z.enum(['rectification', 'deletion']),
   description: z.string().trim().min(5).max(1000).optional(),
 });
 

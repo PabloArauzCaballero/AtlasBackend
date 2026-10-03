@@ -20,6 +20,8 @@ import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { CredentialsNotifierService } from './credentials-notifier.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthPasswordChangeController } from './auth-password-change.controller.js';
+import { AuthPinVerifyController } from './auth-pin-verify.controller.js';
+import { AuthPinVerifyService } from './auth-pin-verify.service.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthPasswordChangeRepository } from './auth-password-change.repository.js';
 import { AuthPasswordChangeService } from './auth-password-change.service.js';
@@ -47,12 +49,13 @@ import { AuthCredentialsService } from './auth-credentials.service.js';
     CustomersModule,
     MailSenderModule,
   ],
-  controllers: [AuthController, AuthPasswordChangeController],
+  controllers: [AuthController, AuthPasswordChangeController, AuthPinVerifyController],
   providers: [
     AuthService,
     AuthCredentialsService,
     AuthActorResolverService,
     AuthPasswordChangeService,
+    AuthPinVerifyService,
     AuthPasswordChangeRepository,
     AuthPasswordResetService,
     AuthSecondFactorService,
