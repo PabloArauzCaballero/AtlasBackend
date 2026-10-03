@@ -4,5 +4,6 @@
   "GET /customer-onboarding/verification-channels",
   "GET /internal/contexts/customers/recipient-directory/addresses",
   "GET /internal/contexts/customers/recipient-directory/resolve",
+  "GET /systems/monitor/summary",
   "POST /customer-onboarding/start"
 ]

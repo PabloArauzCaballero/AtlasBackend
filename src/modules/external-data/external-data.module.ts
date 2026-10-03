@@ -93,6 +93,6 @@ import { ExternalDataPreviewService } from './application/external-data-preview.
     ExternalProviderDashboardService,
     ExternalProviderDashboardRepository,
   ],
-  exports: [ExternalDataService],
+  exports: [ExternalDataService, ExternalProviderDashboardService],
 })
 export class ExternalDataModule {}

@@ -31923,6 +31923,41 @@ paths:
       summary: Listar logs sincronizados a MongoDB (Archivo.log remoto)
       tags:
         - systems-ops
+  /systems/monitor/summary:
+    get:
+      description: >-
+        Red, herramientas críticas, tráfico, proveedores, entrega al Motor,
+        colas y conteos de negocio, cada bloque con su semáforo (`ok | warn |
+        bad | unknown`). Sólo servicios admitidos con token de servicio
+        (audiencia `atlas-ctx-systems`). El tenant viaja en el token.
+      operationId: SystemsMonitorController_getSummary
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Resumen agregado, sin datos personales.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: >-
+            Token de servicio ausente, inválido, de otra audiencia o sin el
+            permiso.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: Identidad de servicio no configurada en este despliegue.
+      security: []
+      summary: >-
+        Resumen de monitoreo para el informador del servidor (identidad de
+        servicio)
+      tags:
+        - systems-ops
   /systems/qa/campaigns:
     get:
       operationId: QaRunsController_campaigns

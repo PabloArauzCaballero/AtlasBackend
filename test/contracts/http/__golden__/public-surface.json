@@ -11148,6 +11148,22 @@
     ],
     "body": false
   },
+  "GET /systems/monitor/summary": {
+    "operationId": "SystemsMonitorController_getSummary",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "429",
+      "500",
+      "503"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [],
+    "body": false
+  },
   "GET /systems/qa/campaigns": {
     "operationId": "QaRunsController_campaigns",
     "responses": [
