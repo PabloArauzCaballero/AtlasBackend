@@ -57,8 +57,8 @@ caída · 5xx > 2 % o p95 > 2 s en 15 min.
 Negocio y datos: proveedor externo < 80 % de éxito · desenlaces agotados al Motor · cola de revisión con casos
 de más de 24 h · outbox creciendo · copia de bases con más de 7 h.
 
-Las reglas de semáforo del resumen están en `src/modules/systems-ops/systems-monitor.rules.ts`, y copian las
-del portal admin para que Telegram y el portal digan lo mismo.
+Las reglas de semáforo del resumen viven en el módulo systems-ops del backend (archivo de reglas del monitor),
+y copian las del portal admin para que Telegram y el portal digan lo mismo.
 
 ## Trampas medidas
 
