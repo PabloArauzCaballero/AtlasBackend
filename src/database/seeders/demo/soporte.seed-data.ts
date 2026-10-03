@@ -1085,8 +1085,11 @@ const articulos = ARTICULOS.map((a) => ({
   _deleted: false,
 }));
 
+const idVersionDe = (a: { id: number }) => 941200 + (a.id - 941100);
+const articulosConVersion = ARTICULOS.map((a, i) => ({ ...articulos[i]!, current_version_id: idVersionDe(a) }));
+
 const versionesArticulo = ARTICULOS.map((a) => ({
-  _id: 941200 + (a.id - 941100),
+  _id: idVersionDe(a),
   _tenant_id: T,
   article_id: a.id,
   version_number: 1,
@@ -1144,5 +1147,10 @@ export const SOPORTE: DominioSembrado = {
       filas: versionesArticulo,
       conflicto: ['article_id', 'locale', 'version_number'],
     },
+    // Segunda pasada sobre los artículos, YA con sus versiones presentes: `current_version_id` tiene FK a
+    // la versión, así que no puede ir en la primera. Sólo actúa en la siembra COMPLETA: la fundamental
+    // nunca actualiza filas existentes (por eso la lectura tolera el enlace ausente y la migración
+    // 20261003100000 repara los ya sembrados).
+    { tabla: 'support.knowledge_articles', fundamental: true, filas: articulosConVersion, conflicto: ['_tenant_id', 'article_key'] },
   ],
 };

@@ -70,7 +70,19 @@ export class SupportKnowledgeRepository {
         FROM ${VERSIONS} AS version
         JOIN ${ARTICLES}  AS article
           ON article._id = version.article_id
-         AND article.current_version_id = version._id
+         -- El enlace explícito manda; sin él, la última versión PUBLICADA del artículo. La siembra
+         -- fundamental nunca actualiza filas existentes y dejaba los artículos sin enlazar, con lo que
+         -- la búsqueda no encontraba nada ni escribiendo la frase exacta.
+         AND version._id = COALESCE(
+               article.current_version_id,
+               (SELECT latest._id
+                  FROM ${VERSIONS} AS latest
+                 WHERE latest.article_id = article._id
+                   AND latest.status = 'PUBLISHED'
+                   AND latest.locale = version.locale
+                 ORDER BY latest.version_number DESC
+                 LIMIT 1)
+             )
        WHERE article._tenant_id = :tenantId
          AND article._deleted = FALSE
          AND article.status = 'PUBLISHED'
