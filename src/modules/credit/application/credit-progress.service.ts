@@ -4,6 +4,11 @@
  * @system compone `PaymentCapacityService` (nivel, desde la base de datos) con el historial de versiones de la línea; no llama al motor.
  */
 import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
+import { FindOptions, Op } from 'sequelize';
+import { LoanInstallmentModel } from '../../../database/models/loan-installments.model.js';
+import { LoanModel } from '../../../database/models/loans.model.js';
+import { buildExperience } from '../domain/experience.js';
 import { buildRelationshipProgress } from '../domain/relationship-progress.js';
 import { CreditLineService } from './credit-line.service.js';
 import { PaymentCapacityService } from './payment-capacity.service.js';
@@ -16,7 +21,30 @@ export class CreditProgressService {
   constructor(
     private readonly capacity: PaymentCapacityService,
     private readonly lines: CreditLineService,
+    @InjectModel(LoanModel) private readonly loans: typeof LoanModel,
+    @InjectModel(LoanInstallmentModel) private readonly installments: typeof LoanInstallmentModel,
   ) {}
+
+  /**
+   * Las cuotas del cliente, tal como las necesita la experiencia: vencimiento, estado, atraso y lo pagado
+   * (capital + intereses; el recargo por mora NO cuenta, porque pagar tarde no debe sumar).
+   */
+  private async installmentFacts(tenantId: string, customerId: string) {
+    const loans = await this.loans.findAll({ where: { tenantId, customerId }, attributes: ['id'] } as FindOptions);
+    if (loans.length === 0) return { facts: [], loansEver: 0 };
+    const schedule = await this.installments.findAll({
+      where: { tenantId, loanId: { [Op.in]: loans.map((loan) => String(loan.id)) }, deleted: false },
+    } as FindOptions);
+    return {
+      loansEver: loans.length,
+      facts: schedule.map((cuota) => ({
+        dueDate: String(cuota.dueDate),
+        status: String(cuota.status),
+        daysPastDue: Number(cuota.daysPastDue ?? 0),
+        paidAmount: Number(cuota.paidPrincipal ?? 0) + Number(cuota.paidInterest ?? 0),
+      })),
+    };
+  }
 
   /**
    * El nivel NO depende de que exista una línea de crédito calculada.
@@ -27,7 +55,7 @@ export class CreditProgressService {
    */
   async get(tenantId: string, customerId: string) {
     const current = await this.lines.current(tenantId, customerId);
-    const [{ assessment, relationship }, history] = await Promise.all([
+    const [{ assessment, relationship }, history, cuotas] = await Promise.all([
       this.capacity.assessDetailed({
         tenantId,
         customerId,
@@ -35,12 +63,22 @@ export class CreditProgressService {
         currentLimit: current ? Number(current.approvedLimit) : null,
       }),
       this.lines.history(tenantId, customerId, HISTORY_LIMIT),
+      this.installmentFacts(tenantId, customerId),
     ]);
 
     return {
       customerId,
       hasCreditLine: current !== null,
       ...buildRelationshipProgress(assessment, relationship),
+      // Puntos por boliviano PAGADO a tiempo (no por comprar), rachas e insignias.
+      experience: buildExperience({
+        installments: cuotas.facts,
+        loansEver: cuotas.loansEver,
+        loansSettled: relationship.loansSettled,
+        kycComplete: relationship.kycComplete,
+        tenureMonths: relationship.tenureMonths,
+        today: new Date().toISOString().slice(0, 10),
+      }),
       signals: {
         tenureMonths: relationship.tenureMonths,
         loansSettled: relationship.loansSettled,

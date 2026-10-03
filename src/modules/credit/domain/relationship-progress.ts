@@ -32,7 +32,15 @@ export type RelationshipProgress = {
   nextTier: { code: TierCode; label: string; from: number; pointsMissing: number; multiplier: number } | null;
   /** De menor a mayor, con la marca de cuáles ya se alcanzaron. */
   ladder: Array<{ code: TierCode; label: string; from: number; multiplier: number; reached: boolean }>;
-  components: Array<{ code: string; label: string; value: number; weight: number }>;
+  /**
+   * La cuenta de ESTA persona: cada parte con su valor 0-100, su peso, los puntos que aporta (valor × peso) y la razón
+   * en una frase. Los `points` suman `rawScore`; si un tope recortó el resultado, `score` es menor y `caps` dice cuál.
+   */
+  components: Array<{ code: string; label: string; value: number; weight: number; points: number; why: string }>;
+  /** La suma de los puntos antes de aplicar topes. */
+  rawScore: number;
+  /** Los topes que de verdad recortaron el resultado de esta persona (casi siempre ninguno). */
+  caps: Array<{ code: string; limit: number; detail: string }>;
   missions: ProgressMission[];
 };
 
@@ -90,6 +98,58 @@ function buildMissions(assessment: PaymentCapacityAssessment, relationship: Rela
   ];
 }
 
+/** Una frase con la razón del valor de cada parte, con los números de ESTA persona. */
+function explainComponents(relationship: RelationshipInput): Record<(typeof COMPONENT_META)[number]['code'], string> {
+  const sinHistorial = relationship.onTimeRatio === null && relationship.loansSettled === 0 && relationship.loansActive === 0;
+  const penalizaciones: string[] = [];
+  if (relationship.worstDaysPastDue >= 90) penalizaciones.push('un atraso de 90 días o más (−60)');
+  else if (relationship.worstDaysPastDue >= 30) penalizaciones.push('un atraso de 30 días o más (−30)');
+  else if (relationship.worstDaysPastDue >= 1) penalizaciones.push('algún atraso (−10)');
+  if (relationship.chargeOffCount > 0) penalizaciones.push('una compra castigada (−70)');
+  if (relationship.delinquencyCount12m > 0)
+    penalizaciones.push(
+      `${String(relationship.delinquencyCount12m)} cuota(s) vencida(s) en el último año (−${String(Math.min(30, relationship.delinquencyCount12m * 10))})`,
+    );
+
+  return {
+    paymentHistory: sinHistorial
+      ? 'Todavía no hay cuotas que pagar, así que partes de 50: un valor neutro, para no castigarte por no haber pedido nunca.'
+      : `Pagaste a tiempo el ${String(Math.round((relationship.onTimeRatio ?? 0) * 100))} % de tus cuotas${penalizaciones.length ? `, y se descuenta ${penalizaciones.join(', ')}` : ''}.`,
+    loyalty:
+      relationship.loansSettled === 0 && relationship.loansActive === 0
+        ? 'Todavía no cerraste ninguna compra: cada una terminada de pagar suma 20 (hasta 60) y cada una activa, 10 (hasta 20).'
+        : `${String(relationship.loansSettled)} compra(s) cerrada(s) (20 cada una, hasta 60) y ${String(relationship.loansActive)} activa(s) (10 cada una, hasta 20), más un poco si compraste hace poco.`,
+    tenure:
+      relationship.tenureMonths >= 12
+        ? `Llevas ${String(relationship.tenureMonths)} meses con Atlas: ya tienes el máximo de esta parte.`
+        : `Llevas ${String(relationship.tenureMonths)} mes(es) con Atlas; esta parte llega a 100 a los 12 meses.`,
+    verification: relationship.kycComplete
+      ? 'Tu identidad, domicilio y contacto están verificados.'
+      : 'Todavía no verificamos tu identidad: al hacerlo suma 100 a esta parte.',
+  };
+}
+
+/** Los topes que de verdad aplican a esta persona. Mismos umbrales que `assessPaymentCapacity`. */
+function appliedCaps(relationship: RelationshipInput, raw: number): RelationshipProgress['caps'] {
+  const caps: RelationshipProgress['caps'] = [];
+  if (relationship.fraudFlags > 0 && raw > 10) {
+    caps.push({
+      code: 'ALERTA_DE_FRAUDE',
+      limit: 10,
+      detail: 'Hay una alerta abierta sobre tu cuenta: tu nivel no sube mientras siga abierta.',
+    });
+  }
+  const haGanadoRelacion = relationship.tenureMonths >= 3 || relationship.loansSettled > 0;
+  if (!haGanadoRelacion && raw > 24) {
+    caps.push({
+      code: 'RELACION_NUEVA',
+      limit: 24,
+      detail: 'Hasta cumplir 3 meses con Atlas o cerrar una compra, el máximo es 24: el nivel mide confianza ganada, no sólo datos.',
+    });
+  }
+  return caps;
+}
+
 /**
  * El nivel, lo que falta y las misiones.
  *
@@ -103,6 +163,19 @@ export function buildRelationshipProgress(assessment: PaymentCapacityAssessment,
   const next = ASCENDING[index + 1] ?? null;
 
   const missions = buildMissions(assessment, relationship);
+  const razones = explainComponents(relationship);
+  const components = COMPONENT_META.map((meta) => {
+    const value = assessment.components[meta.code];
+    return {
+      code: meta.code,
+      label: meta.label,
+      weight: meta.weight,
+      value,
+      points: Math.round(value * meta.weight * 10) / 10,
+      why: razones[meta.code],
+    };
+  });
+  const rawScore = Math.round(components.reduce((suma, c) => suma + c.value * c.weight, 0));
 
   return {
     score,
@@ -129,12 +202,9 @@ export function buildRelationshipProgress(assessment: PaymentCapacityAssessment,
       multiplier: step.multiplier,
       reached: score >= step.from,
     })),
-    components: COMPONENT_META.map((meta) => ({
-      code: meta.code,
-      label: meta.label,
-      weight: meta.weight,
-      value: assessment.components[meta.code],
-    })),
+    components,
+    rawScore,
+    caps: appliedCaps(relationship, rawScore),
     missions,
   };
 }

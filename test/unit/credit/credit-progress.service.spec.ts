@@ -30,7 +30,7 @@ const RELACION: RelationshipInput = {
   fraudFlags: 0,
 };
 
-function armar(opciones: { linea: unknown; historial: unknown[] }) {
+function armar(opciones: { linea: unknown; historial: unknown[]; prestamos?: unknown[]; cuotas?: unknown[] }) {
   const assessment = assessPaymentCapacity({
     statement: SIN_EXTRACTO,
     relationship: RELACION,
@@ -39,7 +39,15 @@ function armar(opciones: { linea: unknown; historial: unknown[] }) {
   });
   const capacity = { assessDetailed: jest.fn(async (_entrada: Record<string, unknown>) => ({ assessment, relationship: RELACION })) };
   const lines = { current: jest.fn(async () => opciones.linea), history: jest.fn(async () => opciones.historial) };
-  return { service: new CreditProgressService(capacity as never, lines as never), capacity, lines };
+  const loans = { findAll: jest.fn(async (_o: unknown) => opciones.prestamos ?? []) };
+  const installments = { findAll: jest.fn(async (_o: unknown) => opciones.cuotas ?? []) };
+  return {
+    service: new CreditProgressService(capacity as never, lines as never, loans as never, installments as never),
+    capacity,
+    lines,
+    loans,
+    installments,
+  };
 }
 
 describe('CreditProgressService', () => {
@@ -91,5 +99,34 @@ describe('CreditProgressService', () => {
     const { lines, capacity } = armar({ linea: null, historial: [] });
     expect(Object.keys(lines)).toEqual(['current', 'history']);
     expect(Object.keys(capacity)).toEqual(['assessDetailed']);
+  });
+
+  it('la experiencia sale de las cuotas pagadas A TIEMPO: capital e intereses, nunca el recargo por mora', async () => {
+    const { service } = armar({
+      linea: null,
+      historial: [],
+      prestamos: [{ id: 'l1' }],
+      cuotas: [
+        { dueDate: '2026-08-01', status: 'paid', daysPastDue: 0, paidPrincipal: '90.00', paidInterest: '10.00', paidLateFee: '0' },
+        // Pagada tarde: no suma, aunque se haya pagado completa y con recargo.
+        { dueDate: '2026-09-01', status: 'paid', daysPastDue: 8, paidPrincipal: '90.00', paidInterest: '10.00', paidLateFee: '5.00' },
+      ],
+    });
+
+    const r = await service.get('1', '42');
+
+    expect(r.experience.xp).toBe(100);
+    expect(r.experience.onTimeInstallments).toBe(1);
+    expect(r.experience.badges.find((b) => b.code === 'primera_compra')!.earned).toBe(true);
+    expect(r.experience.badges.find((b) => b.code === 'cien_bs')!.earned).toBe(true);
+  });
+
+  it('sin compras, la experiencia es 0 y ni siquiera consulta las cuotas', async () => {
+    const { service, installments } = armar({ linea: null, historial: [] });
+
+    const r = await service.get('1', '42');
+
+    expect(r.experience).toMatchObject({ xp: 0, onTimeInstallments: 0, bestStreak: 0 });
+    expect(installments.findAll).not.toHaveBeenCalled();
   });
 });
