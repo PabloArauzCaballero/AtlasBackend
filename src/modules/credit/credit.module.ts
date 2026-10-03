@@ -12,6 +12,8 @@ import {
   CreditApplicationModel,
   CreditExposureReservationModel,
   CreditLineModel,
+  CardTierModel,
+  CustomerCardTierOverrideModel,
   CreditProductModel,
   CustomerActivitySummaryModel,
   CustomerModel,
@@ -83,6 +85,9 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
       BankStatementReviewModel,
       // P-11: la reserva del cupo que la aceptación aparta y el desembolso consume.
       CreditExposureReservationModel,
+      // La tarjeta del cliente: catálogo de presentación y ajustes manuales del personal.
+      CardTierModel,
+      CustomerCardTierOverrideModel,
       // El modelo de capacidad lee el historial de pago DENTRO de Atlas —es lo único que se sabe
       // con certeza de cómo paga esta persona, y sustituye a un buró que en Bolivia no existe— y
       // las señales de actividad que delatan una alerta de fraude abierta.
