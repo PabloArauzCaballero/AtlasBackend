@@ -6,7 +6,7 @@
 #   2. Avisa por Telegram SÓLO al cambiar de estado (con histéresis para lo ruidoso) y manda un
 #      «RECUPERADO» al volver. Los avisos salen por /opt/atlas/lib/avisar.sh, igual que el guardián
 #      y la copia de bases.
-#   3. Informe diario a las 08:00 (hora del servidor, Bolivia) y a demanda: escribir /estado al bot.
+#   3. Informe diario a las 08:00 (hora del servidor, Bolivia) y a demanda: escribir /status (o /estado) al bot.
 #      Sólo contesta al chat de Pablo.
 #   4. Poda la caché de build cuando pasa de CACHE_MAX_GB (docker builder prune --reserved-space, nunca
 #      -a ni system prune), como mucho una vez cada 24 h.
@@ -52,6 +52,18 @@ telegram() { # texto
     curl -s -m 10 -o /dev/null -K - --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" --data-urlencode "text=$1"
 }
 
+# Informe con gráfico de 24 h (grafico.py, sólo biblioteca estándar). Si el dibujo falla, sale el texto.
+telegram_informe() { # texto
+  total_gb=$(free -m | awk '/^Mem:/{printf "%.1f", $2/1024}')
+  if python3 "$DIR/grafico.py" "$E/hist.tsv" "$E/grafico.png" "$total_gb" "$nproc" 2>/dev/null && [ -s "$E/grafico.png" ] &&
+     [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+    printf 'url = "https://api.telegram.org/bot%s/sendPhoto"\n' "$TELEGRAM_TOKEN" |
+      curl -s -m 20 -o /dev/null -K - -F "chat_id=$TELEGRAM_CHAT_ID" -F "photo=@$E/grafico.png" -F "caption=$(printf '%s' "$1" | cut -c1-1000)"
+  else
+    telegram "$1"
+  fi
+}
+
 # chequeo clave malo(0|1) lecturas_seguidas texto_mal texto_bien
 # Avisa una vez al pasar a MAL (tras N lecturas malas seguidas) y una vez al volver a OK.
 chequeo() {
@@ -83,6 +95,10 @@ if [ ! -f "$E/cache_gb" ] || [ -n "$(find "$E/cache_gb" -mmin +30 2>/dev/null)" 
   [ -n "$linea" ] && a_gb "$linea" > "$E/cache_gb"
 fi
 cache_gb=$(cat "$E/cache_gb" 2>/dev/null || echo 0)
+
+# Histórico del host para el gráfico (una fila por pasada, 24 h): epoch, RAM, swap, carga, disco, caché.
+printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date +%s)" "$mem_av" "$swap_libre" "$load1" "$disco" "$cache_gb" >> "$E/hist.tsv"
+tail -n 1500 "$E/hist.tsv" > "$E/hist.tsv.n" && mv "$E/hist.tsv.n" "$E/hist.tsv"
 
 chequeo ram "$([ "$mem_av" -lt 2048 ] && echo 1 || echo 0)" 3 \
   "RAM: quedan ${mem_av} MB disponibles en Contabo (aviso por debajo de 2048)." \
@@ -116,7 +132,7 @@ if [ "$cache_gb" -gt "$CACHE_MAX_GB" ] && [ -z "$(find "$E/poda" -mmin -1440 2>/
 fi
 
 # --- 2. Apps ---------------------------------------------------------------------------------
-sanas=0; total=0; problemas=""; resp_ok=0; resp_total=0
+sanas=0; total=0; problemas=""; resp_ok=0; resp_total=0; apps_json=""
 echo "$APPS" > "$E/apps.lista"
 # Una sola llamada a docker para todas las apps: el estado y la salud salen de la columna Status.
 docker ps --format '{{.Names}}|{{.Label "coolify.applicationId"}}|{{.Label "com.docker.compose.service"}}|{{.Status}}' > "$E/ps.txt" 2>/dev/null
@@ -134,6 +150,7 @@ while read -r app svc nombre resp; do
   total=$((total + 1))
   st=$(awk -F'|' -v a="$app" -v s="$svc" '$2==a && $3==s {print $4; exit}' "$E/ps.txt")
   salud=$(salud_de "$st")
+  rsv=""
   if [ "$salud" = healthy ] || [ "$salud" = none ]; then sanas=$((sanas + 1)); else problemas="$problemas $nombre($salud)"; fi
   # «ausente» lo avisa el guardián (CAÍDO); aquí sólo «en marcha pero no sana».
   chequeo "app-$app" "$([ "$salud" = unhealthy ] && echo 1 || echo 0)" 3 \
@@ -142,11 +159,19 @@ while read -r app svc nombre resp; do
   if [ "$resp" != - ]; then
     resp_total=$((resp_total + 1))
     rs=$(salud_de "$(awk -F'|' -v n="$resp" '$1==n {print $4; exit}' "$E/ps.txt")")
+    rsv=$rs
     [ "$rs" = healthy ] && resp_ok=$((resp_ok + 1))
     chequeo "resp-$app" "$([ "$rs" != healthy ] && echo 1 || echo 0)" 3 \
       "El RESPALDO de $nombre ($resp) está $rs: si cae la principal, no hay quien la sustituya." \
       "el respaldo de $nombre vuelve a estar sano."
   fi
+  # Para la instantánea del portal: estado de la principal, del respaldo y memoria de la principal.
+  cn=$(awk -F'|' -v a="$app" -v s="$svc" '$2==a && $3==s {print $1; exit}' "$E/ps.txt")
+  mp=""
+  [ -n "$cn" ] && [ -f "$E/mem.txt" ] && mp=$(awk -F'|' -v n="$cn" '$1==n {gsub(/%/,"",$2); print $2; exit}' "$E/mem.txt")
+  apps_json="$apps_json$(jq -nc --arg n "$nombre" --arg p "$salud" --arg r "$rsv" --arg m "$mp" \
+    '{name:$n, principal:$p, respaldo:(if $r=="" then null else $r end), memoryPct:(if $m=="" then null else ($m|tonumber) end)}')
+"
 done < "$E/apps.lista"
 
 # Memoria contra el límite y reinicios, sólo de contenedores de Atlas (y sus respaldos), cada 5 min.
@@ -196,7 +221,7 @@ b64() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
 token_servicio() {
   h=$(printf '{"alg":"HS256","typ":"JWT"}' | b64)
   n=$(date +%s)
-  p=$(printf '{"svc":"atlas-monitor","tenantId":"%s","scopes":["systems:monitor:read"],"res":null,"jti":"%s","iss":"%s","aud":"atlas-ctx-systems","sub":"service:atlas-monitor","iat":%s,"exp":%s}' \
+  p=$(printf '{"svc":"atlas-monitor","tenantId":"%s","scopes":["systems:monitor:read","systems:monitor:write"],"res":null,"jti":"%s","iss":"%s","aud":"atlas-ctx-systems","sub":"service:atlas-monitor","iat":%s,"exp":%s}' \
     "$MONITOR_TENANT_ID" "$(cat /proc/sys/kernel/random/uuid)" "$JWT_ISSUER" "$n" "$((n + 60))" | b64)
   f=$(printf '%s.%s' "$h" "$p" | openssl dgst -sha256 -hmac "$CONTEXT_SERVICE_TOKEN_SECRET" -binary | b64)
   printf '%s.%s.%s' "$h" "$p" "$f"
@@ -252,6 +277,27 @@ Cola de revisión: $(ico "$(j .queue.status)") $(j .queue.reviewOpen) abiertos$(
 }
 resumen_backend
 
+# Instantánea del servidor para «Servidor de TEST» del portal: POST cada 5 min con el mismo token. El
+# backend la guarda 15 min; si dejamos de mandarla, el portal la ve caducada.
+enviar_instantanea() {
+  [ -n "$CONTEXT_SERVICE_TOKEN_SECRET" ] && [ -n "$MONITOR_TENANT_ID" ] || return 0
+  [ -n "$(find "$E/snap.hecho" -mmin -4 2>/dev/null)" ] && return 0
+  ram_total=$(free -m | awk '/^Mem:/{print $2}'); swap_total=$(free -m | awk '/^Swap:/{print $2}')
+  cuerpo=$(printf '%s' "$apps_json" | jq -sc --arg ts "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
+    --argjson ram "$mem_av" --argjson rt "$ram_total" --argjson sf "$swap_libre" --argjson st "$swap_total" \
+    --argjson l1 "$load1" --argjson l15 "$load15" --argjson c "$nproc" --argjson d "$disco" --argjson cg "$cache_gb" --argjson b "$edad_h" \
+    '{capturedAt:$ts, ramAvailableMb:$ram, ramTotalMb:$rt, swapFreeMb:$sf, swapTotalMb:$st, load1:$l1, load15:$l15, cores:$c,
+      diskPct:$d, buildCacheGb:$cg, backupAgeHours:(if $b < 0 then null else $b end), apps:.}') || return 0
+  codigo=$(printf 'header = "Authorization: Bearer %s"\n' "$(token_servicio)" |
+    curl -s -m 20 -o /dev/null -w '%{http_code}' -K - -H "Host: $MONITOR_HOST" -H 'content-type: application/json' \
+      -X POST --data-binary "$cuerpo" "http://127.0.0.1/api/v1/systems/monitor/host-snapshot")
+  if [ "$codigo" = 204 ]; then : > "$E/snap.hecho"; fi
+  chequeo instantanea "$([ "$codigo" = 204 ] && echo 0 || echo 1)" 3 \
+    "La instantánea del servidor NO llega al portal (HTTP ${codigo:-sin respuesta}): «Servidor de TEST» caducará en 15 min." \
+    "la instantánea del servidor vuelve a llegar al portal."
+}
+enviar_instantanea
+
 # --- 3. Informe ------------------------------------------------------------------------------
 informe() {
   ahora_h=$(date +%H:%M)
@@ -272,7 +318,15 @@ $RESUMEN"
   printf '%s' "$t"
 }
 
-# A demanda: /estado al bot (sólo del chat de Pablo).
+# Menú de comandos del bot (lo que aparece al escribir «/»). Idempotente; una vez por arranque del día.
+if [ -n "$TELEGRAM_TOKEN" ] && [ ! -f "$E/menu-$(date +%Y%m%d)" ]; then
+  : > "$E/menu-$(date +%Y%m%d)"; rm -f "$E"/menu-2*.old 2>/dev/null
+  printf 'url = "https://api.telegram.org/bot%s/setMyCommands"\n' "$TELEGRAM_TOKEN" |
+    curl -s -m 10 -o /dev/null -K - -H 'content-type: application/json' \
+      -d '{"commands":[{"command":"status","description":"Estado del servidor de TEST con gráfico de 24 h"},{"command":"estado","description":"Lo mismo que /status"}]}'
+fi
+
+# A demanda: /status al bot (sólo del chat de Pablo).
 if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
   off=0; [ -f "$E/offset" ] && off=$(cat "$E/offset")
   printf 'url = "https://api.telegram.org/bot%s/getUpdates"\n' "$TELEGRAM_TOKEN" |
@@ -282,10 +336,13 @@ if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
     for fila in $(jq -r '.result[] | "\(.update_id)|\(.message.chat.id // 0)|\((.message.text // "") | split(" ")[0] | split("@")[0])"' "$E/upd.json"); do
       id=${fila%%|*}; resto=${fila#*|}; chat=${resto%%|*}; cmd=${resto#*|}
       off=$((id + 1))
-      [ "$chat" = "$TELEGRAM_CHAT_ID" ] && [ "$cmd" = "/estado" ] && pedir=1
+      # /status, /estado, /ram y /grafico piden lo mismo: el informe con el gráfico de 24 h.
+      if [ "$chat" = "$TELEGRAM_CHAT_ID" ]; then
+        case "$cmd" in /status | /estado | /ram | /grafico | /start) pedir=1 ;; esac
+      fi
     done
     echo "$off" > "$E/offset"
-    [ "$pedir" = 1 ] && telegram "$(informe)"
+    [ "$pedir" = 1 ] && telegram_informe "$(informe)"
   fi
   rm -f "$E/upd.json"
 fi
@@ -295,6 +352,6 @@ hoy=$(date +%Y%m%d)
 if [ "$(date +%H)" -ge 8 ] && [ ! -f "$E/diario-$hoy" ]; then
   rm -f "$E"/diario-*
   : > "$E/diario-$hoy"
-  telegram "$(informe)"
+  telegram_informe "$(informe)"
 fi
 log "pasada completa"
