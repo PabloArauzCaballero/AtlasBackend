@@ -477,6 +477,7 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   DECISION_ENGINE_WELCOME_TEMPLATE: '${DECISION_ENGINE_WELCOME_TEMPLATE:-onboarding.welcome.named}'
   DECISION_ENGINE_WELCOME_FALLBACK_TEMPLATE: '${DECISION_ENGINE_WELCOME_FALLBACK_TEMPLATE:-onboarding.welcome.generic}'
   DECISION_ENGINE_PARTNER_ARTIFACT: '${DECISION_ENGINE_PARTNER_ARTIFACT:-PARTNER_KYB_REVIEW}'
+  DECISION_ENGINE_PRIVACY_ARTIFACT: '${DECISION_ENGINE_PRIVACY_ARTIFACT:-}'
 
   # --- Tableros, Flujos y catálogo de sistemas -------------------------------------------------
   DASHBOARDS_BASE_URL: '${DASHBOARDS_BASE_URL:-}'

@@ -118,11 +118,19 @@ describe('DecisionArtifactBindingService', () => {
   });
 
   describe('la pantalla de configuración', () => {
-    it('lista los cuatro tipos, cada uno con su procedencia', async () => {
+    it('lista los cinco tipos, cada uno con su procedencia', async () => {
       const lista = await service.list('t1');
 
       expect(lista.map((item) => item.decisionType)).toEqual([...DECISION_TYPES]);
-      expect(lista.every((item) => item.source === 'environment')).toBe(true);
+      const procedencia = Object.fromEntries(lista.map((item) => [item.decisionType, item.source]));
+      expect(procedencia).toEqual({
+        identity: 'environment',
+        credit: 'environment',
+        risk: 'environment',
+        partner: 'environment',
+        // Sin respaldo en el entorno a propósito: el Motor no opina sobre privacidad hasta que alguien lo asigna.
+        privacy: 'unset',
+      });
     });
   });
 

@@ -57,6 +57,48 @@ export class DataSubjectRequestModel extends Model {
   @Column({ field: 'pin_verified_at', type: DataType.DATE })
   declare pinVerifiedAt: Date | null;
 
+  /** `shadow`: el Motor opina y una persona decide. Nulo mientras el Motor no ha opinado. */
+  @Column({ field: 'decision_mode', type: DataType.STRING(10) })
+  declare decisionMode: string | null;
+
+  /** ACEPTAR, RECHAZAR o REVISION_HUMANA, tal como lo publicó el artefacto. */
+  @Column({ field: 'engine_decision', type: DataType.STRING(20) })
+  declare engineDecision: string | null;
+
+  @Column({ field: 'engine_reason_code', type: DataType.STRING(60) })
+  declare engineReasonCode: string | null;
+
+  @Column({ field: 'engine_action', type: DataType.STRING(30) })
+  declare engineAction: string | null;
+
+  @Column({ field: 'engine_risk_signals', type: DataType.SMALLINT })
+  declare engineRiskSignals: number | null;
+
+  @Column({ field: 'engine_reevaluate_credit', type: DataType.BOOLEAN })
+  declare engineReevaluateCredit: boolean | null;
+
+  /** Las variables que se mandaron (sin datos personales): la explicación de la decisión. */
+  @Column({ field: 'engine_inputs_json', type: DataType.JSONB })
+  declare engineInputsJson: Record<string, unknown> | null;
+
+  @Column({ field: 'engine_execution_id', type: DataType.STRING(100) })
+  declare engineExecutionId: string | null;
+
+  @Column({ field: 'engine_artifact_code', type: DataType.STRING(120) })
+  declare engineArtifactCode: string | null;
+
+  @Column({ field: 'engine_artifact_version_id', type: DataType.STRING(60) })
+  declare engineArtifactVersionId: string | null;
+
+  @Column({ field: 'engine_decided_at', type: DataType.DATE })
+  declare engineDecidedAt: Date | null;
+
+  @Column({ field: 'engine_attempts', type: DataType.SMALLINT, allowNull: false, defaultValue: 0 })
+  declare engineAttempts: number;
+
+  @Column({ field: 'engine_last_error', type: DataType.STRING(300) })
+  declare engineLastError: string | null;
+
   @Column({ field: '_created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 

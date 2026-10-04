@@ -117,6 +117,13 @@ export const runtimeJobsEnvShape = {
   RUNTIME_JOBS_PARTNER_KYB_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
   RUNTIME_JOBS_PARTNER_KYB_SYNC_LIMIT: z.coerce.number().int().min(1).max(500).default(50),
 
+  /*
+   * El Motor opina, en sombra, sobre las solicitudes del titular abiertas. Cada 5 minutos: el plazo
+   * legal se mide en días y la persona que las atiende quiere ver la opinión cuando abre la cola.
+   */
+  RUNTIME_JOBS_PRIVACY_SHADOW_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  RUNTIME_JOBS_PRIVACY_SHADOW_LIMIT: z.coerce.number().int().min(1).max(200).default(25),
+
   // Recálculo de la capacidad de pago para quien todavía no tiene línea (recién dado de alta) y para
   // quien la tiene vieja. Sin esto la línea sólo se movía a mano desde operaciones.
   RUNTIME_JOBS_CREDIT_LINE_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),

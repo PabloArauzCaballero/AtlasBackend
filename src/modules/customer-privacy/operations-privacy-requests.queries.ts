@@ -32,6 +32,20 @@ export interface FilaDeSolicitud {
   rectificationField: string | null;
   hasProposedValue: boolean;
   pinVerifiedAt: Date | string | null;
+  /** La opinión del Motor (fase en sombra). Todas nulas mientras no ha opinado. */
+  decisionMode: string | null;
+  engineDecision: string | null;
+  engineReasonCode: string | null;
+  engineAction: string | null;
+  engineRiskSignals: number | null;
+  engineReevaluateCredit: boolean | null;
+  engineInputs: Record<string, unknown> | null;
+  engineExecutionId: string | null;
+  engineArtifactCode: string | null;
+  engineArtifactVersionId: string | null;
+  engineDecidedAt: Date | string | null;
+  engineAttempts: number | null;
+  engineLastError: string | null;
   /** Sólo en el detalle: el sobre cifrado del valor propuesto. Nunca sale tal cual en la respuesta. */
   proposedValueEnvelope?: string | null;
 }
@@ -53,7 +67,13 @@ export function sqlSolicitudes(where: string, paginar: boolean, conValorCifrado 
            d.customer_id::text AS "customerId", cu.customer_code AS "customerCode",
            NULLIF(TRIM(CONCAT_WS(' ', pv.first_name, pv.last_name)), '') AS "customerName",
            d.description, d.rectification_field AS "rectificationField",
-           (d.proposed_value_encrypted IS NOT NULL) AS "hasProposedValue", d.pin_verified_at AS "pinVerifiedAt"
+           (d.proposed_value_encrypted IS NOT NULL) AS "hasProposedValue", d.pin_verified_at AS "pinVerifiedAt",
+           d.decision_mode AS "decisionMode", d.engine_decision AS "engineDecision", d.engine_reason_code AS "engineReasonCode",
+           d.engine_action AS "engineAction", d.engine_risk_signals AS "engineRiskSignals",
+           d.engine_reevaluate_credit AS "engineReevaluateCredit", d.engine_inputs_json AS "engineInputs",
+           d.engine_execution_id AS "engineExecutionId", d.engine_artifact_code AS "engineArtifactCode",
+           d.engine_artifact_version_id AS "engineArtifactVersionId", d.engine_decided_at AS "engineDecidedAt",
+           d.engine_attempts AS "engineAttempts", d.engine_last_error AS "engineLastError"
            ${conValorCifrado ? `, convert_from(d.proposed_value_encrypted, 'UTF8') AS "proposedValueEnvelope"` : ''}
       FROM ${tabla('data_subject_requests')} d
       LEFT JOIN ${tabla('customers')} cu ON cu._id = d.customer_id AND cu._tenant_id = d._tenant_id
@@ -99,9 +119,48 @@ export function presentarSolicitud(fila: FilaDeSolicitud, now: Date) {
   const vence = dueDateFrom(recibida);
   const overdue = isOverdue(fila.status, recibida, now);
   // El sobre cifrado nunca sale en la respuesta: el detalle pone el valor descifrado (y lo audita) aparte.
-  const { proposedValueEnvelope: _sobre, ...visible } = fila;
+  const {
+    proposedValueEnvelope: _sobre,
+    decisionMode,
+    engineDecision,
+    engineReasonCode,
+    engineAction,
+    engineRiskSignals,
+    engineReevaluateCredit,
+    engineInputs,
+    engineExecutionId,
+    engineArtifactCode,
+    engineArtifactVersionId,
+    engineDecidedAt,
+    engineAttempts,
+    engineLastError,
+    ...visible
+  } = fila;
+  const intentos = Number(engineAttempts ?? 0);
   return {
     ...visible,
+    /**
+     * Lo que opinó el Motor, o `null` si nunca se le preguntó. Con intentos y sin decisión, `decision` es nula y
+     * `lastError` dice por qué: la persona decide igual, pero sabe que el Motor no contestó.
+     */
+    engine:
+      engineDecision || intentos > 0
+        ? {
+            mode: decisionMode,
+            decision: engineDecision,
+            reasonCode: engineReasonCode,
+            action: engineAction,
+            riskSignals: engineRiskSignals === null ? null : Number(engineRiskSignals),
+            reevaluateCredit: engineReevaluateCredit,
+            inputs: engineInputs,
+            executionId: engineExecutionId,
+            artifactCode: engineArtifactCode,
+            artifactVersionId: engineArtifactVersionId,
+            decidedAt: engineDecidedAt ? iso(engineDecidedAt) : null,
+            attempts: intentos,
+            lastError: engineLastError,
+          }
+        : null,
     pinVerifiedAt: fila.pinVerifiedAt ? iso(fila.pinVerifiedAt) : null,
     status: fila.status ?? 'received',
     receivedAt: iso(fila.receivedAt),
