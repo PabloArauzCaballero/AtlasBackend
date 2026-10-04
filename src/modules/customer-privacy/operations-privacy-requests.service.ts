@@ -8,6 +8,7 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { decryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import { CustomerPrivacyRepository } from './customer-privacy.repository.js';
 import { allowedTransitions, DATA_SUBJECT_REQUEST_DUE_DAYS, evaluateTransition } from './data-subject-request.state.js';
@@ -94,9 +95,18 @@ export class OperationsPrivacyRequestsService {
     };
   }
 
-  async detail(tenantId: string, requestId: string, now: Date = new Date()) {
+  /**
+   * El detalle de una solicitud. Si pidió una corrección, el valor propuesto se descifra AQUÍ y sólo para quien está
+   * mirando (`reader`), y esa lectura queda en la auditoría: es un dato personal que alguien del equipo acaba de ver.
+   */
+  async detail(
+    tenantId: string,
+    requestId: string,
+    now: Date = new Date(),
+    reader?: { currentUser: AuthenticatedUser; ipAddress: string | null },
+  ) {
     const [filas, historial] = await Promise.all([
-      this.sequelize.query<FilaDeSolicitud>(sqlSolicitudes(`${BASE_WHERE} AND d._id = $requestId`, false), {
+      this.sequelize.query<FilaDeSolicitud>(sqlSolicitudes(`${BASE_WHERE} AND d._id = $requestId`, false, true), {
         type: QueryTypes.SELECT,
         bind: { tenantId, requestId },
       }),
@@ -105,11 +115,43 @@ export class OperationsPrivacyRequestsService {
     const fila = filas[0];
     if (!fila) throw new NotFoundException('DATA_SUBJECT_REQUEST_NOT_FOUND');
     const solicitud = presentarSolicitud(fila, now);
+    const proposedValue = await this.revealProposedValue(tenantId, requestId, fila, now, reader);
     return {
       ...solicitud,
+      proposedValue,
       allowedTransitions: allowedTransitions(solicitud.status),
       history: historial.map(presentarHistorial),
     };
+  }
+
+  /** Descifra el valor propuesto para quien mira y deja constancia. Sin lector identificado, no se revela. */
+  private async revealProposedValue(
+    tenantId: string,
+    requestId: string,
+    fila: FilaDeSolicitud,
+    now: Date,
+    reader?: { currentUser: AuthenticatedUser; ipAddress: string | null },
+  ): Promise<string | null> {
+    if (!fila.proposedValueEnvelope || !reader) return null;
+    const valor = await decryptSecretEnvelope(fila.proposedValueEnvelope).catch(() => null);
+    if (valor === null) return null;
+    await this.privacyRepository.createAudit(
+      {
+        tenantId,
+        actorType: reader.currentUser.role,
+        actorInternalUserId: reader.currentUser.internalUserId ?? null,
+        actorPlatformUserId: reader.currentUser.platformUserId ?? null,
+        actionCode: 'privacy.data_subject_request.proposed_value_read',
+        targetType: 'data_subject_request',
+        targetId: requestId,
+        ipAddress: reader.ipAddress,
+        // Quién lo vio y de qué campo; el valor NO (la auditoría no se cifra).
+        payload: { customerId: fila.customerId, field: fila.rectificationField },
+        occurredAt: now,
+      },
+      {},
+    );
+    return valor;
   }
 
   /**
@@ -169,6 +211,6 @@ export class OperationsPrivacyRequestsService {
       );
     });
 
-    return this.detail(tenantId, requestId, now);
+    return this.detail(tenantId, requestId, now, { currentUser, ipAddress });
   }
 }

@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Transaction } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 import {
   CustomerActionLogModel,
   CustomerConsentModel,
@@ -160,7 +160,18 @@ export class CustomerPrivacyRepository {
   }
 
   createDataSubjectRequest(
-    values: { tenantId: string; requestCode: string; customerId: string; requestType: string; dueAt: Date; requestedAt: Date },
+    values: {
+      tenantId: string;
+      requestCode: string;
+      customerId: string;
+      requestType: string;
+      dueAt: Date;
+      requestedAt: Date;
+      description: string | null;
+      rectificationField: string | null;
+      proposedValueEncrypted: Buffer | null;
+      pinVerifiedAt: Date | null;
+    },
     options: RepositoryOptions,
   ): Promise<DataSubjectRequestModel> {
     return this.dataSubjectRequestModel.create(
@@ -175,6 +186,10 @@ export class CustomerPrivacyRepository {
         resolvedAt: null,
         handledBy: null,
         resolutionNotes: null,
+        description: values.description,
+        rectificationField: values.rectificationField,
+        proposedValueEncrypted: values.proposedValueEncrypted,
+        pinVerifiedAt: values.pinVerifiedAt,
         createdAtValue: values.requestedAt,
         updatedAtValue: values.requestedAt,
         deleted: false,
@@ -207,6 +222,24 @@ export class CustomerPrivacyRepository {
       },
       { transaction: options.transaction },
     );
+  }
+
+  /**
+   * La última vez que la persona confirmó su PIN desde `since`, según la auditoría que escribe `/auth/pin/verify`
+   * (`auth.pin_verify.success`). La constancia la da el servidor: la app no puede afirmar que se confirmó.
+   */
+  async findLastPinVerification(tenantId: string, customerId: string, since: Date): Promise<Date | null> {
+    const fila = await this.operationalAuditLogModel.findOne({
+      where: {
+        tenantId,
+        actionCode: 'auth.pin_verify.success',
+        targetType: 'actor',
+        targetId: customerId,
+        occurredAt: { [Op.gte]: since },
+      },
+      order: [['occurredAt', 'DESC']],
+    });
+    return fila?.occurredAt ?? null;
   }
 
   createAudit(

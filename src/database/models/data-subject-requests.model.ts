@@ -41,6 +41,22 @@ export class DataSubjectRequestModel extends Model {
   @Column({ field: 'resolution_notes', type: DataType.TEXT })
   declare resolutionNotes: string | null;
 
+  /** Lo que la persona escribió al pedir. Antes se aceptaba en la API y se tiraba. */
+  @Column({ field: 'description', type: DataType.TEXT })
+  declare description: string | null;
+
+  /** Qué campo quiere corregir (vocabulario cerrado de `RECTIFICATION_FIELDS`); NULL en un borrado. */
+  @Column({ field: 'rectification_field', type: DataType.STRING(40) })
+  declare rectificationField: string | null;
+
+  /** El valor propuesto, en un sobre cifrado (`encryptSecretEnvelope`). Nunca en claro. */
+  @Column({ field: 'proposed_value_encrypted', type: DataType.BLOB })
+  declare proposedValueEncrypted: Buffer | null;
+
+  /** Cuándo confirmó el PIN la persona antes de pedir (la constancia la pone el servidor, no la app). */
+  @Column({ field: 'pin_verified_at', type: DataType.DATE })
+  declare pinVerifiedAt: Date | null;
+
   @Column({ field: '_created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 

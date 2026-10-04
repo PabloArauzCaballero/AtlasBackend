@@ -143,7 +143,18 @@ describe('CustomerPrivacyRepository', () => {
     (models.dataSubjectRequest.create as jest.Mock).mockResolvedValue({ id: 'dsr1' } as never);
     const dueAt = new Date('2026-02-20');
     await repo.createDataSubjectRequest(
-      { tenantId: 't1', requestCode: 'REQ-1', customerId: 'c1', requestType: 'access', dueAt, requestedAt: now },
+      {
+        tenantId: 't1',
+        requestCode: 'REQ-1',
+        customerId: 'c1',
+        requestType: 'access',
+        dueAt,
+        requestedAt: now,
+        description: null,
+        rectificationField: null,
+        proposedValueEncrypted: null,
+        pinVerifiedAt: null,
+      },
       opts,
     );
     expect((models.dataSubjectRequest.create as jest.Mock).mock.calls[0][0]).toMatchObject({

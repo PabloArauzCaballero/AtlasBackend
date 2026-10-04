@@ -6385,6 +6385,27 @@ paths:
                   type: string
                   minLength: 5
                   maxLength: 1000
+                field:
+                  type: string
+                  enum:
+                    - address
+                    - zone
+                    - city
+                    - address_reference
+                    - occupation
+                    - employer
+                    - declared_income
+                    - first_name
+                    - last_name
+                    - birth_date
+                    - document_number
+                    - phone
+                    - email
+                    - other
+                proposedValue:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
               required:
                 - requestType
               additionalProperties: false

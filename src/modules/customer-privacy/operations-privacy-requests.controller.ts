@@ -88,8 +88,14 @@ export class OperationsPrivacyRequestsController {
   @ApiResponse({ status: 404, description: 'DATA_SUBJECT_REQUEST_NOT_FOUND — no existe en este tenant.' })
   @InternalPermissions('privacy.requests.read')
   @Get(':requestId')
-  detail(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(privacyRequestParamsSchema)) params: PrivacyRequestParamsDto) {
-    return this.service.detail(tenantId, params.requestId);
+  detail(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(privacyRequestParamsSchema)) params: PrivacyRequestParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Req() request: RequestWithIp,
+  ) {
+    // Quién mira hace falta para auditar la lectura del valor propuesto (un dato personal).
+    return this.service.detail(tenantId, params.requestId, new Date(), { currentUser, ipAddress: request.ip ?? null });
   }
 
   @ApiOperation({
