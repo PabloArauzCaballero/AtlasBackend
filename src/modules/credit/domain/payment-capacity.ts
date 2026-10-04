@@ -68,7 +68,7 @@ export const DEFAULT_CAPACITY_POLICY: PaymentCapacityPolicy = {
 export const CAPACITY_MODEL_VERSION = '1.0.0';
 
 /** La escalera de confianza. Cada tramo multiplica el techo de quien empieza. */
-const TIERS: ReadonlyArray<{
+export const RELATIONSHIP_TIERS: ReadonlyArray<{
   from: number;
   tier: PaymentCapacityAssessment['relationshipTier'];
   multiplier: number;
@@ -160,7 +160,7 @@ export function assessPaymentCapacity(input: {
     );
   }
 
-  const tier = TIERS.find((step) => relationshipScore >= step.from) ?? TIERS[TIERS.length - 1]!;
+  const tier = RELATIONSHIP_TIERS.find((step) => relationshipScore >= step.from) ?? RELATIONSHIP_TIERS[RELATIONSHIP_TIERS.length - 1]!;
   const byRelationship = round2(policy.starterCap * tier.multiplier);
 
   // ------------------------------------------------------------------ capacidad

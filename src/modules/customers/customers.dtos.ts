@@ -58,6 +58,11 @@ export type CustomerMeResponseDto = {
     status: string | null;
     isPrimary: boolean | null;
     valueLast4: string | null;
+    /**
+     * El contacto enmascarado para enseñárselo a su dueño: un correo sale como `pa***@gmail.com`; un teléfono, `null`
+     * (ya tiene `valueLast4`). Antes un correo sólo traía `valueLast4: null` y la app pintaba «…—».
+     */
+    maskedValue: string | null;
   }>;
   consents: {
     accepted: string[];

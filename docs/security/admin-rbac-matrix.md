@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (126 controladores) | 598 |
+| Total montadas (128 controladores) | 602 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
-| Con `@Roles` | 540 |
+| Con `@Roles` | 544 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 77 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -121,6 +121,7 @@
 | `GET` | `/customers/:customerId/credit-line` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.creditLine` | guards: `TenantGuard` |
 | `GET` | `/customers/:customerId/credit-line/history` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.creditLineHistory` | guards: `TenantGuard` |
 | `GET` | `/customers/:customerId/credit-products` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.listProducts` | guards: `TenantGuard` |
+| `GET` | `/customers/:customerId/progress` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditProgressController.progressOf` | guards: `TenantGuard` |
 | `POST` | `/internal/credit/bank-statement-review-callback` | sin sesión · clave del Motor (`x-engine-callback-key`) | — | `BankStatementReviewCallbackController.aplicar` | guards: `EngineCallbackKeyGuard` · fuera del contrato OpenAPI |
 | `POST` | `/internal/credit/manual-review-callback` | **sin sesión** (`@Public`) | — | `CreditReviewCallbackController.aplicar` | fuera del contrato OpenAPI |
 | `GET` | `/merchant/partners/:partnerId/credit-applications` | `merchant`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `MerchantCreditController.list` | guards: `TenantGuard` |
@@ -132,6 +133,9 @@
 | `GET` | `/operations/credit/products` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.listProducts` | guards: `TenantGuard` |
 | `POST` | `/operations/credit/products` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.createProduct` | guards: `TenantGuard` |
 | `PATCH` | `/operations/credit/products/:productId/status` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.changeProductStatus` | guards: `TenantGuard` |
+| `GET` | `/operations/customers/:customerId/card-tier` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CardTierOperationsController.get` | guards: `TenantGuard` |
+| `POST` | `/operations/customers/:customerId/card-tier` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CardTierOperationsController.set` | guards: `TenantGuard` |
+| `POST` | `/operations/customers/:customerId/card-tier/revoke` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CardTierOperationsController.revoke` | guards: `TenantGuard` |
 
 ## `credit-rating`
 

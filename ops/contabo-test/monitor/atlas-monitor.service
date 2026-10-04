@@ -1,0 +1,11 @@
+[Unit]
+Description=Atlas TEST · informador (métricas del host y de las apps, alertas por Telegram, /estado)
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=900
+ExecStart=/usr/bin/flock -n /run/atlas-monitor.lock /bin/sh /opt/atlas/monitor/monitor.sh

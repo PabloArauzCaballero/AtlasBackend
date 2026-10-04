@@ -6,7 +6,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../common/utils/auth/ownership.util.js';
+import { maskEmailForDisplay } from '../../common/utils/contact/mask-email.util.js';
+import { decryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { CustomerEligibilityService } from './application/customer-eligibility.service.js';
+import type { CustomerContactMethodModel } from '../../database/models/index.js';
 import { CustomersRepository } from './customers.repository.js';
 import { CustomerContactsRepository } from './repositories/customer-contacts.repository.js';
 import { CustomerMeResponseDto } from './customers.dtos.js';
@@ -47,6 +50,34 @@ export class CustomersService {
       this.eligibilityService.evaluate(tenantId, customerId),
     ]);
 
-    return toCustomerMeResponse({ customer, profile, contacts, consents, riskResult, onboardingFlow, assessment });
+    return toCustomerMeResponse({
+      customer,
+      profile,
+      contacts,
+      consents,
+      riskResult,
+      onboardingFlow,
+      assessment,
+      maskedContacts: await this.maskEmails(contacts),
+    });
+  }
+
+  /**
+   * Los correos viven cifrados y sólo con el dominio en claro, así que la pantalla de «mis datos» no tenía qué enseñar.
+   * Se descifran AQUÍ, para su propio dueño (`assertOwnCustomerResource` ya pasó), y salen enmascarados. Un sobre
+   * ilegible no tumba la respuesta: ese contacto simplemente sale sin valor.
+   */
+  private async maskEmails(contacts: CustomerContactMethodModel[]): Promise<Map<string, string>> {
+    const masked = new Map<string, string>();
+    for (const contact of contacts) {
+      if (contact.contactType !== 'email' || contact.contactValueEncrypted === null) continue;
+      try {
+        const value = maskEmailForDisplay(await decryptSecretEnvelope(contact.contactValueEncrypted));
+        if (value) masked.set(String(contact.id), value);
+      } catch {
+        // Sobre ilegible: ese contacto queda sin valor enmascarado y la app muestra «Correo registrado».
+      }
+    }
+    return masked;
   }
 }

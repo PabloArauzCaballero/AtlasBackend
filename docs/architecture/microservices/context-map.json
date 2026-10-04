@@ -295,6 +295,7 @@
     "context_seed_import_checkpoints": "catalog-management",
     "customer_context_enrichments": "catalog-management",
     "decision_artifact_bindings": "decision-engine",
+    "card_tiers": "credit",
     "external_oauth_connections": "external-data",
     "schema_change_log": "schema-management",
     "schema_columns": "schema-management",
