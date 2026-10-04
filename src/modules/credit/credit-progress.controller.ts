@@ -28,10 +28,12 @@ export class CreditProgressController {
   @ApiOperation({
     summary: 'Nivel del cliente y su evolución',
     description:
-      'El nivel Atlas (de «Nuevo» a «Preferente»), la puntuación de relación 0-100, los puntos que faltan para el ' +
-      'siguiente nivel, cómo se reparte la puntuación, las misiones para subir y la evolución de la línea. Se calcula ' +
-      'con datos de la base —antigüedad, pagos, compras cerradas, identidad—, NO con el motor, así que existe aunque ' +
-      'la línea de crédito todavía no se haya calculado. Ninguna misión premia endeudarse.',
+      'El nivel Atlas (de «Nuevo» a «Preferente»), la puntuación de relación 0-100 y POR QUÉ se le asigna a esta persona ' +
+      '(cada parte con su peso, los puntos que aporta y la razón, más los topes que de verdad la recortaron), los puntos ' +
+      'que faltan para el siguiente nivel, las misiones para subir, la experiencia (1 punto por cada boliviano pagado a ' +
+      'tiempo, rachas e insignias) y la evolución de la línea. Se calcula con datos de la base —antigüedad, pagos, compras ' +
+      'cerradas, identidad—, NO con el motor, así que existe aunque la línea de crédito todavía no se haya calculado. ' +
+      'Comprar no suma puntos: sólo pagar a tiempo.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional para `customer` (se toma del token).' })
   @ApiResponse({ status: 200, description: 'Nivel, puntos, componentes, misiones, señales e historial.' })

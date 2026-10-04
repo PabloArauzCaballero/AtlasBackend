@@ -127,3 +127,75 @@ describe('buildRelationshipProgress', () => {
     expect(textos).not.toMatch(/pide (un |más )?crédito|endeud|solicita|gasta más/);
   });
 });
+
+/**
+ * «Por qué a esta persona se le asigna este puntaje»: cada parte con los puntos que aporta y su razón, y los
+ * topes que de verdad la recortaron.
+ */
+describe('la cuenta de cada persona', () => {
+  it('los puntos de cada parte son valor × peso y suman el puntaje sin topes', () => {
+    const p = progreso({ ...NUEVO, tenureMonths: 6, loansSettled: 1, onTimeRatio: 1, kycComplete: true, monthsSinceLastLoan: 2 });
+    // Los puntos se muestran con un decimal: se acepta ese redondeo (± 0,05).
+    for (const c of p.components) expect(Math.abs(c.points - c.value * c.weight)).toBeLessThanOrEqual(0.05 + 1e-9);
+    expect(Math.round(p.components.reduce((suma, c) => suma + c.value * c.weight, 0))).toBe(p.rawScore);
+    expect(p.score).toBe(p.rawScore);
+    expect(p.caps).toEqual([]);
+  });
+
+  it('con historial neutro dice por qué parte de 50 en vez de castigar', () => {
+    const pagos = progreso(NUEVO).components.find((c) => c.code === 'paymentHistory')!;
+    expect(pagos.value).toBe(50);
+    expect(pagos.why).toMatch(/partes de 50/);
+    expect(pagos.why).toMatch(/no haber pedido/);
+  });
+
+  it('la razón de pagos trae el porcentaje real y los descuentos que se aplicaron', () => {
+    const pagos = progreso({ ...NUEVO, loansActive: 1, onTimeRatio: 0.8, worstDaysPastDue: 35, delinquencyCount12m: 2 }).components.find(
+      (c) => c.code === 'paymentHistory',
+    )!;
+    expect(pagos.why).toContain('80 %');
+    expect(pagos.why).toContain('30 días o más (−30)');
+    expect(pagos.why).toContain('2 cuota(s) vencida(s)');
+    expect(pagos.why).toContain('−20');
+  });
+
+  it('antigüedad: a los 12 meses ya está al máximo y antes dice cuándo llega', () => {
+    const t = (meses: number) => progreso({ ...NUEVO, tenureMonths: meses }).components.find((c) => c.code === 'tenure')!;
+    expect(t(12).why).toMatch(/máximo/);
+    expect(t(4).why).toContain('4 mes(es)');
+    expect(t(4).why).toContain('100 a los 12 meses');
+  });
+
+  it('identidad: dice si está verificada y qué suma al verificarla', () => {
+    const v = (kyc: boolean) => progreso({ ...NUEVO, kycComplete: kyc }).components.find((c) => c.code === 'verification')!;
+    expect(v(true).why).toMatch(/verificados/);
+    expect(v(false).why).toMatch(/suma 100/);
+  });
+
+  it('el tope de «relación nueva» se anuncia sólo cuando de verdad recortó el resultado', () => {
+    // Identidad verificada y buen historial neutro el primer día: sin tope saldría por encima de 24.
+    const recortado = progreso({ ...NUEVO, tenureMonths: 0, kycComplete: true, loansActive: 1, onTimeRatio: 1 });
+    if (recortado.rawScore > 24) {
+      expect(recortado.score).toBe(24);
+      expect(recortado.caps.map((c) => c.code)).toEqual(['RELACION_NUEVA']);
+      expect(recortado.caps[0]!.limit).toBe(24);
+    }
+    // Con tres meses ya no aplica, aunque el resultado sea el mismo.
+    expect(progreso({ ...NUEVO, tenureMonths: 3, kycComplete: true, loansActive: 1, onTimeRatio: 1 }).caps).toEqual([]);
+  });
+
+  it('una alerta de fraude abierta recorta a 10 y lo dice', () => {
+    const p = progreso({
+      ...NUEVO,
+      tenureMonths: 20,
+      loansSettled: 3,
+      onTimeRatio: 1,
+      kycComplete: true,
+      monthsSinceLastLoan: 0,
+      fraudFlags: 1,
+    });
+    expect(p.rawScore).toBeGreaterThan(10);
+    expect(p.score).toBe(10);
+    expect(p.caps.map((c) => c.code)).toContain('ALERTA_DE_FRAUDE');
+  });
+});
