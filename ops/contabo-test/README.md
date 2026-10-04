@@ -79,6 +79,16 @@ contiene, así que no se avisa por él. Se avisa de lo que no es ruido, y esos a
 
 `ssh-conocidas.txt` se sembró con las IPs que entraron ≥10 veces en 14 días: revisarla con `/ssh`.
 
+### Endurecer SSH (acción de una persona)
+
+`monitor/endurecer-ssh.sh` pone `PermitRootLogin prohibit-password`, `PasswordAuthentication no` y
+`LoginGraceTime 30` en `/etc/ssh/sshd_config.d/00-atlas-hardening.conf`. Se llama `00-` porque en sshd gana el
+primer valor y `50-cloud-init.conf` fija `PasswordAuthentication yes`. No se aplica si la sesión no entró con
+llave; hace copia de `/etc/ssh`, prueba con `sshd -t`, recarga sin cortar sesiones y **se revierte solo a los
+10 min** salvo `sh endurecer-ssh.sh confirmar` tras entrar desde otra terminal. No baja `MaxAuthTries`: con varias
+llaves en el agente dejaría fuera a quien entra bien. Sin cambios en el cortafuegos (`ufw` sigue inactivo): en un
+servidor compartido se hace con el dueño de cada puerto.
+
 ## Qué avisa el monitor (sólo al cambiar de estado, con «RECUPERADO» al volver)
 
 Host: RAM disponible < 2 GB · disco ≥ 85 % y ≥ 90 % · caché de build > 150 GB (la poda actúa sola, como mucho cada
