@@ -3,7 +3,7 @@
  * @business Esta pieza decide qué pasa cuando el canal que pidió la persona no puede entregar el código.
  * @system se separa de `env.schema.ts` por la misma razón que Twilio y Brevo: ese archivo roza el gate de tamaño.
  */
-import { booleanEnvSchema } from './env.primitives.js';
+import { booleanEnvSchema, optionalLongSecretEnvSchema } from './env.primitives.js';
 
 export const otpDeliveryEnvShape = {
   /*
@@ -26,4 +26,13 @@ export const otpDeliveryEnvShape = {
     el intento queda registrado con su canal real y la pantalla lo explica en vez de callárselo.
   */
   OTP_SMS_FALLBACK_TO_EMAIL: booleanEnvSchema,
+
+  /**
+   * Pimienta de los códigos de un solo uso. Con ella se guardan como HMAC-SHA256 en vez de SHA-256 desnudo: un
+   * código de 6 dígitos tiene 10⁶ valores y un SHA-256 sin secreto se revierte al instante con sólo leer la tabla
+   * (un volcado o una réplica comprometida entregan códigos vivos). Vacía = formato anterior: DEV y TEST pueden
+   * dejarla sin poner para que las herramientas de QA que leen el código del hash sigan funcionando; en producción
+   * es obligatorio ponerla. Los códigos emitidos antes de ponerla siguen valiendo hasta caducar (~10 min).
+   */
+  AUTH_ONE_TIME_CODE_PEPPER: optionalLongSecretEnvSchema,
 } as const;

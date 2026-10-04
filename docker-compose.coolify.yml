@@ -238,6 +238,7 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   AUTH_LOGIN_PIN_ENABLED: '${AUTH_LOGIN_PIN_ENABLED:-true}'
   AUTH_ONE_TIME_CODE_TTL_MINUTES: '${AUTH_ONE_TIME_CODE_TTL_MINUTES:-10}'
   AUTH_ONE_TIME_CODE_MAX_ATTEMPTS: '${AUTH_ONE_TIME_CODE_MAX_ATTEMPTS:-5}'
+  AUTH_ONE_TIME_CODE_PEPPER: '${AUTH_ONE_TIME_CODE_PEPPER:-}'
   # Tras el proxy de Coolify la sesión viaja por HTTPS: `secure` en true y `SameSite` acorde.
   AUTH_COOKIE_SAMESITE: '${AUTH_COOKIE_SAMESITE:-lax}'
   AUTH_COOKIE_DOMAIN: '${AUTH_COOKIE_DOMAIN:-}'

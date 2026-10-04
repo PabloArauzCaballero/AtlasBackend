@@ -68,6 +68,7 @@ describe('AuthPasswordChangeRepository', () => {
       authRepository as unknown as AuthRepository,
       internalUsers as unknown as typeof InternalUserModel,
       merchantUsers as unknown as typeof MerchantUserModel,
+      { count: jest.fn(async () => 3) } as never,
     );
   });
 
@@ -223,5 +224,16 @@ describe('AuthPasswordChangeController', () => {
     } as unknown as RequestWithNetwork);
 
     expect(passwordChange.requestPasswordChange).toHaveBeenCalledWith(expect.objectContaining({ ip: null }));
+  });
+});
+
+describe('AuthPasswordChangeRepository.countRecentPinFailures', () => {
+  it('cuenta los fallos de PIN de la cuenta en la bitácora, por código de acción y desde la fecha dada', async () => {
+    const count = jest.fn(async (..._args: unknown[]) => 3);
+    const conBitacora = new AuthPasswordChangeRepository({} as never, {} as never, {} as never, { count } as never);
+
+    await expect(conBitacora.countRecentPinFailures('42', new Date('2026-10-04T12:00:00Z'))).resolves.toBe(3);
+    const [opciones] = count.mock.calls[0] as [{ where: Record<string, unknown> }];
+    expect(opciones.where).toMatchObject({ actionCode: 'auth.pin_verify.failure', targetType: 'actor', targetId: '42' });
   });
 });

@@ -5,7 +5,8 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { InternalUserModel, MerchantUserModel } from '../../database/models/index.js';
+import { Op } from 'sequelize';
+import { InternalUserModel, MerchantUserModel, OperationalAuditLogModel } from '../../database/models/index.js';
 import { AuthCredentialModel } from '../../database/models/index.js';
 import { AuthRepository } from './auth.repository.js';
 import type { ActorType, AuthEventType } from './auth-vocabulary.js';
@@ -27,7 +28,21 @@ export class AuthPasswordChangeRepository {
     private readonly authRepository: AuthRepository,
     @InjectModel(InternalUserModel) private readonly internalUserModel: typeof InternalUserModel,
     @InjectModel(MerchantUserModel) private readonly merchantUserModel: typeof MerchantUserModel,
+    @InjectModel(OperationalAuditLogModel) private readonly auditLogModel: typeof OperationalAuditLogModel,
   ) {}
+
+  /**
+   * Cuántas veces falló el PIN de ESTA cuenta desde `since`, leído de la bitácora que `recordEvent` ya escribe.
+   *
+   * Es el límite por cuenta que le faltaba a la re-autenticación: el del controlador es por IP, y quien rota de IP
+   * con un token robado barría un PIN de cuatro dígitos sin que nada lo frenara.
+   */
+  async countRecentPinFailures(actorId: string, since: Date): Promise<number> {
+    const total: unknown = await this.auditLogModel.count({
+      where: { actionCode: 'auth.pin_verify.failure', targetType: 'actor', targetId: actorId, occurredAt: { [Op.gte]: since } },
+    } as never);
+    return Number(total);
+  }
 
   findCredential(actorType: ActorType, actorId: string): Promise<AuthCredentialModel | null> {
     return this.authRepository.findCredentialsByActor(actorType, actorId);
