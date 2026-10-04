@@ -11,6 +11,7 @@ import {
   CustomerConsentModel,
   CustomerContactMethodModel,
   CustomerIdentityDocumentModel,
+  OnboardingBehaviorSummaryModel,
   DataChangeLogModel,
   DataQualityIssueModel,
   FeatureComputationRunModel,
@@ -63,6 +64,8 @@ import { RiskService } from './risk.service.js';
       CustomerConsentModel,
       CustomerContactMethodModel,
       CustomerIdentityDocumentModel,
+      // El último resumen de comportamiento del alta, leído por `LocalRiskInputFactsAdapter` (plan F3, H-10).
+      OnboardingBehaviorSummaryModel,
     ]),
     CustomersModule,
     // La evaluación de riesgo consulta primero al motor de políticas versionadas; `risk_heuristic_v0`

@@ -109,6 +109,13 @@ export const decisionEngineEnvShape = {
    */
   DECISION_ENGINE_CREDIT_ARTIFACT: z.string().trim().min(1).max(120).default('ATLAS_BNPL_UNDERWRITING'),
   /**
+   * Qué hacen las señales del TELÉFONO (ubicación, dispositivo, comportamiento del alta, agenda) en la decisión de
+   * crédito. `shadow`: se calculan y viajan en `context.deviceSignals` de la ejecución —quedan guardadas para
+   * calibrar— y las variables siguen ausentes. `live`: sustituyen a las variables ausentes y deciden. Por defecto
+   * `shadow`: una señal sin cortes medidos no decide (plan F4, principio 4).
+   */
+  UNDERWRITING_DEVICE_SIGNALS_MODE: z.enum(['shadow', 'live']).default('shadow'),
+  /**
    * Artefacto que evalúa el riesgo de onboarding, el trabajo que hoy hace `risk_heuristic_v0`.
    *
    * Vacío = el motor no participa en riesgo y manda la política local. Se puede apagar por separado

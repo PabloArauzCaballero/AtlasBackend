@@ -16,6 +16,12 @@ import {
   FeatureDefinitionModel,
   FeatureValueModel,
   FraudCaseModel,
+  CustomerLocationPingModel,
+  DeviceSnapshotModel,
+  CustomerDeviceLinkModel,
+  OnboardingBehaviorSummaryModel,
+  CustomerDeviceContactModel,
+  WatchlistEntryModel,
   IdentityVerificationAttemptModel,
   LoanInstallmentModel,
   LoanModel,
@@ -39,6 +45,7 @@ import { SubjectReferenceService } from './subject-reference.service.js';
 import { UnderwritingFeaturesService } from './underwriting-features.service.js';
 import { UnderwritingSignalsService } from './underwriting-signals.service.js';
 import { UnderwritingCreditHistoryService } from './underwriting-credit-history.service.js';
+import { UnderwritingDeviceSignalsService } from './underwriting-device-signals.service.js';
 
 /**
  * Integración con el ATLAS Decision Engine.
@@ -77,6 +84,13 @@ import { UnderwritingCreditHistoryService } from './underwriting-credit-history.
       // mandar `CLEAR`/`false` fijos: las coincidencias con listas restrictivas y los casos de fraude.
       WatchlistMatchModel,
       FraudCaseModel,
+      // Las señales del TELÉFONO (plan F3), leídas por `UnderwritingDeviceSignalsService`.
+      CustomerLocationPingModel,
+      DeviceSnapshotModel,
+      CustomerDeviceLinkModel,
+      OnboardingBehaviorSummaryModel,
+      CustomerDeviceContactModel,
+      WatchlistEntryModel,
     ]),
   ],
   controllers: [DecisionArtifactBindingController],
@@ -88,6 +102,7 @@ import { UnderwritingCreditHistoryService } from './underwriting-credit-history.
     UnderwritingFeaturesService,
     UnderwritingSignalsService,
     UnderwritingCreditHistoryService,
+    UnderwritingDeviceSignalsService,
     SubjectReferenceService,
     CreditDecisionEngineService,
     RiskDecisionEngineService,

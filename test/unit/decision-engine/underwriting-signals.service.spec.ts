@@ -76,7 +76,7 @@ describe('UnderwritingFeaturesService.build · lo que llega al Motor de un clien
   function buildFeatures(findAll: (...args: unknown[]) => Promise<unknown[]>) {
     const { service: signals } = build(findAll);
     const history = new UnderwritingCreditHistoryService(emptyModel() as never, emptyModel() as never);
-    return new UnderwritingFeaturesService(signals, history);
+    return new UnderwritingFeaturesService(signals, history, { signalsFor: async () => null } as never);
   }
 
   const request = { tenantId: '7', customerId: '10', requestedAmount: 1000, requestedTermMonths: 6 };

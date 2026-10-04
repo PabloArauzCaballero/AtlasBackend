@@ -203,6 +203,7 @@ x-atlas-env: &atlas-env
   # `engine_unavailable_manual`: el credito quedaba esperando a una persona sin que nada dijera que
   # el motor ni siquiera habia sido consultado.
   DECISION_ENGINE_CREDIT_ARTIFACT: ${DECISION_ENGINE_CREDIT_ARTIFACT:-ATLAS_BNPL_UNDERWRITING}
+  UNDERWRITING_DEVICE_SIGNALS_MODE: ${UNDERWRITING_DEVICE_SIGNALS_MODE:-shadow}
   # El artefacto de RIESGO de onboarding. Hasta el 2026-09-14 no se pasaba en ningún compose ni
   # existía en el motor: el riesgo lo decidía la heurística local en todos los entornos. Vacío a
   # propósito ('') = el motor no participa y cada alta va a revisión humana (la heurística ya no aprueba).

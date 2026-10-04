@@ -6,10 +6,24 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { NOT_ASSESSED, UnderwritingFeaturesService } from '../../../src/modules/decision-engine/underwriting-features.service.js';
 import { UnderwritingSignalsService } from '../../../src/modules/decision-engine/underwriting-signals.service.js';
+import { calcularSeñalesDelTelefono } from '../../../src/modules/decision-engine/device-risk-features.js';
 
 type ComplianceSignals = { activeWatchlistMatch: boolean; openFraudCase: boolean };
 
-function build(compliance: ComplianceSignals = { activeWatchlistMatch: false, openFraudCase: false }) {
+/** Un teléfono con una posición SIMULADA y un resumen de comportamiento automatizado. */
+const telefonoSospechoso = calcularSeñalesDelTelefono({
+  pings: [{ capturedAt: new Date('2026-10-01T15:00:00Z'), captureMode: 'background', isMocked: true, distanceToDeclaredMeters: 20 }],
+  snapshots: [{ isRooted: false, isEmulator: false }],
+  sharedDeviceCustomers: 0,
+  comportamiento: { botLikelihoodScore: 0.9 },
+  agenda: { available: false, totalContacts: 0, watchlistMatches: 0, ringCustomers: 0 },
+});
+
+function build(
+  compliance: ComplianceSignals = { activeWatchlistMatch: false, openFraudCase: false },
+  telefono: (ReturnType<typeof calcularSeñalesDelTelefono> & { mode: 'shadow' | 'live' }) | null = null,
+) {
+  const deviceSignals = { signalsFor: jest.fn(async (..._args: unknown[]) => telefono) };
   const signals = {
     economicAttributes: jest.fn(async (..._args: unknown[]) => ({ monthly_income_declared: 8000, monthly_expenses_declared: 3000 })),
     currentProfile: jest.fn(async (..._args: unknown[]) => ({ age: 34 })),
@@ -38,7 +52,7 @@ function build(compliance: ComplianceSignals = { activeWatchlistMatch: false, op
       paymentHistoryScore: 0,
     })),
   };
-  const service = new UnderwritingFeaturesService(signals as never, historial as never);
+  const service = new UnderwritingFeaturesService(signals as never, historial as never, deviceSignals as never);
   return { service, signals };
 }
 
@@ -193,5 +207,33 @@ describe('eligibility-v2 · gastos y origen de fondos ya no se piden en el alta'
     // Sin origen de fondos declarado tampoco se afirma que se verificó.
     expect(variables.source_of_funds_verified).toBe(false);
     expect(provenance.source_of_funds_verified).toBe('ausente');
+  });
+});
+
+describe('UnderwritingFeaturesService.build · señales del teléfono (plan F3/F4)', () => {
+  it('en sombra NO cambian ninguna variable y viajan aparte con su modo', async () => {
+    const { service } = build(undefined, { ...telefonoSospechoso, mode: 'shadow' });
+    const result = await service.build(input);
+    expect(result.variables.geolocation_mismatch_flag).toBe(false);
+    expect(result.provenance.geolocation_mismatch_flag).toBe('ausente');
+    expect(result.variables.browser_automation_detected).toBe(false);
+    expect(result.deviceSignals?.mode).toBe('shadow');
+    expect(result.deviceSignals?.geo.mockedCount).toBe(1);
+  });
+
+  it('en live sustituyen a las ausentes, como derivadas', async () => {
+    const { service } = build(undefined, { ...telefonoSospechoso, mode: 'live' });
+    const result = await service.build(input);
+    expect(result.variables.geolocation_mismatch_flag).toBe(true);
+    expect(result.provenance.geolocation_mismatch_flag).toBe('derivado');
+    expect(result.variables.browser_automation_detected).toBe(true);
+    expect(result.variables.device_risk_score).toBe(30);
+  });
+
+  it('sin señales legibles todo queda como antes', async () => {
+    const { service } = build(undefined, null);
+    const result = await service.build(input);
+    expect(result.provenance.device_risk_score).toBe('ausente');
+    expect(result.deviceSignals).toBeNull();
   });
 });

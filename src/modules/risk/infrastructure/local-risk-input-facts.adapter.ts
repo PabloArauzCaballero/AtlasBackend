@@ -5,7 +5,10 @@
  * @system Envuelve `CustomersRepository` y las lecturas de `RiskRepository`; la sustitución por un
  *   adaptador remoto no toca el motor.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
+import type { FindOptions } from 'sequelize';
+import { OnboardingBehaviorSummaryModel } from '../../../database/models/index.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { RiskRepository } from '../risk.repository.js';
 import type { RiskInputFacts, RiskInputFactsPort } from '../application/ports/risk-input-facts.port.js';
@@ -15,6 +18,8 @@ export class LocalRiskInputFactsAdapter implements RiskInputFactsPort {
   constructor(
     private readonly customers: CustomersRepository,
     private readonly risk: RiskRepository,
+    // Opcional: la construcción a mano (pruebas, scripts) no lo trae y entonces el comportamiento viaja «no medido».
+    @Optional() @InjectModel(OnboardingBehaviorSummaryModel) private readonly behavior?: typeof OnboardingBehaviorSummaryModel,
   ) {}
 
   async loadFacts(tenantId: string, customerId: string): Promise<RiskInputFacts> {
@@ -27,20 +32,30 @@ export class LocalRiskInputFactsAdapter implements RiskInputFactsPort {
         hasGrantedConsent: false,
         verifiedContactCount: 0,
         hasIdentity: false,
+        behaviorBotScore: null,
         readAt,
       });
     }
-    const [consents, contacts, identities] = await Promise.all([
+    const [consents, contacts, identities, resumen] = await Promise.all([
       this.risk.findCustomerConsents(tenantId, customerId),
       this.risk.findCustomerContacts(tenantId, customerId),
       this.risk.findIdentityDocuments(tenantId, customerId),
+      this.behavior
+        ? this.behavior.findOne({
+            where: { tenantId, customerId },
+            attributes: ['botLikelihoodScore'],
+            order: [['computedAt', 'DESC']],
+          } as FindOptions)
+        : Promise.resolve(null),
     ]);
+    const bot = resumen?.botLikelihoodScore;
     return Object.freeze({
       exists: true,
       lifecycleStatus: customer.lifecycleStatus ?? null,
       hasGrantedConsent: consents.some((consent) => consent.granted === true && !consent.revokedAt),
       verifiedContactCount: contacts.filter((contact) => contact.status === 'verified').length,
       hasIdentity: identities.length > 0,
+      behaviorBotScore: bot === null || bot === undefined || !Number.isFinite(Number(bot)) ? null : Number(bot),
       readAt,
     });
   }

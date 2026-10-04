@@ -9,6 +9,8 @@ export type HeuristicRiskInputs = {
   hasIdentity: boolean;
   verifiedContactCount: number;
   hasDevice: boolean;
+  /** `botLikelihoodScore` del resumen de comportamiento (0-1), o `null` sin bitácora. */
+  behaviorBotScore?: number | null;
 };
 
 export type HeuristicRiskScores = {
@@ -43,10 +45,20 @@ export function computeHeuristicScores(inputs: HeuristicRiskInputs): HeuristicRi
   // `hasDevice` viene del dispositivo con el que el cliente hizo el alta (C-6): el envío lo resuelve
   // en el servidor (`OnboardingRiskTriggerService`). Antes nadie lo mandaba y valía 55 para todos.
   const deviceScore = hasDevice ? 70 : 55;
-  // Neutro A PROPÓSITO: al enviar no hay señal de comportamiento que medir —el resumen de
-  // comportamiento (`OnboardingBehaviorSummaryService`) se calcula DESPUÉS del envío—. Sigue siendo
-  // el mismo 50 para todos y así debe leerse: no es una medición.
-  const behaviorScore = 50;
+  /*
+   * El comportamiento del alta (H-10). Hasta el plan F3 valía 50 para todos porque el resumen se calculaba DESPUÉS
+   * de evaluar; ahora el envío lo calcula ANTES y aquí se lee: `100 × (1 − bot)`. Sin bitácora sigue siendo 50, que
+   * es «no medido», no «normal».
+   *
+   * Sólo puede DERIVAR, nunca aprobar a quien antes iba a revisión (umbral 65):
+   * - con identidad y contacto verificado el total ya pasaba con 50 (70,0 sin dispositivo, 72,5 con él); un
+   *   comportamiento automatizado lo baja a 61,7 / 64,2 → revisión, que es el efecto buscado;
+   * - sin contacto verificado, ni con comportamiento 100 llega: 60,0 / 62,5.
+   * `risk-heuristic-scoring.spec.ts` lo fija.
+   */
+  const bot = inputs.behaviorBotScore;
+  const behaviorScore =
+    bot === null || bot === undefined || !Number.isFinite(bot) ? 50 : Math.round(100 * (1 - Math.min(1, Math.max(0, bot))));
   const consistencyScore = hasIdentity && hasVerifiedContact ? 75 : 45;
   const fraudScore = hasIdentity && hasVerifiedContact ? 20 : 55;
 
