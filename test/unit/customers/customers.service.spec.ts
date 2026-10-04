@@ -114,6 +114,8 @@ describe('CustomersService.getCustomerMe', () => {
       riskResult: null,
       onboardingFlow: { id: 'flow-1' },
       assessment: expect.objectContaining({ nextStep: 'personal_data' }),
+      // Los correos se descifran y enmascaran en el servicio; aquí no hay ninguno, así que el mapa va vacío.
+      maskedContacts: new Map(),
     } as never);
   });
 });

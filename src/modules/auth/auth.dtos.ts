@@ -33,6 +33,14 @@ export type PasswordChangeChallengeResponseDto = {
   pinChallengeRequired: true;
   challengeToken: string;
   expiresInMinutes: number;
+  /**
+   * A qué correo se mandó el código, ENMASCARADO (`pa***@gmail.com`).
+   *
+   * Sin esto la persona no sabe dónde buscar: si el correo se fue a spam o a una dirección que ya no usa, la pantalla
+   * le decía «te llegó por correo» y nada más. Es un dato de la propia cuenta, de quien ya se autenticó dos veces
+   * (sesión y PIN actual), y va enmascarado.
+   */
+  deliveredTo: string | null;
 };
 
 export type LogoutResponseDto = {
