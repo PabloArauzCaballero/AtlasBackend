@@ -1,0 +1,84 @@
+# ERP de TEST con respaldo automático. Va en /data/coolify/proxy/dynamic/ (Traefik lo vigila: entra
+# al instante y sobrevive a los despliegues de Coolify).
+#
+# `failover`: todo el tráfico a la principal (Coolify) mientras su sonda responda; si deja de
+# responder —despliegue fallido, contenedor que no arrancó, hueco del redespliegue, caída— todo al
+# respaldo (/opt/atlas/respaldo-erp). Vuelve sola a la principal cuando ésta responde.
+#
+# Los nombres son ALIAS de la red `coolify`, estables entre despliegues: `erp-web` lo declara el
+# docker-compose.coolify.yml del ERP frontend y `erp-api-principal` el del backend. Si un despliegue
+# sale sin el alias, la sonda de la principal falla y sirve el respaldo: falla hacia lo seguro.
+http:
+  services:
+    atlas-erp-web:
+      failover:
+        healthCheck: {}
+        service: atlas-erp-web-principal
+        fallback: atlas-erp-web-respaldo
+    atlas-erp-web-principal:
+      loadBalancer:
+        healthCheck: { path: /version, interval: 2s, unhealthyInterval: 2s, timeout: 2s }
+        servers: [{ url: 'http://erp-web:3010' }]
+    atlas-erp-web-respaldo:
+      loadBalancer:
+        healthCheck: { path: /version, interval: 30s, timeout: 3s }
+        servers: [{ url: 'http://erp-web-respaldo:3010' }]
+
+    atlas-erp-api:
+      failover:
+        healthCheck: {}
+        service: atlas-erp-api-principal
+        fallback: atlas-erp-api-respaldo
+    atlas-erp-api-principal:
+      loadBalancer:
+        healthCheck: { path: /api/v1/health/live, interval: 2s, unhealthyInterval: 2s, timeout: 2s }
+        servers: [{ url: 'http://erp-api-principal:3007' }]
+    atlas-erp-api-respaldo:
+      loadBalancer:
+        healthCheck: { path: /api/v1/health/live, interval: 30s, timeout: 3s }
+        servers: [{ url: 'http://erp-api-respaldo:3007' }]
+
+  middlewares:
+    # Cuando un contenedor de Coolify aparece o desaparece, Traefik RECARGA la configuración y sus
+    # sondas arrancan dando la principal por sana hasta la siguiente comprobación (medido el
+    # 2026-10-02: 10 s de 502 con interval 10s). Sondas a 2 s acotan ese hueco, y el reintento hace
+    # que la petición que cae en él se repita y acabe en el respaldo. Sólo en el portal (GET de
+    # páginas y assets): en la API un reintento podría duplicar una escritura.
+    atlas-erp-web-reintento:
+      retry: { attempts: 5, initialInterval: 500ms }
+
+  routers:
+    # `priority: 100` gana a las etiquetas que pone Coolify para el mismo Host.
+    atlas-erp-web-sslip:
+      entryPoints: [http]
+      rule: Host(`erp.161.97.85.216.sslip.io`)
+      priority: 100
+      middlewares: [atlas-erp-web-reintento]
+      service: atlas-erp-web
+    atlas-erp-api-sslip:
+      entryPoints: [http]
+      rule: Host(`erp-api.161.97.85.216.sslip.io`)
+      priority: 100
+      service: atlas-erp-api
+    # Las mismas rutas que atlas-por-ip.yaml (:3010) y atlas-dominios-propios.yaml, con prioridad 200
+    # para ganarles y llevar el reintento. Si se borra este fichero, mandan aquéllas otra vez.
+    atlas-erp-web-ip:
+      entryPoints: [erp]
+      rule: PathPrefix(`/`)
+      priority: 200
+      middlewares: [atlas-erp-web-reintento]
+      service: atlas-erp-web
+    atlas-erp-web-dominio-http:
+      entryPoints: [http]
+      rule: Host(`atlas.erp.test.arauzsoftware.com`)
+      priority: 200
+      middlewares: [atlas-erp-web-reintento]
+      service: atlas-erp-web
+    atlas-erp-web-dominio-https:
+      entryPoints: [https]
+      rule: Host(`atlas.erp.test.arauzsoftware.com`)
+      priority: 200
+      middlewares: [atlas-erp-web-reintento]
+      service: atlas-erp-web
+      tls:
+        certResolver: letsencrypt

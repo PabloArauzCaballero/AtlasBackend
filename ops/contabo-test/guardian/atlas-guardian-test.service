@@ -1,0 +1,10 @@
+[Unit]
+Description=Atlas TEST · guardián (arranca contenedores que un despliegue dejó sin arrancar y avisa de caídas)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/flock -n /run/atlas-guardian.lock /bin/sh /opt/atlas/guardian/guardian.sh
+TimeoutStartSec=120
+Nice=5

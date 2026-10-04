@@ -1,0 +1,62 @@
+# Respaldo de los TABLEROS de TEST (Contabo), FUERA de Coolify, mismo patrón que respaldo-erp/.
+# Se instala en /opt/atlas/respaldo-tableros/ con `sh instalar.sh` (ver README.md).
+#
+# Una segunda instancia del frontend (app 8) y de la API (app 4) con la ÚLTIMA IMAGEN QUE SIRVIÓ
+# SANA (`:estable`, la retaguea el guardián tras 10 min sanos). Traefik manda el tráfico público a la
+# principal y pasa al respaldo cuando no responde (atlas-tableros-failover.yaml). El frontend llama a
+# la API por el alias `atlas-dashboards-backend`, no por Traefik: mientras la API principal no esté
+# en marcha, el guardián presta ese alias a la API de respaldo y lo devuelve al volver.
+#
+# Nunca construye ni migra. Los tableros de Coolify no tienen `.env`: las variables salen del
+# contenedor principal (instalar.sh las vuelca a *.env, 600, sin las de Coolify).
+name: atlas-respaldo-tableros
+
+x-logs: &logs
+  logging:
+    driver: json-file
+    options: { max-size: '10m', max-file: '3' }
+
+services:
+  tableros-web-respaldo:
+    <<: *logs
+    image: atlas-dashboards-frontend:estable
+    container_name: atlas-tableros-web-respaldo
+    restart: always
+    init: true
+    env_file: web.env
+    networks:
+      coolify:
+        aliases: [tableros-web-respaldo]
+    deploy: { resources: { limits: { memory: 384m } } }
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:5290/login || exit 1']
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3
+
+  tableros-api-respaldo:
+    <<: *logs
+    image: atlas-dashboards-backend:estable
+    container_name: atlas-tableros-api-respaldo
+    restart: always
+    init: true
+    env_file: api.env
+    environment:
+      # Sólo atiende peticiones: el cron de fotos de cartera lo corre la principal (APP_ROLE=all).
+      APP_ROLE: api
+    networks:
+      coolify:
+        aliases: [tableros-api-respaldo]
+    deploy: { resources: { limits: { memory: 384m } } }
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3020/health >/dev/null 2>&1 || exit 1']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+networks:
+  coolify:
+    external: true
+    name: coolify

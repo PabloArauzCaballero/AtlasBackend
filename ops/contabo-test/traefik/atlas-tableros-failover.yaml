@@ -1,0 +1,73 @@
+# Tableros de TEST con respaldo automático. Va en /data/coolify/proxy/dynamic/ (mismo patrón que
+# atlas-erp-failover.yaml: failover principal → respaldo, sondas a 2 s, reintento sólo en el portal).
+#
+# `atlas-dashboards-frontend` y `atlas-dashboards-backend` son ALIAS de la red `coolify` que declaran
+# los docker-compose.coolify.yml de cada repo: estables entre despliegues.
+http:
+  services:
+    atlas-tableros-web:
+      failover:
+        healthCheck: {}
+        service: atlas-tableros-web-principal
+        fallback: atlas-tableros-web-respaldo
+    atlas-tableros-web-principal:
+      loadBalancer:
+        healthCheck: { path: /login, interval: 2s, unhealthyInterval: 2s, timeout: 2s }
+        servers: [{ url: 'http://atlas-dashboards-frontend:5290' }]
+    atlas-tableros-web-respaldo:
+      loadBalancer:
+        healthCheck: { path: /login, interval: 30s, timeout: 3s }
+        servers: [{ url: 'http://tableros-web-respaldo:5290' }]
+
+    atlas-tableros-api:
+      failover:
+        healthCheck: {}
+        service: atlas-tableros-api-principal
+        fallback: atlas-tableros-api-respaldo
+    atlas-tableros-api-principal:
+      loadBalancer:
+        healthCheck: { path: /health, interval: 2s, unhealthyInterval: 2s, timeout: 2s }
+        servers: [{ url: 'http://atlas-dashboards-backend:3020' }]
+    atlas-tableros-api-respaldo:
+      loadBalancer:
+        healthCheck: { path: /health, interval: 30s, timeout: 3s }
+        servers: [{ url: 'http://tableros-api-respaldo:3020' }]
+
+  middlewares:
+    atlas-tableros-web-reintento:
+      retry: { attempts: 5, initialInterval: 500ms }
+
+  routers:
+    # Ganan (priority 200) a atlas-por-ip.yaml (:3040), a atlas-dominios-propios.yaml (100) y a las
+    # etiquetas de Coolify. Si se borra este fichero, mandan aquéllas otra vez.
+    atlas-tableros-web-ip:
+      entryPoints: [dash]
+      rule: PathPrefix(`/`)
+      priority: 200
+      middlewares: [atlas-tableros-web-reintento]
+      service: atlas-tableros-web
+    atlas-tableros-web-sslip:
+      entryPoints: [http]
+      rule: Host(`dash.161.97.85.216.sslip.io`)
+      priority: 200
+      middlewares: [atlas-tableros-web-reintento]
+      service: atlas-tableros-web
+    atlas-tableros-web-dominio-http:
+      entryPoints: [http]
+      rule: Host(`atlas.dashboards.test.arauzsoftware.com`) || Host(`www.atlas.dashboards.test.arauzsoftware.com`)
+      priority: 200
+      middlewares: [atlas-tableros-web-reintento]
+      service: atlas-tableros-web
+    atlas-tableros-web-dominio-https:
+      entryPoints: [https]
+      rule: Host(`atlas.dashboards.test.arauzsoftware.com`) || Host(`www.atlas.dashboards.test.arauzsoftware.com`)
+      priority: 200
+      middlewares: [atlas-tableros-web-reintento]
+      service: atlas-tableros-web
+      tls:
+        certResolver: letsencrypt
+    atlas-tableros-api-sslip:
+      entryPoints: [http]
+      rule: Host(`dash-api.161.97.85.216.sslip.io`)
+      priority: 200
+      service: atlas-tableros-api
