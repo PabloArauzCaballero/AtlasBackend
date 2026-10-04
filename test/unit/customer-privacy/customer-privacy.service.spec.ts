@@ -18,6 +18,7 @@ describe('CustomerPrivacyService', () => {
       createActionLog: jest.fn(),
       createAudit: jest.fn(),
       createDataSubjectRequest: jest.fn(),
+      findLastPinVerification: jest.fn(async (..._a: unknown[]) => null as Date | null),
     };
     const customersRepository = { findById: jest.fn() };
     const consentsRepository = { findActiveDocumentsByIds: jest.fn() };
@@ -238,6 +239,78 @@ describe('CustomerPrivacyService', () => {
       });
 
       expect(result).toEqual({ dataSubjectRequestId: 'dsr-1', status: 'received' });
+    });
+
+    describe('el contenido de la solicitud', () => {
+      async function crear(body: Record<string, unknown>, pinVerificado: Date | null = null) {
+        const montaje = buildService();
+        (montaje.customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1' } as never);
+        (montaje.privacyRepository.createDataSubjectRequest as jest.Mock).mockResolvedValueOnce({ id: 'dsr-9' } as never);
+        (montaje.privacyRepository.findLastPinVerification as jest.Mock).mockResolvedValueOnce(pinVerificado as never);
+        await montaje.service.createDataSubjectRequest({
+          tenantId: 't1',
+          customerId: 'c1',
+          body: body as never,
+          currentUser: customerUser,
+          idempotencyKey: 'idem-9',
+          ipAddress: null,
+        });
+        return montaje;
+      }
+
+      it('guarda lo que la persona escribió (antes se tiraba)', async () => {
+        const { privacyRepository } = await crear({ requestType: 'rectification', description: 'mi zona está mal' });
+        expect((privacyRepository.createDataSubjectRequest as jest.Mock).mock.calls[0][0]).toMatchObject({
+          description: 'mi zona está mal',
+        });
+      });
+
+      it('el valor propuesto se guarda CIFRADO y se puede descifrar', async () => {
+        const { privacyRepository } = await crear({ requestType: 'rectification', field: 'zone', proposedValue: 'Equipetrol' });
+        const fila = (privacyRepository.createDataSubjectRequest as jest.Mock).mock.calls[0][0] as {
+          proposedValueEncrypted: Buffer;
+          rectificationField: string;
+        };
+        expect(fila.rectificationField).toBe('zone');
+        expect(Buffer.isBuffer(fila.proposedValueEncrypted)).toBe(true);
+        expect(fila.proposedValueEncrypted.toString('utf8')).not.toContain('Equipetrol');
+        const { decryptSecretEnvelope } = await import('../../../src/common/utils/crypto/envelope-encryption.util.js');
+        expect(await decryptSecretEnvelope(fila.proposedValueEncrypted)).toBe('Equipetrol');
+      });
+
+      it('el valor propuesto NUNCA aparece en la auditoría ni en el log de acciones (no se cifran)', async () => {
+        const { privacyRepository } = await crear({ requestType: 'rectification', field: 'zone', proposedValue: 'Equipetrol' });
+        const auditoria = JSON.stringify((privacyRepository.createAudit as jest.Mock).mock.calls);
+        const acciones = JSON.stringify((privacyRepository.createActionLog as jest.Mock).mock.calls);
+        expect(auditoria).not.toContain('Equipetrol');
+        expect(acciones).not.toContain('Equipetrol');
+        // El campo sí: dice qué se pidió sin decir el dato.
+        expect(auditoria).toContain('"field":"zone"');
+      });
+
+      it('la confirmación de PIN la pone el SERVIDOR, mirando los últimos 5 minutos', async () => {
+        const hace2min = new Date(Date.now() - 120_000);
+        const { privacyRepository } = await crear({ requestType: 'deletion' }, hace2min);
+        const [tenant, cliente, desde] = (privacyRepository.findLastPinVerification as jest.Mock).mock.calls[0] as [string, string, Date];
+        expect([tenant, cliente]).toEqual(['t1', 'c1']);
+        expect(Date.now() - desde.getTime()).toBeGreaterThanOrEqual(299_000);
+        expect(Date.now() - desde.getTime()).toBeLessThan(310_000);
+        expect((privacyRepository.createDataSubjectRequest as jest.Mock).mock.calls[0][0]).toMatchObject({ pinVerifiedAt: hace2min });
+      });
+
+      it('sin confirmación reciente queda constancia de que no la hubo', async () => {
+        const { privacyRepository } = await crear({ requestType: 'deletion' }, null);
+        expect((privacyRepository.createDataSubjectRequest as jest.Mock).mock.calls[0][0]).toMatchObject({ pinVerifiedAt: null });
+        expect(JSON.stringify((privacyRepository.createAudit as jest.Mock).mock.calls)).toContain('"pinConfirmed":false');
+      });
+
+      it('un borrado no guarda campo ni valor', async () => {
+        const { privacyRepository } = await crear({ requestType: 'deletion', description: 'quiero cerrar mi cuenta' });
+        expect((privacyRepository.createDataSubjectRequest as jest.Mock).mock.calls[0][0]).toMatchObject({
+          rectificationField: null,
+          proposedValueEncrypted: null,
+        });
+      });
     });
   });
 });

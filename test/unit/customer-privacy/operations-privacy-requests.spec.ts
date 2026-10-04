@@ -147,6 +147,70 @@ describe('OperationsPrivacyRequestsService.detail', () => {
   });
 });
 
+describe('OperationsPrivacyRequestsService.detail · lo que pidió la persona', () => {
+  async function conValor(valor: string) {
+    const { encryptSecretEnvelope } = await import('../../../src/common/utils/crypto/envelope-encryption.util.js');
+    return fila({
+      requestType: 'rectification',
+      description: 'mi zona está mal',
+      rectificationField: 'zone',
+      hasProposedValue: true,
+      pinVerifiedAt: new Date('2026-09-01T11:58:00.000Z'),
+      proposedValueEnvelope: await encryptSecretEnvelope(valor),
+    });
+  }
+
+  it('enseña el texto, el campo y el valor propuesto DESCIFRADO a quien mira, y audita esa lectura', async () => {
+    const { service, repository } = montar({ filas: [await conValor('Equipetrol')] });
+
+    const detalle = await service.detail('1', '5', AHORA, { currentUser: interno, ipAddress: '10.0.0.1' });
+
+    expect(detalle).toMatchObject({ description: 'mi zona está mal', rectificationField: 'zone', proposedValue: 'Equipetrol' });
+    expect(detalle.pinVerifiedAt).toBe('2026-09-01T11:58:00.000Z');
+    const auditoria = (repository.createAudit as jest.Mock).mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(auditoria).toMatchObject({
+      actionCode: 'privacy.data_subject_request.proposed_value_read',
+      actorInternalUserId: '77',
+      targetId: '5',
+    });
+    // La auditoría dice QUIÉN lo vio y de qué campo; el valor no (la auditoría no se cifra).
+    expect(JSON.stringify(auditoria)).not.toContain('Equipetrol');
+  });
+
+  it('NUNCA devuelve el sobre cifrado tal cual', async () => {
+    const { service } = montar({ filas: [await conValor('Equipetrol')] });
+    const detalle = await service.detail('1', '5', AHORA, { currentUser: interno, ipAddress: null });
+    expect(detalle).not.toHaveProperty('proposedValueEnvelope');
+  });
+
+  it('sin lector identificado no revela el valor ni deja lectura auditada', async () => {
+    const { service, repository } = montar({ filas: [await conValor('Equipetrol')] });
+    const detalle = await service.detail('1', '5', AHORA);
+    expect(detalle.proposedValue).toBeNull();
+    expect(repository.createAudit).not.toHaveBeenCalled();
+  });
+
+  it('un sobre ilegible no tumba el detalle: el valor sale vacío y no se audita una lectura que no ocurrió', async () => {
+    const { service, repository } = montar({
+      filas: [fila({ rectificationField: 'zone', hasProposedValue: true, proposedValueEnvelope: 'v2:roto' })],
+    });
+    const detalle = await service.detail('1', '5', AHORA, { currentUser: interno, ipAddress: null });
+    expect(detalle.proposedValue).toBeNull();
+    expect(repository.createAudit).not.toHaveBeenCalled();
+  });
+
+  it('el listado NO pide el sobre cifrado; el detalle sí', async () => {
+    const { service, query } = montar();
+    await service.list('1', consulta(), AHORA);
+    const sqlListado = query.mock.calls.map(([sql]) => sql).find((sql) => sql.includes('"customerName"')) ?? '';
+    expect(sqlListado).not.toContain('proposedValueEnvelope');
+    query.mockClear();
+    await service.detail('1', '5', AHORA);
+    const sqlDetalle = query.mock.calls.map(([sql]) => sql).find((sql) => sql.includes('"customerName"')) ?? '';
+    expect(sqlDetalle).toContain('proposedValueEnvelope');
+  });
+});
+
 describe('OperationsPrivacyRequestsService.transition', () => {
   it('tomarla bloquea la fila, la asigna a quien la toma y deja auditoría', async () => {
     const { service, repository } = montar();
@@ -283,10 +347,11 @@ describe('OperationsPrivacyRequestsController', () => {
     const service = { list: jest.fn(), detail: jest.fn(), transition: jest.fn() };
     const controller = new OperationsPrivacyRequestsController(service as never);
     await controller.list('1', consulta());
-    await controller.detail('1', { requestId: '5' });
+    await controller.detail('1', { requestId: '5' }, interno, { ip: '10.0.0.1' } as never);
     await controller.transition('1', { requestId: '5' }, { toStatus: 'in_progress' }, interno, { ip: '10.0.0.1' });
     expect(service.list).toHaveBeenCalledWith('1', expect.objectContaining({ page: 1 }));
-    expect(service.detail).toHaveBeenCalledWith('1', '5');
+    // Quién mira viaja al servicio: la lectura del valor propuesto se audita con su autor.
+    expect(service.detail).toHaveBeenCalledWith('1', '5', expect.any(Date), { currentUser: interno, ipAddress: '10.0.0.1' });
     expect(service.transition).toHaveBeenCalledWith({
       tenantId: '1',
       requestId: '5',

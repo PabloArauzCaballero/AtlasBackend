@@ -8,11 +8,13 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../common/utils/auth/ownership.util.js';
+import { encryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { createStableCode, sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { ConsentsRepository } from '../consents/consents.repository.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { CustomerPrivacyRepository } from './customer-privacy.repository.js';
 import { ConsentDecisionsDto, DataSubjectRequestDto } from './customer-privacy.schemas.js';
+import { PIN_STEP_UP_WINDOW_MS } from './data-subject-request.content.js';
 
 @Injectable()
 export class CustomerPrivacyService {
@@ -148,6 +150,16 @@ export class CustomerPrivacyService {
 
     const now = new Date();
     const dueAt = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+    // El valor propuesto es un dato personal: se cifra ANTES de abrir la transacción y nunca viaja en claro a la base,
+    // a la auditoría ni al log de acciones.
+    const proposedValueEncrypted = input.body.proposedValue
+      ? Buffer.from(await encryptSecretEnvelope(input.body.proposedValue), 'utf8')
+      : null;
+    const pinVerifiedAt = await this.privacyRepository.findLastPinVerification(
+      input.tenantId,
+      input.customerId,
+      new Date(now.getTime() - PIN_STEP_UP_WINDOW_MS),
+    );
     return this.sequelize.transaction(async (transaction) => {
       const request = await this.privacyRepository.createDataSubjectRequest(
         {
@@ -157,6 +169,11 @@ export class CustomerPrivacyService {
           requestType: input.body.requestType,
           requestedAt: now,
           dueAt,
+          // Antes se aceptaba y se tiraba: la cola recibía «quiero corregir algo» sin saber qué.
+          description: input.body.description ?? null,
+          rectificationField: input.body.field ?? null,
+          proposedValueEncrypted,
+          pinVerifiedAt,
         },
         { transaction },
       );
@@ -166,7 +183,11 @@ export class CustomerPrivacyService {
           customerId: input.customerId,
           sessionId: null,
           eventName: 'data_subject_request_created',
-          payload: { requestType: input.body.requestType, idempotencyKeyHash: sha256Hex(input.idempotencyKey) },
+          payload: {
+            requestType: input.body.requestType,
+            field: input.body.field ?? null,
+            idempotencyKeyHash: sha256Hex(input.idempotencyKey),
+          },
           occurredAt: now,
         },
         { transaction },
@@ -181,7 +202,13 @@ export class CustomerPrivacyService {
           targetType: 'data_subject_request',
           targetId: String(request.id),
           ipAddress: input.ipAddress,
-          payload: { customerId: input.customerId, requestType: input.body.requestType },
+          // El campo sí (dice qué se pidió); el valor NO (es un dato personal y la auditoría no se cifra).
+          payload: {
+            customerId: input.customerId,
+            requestType: input.body.requestType,
+            field: input.body.field ?? null,
+            pinConfirmed: pinVerifiedAt !== null,
+          },
           occurredAt: now,
         },
         { transaction },

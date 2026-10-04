@@ -27,6 +27,13 @@ export interface FilaDeSolicitud {
   customerId: string | null;
   customerCode: string | null;
   customerName: string | null;
+  /** Lo que la persona escribió y qué quiere corregir. Antes no se guardaba. */
+  description: string | null;
+  rectificationField: string | null;
+  hasProposedValue: boolean;
+  pinVerifiedAt: Date | string | null;
+  /** Sólo en el detalle: el sobre cifrado del valor propuesto. Nunca sale tal cual en la respuesta. */
+  proposedValueEnvelope?: string | null;
 }
 
 export interface FilaDeHistorial {
@@ -38,13 +45,16 @@ export interface FilaDeHistorial {
   payload: Record<string, unknown> | null;
 }
 
-export function sqlSolicitudes(where: string, paginar: boolean): string {
+export function sqlSolicitudes(where: string, paginar: boolean, conValorCifrado = false): string {
   return `
     SELECT d._id::text AS "requestId", d.request_code AS "requestCode", d.request_type AS "requestType", d.status,
            ${SQL_RECEIVED_AT} AS "receivedAt", d.resolved_at AS "resolvedAt", d.resolution_notes AS "resolutionNotes",
            d.handled_by::text AS "handledByInternalUserId", iu.full_name AS "handledByName",
            d.customer_id::text AS "customerId", cu.customer_code AS "customerCode",
-           NULLIF(TRIM(CONCAT_WS(' ', pv.first_name, pv.last_name)), '') AS "customerName"
+           NULLIF(TRIM(CONCAT_WS(' ', pv.first_name, pv.last_name)), '') AS "customerName",
+           d.description, d.rectification_field AS "rectificationField",
+           (d.proposed_value_encrypted IS NOT NULL) AS "hasProposedValue", d.pin_verified_at AS "pinVerifiedAt"
+           ${conValorCifrado ? `, convert_from(d.proposed_value_encrypted, 'UTF8') AS "proposedValueEnvelope"` : ''}
       FROM ${tabla('data_subject_requests')} d
       LEFT JOIN ${tabla('customers')} cu ON cu._id = d.customer_id AND cu._tenant_id = d._tenant_id
       LEFT JOIN ${tabla('customer_profile_versions')} pv ON pv._id = cu.current_profile_version_id AND pv._tenant_id = d._tenant_id
@@ -88,8 +98,11 @@ export function presentarSolicitud(fila: FilaDeSolicitud, now: Date) {
   const recibida = new Date(fila.receivedAt);
   const vence = dueDateFrom(recibida);
   const overdue = isOverdue(fila.status, recibida, now);
+  // El sobre cifrado nunca sale en la respuesta: el detalle pone el valor descifrado (y lo audita) aparte.
+  const { proposedValueEnvelope: _sobre, ...visible } = fila;
   return {
-    ...fila,
+    ...visible,
+    pinVerifiedAt: fila.pinVerifiedAt ? iso(fila.pinVerifiedAt) : null,
     status: fila.status ?? 'received',
     receivedAt: iso(fila.receivedAt),
     dueAt: vence.toISOString(),
