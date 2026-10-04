@@ -2392,7 +2392,9 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
-          description: Más de 5 intentos en un minuto.
+          description: >-
+            Más de 5 intentos en un minuto desde la misma IP, o
+            `PIN_VERIFY_COOLDOWN`: 5 PIN incorrectos de la cuenta en 15 minutos.
         '500':
           $ref: '#/components/responses/InternalError'
       security:

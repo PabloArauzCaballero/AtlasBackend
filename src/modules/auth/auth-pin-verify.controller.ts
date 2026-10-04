@@ -28,7 +28,7 @@ import { PinVerifyDto, pinVerifySchema } from './auth.schemas.js';
 export class AuthPinVerifyController {
   constructor(private readonly pinVerify: AuthPinVerifyService) {}
 
-  // 5 por minuto por IP: es lo único que frena a quien tenga un token y pruebe PIN uno tras otro
+  // 5 por minuto por IP; por CUENTA frena `AuthPinVerifyService` (5 fallos en 15 min) a quien rote de IP
   // (aquí el contador de bloqueo del login no suma, por la misma razón que en el cambio de contraseña).
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Roles('customer')
@@ -43,7 +43,10 @@ export class AuthPinVerifyController {
   @ApiBody({ schema: zodToApiSchema(pinVerifySchema) })
   @ApiResponse({ status: 200, description: 'PIN correcto — `{ verified: true, verifiedAt }`.' })
   @ApiResponse({ status: 400, description: '`PIN_INCORRECT`: el PIN no coincide.' })
-  @ApiResponse({ status: 429, description: 'Más de 5 intentos en un minuto.' })
+  @ApiResponse({
+    status: 429,
+    description: 'Más de 5 intentos en un minuto desde la misma IP, o `PIN_VERIFY_COOLDOWN`: 5 PIN incorrectos de la cuenta en 15 minutos.',
+  })
   @Post('verify')
   @HttpCode(HttpStatus.OK)
   verify(

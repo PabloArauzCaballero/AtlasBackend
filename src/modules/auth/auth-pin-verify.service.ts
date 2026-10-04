@@ -4,11 +4,15 @@
  *   abierta en un teléfono prestado o perdido no basta para leer su expediente.
  * @system compara el PIN contra la credencial del actor del token; deja rastro en la bitácora de autenticación.
  */
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { verifyPassword } from '../../common/utils/crypto/password.util.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthPasswordChangeRepository } from './auth-password-change.repository.js';
 import type { ActorType } from './auth-vocabulary.js';
+
+/** Fallos seguidos que se toleran por cuenta dentro de la ventana, y cuánto dura la ventana. */
+export const PIN_VERIFY_MAX_FAILURES = 5;
+export const PIN_VERIFY_WINDOW_MS = 15 * 60_000;
 
 /** Quién pide la comprobación, tomado del access token y NUNCA del cuerpo de la petición. */
 export type PinVerifyRequester = {
@@ -28,7 +32,11 @@ export type PinVerifyRequester = {
  * Es la misma decisión que `AuthPasswordChangeService`: quien llega aquí ya tiene una sesión válida, así
  * que bloquear la credencial no le quita nada a un atacante y sí deja al dueño legítimo fuera de su
  * propia cuenta —sería regalarle un botón de denegación de servicio—. La fuerza bruta la contiene el
- * `@Throttle` del controlador (5 por minuto) y cada intento queda en la bitácora.
+ * `@Throttle` del controlador (5 por minuto, por IP) y, por CUENTA, una pausa: con `PIN_VERIFY_MAX_FAILURES` fallos
+ * en `PIN_VERIFY_WINDOW_MS` se responde 429 sin mirar el PIN. La pausa afecta sólo a esta comprobación —no al login
+ * ni a la credencial—, así que no es el botón de denegación que se quería evitar: lo peor que consigue quien la
+ * provoca es que el dueño espere unos minutos para ver sus datos. Un PIN de cuatro dígitos pasa de barrerse en horas
+ * rotando de IP a necesitar semanas. Cada intento queda en la bitácora.
  *
  * ## 400 y no 401
  *
@@ -47,6 +55,15 @@ export class AuthPinVerifyService {
     const credential = actor ? await this.passwordChangeRepository.findCredential(input.actorType, actor.id) : null;
     if (!actor || !credential) {
       throw new UnauthorizedException('Tu cuenta ya no está disponible.');
+    }
+
+    const fallos = await this.passwordChangeRepository.countRecentPinFailures(input.actorId, new Date(Date.now() - PIN_VERIFY_WINDOW_MS));
+    if (fallos >= PIN_VERIFY_MAX_FAILURES) {
+      // No se registra como fallo: contaría contra la ventana y la pausa no terminaría nunca para quien insiste.
+      throw new HttpException(
+        { code: 'PIN_VERIFY_COOLDOWN', message: 'Demasiados intentos con el PIN. Espera unos minutos y vuelve a intentarlo.' },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     const correct = await verifyPassword(credential.passwordHash, input.pin);
