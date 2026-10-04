@@ -6,6 +6,8 @@
  * @system función pura; no consulta nada. Las lecturas viven en `UnderwritingDeviceSignalsService`.
  */
 
+import type { FormaDeLaAgenda } from '../../common/utils/contact/contact-book-shape.util.js';
+
 /** Una posición tal como la necesita el cálculo. `distanceToDeclaredMeters` la calcula el servidor al recibirla. */
 export type PingObservado = {
   capturedAt: Date;
@@ -26,6 +28,8 @@ export type AgendaObservada = {
   watchlistMatches: number;
   /** Otros clientes que comparten al menos `UMBRAL_ANILLO_CONTACTOS` teléfonos con esta agenda. */
   ringCustomers: number;
+  /** Cuántos contactos, cuándo apareció el último y si parece de una persona (`contact-book-shape.util.ts`). */
+  shape?: FormaDeLaAgenda;
 };
 
 export type EntradasDeSeñalesDelTelefono = {

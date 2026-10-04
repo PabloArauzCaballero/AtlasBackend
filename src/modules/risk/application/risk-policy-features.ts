@@ -16,6 +16,8 @@ export type OnboardingRiskSignals = {
   consistencyScore: number;
   fraudScore: number;
   totalScore: number;
+  /** Banderas de fraude del alta; opcional para quien construye las señales a mano. */
+  fraudFlags?: { strong: readonly string[]; medium: readonly string[]; escalate: boolean };
 };
 
 /**
@@ -37,5 +39,9 @@ export function toPolicyFeatures(signals: OnboardingRiskSignals): Record<string,
     consistency_score: signals.consistencyScore,
     fraud_score: signals.fraudScore,
     total_score: signals.totalScore,
+    // Para la política 2.0: cuántas banderas hubo. La 1.0 no las declara y decide por `total_score`, que ya las refleja.
+    fraud_flags_strong: signals.fraudFlags?.strong.length ?? 0,
+    fraud_flags_medium: signals.fraudFlags?.medium.length ?? 0,
+    fraud_escalated: signals.fraudFlags?.escalate ?? false,
   };
 }

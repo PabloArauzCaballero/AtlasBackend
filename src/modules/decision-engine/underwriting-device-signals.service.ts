@@ -17,6 +17,7 @@ import {
   WatchlistEntryModel,
 } from '../../database/models/index.js';
 import { env } from '../../config/env.js';
+import { calcularFormaDeLaAgenda } from '../../common/utils/contact/contact-book-shape.util.js';
 import {
   calcularSeñalesDelTelefono,
   UMBRAL_ANILLO_CONTACTOS,
@@ -83,7 +84,7 @@ export class UnderwritingDeviceSignalsService {
           attributes: ['botLikelihoodScore'],
           order: [['computedAt', 'DESC']],
         } as FindOptions),
-        this.agenda(tenantId, customerId),
+        this.agenda(tenantId, customerId, now),
       ]);
 
       const señales = calcularSeñalesDelTelefono({
@@ -128,15 +129,26 @@ export class UnderwritingDeviceSignalsService {
    * El anillo se cuenta en SQL con el índice GIN de `phone_hashes` (`&&` filtra, `unnest` cuenta coincidencias por
    * cliente): traer las agendas de todos al proceso sería leer la PII de terceros de toda la base para contar.
    */
-  private async agenda(tenantId: string, customerId: string): Promise<AgendaObservada> {
+  private async agenda(tenantId: string, customerId: string, now: Date): Promise<AgendaObservada> {
     const filas = await this.contacts.findAll({
       where: { tenantId, customerId, deleted: { [Op.ne]: true } },
-      attributes: ['phoneHashes'],
+      attributes: ['phoneHashes', 'emailCount', 'isFavorite', 'birthday', 'contactType', 'createdAtValue'],
     } as FindOptions);
     if (filas.length === 0) return { available: false, totalContacts: 0, watchlistMatches: 0, ringCustomers: 0 };
 
+    const shape = calcularFormaDeLaAgenda(
+      filas.map((f) => ({
+        phoneHashes: f.phoneHashes ?? [],
+        emailCount: f.emailCount ?? 0,
+        isFavorite: f.isFavorite === true,
+        hasBirthday: f.birthday !== null && f.birthday !== undefined,
+        isCompany: f.contactType === 'company',
+        firstSeenAt: f.createdAtValue ?? now,
+      })),
+      now,
+    );
     const hashes = [...new Set(filas.flatMap((f) => f.phoneHashes ?? []))].slice(0, MAX_HASHES);
-    if (hashes.length === 0) return { available: true, totalContacts: filas.length, watchlistMatches: 0, ringCustomers: 0 };
+    if (hashes.length === 0) return { available: true, totalContacts: filas.length, watchlistMatches: 0, ringCustomers: 0, shape };
 
     const tabla = this.contacts.getTableName() as unknown as { schema?: string; tableName: string } | string;
     const nombre = typeof tabla === 'string' ? `"${tabla}"` : `${tabla.schema ? `"${tabla.schema}".` : ''}"${tabla.tableName}"`;
@@ -162,6 +174,6 @@ export class UnderwritingDeviceSignalsService {
         { replacements: { tenantId, customerId, hashes, umbral: UMBRAL_ANILLO_CONTACTOS }, type: QueryTypes.SELECT },
       ),
     ]);
-    return { available: true, totalContacts: filas.length, watchlistMatches, ringCustomers: Number(anillo[0]?.n ?? 0) };
+    return { available: true, totalContacts: filas.length, watchlistMatches, ringCustomers: Number(anillo[0]?.n ?? 0), shape };
   }
 }

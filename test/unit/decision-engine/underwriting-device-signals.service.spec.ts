@@ -54,7 +54,9 @@ describe('UnderwritingDeviceSignalsService.signalsFor', () => {
     // root 40 + ubicación simulada 30 + dispositivo compartido con 3 clientes 30.
     expect(señales?.device).toMatchObject({ rootedOrEmulator: true, sharedDeviceCustomers: 3, riskScore: 100 });
     expect(señales?.behavior).toEqual({ available: true, botLikelihoodScore: 0.75 });
-    expect(señales?.contacts).toEqual({ available: true, totalContacts: 2, watchlistMatches: 1, ringCustomers: 2 });
+    expect(señales?.contacts).toMatchObject({ available: true, totalContacts: 2, watchlistMatches: 1, ringCustomers: 2 });
+    // La forma de la agenda viaja con ella: cuántos contactos y cuándo apareció el último.
+    expect(señales?.contacts.shape).toMatchObject({ total: 2, daysSinceLastNewContact: null, senales: ['AGENDA_MINIMA'] });
 
     // El cruce del anillo va por hashes únicos y contra la tabla con su esquema; nunca descifra una ficha.
     const [sql, opciones] = query.mock.calls[0] as [string, { replacements: { hashes: string[] } }];
