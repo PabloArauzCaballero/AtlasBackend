@@ -119,6 +119,55 @@ describe('AuthPasswordChangeService', () => {
     expect(mailSenderService.sendPasswordChangeCode).toHaveBeenCalledWith(expect.objectContaining({ to: 'ada@atlas.mx' }));
   });
 
+  it('dice a qué correo mandó el código, enmascarado: sin eso la persona no sabe dónde buscarlo', async () => {
+    const { service } = build();
+
+    const result = await service.requestPasswordChange({ ...requester, currentPassword: ACTUAL });
+
+    // `ada@atlas.mx` tiene una parte local corta: sólo se deja la «a».
+    expect(result.deliveredTo).toBe('a***@atlas.mx');
+    expect(result.deliveredTo).not.toContain('ada@');
+  });
+
+  it('el código que VIAJA en el correo es el que confirma el cambio (de punta a punta, sin dobles del código)', async () => {
+    const { service, oneTimeCodeRepository, mailSenderService, passwordChangeRepository } = build();
+
+    // Paso 1: se captura lo que de verdad se guardó y lo que de verdad se mandó por correo.
+    const pedido = await service.requestPasswordChange({ ...requester, currentPassword: ACTUAL });
+    const guardado = oneTimeCodeRepository.createOneTimeCode.mock.calls[0]?.[0] as { codeHash: string; challengeHash: string };
+    const correo = mailSenderService.sendPasswordChangeCode.mock.calls[0]?.[0] as { code: string; to: string };
+    expect(correo.code).toMatch(/^\d{6}$/);
+
+    // El desafío vigente es EXACTAMENTE lo guardado: el token del cliente se busca por su hash.
+    oneTimeCodeRepository.findActiveOneTimeCodeByChallenge.mockImplementationOnce(async (...args: unknown[]) => {
+      expect(args[0]).toBe(guardado.challengeHash);
+      return challenge({ codeHash: guardado.codeHash });
+    });
+
+    // Paso 2: quien teclea el código del CORREO cambia la contraseña.
+    await service.confirmPasswordChange({
+      ...requester,
+      challengeToken: pedido.challengeToken,
+      code: correo.code,
+      newPassword: 'NuevaClave#2026',
+    });
+    expect(passwordChangeRepository.applyNewPassword).toHaveBeenCalledTimes(1);
+  });
+
+  it('un código distinto al del correo NO confirma el cambio', async () => {
+    const { service, oneTimeCodeRepository, mailSenderService, passwordChangeRepository } = build();
+    const pedido = await service.requestPasswordChange({ ...requester, currentPassword: ACTUAL });
+    const guardado = oneTimeCodeRepository.createOneTimeCode.mock.calls[0]?.[0] as { codeHash: string };
+    const correo = mailSenderService.sendPasswordChangeCode.mock.calls[0]?.[0] as { code: string };
+    const otro = correo.code === '000000' ? '111111' : '000000';
+    oneTimeCodeRepository.findActiveOneTimeCodeByChallenge.mockResolvedValueOnce(challenge({ codeHash: guardado.codeHash }));
+
+    await expect(
+      service.confirmPasswordChange({ ...requester, challengeToken: pedido.challengeToken, code: otro, newPassword: 'NuevaClave#2026' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(passwordChangeRepository.applyNewPassword).not.toHaveBeenCalled();
+  });
+
   // --- paso 2: confirmación --------------------------------------------------------------------
 
   const confirmInput = { ...requester, challengeToken: 'x'.repeat(32), code: '123456', newPassword: 'NuevaClave#2026' };

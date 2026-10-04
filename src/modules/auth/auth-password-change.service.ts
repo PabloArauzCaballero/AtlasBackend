@@ -20,6 +20,7 @@ import {
   verifyOneTimeCode,
 } from '../../common/utils/crypto/one-time-code.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
+import { maskEmailForDisplay } from '../../common/utils/contact/mask-email.util.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
@@ -147,7 +148,7 @@ export class AuthPasswordChangeService {
 
     await this.recordEvent(actor.tenantId, input, 'password_change_request', true, null);
 
-    return { pinChallengeRequired: true, challengeToken, expiresInMinutes: ttlMinutes };
+    return { pinChallengeRequired: true, challengeToken, expiresInMinutes: ttlMinutes, deliveredTo: maskEmailForDisplay(actor.email) };
   }
 
   /**

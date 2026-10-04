@@ -54,7 +54,7 @@ describe('customers.mapper', () => {
     const res = toCustomerMeResponse({
       customer: baseCustomer as never,
       profile: { firstName: 'Ana', lastName: 'Paz', birthDate: '1990-01-01', preferredLanguage: 'es' } as never,
-      contacts: [{ contactType: 'phone', status: 'verified', isPrimary: true, valueLast4: '1234' }] as never,
+      contacts: [{ id: '7', contactType: 'phone', status: 'verified', isPrimary: true, valueLast4: '1234' }] as never,
       consents: [
         { granted: true, purposeCode: 'marketing' },
         { granted: false, purposeCode: 'profiling' },
@@ -67,6 +67,37 @@ describe('customers.mapper', () => {
     expect(res.consents).toEqual({ accepted: ['marketing'], declined: ['profiling'] });
     expect(res.contacts).toHaveLength(1);
     expect(res.risk).toEqual({ latestDecision: 'approve', latestRiskLevel: 'low' });
+  });
+
+  it('toCustomerMeResponse pone el correo enmascarado en su contacto y deja null al resto', () => {
+    const res = toCustomerMeResponse({
+      customer: baseCustomer as never,
+      profile: null,
+      contacts: [
+        { id: '7', contactType: 'phone', status: 'verified', isPrimary: true, valueLast4: '7232' },
+        { id: '8', contactType: 'email', status: 'verified', isPrimary: true, valueLast4: null },
+      ] as never,
+      consents: [] as never,
+      riskResult: null,
+      onboardingFlow: null,
+      assessment: baseAssessment,
+      maskedContacts: new Map([['8', 'pa***@gmail.com']]),
+    });
+    expect(res.contacts[0]).toMatchObject({ contactType: 'phone', valueLast4: '7232', maskedValue: null });
+    expect(res.contacts[1]).toMatchObject({ contactType: 'email', valueLast4: null, maskedValue: 'pa***@gmail.com' });
+  });
+
+  it('sin mapa de enmascarados (clientes viejos del mapper) el contacto sale con maskedValue null y no revienta', () => {
+    const res = toCustomerMeResponse({
+      customer: baseCustomer as never,
+      profile: null,
+      contacts: [{ id: '8', contactType: 'email', status: 'verified', isPrimary: true, valueLast4: null }] as never,
+      consents: [] as never,
+      riskResult: null,
+      onboardingFlow: null,
+      assessment: baseAssessment,
+    });
+    expect(res.contacts[0]?.maskedValue).toBeNull();
   });
 
   it('toCustomerMeResponse deja profile/risk/onboarding en null cuando no vienen', () => {

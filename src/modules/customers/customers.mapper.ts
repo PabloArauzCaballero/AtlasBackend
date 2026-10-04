@@ -50,6 +50,8 @@ export function toCustomerMeResponse(input: {
   riskResult: RiskAssessmentResultModel | null;
   onboardingFlow: OnboardingFlowModel | null;
   assessment: EligibilityAssessment;
+  /** Correos ya descifrados y enmascarados, por id de contacto. El mapper es puro: el servicio es quien descifra. */
+  maskedContacts?: ReadonlyMap<string, string>;
 }): CustomerMeResponseDto {
   const acceptedPurposeCodes = input.consents
     .filter((c) => c.granted === true)
@@ -101,6 +103,7 @@ export function toCustomerMeResponse(input: {
       status: c.status,
       isPrimary: c.isPrimary,
       valueLast4: c.valueLast4,
+      maskedValue: input.maskedContacts?.get(String(c.id)) ?? null,
     })),
     consents: {
       accepted: acceptedPurposeCodes,
