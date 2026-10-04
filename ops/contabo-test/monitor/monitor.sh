@@ -112,10 +112,16 @@ tail -n 1500 "$E/hist.tsv" > "$E/hist.tsv.n" && mv "$E/hist.tsv.n" "$E/hist.tsv"
 chequeo ram "$([ "$mem_av" -lt 2048 ] && echo 1 || echo 0)" 3 \
   "RAM: quedan ${mem_av} MB disponibles en Contabo (aviso por debajo de 2048)." \
   "la RAM disponible vuelve a ${mem_av} MB."
-chequeo disco85 "$([ "$disco" -ge 85 ] && echo 1 || echo 0)" 1 \
+# Histéresis: salta al llegar al 85 % y sólo se da por recuperado por debajo del 83 %. Sin ella, un disco que
+# oscila 84↔85 (los builds de otros proyectos suben y bajan la caché) mandaba un aviso y un «recuperado» cada pocos minutos.
+disco85_malo=$([ "$disco" -ge 85 ] && echo 1 || echo 0)
+[ "$(cat "$E/s-disco85" 2>/dev/null)" = MAL ] && [ "$disco" -ge 83 ] && disco85_malo=1
+chequeo disco85 "$disco85_malo" 1 \
   "DISCO al ${disco}% en Contabo (aviso desde el 85%). Caché de build: ${cache_gb} GB." \
   "el disco baja al ${disco}%."
-chequeo disco90 "$([ "$disco" -ge 90 ] && echo 1 || echo 0)" 1 \
+disco90_malo=$([ "$disco" -ge 90 ] && echo 1 || echo 0)
+[ "$(cat "$E/s-disco90" 2>/dev/null)" = MAL ] && [ "$disco" -ge 88 ] && disco90_malo=1
+chequeo disco90 "$disco90_malo" 1 \
   "DISCO CRÍTICO al ${disco}%: la copia de bases deja de respaldar por encima del 90%." \
   "el disco baja del 90% (${disco}%)."
 chequeo cache "$([ "$cache_gb" -gt "$CACHE_MAX_GB" ] && echo 1 || echo 0)" 1 \
