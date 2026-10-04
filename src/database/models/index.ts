@@ -57,6 +57,8 @@ export { RatingPolicyVersionModel } from './rating-policy-versions.model.js';
 export { RatingPolicyBandModel } from './rating-policy-bands.model.js';
 export { LoanRiskRatingModel } from './loan-risk-ratings.model.js';
 export { CreditLineModel } from './credit-lines.model.js';
+export { CardTierModel } from './card-tiers.model.js';
+export { CustomerCardTierOverrideModel } from './customer-card-tier-overrides.model.js';
 export { CreditExposureReservationModel } from './credit-exposure-reservations.model.js';
 export { DecisionConsentReplicationModel } from './decision-consent-replications.model.js';
 export { ExternalEventInboxModel } from './external-event-inbox.model.js';

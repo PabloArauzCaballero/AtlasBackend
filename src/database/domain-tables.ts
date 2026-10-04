@@ -117,6 +117,8 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     // Lo que la app enseña y no es un dato del cliente: bienvenida, ayuda, preguntas frecuentes y
     // enlaces legales. Es catálogo editable, no código.
     'app_content_entries',
+    // Las tarjetas del cliente (Normal, Silver, Gold, Premium, Black): sólo presentación y estatus. Catálogo editable.
+    'card_tiers',
     'context_seed_import_checkpoints',
     // Que artefacto del motor decide cada cosa —identidad, credito, riesgo—. Es catalogo de
     // configuracion, no un dato del cliente: por eso vive aqui y no en `credit`.
@@ -142,6 +144,8 @@ export const ATLAS_DOMAIN_TABLES: Readonly<Record<AtlasSchema, readonly string[]
     // La linea de credito vive con el credito y no con el cliente: la decide la politica de suscripcion, cambia con el
     // comportamiento de pago y se audita junto a los prestamos que la consumen. En `customer` seria un atributo del expediente.
     'credit_lines',
+    // Ajustes MANUALES de la tarjeta de un cliente, con motivo, vigencia y revocación. La automática no se guarda.
+    'customer_card_tier_overrides',
     // El extracto que el cliente sube para que le recalculen la linea: vive con el credito porque es
     // entrada de la politica de suscripcion, no un documento mas de su expediente.
     'bank_statement_reviews',

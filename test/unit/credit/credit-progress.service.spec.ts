@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { DEFAULT_CARD_TIERS, resolveCardTier } from '../../../src/modules/credit/domain/card-tier.js';
 import { CreditProgressService } from '../../../src/modules/credit/application/credit-progress.service.js';
 import { assessPaymentCapacity } from '../../../src/modules/credit/domain/payment-capacity.js';
 import type { RelationshipInput, StatementCapacityInput } from '../../../src/modules/credit/domain/payment-capacity.types.js';
@@ -39,14 +40,22 @@ function armar(opciones: { linea: unknown; historial: unknown[]; prestamos?: unk
   });
   const capacity = { assessDetailed: jest.fn(async (_entrada: Record<string, unknown>) => ({ assessment, relationship: RELACION })) };
   const lines = { current: jest.fn(async () => opciones.linea), history: jest.fn(async () => opciones.historial) };
+  const cards = {
+    resolveFor: jest.fn(async (_t: string, _c: string, nivel: Parameters<typeof resolveCardTier>[0]['levelCode']) => ({
+      ...resolveCardTier({ levelCode: nivel, catalog: DEFAULT_CARD_TIERS, override: null, now: new Date() }),
+      manual: null,
+    })),
+    catalog: jest.fn(async (_t: string) => DEFAULT_CARD_TIERS),
+  };
   const loans = { findAll: jest.fn(async (_o: unknown) => opciones.prestamos ?? []) };
   const installments = { findAll: jest.fn(async (_o: unknown) => opciones.cuotas ?? []) };
   return {
-    service: new CreditProgressService(capacity as never, lines as never, loans as never, installments as never),
+    service: new CreditProgressService(capacity as never, lines as never, cards as never, loans as never, installments as never),
     capacity,
     lines,
     loans,
     installments,
+    cards,
   };
 }
 
@@ -128,5 +137,34 @@ describe('CreditProgressService', () => {
 
     expect(r.experience).toMatchObject({ xp: 0, onTimeInstallments: 0, bestStreak: 0 });
     expect(installments.findAll).not.toHaveBeenCalled();
+  });
+
+  it('trae la tarjeta del cliente (la de su nivel) y el escalón completo', async () => {
+    const { service, cards } = armar({ linea: null, historial: [] });
+
+    const r = await service.get('1', '42');
+
+    expect(cards.resolveFor).toHaveBeenCalledWith('1', '42', r.tier.code);
+    expect(r.card.source).toBe('AUTOMATICA');
+    expect(r.card.catalog.map((t: { code: string }) => t.code)).toEqual(['NORMAL', 'SILVER', 'GOLD', 'PREMIUM', 'BLACK']);
+    expect(r.card.catalog.filter((t: { current: boolean }) => t.current)).toHaveLength(1);
+  });
+
+  it('la respuesta al cliente NO lleva el motivo ni el autor de un ajuste manual', async () => {
+    const { service } = armar({ linea: null, historial: [] });
+
+    const r = await service.get('1', '42');
+
+    expect(JSON.stringify(r.card)).not.toMatch(/reason|setBy|revoke/i);
+  });
+
+  it('levelOf devuelve sólo el nivel y no consulta cuotas ni historial', async () => {
+    const { service, installments, lines } = armar({ linea: null, historial: [] });
+
+    const nivel = await service.levelOf('1', '42');
+
+    expect(nivel.tier.code).toBeDefined();
+    expect(installments.findAll).not.toHaveBeenCalled();
+    expect(lines.history).not.toHaveBeenCalled();
   });
 });

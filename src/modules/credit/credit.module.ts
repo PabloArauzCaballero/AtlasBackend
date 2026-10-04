@@ -12,6 +12,8 @@ import {
   CreditApplicationModel,
   CreditExposureReservationModel,
   CreditLineModel,
+  CardTierModel,
+  CustomerCardTierOverrideModel,
   CreditProductModel,
   CustomerActivitySummaryModel,
   CustomerModel,
@@ -52,6 +54,8 @@ import { CreditReviewCallbackController } from './credit-review-callback.control
 import { CreditController } from './credit.controller.js';
 import { CreditProgressController } from './credit-progress.controller.js';
 import { CreditProgressService } from './application/credit-progress.service.js';
+import { CardTierService } from './application/card-tier.service.js';
+import { CardTierOperationsController } from './card-tier-operations.controller.js';
 import { CreditRepository } from './credit.repository.js';
 import { CreditReviewCaseRepository } from './credit-review-case.repository.js';
 import { CreditSubmittedReconciliationService } from './application/credit-submitted-reconciliation.service.js';
@@ -83,6 +87,9 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
       BankStatementReviewModel,
       // P-11: la reserva del cupo que la aceptación aparta y el desembolso consume.
       CreditExposureReservationModel,
+      // La tarjeta del cliente: catálogo de presentación y ajustes manuales del personal.
+      CardTierModel,
+      CustomerCardTierOverrideModel,
       // El modelo de capacidad lee el historial de pago DENTRO de Atlas —es lo único que se sabe
       // con certeza de cómo paga esta persona, y sustituye a un buró que en Bolivia no existe— y
       // las señales de actividad que delatan una alerta de fraude abierta.
@@ -108,6 +115,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
   controllers: [
     CreditController,
     CreditProgressController,
+    CardTierOperationsController,
     CreditOperationsController,
     MerchantCreditController,
     CreditReviewCallbackController,
@@ -135,6 +143,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     CreditLineRefreshService,
     PaymentCapacityService,
     CreditProgressService,
+    CardTierService,
     BankStatementService,
     BankStatementReviewWorker,
     // A6: cierra el extracto que el Motor mandó a revisión humana (aviso del Motor y barrido del job).

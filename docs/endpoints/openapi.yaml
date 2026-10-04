@@ -18938,6 +18938,169 @@ paths:
       summary: Resumen de comportamiento del alta de un cliente
       tags:
         - operations
+  /operations/customers/{customerId}/card-tier:
+    get:
+      description: >-
+        La tarjeta vigente (la que ganó por su nivel o la que el personal le
+        puso), de dónde viene, el escalón completo y el historial de ajustes
+        manuales con motivo, autor y revocaciones.
+      operationId: CardTierOperationsController_get
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Tarjeta, catálogo e historial.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Tarjeta de un cliente
+      tags:
+        - credit
+    post:
+      description: >-
+        Ajusta la tarjeta del cliente con un motivo obligatorio (mínimo 10
+        caracteres) y, si se quiere, un vencimiento. Reemplaza el ajuste
+        anterior. NO cambia el límite de crédito: la tarjeta es presentación y
+        estatus. Queda en la auditoría operativa. Al vencer o revocarse, el
+        cliente vuelve a la tarjeta que le corresponde por su nivel.
+      operationId: CardTierOperationsController_set
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tierCode:
+                  type: string
+                  enum:
+                    - NORMAL
+                    - SILVER
+                    - GOLD
+                    - PREMIUM
+                    - BLACK
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+                expiresAt:
+                  type: string
+                  format: date-time
+                  pattern: >-
+                    ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              required:
+                - tierCode
+                - reason
+              additionalProperties: false
+      responses:
+        '201':
+          description: Ajuste creado; devuelve la tarjeta resultante.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: Motivo corto, tarjeta inexistente o vencimiento pasado.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Poner una tarjeta a mano
+      tags:
+        - credit
+  /operations/customers/{customerId}/card-tier/revoke:
+    post:
+      description: >-
+        Quita el ajuste vigente, con motivo obligatorio. El cliente vuelve a la
+        tarjeta que le corresponde por su nivel.
+      operationId: CardTierOperationsController_revoke
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+              required:
+                - reason
+              additionalProperties: false
+      responses:
+        '200':
+          description: Ajuste revocado; devuelve la tarjeta resultante.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: El cliente no tiene un ajuste manual que revocar.
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Revocar el ajuste manual
+      tags:
+        - credit
   /operations/customers/{customerId}/compliance/clear-matches:
     post:
       description: >-
