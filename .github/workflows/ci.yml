@@ -611,6 +611,7 @@ jobs:
           DB_MIGRATION_USER=m DB_MIGRATION_PASSWORD=mp REDIS_URL=redis://r:6379 \
           JWT_ACCESS_TOKEN_SECRET=s JWT_ISSUER=i JWT_AUDIENCE=a \
           NOTIFICATION_TOKEN_ENCRYPTION_KEY=k CORS_ORIGINS=https://x INTERNAL_FRONTEND_ORIGIN=https://x \
+          AUTH_ONE_TIME_CODE_PEPPER=pimienta-de-ci-de-mas-de-treinta-y-dos \
             docker compose -f docker-compose.prod.yml config --quiet
 
       # `docker-compose.prod.yml` exige `ATLAS_IMAGE`, y hasta ahora NADIE la producía: CI construía
