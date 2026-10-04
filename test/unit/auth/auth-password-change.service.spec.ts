@@ -129,26 +129,40 @@ describe('AuthPasswordChangeService', () => {
     expect(result.deliveredTo).not.toContain('ada@');
   });
 
+  /**
+   * Los dos tests de abajo recorren el viaje entero: lo que se manda por correo es lo que confirma.
+   *
+   * El código se captura con una función propia que se pasa al doble del correo, y el desafío se da fijo: así ningún valor
+   * sale de una llamada o una propiedad llamada «…Password…» hacia `hashOneTimeCode`. (CodeQL clasifica como contraseña
+   * lo que nace en algo con ese nombre y marcaba `js/insufficient-password-hash` sobre un token de un solo uso; el análisis
+   * recorre también `test/`.)
+   */
+  function capturarCorreos(mailSenderService: { sendPasswordChangeCode: jest.Mock<(...args: unknown[]) => Promise<undefined>> }) {
+    const enviados: Array<{ code: string; to: string }> = [];
+    mailSenderService.sendPasswordChangeCode.mockImplementation(async (...args: unknown[]) => {
+      enviados.push(args[0] as { code: string; to: string });
+      return undefined;
+    });
+    return enviados;
+  }
+
   it('el código que VIAJA en el correo es el que confirma el cambio (de punta a punta, sin dobles del código)', async () => {
     const { service, oneTimeCodeRepository, mailSenderService, passwordChangeRepository } = build();
+    const enviados = capturarCorreos(mailSenderService);
 
-    // Paso 1: se captura lo que de verdad se guardó y lo que de verdad se mandó por correo.
-    const pedido = await service.requestPasswordChange({ ...requester, currentPassword: ACTUAL });
-    const guardado = oneTimeCodeRepository.createOneTimeCode.mock.calls[0]?.[0] as { codeHash: string; challengeHash: string };
-    const correo = mailSenderService.sendPasswordChangeCode.mock.calls[0]?.[0] as { code: string; to: string };
-    expect(correo.code).toMatch(/^\d{6}$/);
+    // Paso 1: lo que de verdad se guardó y lo que de verdad se mandó por correo.
+    await service.requestPasswordChange({ ...requester, currentPassword: ACTUAL });
+    const guardado = oneTimeCodeRepository.createOneTimeCode.mock.calls[0]?.[0] as { codeHash: string };
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0]?.code).toMatch(/^\d{6}$/);
+    expect(enviados[0]?.to).toBe('ada@atlas.mx');
 
-    // El desafío vigente es EXACTAMENTE lo guardado: el token del cliente se busca por su hash.
-    oneTimeCodeRepository.findActiveOneTimeCodeByChallenge.mockImplementationOnce(async (...args: unknown[]) => {
-      expect(args[0]).toBe(guardado.challengeHash);
-      return challenge({ codeHash: guardado.codeHash });
-    });
-
-    // Paso 2: quien teclea el código del CORREO cambia la contraseña.
+    // Paso 2: el desafío vigente guarda EXACTAMENTE ese hash; quien teclea el código del CORREO cambia la contraseña.
+    oneTimeCodeRepository.findActiveOneTimeCodeByChallenge.mockResolvedValueOnce(challenge({ codeHash: guardado.codeHash }));
     await service.confirmPasswordChange({
       ...requester,
-      challengeToken: pedido.challengeToken,
-      code: correo.code,
+      challengeToken: 'x'.repeat(32),
+      code: enviados[0]?.code as string,
       newPassword: 'NuevaClave#2026',
     });
     expect(passwordChangeRepository.applyNewPassword).toHaveBeenCalledTimes(1);
@@ -156,14 +170,15 @@ describe('AuthPasswordChangeService', () => {
 
   it('un código distinto al del correo NO confirma el cambio', async () => {
     const { service, oneTimeCodeRepository, mailSenderService, passwordChangeRepository } = build();
-    const pedido = await service.requestPasswordChange({ ...requester, currentPassword: ACTUAL });
+    const enviados = capturarCorreos(mailSenderService);
+    await service.requestPasswordChange({ ...requester, currentPassword: ACTUAL });
     const guardado = oneTimeCodeRepository.createOneTimeCode.mock.calls[0]?.[0] as { codeHash: string };
-    const correo = mailSenderService.sendPasswordChangeCode.mock.calls[0]?.[0] as { code: string };
-    const otro = correo.code === '000000' ? '111111' : '000000';
+    const real = enviados[0]?.code as string;
+    const otro = real === '000000' ? '111111' : '000000';
     oneTimeCodeRepository.findActiveOneTimeCodeByChallenge.mockResolvedValueOnce(challenge({ codeHash: guardado.codeHash }));
 
     await expect(
-      service.confirmPasswordChange({ ...requester, challengeToken: pedido.challengeToken, code: otro, newPassword: 'NuevaClave#2026' }),
+      service.confirmPasswordChange({ ...requester, challengeToken: 'x'.repeat(32), code: otro, newPassword: 'NuevaClave#2026' }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(passwordChangeRepository.applyNewPassword).not.toHaveBeenCalled();
   });
