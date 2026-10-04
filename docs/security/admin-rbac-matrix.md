@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (125 controladores) | 596 |
+| Total montadas (126 controladores) | 599 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 3 |
-| Con `@Roles` | 540 |
+| Con `@Roles` | 543 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 77 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -133,6 +133,9 @@
 | `GET` | `/operations/credit/products` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.listProducts` | guards: `TenantGuard` |
 | `POST` | `/operations/credit/products` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.createProduct` | guards: `TenantGuard` |
 | `PATCH` | `/operations/credit/products/:productId/status` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.changeProductStatus` | guards: `TenantGuard` |
+| `GET` | `/operations/customers/:customerId/card-tier` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CardTierOperationsController.get` | guards: `TenantGuard` |
+| `POST` | `/operations/customers/:customerId/card-tier` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CardTierOperationsController.set` | guards: `TenantGuard` |
+| `POST` | `/operations/customers/:customerId/card-tier/revoke` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CardTierOperationsController.revoke` | guards: `TenantGuard` |
 
 ## `credit-rating`
 

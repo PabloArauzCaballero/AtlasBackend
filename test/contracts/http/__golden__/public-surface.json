@@ -6900,6 +6900,71 @@
     ],
     "body": false
   },
+  "GET /operations/customers/{customerId}/card-tier": {
+    "operationId": "CardTierOperationsController_get",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "POST /operations/customers/{customerId}/card-tier": {
+    "operationId": "CardTierOperationsController_set",
+    "responses": [
+      "201",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
+  "POST /operations/customers/{customerId}/card-tier/revoke": {
+    "operationId": "CardTierOperationsController_revoke",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
   "POST /operations/customers/{customerId}/compliance/clear-matches": {
     "operationId": "CustomerVerificationController_clearMatches",
     "responses": [

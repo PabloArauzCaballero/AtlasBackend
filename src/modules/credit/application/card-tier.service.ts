@@ -58,6 +58,7 @@ export class CardTierService {
   async catalog(tenantId: string, options: { transaction?: Transaction } = {}): Promise<readonly CardTierDefinition[]> {
     const rows = await this.tiers.findAll({
       where: { tenantId, deleted: false, isActive: true },
+      order: [['displayOrder', 'ASC']],
       transaction: options.transaction,
     } as FindOptions);
     return effectiveCatalog(rows.map(toDefinition));
@@ -149,14 +150,14 @@ export class CardTierService {
         },
         { transaction },
       );
-      await this.record(
-        CARD_TIER_OVERRIDE_SET,
-        creado,
-        input.actor,
-        now,
-        { tierCode: input.tierCode, reason: input.reason.trim(), expiresAt: input.expiresAt?.toISOString() ?? null },
+      await this.record({
+        actionCode: CARD_TIER_OVERRIDE_SET,
+        ajuste: creado,
+        actor: input.actor,
+        occurredAt: now,
+        payload: { tierCode: input.tierCode, reason: input.reason.trim(), expiresAt: input.expiresAt?.toISOString() ?? null },
         transaction,
-      );
+      });
       return creado;
     });
   }
@@ -177,26 +178,27 @@ export class CardTierService {
           { revokedAt: now, revokedByInternalUserId: input.actor.internalUserId, revokeReason: input.reason.trim() },
           { transaction },
         );
-        await this.record(
-          CARD_TIER_OVERRIDE_REVOKED,
+        await this.record({
+          actionCode: CARD_TIER_OVERRIDE_REVOKED,
           ajuste,
-          input.actor,
-          now,
-          { tierCode: ajuste.tierCode, reason: input.reason.trim() },
+          actor: input.actor,
+          occurredAt: now,
+          payload: { tierCode: ajuste.tierCode, reason: input.reason.trim() },
           transaction,
-        );
+        });
       }
     });
   }
 
-  private record(
-    actionCode: string,
-    ajuste: CustomerCardTierOverrideModel,
-    actor: CardTierActor,
-    occurredAt: Date,
-    payload: Record<string, unknown>,
-    transaction: Transaction,
-  ) {
+  private record(entrada: {
+    actionCode: string;
+    ajuste: CustomerCardTierOverrideModel;
+    actor: CardTierActor;
+    occurredAt: Date;
+    payload: Record<string, unknown>;
+    transaction: Transaction;
+  }) {
+    const { actionCode, ajuste, actor, occurredAt, payload, transaction } = entrada;
     return this.audit.create(
       {
         tenantId: ajuste.tenantId,

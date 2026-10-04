@@ -9,6 +9,8 @@ import { FindOptions, Op } from 'sequelize';
 import { LoanInstallmentModel } from '../../../database/models/loan-installments.model.js';
 import { LoanModel } from '../../../database/models/loans.model.js';
 import { buildExperience } from '../domain/experience.js';
+import { toCustomerCardResponse } from '../card-tier.mapper.js';
+import { CardTierService } from './card-tier.service.js';
 import { buildRelationshipProgress } from '../domain/relationship-progress.js';
 import { CreditLineService } from './credit-line.service.js';
 import { PaymentCapacityService } from './payment-capacity.service.js';
@@ -21,6 +23,7 @@ export class CreditProgressService {
   constructor(
     private readonly capacity: PaymentCapacityService,
     private readonly lines: CreditLineService,
+    private readonly cards: CardTierService,
     @InjectModel(LoanModel) private readonly loans: typeof LoanModel,
     @InjectModel(LoanInstallmentModel) private readonly installments: typeof LoanInstallmentModel,
   ) {}
@@ -53,6 +56,21 @@ export class CreditProgressService {
    * no tiene línea (porque el motor aún no decidió, o el extracto está en revisión) ve igual dónde está y qué
    * le falta, en vez de una pantalla vacía que parece un fallo.
    */
+  /**
+   * Sólo el nivel, sin historial ni cuotas: lo que necesita quien únicamente quiere saber en qué escalón está (la tarjeta
+   * automática sale de aquí). Misma cuenta que `get`; no es otra regla.
+   */
+  async levelOf(tenantId: string, customerId: string) {
+    const current = await this.lines.current(tenantId, customerId);
+    const { assessment, relationship } = await this.capacity.assessDetailed({
+      tenantId,
+      customerId,
+      declaredMonthlyIncome: null,
+      currentLimit: current ? Number(current.approvedLimit) : null,
+    });
+    return buildRelationshipProgress(assessment, relationship);
+  }
+
   async get(tenantId: string, customerId: string) {
     const current = await this.lines.current(tenantId, customerId);
     const [{ assessment, relationship }, history, cuotas] = await Promise.all([
@@ -66,10 +84,18 @@ export class CreditProgressService {
       this.installmentFacts(tenantId, customerId),
     ]);
 
+    const progreso = buildRelationshipProgress(assessment, relationship);
+    // La tarjeta: la que gana por su nivel o la que el personal le puso. Es presentación y estatus; no toca el límite.
+    const [tarjeta, catalogo] = await Promise.all([
+      this.cards.resolveFor(tenantId, customerId, progreso.tier.code),
+      this.cards.catalog(tenantId),
+    ]);
+
     return {
       customerId,
       hasCreditLine: current !== null,
-      ...buildRelationshipProgress(assessment, relationship),
+      ...progreso,
+      card: toCustomerCardResponse(tarjeta, catalogo),
       // Puntos por boliviano PAGADO a tiempo (no por comprar), rachas e insignias.
       experience: buildExperience({
         installments: cuotas.facts,

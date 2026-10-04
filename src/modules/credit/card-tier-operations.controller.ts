@@ -29,7 +29,9 @@ import { CreditCustomerIdParamsDto, creditCustomerIdParamsSchema } from './credi
 @ApiBearerAuth('access-token')
 @Controller('operations/customers/:customerId/card-tier')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-@Roles('internal_operator', 'admin', 'platform_admin')
+// Los mismos cuatro roles que ven y operan el crédito de un cliente en el portal: la tarjeta es presentación y estatus,
+// no riesgo, así que no hay motivo para dejar fuera a quien ya revisa el crédito de esa persona.
+@Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
 export class CardTierOperationsController {
   constructor(
     private readonly cards: CardTierService,

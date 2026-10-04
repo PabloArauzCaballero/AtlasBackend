@@ -7,7 +7,6 @@
  */
 import {
   BankStatementReviewModel,
-  CardTierModel,
   CustomerCardTierOverrideModel,
   CreditApplicationEventModel,
   CreditApplicationModel,
@@ -24,7 +23,6 @@ export const CREDIT_MODELS = [
   BankStatementReviewModel,
   // P-11: la reserva del cupo de la línea es de Crédito, igual que la línea que limita.
   CreditExposureReservationModel,
-  // Las tarjetas del cliente (Normal … Black): su catálogo de presentación y los ajustes manuales del personal.
-  CardTierModel,
+  // Los ajustes manuales de la tarjeta del cliente. El catálogo de tarjetas (card_tiers) es de `catalog`, no de este contexto.
   CustomerCardTierOverrideModel,
 ] as const;
