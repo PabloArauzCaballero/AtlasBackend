@@ -33,12 +33,12 @@ cambia y esta tabla no, CI falla. Se regeneran con `yarn docs:figures`.
 | Elemento | Cantidad | Cómo se cuenta |
 |---|---:|---|
 | Módulos de dominio | <!-- fig:code.modules -->44<!-- /fig --> | carpetas de `src/modules` con `*.module.ts` |
-| Controladores | <!-- fig:code.controllers -->125<!-- /fig --> | clases `@Controller`, en <!-- fig:code.controllerFiles -->119<!-- /fig --> archivos |
-| Modelos Sequelize | <!-- fig:code.ormModels -->211<!-- /fig --> | clases `@Table` en `src/` |
-| Migraciones | <!-- fig:code.migrations -->175<!-- /fig --> | `src/database/migrations/*.ts` |
-| Tablas / esquemas de dominio | <!-- fig:db.tables -->219<!-- /fig --> / <!-- fig:db.schemas -->15<!-- /fig --> | `ATLAS_DOMAIN_TABLES` (`src/database/domain-tables.ts`) |
-| Rutas montadas | <!-- fig:code.routes -->596<!-- /fig --> | metadata de los controladores; incluye las internas fuera del contrato |
-| Rutas / operaciones del contrato | <!-- fig:openapi.paths -->548<!-- /fig --> / <!-- fig:openapi.operations -->586<!-- /fig --> | `docs/endpoints/openapi.yaml` |
+| Controladores | <!-- fig:code.controllers -->126<!-- /fig --> | clases `@Controller`, en <!-- fig:code.controllerFiles -->120<!-- /fig --> archivos |
+| Modelos Sequelize | <!-- fig:code.ormModels -->213<!-- /fig --> | clases `@Table` en `src/` |
+| Migraciones | <!-- fig:code.migrations -->176<!-- /fig --> | `src/database/migrations/*.ts` |
+| Tablas / esquemas de dominio | <!-- fig:db.tables -->221<!-- /fig --> / <!-- fig:db.schemas -->15<!-- /fig --> | `ATLAS_DOMAIN_TABLES` (`src/database/domain-tables.ts`) |
+| Rutas montadas | <!-- fig:code.routes -->599<!-- /fig --> | metadata de los controladores; incluye las internas fuera del contrato |
+| Rutas / operaciones del contrato | <!-- fig:openapi.paths -->550<!-- /fig --> / <!-- fig:openapi.operations -->589<!-- /fig --> | `docs/endpoints/openapi.yaml` |
 | Aristas módulo → módulo | <!-- fig:arch.moduleEdges -->92<!-- /fig --> | inventario de imports (`scripts/architecture/inventory-imports.ts`) |
 | Ciclos entre módulos | <!-- fig:arch.cycles -->1<!-- /fig --> | mismo inventario; cada uno con excepción declarada |
 
