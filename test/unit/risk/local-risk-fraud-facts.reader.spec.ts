@@ -61,6 +61,9 @@ describe('LocalRiskFraudFactsReader.read', () => {
       botScore: 0.6,
       rhythmSignals: ['CAPTURA_INSTANTANEA'],
       contactSignals: ['AGENDA_MINIMA'],
+      contactsAvailable: true,
+      contactsTotal: 1,
+      contactsDaysSinceLastNew: null,
     });
     // Sólo la IP pública de las últimas 24 h entra en el cruce: ni la privada del proxy ni la de hace 60 horas.
     const [opciones] = modelos.sessions.count.mock.calls[0] as [{ where: { ipAddress: Record<symbol, string[]> } }];
@@ -76,7 +79,7 @@ describe('LocalRiskFraudFactsReader.read', () => {
 
   it('sin agenda guardada no hay señales de agenda: no compartirla no cuenta en contra', async () => {
     const { reader } = build({ contacts: { findAll: async () => [] } });
-    expect((await reader.read('1', '10', NOW)).contactSignals).toEqual([]);
+    expect(await reader.read('1', '10', NOW)).toMatchObject({ contactSignals: [], contactsAvailable: false, contactsTotal: null });
   });
 
   it('snapshots sin dato dejan emulador y root en «no se sabe»', async () => {

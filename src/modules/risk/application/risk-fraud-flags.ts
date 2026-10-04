@@ -25,6 +25,11 @@ export type RiskFraudFacts = {
   rhythmSignals: readonly string[];
   /** Señales de la forma de la agenda (`contact-book-shape.util.ts`); vacío si no compartió agenda. */
   contactSignals: readonly string[];
+  /** Si hay agenda guardada. No compartirla no cuenta en contra. */
+  contactsAvailable: boolean;
+  contactsTotal: number | null;
+  /** Días desde que el servidor vio aparecer el último contacto; `null` hasta la segunda sincronización. */
+  contactsDaysSinceLastNew: number | null;
 };
 
 export const SIN_HECHOS_DE_FRAUDE: RiskFraudFacts = {
@@ -37,6 +42,9 @@ export const SIN_HECHOS_DE_FRAUDE: RiskFraudFacts = {
   botScore: null,
   rhythmSignals: [],
   contactSignals: [],
+  contactsAvailable: false,
+  contactsTotal: null,
+  contactsDaysSinceLastNew: null,
 };
 
 /** El mismo corte del artefacto de identidad (`COMPORTAMIENTO_AUTOMATIZADO`). */
@@ -113,4 +121,10 @@ function deComportamiento(hechos: RiskFraudFacts, strong: string[], medium: stri
     else if (RITMO_FUERTE.has(señal)) strong.push(señal);
     else medium.push(señal);
   }
+}
+
+/** Cuántas señales de ritmo son fuertes y cuántas medias (las de contexto no cuentan). Es lo que viaja al Motor. */
+export function contarRitmo(señales: readonly string[]): { strong: number; medium: number } {
+  const strong = señales.filter((s) => RITMO_FUERTE.has(s)).length;
+  return { strong, medium: señales.filter((s) => !RITMO_FUERTE.has(s) && !SOLO_CONTEXTO.has(s)).length };
 }

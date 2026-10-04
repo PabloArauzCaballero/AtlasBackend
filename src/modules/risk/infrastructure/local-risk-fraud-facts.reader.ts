@@ -19,6 +19,9 @@ import {
 import { calcularFormaDeLaAgenda } from '../../../common/utils/contact/contact-book-shape.util.js';
 import { SIN_HECHOS_DE_FRAUDE, type RiskFraudFacts } from '../application/risk-fraud-flags.js';
 
+type HechosDeAgenda = Pick<RiskFraudFacts, 'contactSignals' | 'contactsAvailable' | 'contactsTotal' | 'contactsDaysSinceLastNew'>;
+const SIN_AGENDA: HechosDeAgenda = { contactSignals: [], contactsAvailable: false, contactsTotal: null, contactsDaysSinceLastNew: null };
+
 const DIA_MS = 86_400_000;
 /** Ventana de sesiones que cuentan como «el alta»: un alta que dura más de dos semanas ya se retomó varias veces. */
 const VENTANA_DEL_ALTA_DIAS = 14;
@@ -65,12 +68,12 @@ export class LocalRiskFraudFactsReader {
         return porDefecto;
       }
     };
-    const [red, dispositivo, mockedLocationPings, comportamiento, contactSignals] = await Promise.all([
+    const [red, dispositivo, mockedLocationPings, comportamiento, agenda] = await Promise.all([
       seguro('red', () => this.red(tenantId, customerId, now), { sameIpCustomers24h: 0, sessionDevices: 0 }),
       seguro('dispositivo', () => this.dispositivo(tenantId, customerId), { emulator: null, rooted: null, sharedDeviceCustomers: 0 }),
       seguro('ubicación', () => this.pings.count({ where: { tenantId, customerId, isMocked: true } } as FindOptions), 0),
       seguro('comportamiento', () => this.comportamiento(tenantId, customerId), { botScore: null, rhythmSignals: [] as string[] }),
-      seguro('agenda', () => this.agenda(tenantId, customerId, now), [] as string[]),
+      seguro('agenda', () => this.agenda(tenantId, customerId, now), SIN_AGENDA),
     ]);
     return {
       ...SIN_HECHOS_DE_FRAUDE,
@@ -78,7 +81,7 @@ export class LocalRiskFraudFactsReader {
       ...dispositivo,
       mockedLocationPings: Number(mockedLocationPings),
       ...comportamiento,
-      contactSignals,
+      ...agenda,
     };
   }
 
@@ -166,14 +169,14 @@ export class LocalRiskFraudFactsReader {
   }
 
   /** La forma de la agenda guardada. Sin agenda no hay señales: no compartirla no cuenta en contra. */
-  private async agenda(tenantId: string, customerId: string, now: Date): Promise<string[]> {
+  private async agenda(tenantId: string, customerId: string, now: Date): Promise<HechosDeAgenda> {
     const filas = await this.contacts.findAll({
       where: { tenantId, customerId, deleted: { [Op.ne]: true } },
       attributes: ['phoneHashes', 'emailCount', 'isFavorite', 'birthday', 'contactType', 'createdAtValue'],
       limit: 10_000,
     } as FindOptions);
-    if (filas.length === 0) return [];
-    return calcularFormaDeLaAgenda(
+    if (filas.length === 0) return SIN_AGENDA;
+    const forma = calcularFormaDeLaAgenda(
       filas.map((f) => ({
         phoneHashes: f.phoneHashes ?? [],
         emailCount: f.emailCount ?? 0,
@@ -183,6 +186,12 @@ export class LocalRiskFraudFactsReader {
         firstSeenAt: f.createdAtValue,
       })),
       now,
-    ).senales;
+    );
+    return {
+      contactSignals: forma.senales,
+      contactsAvailable: true,
+      contactsTotal: forma.total,
+      contactsDaysSinceLastNew: forma.daysSinceLastNewContact,
+    };
   }
 }

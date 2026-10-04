@@ -28,6 +28,8 @@ export type HeuristicRiskScores = {
   missing: string[];
   /** Las banderas de fraude que se evaluaron; `escalate` hunde el total por debajo del umbral. */
   fraudFlags: RiskFraudFlags;
+  /** Los hechos crudos, para que la política del Motor (2.0) aplique sus propias reglas. `null` sin lector. */
+  fraudFacts: RiskFraudFacts | null;
 };
 
 /**
@@ -90,6 +92,7 @@ export function computeHeuristicScores(inputs: HeuristicRiskInputs): HeuristicRi
     riskLevel: riskLevelFor(totalScore),
     missing,
     fraudFlags,
+    fraudFacts: inputs.fraud ?? null,
   };
 }
 

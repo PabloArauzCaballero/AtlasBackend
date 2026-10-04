@@ -9,6 +9,7 @@ import {
   evaluarBanderasDeFraude,
   type RiskFraudFacts,
 } from '../../../src/modules/risk/application/risk-fraud-flags.js';
+import { fraudFactFeatures, toPolicyFeatures } from '../../../src/modules/risk/application/risk-policy-features.js';
 import { computeHeuristicScores } from '../../../src/modules/risk/application/risk-heuristic-scoring.js';
 import { RISK_APPROVAL_MIN_SCORE } from '../../../src/modules/risk/risk-heuristic-v0.constants.js';
 
@@ -84,5 +85,60 @@ describe('computeHeuristicScores · banderas de fraude', () => {
 
   it('sin lector de hechos (fraud null) puntúa como antes', () => {
     expect(computeHeuristicScores({ ...MEJOR_CASO, fraud: null }).totalScore).toBe(computeHeuristicScores(MEJOR_CASO).totalScore);
+  });
+});
+
+describe('fraudFactFeatures · lo que viaja a RIESGO_ONBOARDING_CLIENTE 2.0.0', () => {
+  it('manda los hechos con los nombres del artefacto y cuenta el ritmo por fuerza', () => {
+    const features = fraudFactFeatures(
+      con({
+        emulator: false,
+        rooted: true,
+        mockedLocationPings: 0,
+        sharedDeviceCustomers: 1,
+        sameIpCustomers24h: 5,
+        sessionDevices: 2,
+        botScore: 0.35,
+        rhythmSignals: ['TOQUES_SOBREHUMANOS', 'RITMO_UNIFORME_EN_CAMPOS', 'ALTA_DE_MADRUGADA'],
+        contactSignals: ['AGENDA_MINIMA'],
+        contactsAvailable: true,
+        contactsTotal: 6,
+        contactsDaysSinceLastNew: 4,
+      }),
+    );
+    expect(features).toEqual({
+      device_emulator: false,
+      device_rooted: true,
+      location_mocked_pings: 0,
+      device_shared_customers: 1,
+      ip_customers_24h: 5,
+      session_devices: 2,
+      behavior_bot_score: 0.35,
+      rhythm_strong_signals: 1,
+      rhythm_medium_signals: 1,
+      contacts_available: true,
+      contacts_total: 6,
+      contacts_days_since_last_new: 4,
+      contacts_signals: 1,
+    });
+  });
+
+  it('lo que no se sabe NO viaja: ni «dispositivo limpio» ni «0 contactos» inventados', () => {
+    const features = fraudFactFeatures(SIN_HECHOS_DE_FRAUDE);
+    for (const ausente of ['device_emulator', 'device_rooted', 'behavior_bot_score', 'contacts_total', 'contacts_days_since_last_new'])
+      expect(features).not.toHaveProperty(ausente);
+    expect(features).toMatchObject({ contacts_available: false, location_mocked_pings: 0 });
+  });
+
+  it('sin lector de hechos no añade ninguna variable; el resto del contrato sigue igual', () => {
+    expect(fraudFactFeatures(null)).toEqual({});
+    const features = toPolicyFeatures({
+      ...computeHeuristicScores(MEJOR_CASO),
+      hasIdentity: true,
+      verifiedContactCount: 1,
+      hasGrantedConsent: true,
+    });
+    expect(features).toMatchObject({ total_score: expect.any(Number), fraud_flags_strong: 0, fraud_flags_medium: 0 });
+    expect(features).not.toHaveProperty('device_emulator');
   });
 });
