@@ -70,6 +70,10 @@ export const WORKER_EXCLUDED_MODULES = Object.freeze([
   'OperationsModule',
   'SchemaManagementModule',
   'SqlConsoleModule',
+  // Resumen de monitoreo del servidor de TEST: superficie HTTP con token de servicio (el informador lo
+  // consulta). El worker no atiende HTTP ni debe cargar el cliente del Motor y el dashboard de proveedores
+  // sólo para eso.
+  'SystemsMonitorModule',
   'ThrottlerModule',
   'WorkflowCatalogModule',
 ]);

@@ -32,6 +32,7 @@ import { DatabaseModule } from './database/sequelize.module.js';
 import { ReadDatabaseModule } from './database/read-database.module.js';
 import { AssistModule } from './modules/assist/assist.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
+import { SystemsMonitorModule } from './modules/systems-ops/systems-monitor.module.js';
 import { SystemsOpsModule } from './modules/systems-ops/systems-ops.module.js';
 import { QaOrchestrationModule } from './modules/qa-orchestration/qa-orchestration.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -134,6 +135,7 @@ import { env } from './config/env.js';
     DataQualityModule,
     AuditModule,
     SystemsOpsModule,
+    SystemsMonitorModule,
     QaOrchestrationModule,
     SchemaManagementModule,
     InternalPortalModule,

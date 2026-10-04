@@ -16,7 +16,8 @@
     "src/modules/merchant-identity/merchant-auth.controller.ts": 3,
     "src/modules/notifications/erp-mail.controller.ts": 1,
     "src/modules/notifications/notification-provider-callbacks.controller.ts": 2,
-    "src/modules/risk/risk-review-callback.controller.ts": 2
+    "src/modules/risk/risk-review-callback.controller.ts": 2,
+    "src/modules/systems-ops/systems-monitor.controller.ts": 2
   },
   "controllersWithoutAuthorization": [
     "src/common/observability/metrics.controller.ts",
