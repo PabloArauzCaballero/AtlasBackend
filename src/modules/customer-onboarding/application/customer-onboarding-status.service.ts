@@ -130,6 +130,9 @@ export class CustomerOnboardingStatusService {
     // Corre fuera de la transacción a propósito: consulta al motor de políticas versionadas, y una
     // llamada de red dentro de la transacción mantendría locks abiertos toda su latencia. Si falla,
     // el envío igual procede y queda como bloqueador explícito, no como error opaco.
+    // El resumen DEFINITIVO del comportamiento (las cuatro fases) va ANTES del riesgo: así la evaluación lo lee
+    // (`behavior_score`, H-10) en vez de un 50 fijo. El de identidad fue a mitad del alta. Nunca lanza.
+    await this.comportamiento.calcular(input.tenantId, input.customerId, 'submit');
     await this.riskTrigger.run(input);
 
     const now = new Date();
@@ -210,8 +213,6 @@ export class CustomerOnboardingStatusService {
     });
 
     await this.congelarExpediente(input.tenantId, input.customerId);
-    // El resumen DEFINITIVO del comportamiento (las cuatro fases); el de identidad fue a mitad del alta. Nunca lanza.
-    await this.comportamiento.calcular(input.tenantId, input.customerId, 'submit');
     /*
      * El caso de identidad del Motor recibe ahora lo que en el paso de identidad aún no existía:
      * domicilio, economía, ubicación y permisos. Sobre la ejecución del último intento MÓVIL. Nunca

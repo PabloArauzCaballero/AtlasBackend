@@ -12,6 +12,11 @@ export type RiskInputFacts = Readonly<{
   hasGrantedConsent: boolean;
   verifiedContactCount: number;
   hasIdentity: boolean;
+  /**
+   * El `botLikelihoodScore` del último resumen de comportamiento del alta (0-1), o `null` si no hay bitácora.
+   * Hasta el plan F3 el riesgo no lo veía y `behavior_score` valía 50 para todos (H-10).
+   */
+  behaviorBotScore: number | null;
   readAt: string;
 }>;
 

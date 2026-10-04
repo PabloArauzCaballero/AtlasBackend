@@ -219,6 +219,9 @@ export class CreditDecisionEngineService {
           // Qué variable era dato real, cuál derivada y cuál ausente: sin esto, una decisión rara
           // no se puede depurar sin reconstruir a mano el expediente de aquel día.
           provenance: underwriting.provenance,
+          // Las señales del teléfono (ubicación, dispositivo, comportamiento, agenda) con su modo. En `shadow` es lo
+          // único que las registra: la fila de la ejecución es el corpus con el que se calibrarán.
+          deviceSignals: underwriting.deviceSignals,
         },
       });
 

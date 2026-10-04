@@ -41,6 +41,20 @@ describe('RiskInputFactsPort (AT-027)', () => {
     expect((await new LocalRiskInputFactsAdapter(customers as never, risk as never).loadFacts('1', 'c1')).hasGrantedConsent).toBe(false);
   });
 
+  it('lee el bot score del último resumen de comportamiento; sin modelo o sin resumen viaja null (H-10)', async () => {
+    const customers = { findById: async () => ({ lifecycleStatus: 'active' }) };
+    const risk = { findCustomerConsents: async () => [], findCustomerContacts: async () => [], findIdentityDocuments: async () => [] };
+    const behavior = { findOne: jest.fn(async () => ({ botLikelihoodScore: '0.8100' })) };
+    expect(
+      (await new LocalRiskInputFactsAdapter(customers as never, risk as never, behavior as never).loadFacts('1', 'c1')).behaviorBotScore,
+    ).toBe(0.81);
+    const sinResumen = { findOne: jest.fn(async () => null) };
+    expect(
+      (await new LocalRiskInputFactsAdapter(customers as never, risk as never, sinResumen as never).loadFacts('1', 'c1')).behaviorBotScore,
+    ).toBeNull();
+    expect((await new LocalRiskInputFactsAdapter(customers as never, risk as never).loadFacts('1', 'c1')).behaviorBotScore).toBeNull();
+  });
+
   it('cliente inexistente: exists=false sin lanzar; el caso de uso decide el 404', async () => {
     const customers = { findById: async () => null };
     const risk = { findCustomerConsents: jest.fn(), findCustomerContacts: jest.fn(), findIdentityDocuments: jest.fn() };

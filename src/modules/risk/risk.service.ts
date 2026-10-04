@@ -152,7 +152,7 @@ export class RiskService {
     // Los puntajes por dimensión siguen siendo heurísticos: alimentan el desglose explicativo y el
     // nivel de riesgo, NO la decisión. La decisión la toma el ruleset versionado en base de datos
     // cuando hay uno activo — cambiar un umbral pasó a ser configuración auditada, no un despliegue.
-    const scores = computeHeuristicScores({ hasIdentity, verifiedContactCount, hasDevice: Boolean(input.body.deviceId) });
+    const scores = computeHeuristicScores({ ...facts, hasDevice: Boolean(input.body.deviceId) });
 
     return { hasGrantedConsent, hasIdentity, verifiedContactCount, scores };
   }

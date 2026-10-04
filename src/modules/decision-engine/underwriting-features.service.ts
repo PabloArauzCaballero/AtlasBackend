@@ -6,9 +6,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { env } from '../../config/env.js';
-import {} from '../../database/models/index.js';
 import { UnderwritingSignalsService } from './underwriting-signals.service.js';
 import { UnderwritingCreditHistoryService } from './underwriting-credit-history.service.js';
+import { UnderwritingDeviceSignalsService, variablesEnVivo } from './underwriting-device-signals.service.js';
 import type { VariableMetadata } from './decision-engine.types.js';
 import { buildVariableMetadata } from './variable-metadata.js';
 
@@ -27,6 +27,7 @@ export type UnderwritingFeatures = {
   variableMetadata: VariableMetadata;
   /** Las fechas de grupo, para quien añade variables propias (el recálculo de línea). */
   observedAt: { economy: Date | null; identity: Date | null };
+  deviceSignals?: Awaited<ReturnType<UnderwritingDeviceSignalsService['signalsFor']>>;
 };
 
 const MISSING = 'ausente' as const;
@@ -98,6 +99,7 @@ export class UnderwritingFeaturesService {
   constructor(
     private readonly signals: UnderwritingSignalsService,
     private readonly historial: UnderwritingCreditHistoryService,
+    private readonly deviceSignals: UnderwritingDeviceSignalsService,
   ) {}
 
   async build(input: {
@@ -124,7 +126,7 @@ export class UnderwritingFeaturesService {
       this.historial.creditHistory(input.tenantId, input.customerId, now),
       this.signals.complianceSignals(input.tenantId, input.customerId),
     ]);
-
+    const telefono = await this.deviceSignals.signalsFor(input.tenantId, input.customerId, now);
     const income = economy[INCOME] ?? 0;
     const otherIncome = economy[OTHER_INCOME] ?? 0;
     // Sin gastos (el alta ya no los pide, eligibility-v2) disponible y deuda-ingreso viajan `ausente`: nada de «gasta 0».
@@ -286,6 +288,7 @@ export class UnderwritingFeaturesService {
       usury_cap_rate: put('usury_cap_rate', env.USURY_CAP_RATE, FILE),
     };
 
+    for (const [codigo, valor] of variablesEnVivo(telefono)) variables[codigo] = put(codigo, valor, DERIVED);
     const observedAt = {
       economy: (economy.__observedAt as unknown as Date | null | undefined) ?? null,
       identity: identity.observedAt ?? null,
@@ -296,6 +299,6 @@ export class UnderwritingFeaturesService {
       economyObservedAt: observedAt.economy,
       identityObservedAt: observedAt.identity,
     });
-    return { variables, provenance, variableMetadata, observedAt };
+    return { variables, provenance, variableMetadata, observedAt, deviceSignals: telefono };
   }
 }

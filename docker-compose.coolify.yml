@@ -352,6 +352,7 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   # solicitud caía en 404 y se resolvía como `engine_unavailable_manual`, con el crédito
   # esperando a una persona sin que nada dijera que el motor ni se había consultado.
   DECISION_ENGINE_CREDIT_ARTIFACT: '${DECISION_ENGINE_CREDIT_ARTIFACT:-ATLAS_BNPL_UNDERWRITING}'
+  UNDERWRITING_DEVICE_SIGNALS_MODE: '${UNDERWRITING_DEVICE_SIGNALS_MODE:-shadow}'
   DECISION_ENGINE_IDENTITY_ARTIFACT: '${DECISION_ENGINE_IDENTITY_ARTIFACT:-IDENTIDAD_CARNET_MOVIL}'
   IDENTITY_REQUIRE_HUMAN_REVIEW: '${IDENTITY_REQUIRE_HUMAN_REVIEW:-true}'
   # Riesgo de onboarding: sin esta variable (o sin asignación en el portal) la heurística local ya
