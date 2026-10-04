@@ -61,14 +61,28 @@ minuto, así que la respuesta tarda hasta un minuto.
 | `/alertas` | Qué está en rojo ahora y desde cuándo (y si los avisos están silenciados) |
 | `/despliegues` | Últimos 8 despliegues de Coolify (app, commit, estado, duración) y la cola |
 | `/negocio`, `/trafico`, `/proveedores` | Del resumen de AtlasBackend; sin el secreto de servicio contestan que no está habilitado |
+| `/ssh` | La puerta SSH en 24 h: intentos fallidos, los que más insisten, fail2ban, quién entró (marcando IPs no conocidas y entradas con contraseña) y la configuración efectiva |
 | `/copias` | Última copia de las bases: antigüedad, peso y filas por base |
 | `/silenciar 1h` | Calla los avisos hasta 6 h; `/silenciar off` los reactiva. Los cambios de estado se siguen registrando |
 | `/podar` → `/podar confirmar` | Poda la caché de build; la confirmación caduca a los 2 min y corre en una unidad systemd aparte |
 
+## Vigilancia de la puerta SSH
+
+`monitor/ssh.sh` sólo lee (journal de sshd, fail2ban, `authorized_keys`); no cambia ninguna configuración de SSH.
+El ruido de fuerza bruta es constante (≈6.400 intentos al día, 1.800 contra root el 2026-10-04) y fail2ban lo
+contiene, así que no se avisa por él. Se avisa de lo que no es ruido, y esos avisos **no los calla `/silenciar`**:
+
+- Entrada exitosa desde una IP que no está en `/opt/atlas/monitor/ssh-conocidas.txt` (una vez por IP).
+- Entrada con contraseña (una vez por IP y día) y entrada desde una IP que había fallado ≥5 veces en la última hora.
+- Pico de ≥150 intentos fallidos en 5 min (lo normal son ~20) y fail2ban parado.
+- Cambio de `authorized_keys` o de la configuración efectiva de sshd (la primera pasada fija la referencia).
+
+`ssh-conocidas.txt` se sembró con las IPs que entraron ≥10 veces en 14 días: revisarla con `/ssh`.
+
 ## Qué avisa el monitor (sólo al cambiar de estado, con «RECUPERADO» al volver)
 
 Host: RAM disponible < 2 GB · disco ≥ 85 % y ≥ 90 % · caché de build > 150 GB (la poda actúa sola, como mucho cada
-6 h, con `docker builder prune --reserved-space 100GB`, nunca `-a`) · carga > 3×núcleos sostenida ·
+6 h, y sin esperar si el disco llega al 88 %, con `docker builder prune --reserved-space 100GB`, nunca `-a`) · carga > 3×núcleos sostenida ·
 contenedor de Atlas al > 90 % de su límite o reiniciándose.
 Servicio: principal en marcha pero no sana · respaldo no sano · bloque de red DOWN · herramienta crítica
 caída · 5xx > 2 % o p95 > 2 s en 15 min.

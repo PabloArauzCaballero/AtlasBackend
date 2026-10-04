@@ -71,6 +71,7 @@ alertar() { # texto
   if [ "$(date +%s)" -lt "$hasta" ]; then log "silenciado: $1"; else avisar "$1"; fi
 }
 [ -f "$DIR/comandos.sh" ] && . "$DIR/comandos.sh"
+[ -f "$DIR/ssh.sh" ] && . "$DIR/ssh.sh"
 
 # chequeo clave malo(0|1) lecturas_seguidas texto_mal texto_bien
 # Avisa una vez al pasar a MAL (tras N lecturas malas seguidas) y una vez al volver a OK.
@@ -125,7 +126,11 @@ chequeo carga "$(mayor "$load15" "$((nproc * 3))")" 15 \
   "la carga baja a ${load15}."
 
 # --- 4. Poda de la caché de build (como mucho una vez cada 6 h: otros proyectos del servidor la regeneran a ~10 GB/h) ----------------------------------------
-if [ "$cache_gb" -gt "$CACHE_MAX_GB" ] && [ -z "$(find "$E/poda" -mmin -360 2>/dev/null)" ]; then
+# Disco al 88 % o más: se poda aunque no hayan pasado 6 h (mínimo 1 h entre podas) para no llegar al 90 %,
+# donde la copia de bases deja de respaldar.
+poda_normal=0; [ "$cache_gb" -gt "$CACHE_MAX_GB" ] && [ -z "$(find "$E/poda" -mmin -360 2>/dev/null)" ] && poda_normal=1
+poda_urgente=0; [ "$disco" -ge 88 ] && [ -z "$(find "$E/poda" -mmin -60 2>/dev/null)" ] && poda_urgente=1
+if [ "$poda_normal" = 1 ] || [ "$poda_urgente" = 1 ]; then
   : > "$E/poda"
   docker builder prune -f --reserved-space "${CACHE_KEEP_GB}GB" >/dev/null 2>&1
   if [ $? -eq 0 ]; then
@@ -213,6 +218,9 @@ if [ -f "$ult" ]; then edad_h=$(( ($(date +%s) - $(stat -c %Y "$ult")) / 3600 ))
 chequeo copia "$([ "$edad_h" -lt 0 ] || [ "$edad_h" -ge 7 ] && echo 1 || echo 0)" 1 \
   "COPIA DE BASES: la última copia buena tiene ${edad_h} h (debe ser cada 6 h). Mirar journalctl -u atlas-respaldo-datos." \
   "la copia de bases vuelve a estar al día."
+
+# --- 6. Puerta SSH (ver ssh.sh) ---------------------------------------------------------------
+command -v vigilar_ssh >/dev/null && vigilar_ssh
 
 # --- 5. Resumen de AtlasBackend (red, tráfico, proveedores, negocio) ---------------------------
 # GET /api/v1/systems/monitor/summary con token de servicio (JWT HS256 de 60 s, audiencia
@@ -327,8 +335,8 @@ $RESUMEN"
 }
 
 # Menú de comandos del bot (lo que aparece al escribir «/»). Una vez al día; el número cambia si cambia la lista.
-if [ -n "$TELEGRAM_TOKEN" ] && [ ! -f "$E/menu2-$(date +%Y%m%d)" ]; then
-  : > "$E/menu2-$(date +%Y%m%d)"
+if [ -n "$TELEGRAM_TOKEN" ] && [ ! -f "$E/menu3-$(date +%Y%m%d)" ]; then
+  : > "$E/menu3-$(date +%Y%m%d)"
   printf 'url = "https://api.telegram.org/bot%s/setMyCommands"\n' "$TELEGRAM_TOKEN" |
     curl -s -m 10 -o /dev/null -K - -H 'content-type: application/json' -d '{"commands":[
       {"command":"status","description":"Estado del servidor con gráfico de 24 h"},
@@ -339,6 +347,7 @@ if [ -n "$TELEGRAM_TOKEN" ] && [ ! -f "$E/menu2-$(date +%Y%m%d)" ]; then
       {"command":"trafico","description":"Errores y latencia de la API"},
       {"command":"proveedores","description":"Estado de los proveedores externos"},
       {"command":"copias","description":"Última copia de las bases de datos"},
+      {"command":"ssh","description":"La puerta SSH: intentos, bloqueos y quién entró"},
       {"command":"silenciar","description":"Callar los avisos un rato (ej. /silenciar 1h)"},
       {"command":"podar","description":"Podar la caché de build (pide confirmación)"},
       {"command":"ayuda","description":"Lista de comandos"}]}'
@@ -367,6 +376,7 @@ if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
         /trafico) cmd_trafico ;;
         /proveedores) cmd_proveedores ;;
         /copias) cmd_copias ;;
+        /ssh) cmd_ssh ;;
         /silenciar) cmd_silenciar "$arg" ;;
         /podar) cmd_podar "$arg" ;;
       esac

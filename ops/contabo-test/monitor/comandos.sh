@@ -56,6 +56,7 @@ cmd_ayuda() {
 /proveedores · proveedores externos
 /copias · última copia de las bases
 /silenciar 1h · calla los avisos (máx. 6 h; /silenciar off la quita)
+/ssh · la puerta SSH: intentos, bloqueos y quién entró
 /podar · poda la caché de build (pide confirmación)"
 }
 
@@ -185,3 +186,33 @@ cmd_podar() { # arg: confirmar
   echo "$(date +%s)" > "$E/podar-pendiente"
   telegram "La caché de build ocupa ${cache_gb} GB. La poda borra lo más viejo y deja 100 GB; no toca nada en uso, pero el siguiente build puede tardar más. Para confirmar escribe /podar confirmar en los próximos 2 minutos."
 }
+
+cmd_ssh() {
+  conocidas=${SSH_CONOCIDAS:-/opt/atlas/monitor/ssh-conocidas.txt}
+  j24=$(journalctl -u ssh --no-pager --since "-24h" 2>/dev/null)
+  fallos=$(printf '%s\n' "$j24" | grep -cE "Failed password|Invalid user|authentication failure")
+  contra_root=$(printf '%s\n' "$j24" | grep -c "Failed password for root")
+  top=$(printf '%s\n' "$j24" | grep -E "Failed password|Invalid user" | grep -oE "from [0-9a-f.:]+" | sort | uniq -c | sort -rn | head -3 | awk '{printf "  %s (%s intentos)\n", $3, $1}')
+  banes=$(fail2ban-client status sshd 2>/dev/null | awk -F: '/Currently banned/{gsub(/[ \t]/,"",$2); print $2}')
+  total_banes=$(fail2ban-client status sshd 2>/dev/null | awk -F: '/Total banned/{gsub(/[ \t]/,"",$2); print $2}')
+  entradas=$(printf '%s\n' "$j24" | grep -E "Accepted (publickey|password) for" |
+    sed -E 's/.*Accepted ([a-z]+) for ([^ ]+) from ([0-9a-fA-F.:]+) .*/\3 \2 \1/' | sort | uniq -c | sort -rn |
+    while read -r n ip u m; do
+      marca="conocida"; grep -qxF "$ip" "$conocidas" 2>/dev/null || marca="⚠️ NO CONOCIDA"
+      [ "$m" = password ] && m="CONTRASEÑA ⚠️"
+      printf '  %s · %s · %s · %s veces · %s\n' "$ip" "$u" "$m" "$n" "$marca"
+    done)
+  raiz=$(sshd -T 2>/dev/null | awk '/^permitrootlogin/{print $2}')
+  clave=$(sshd -T 2>/dev/null | awk '/^passwordauthentication/{print $2}')
+  ufw=$(ufw status 2>/dev/null | head -1 | awk '{print $2}')
+  llaves=$(wc -l < /root/.ssh/authorized_keys 2>/dev/null)
+  telegram "Puerta SSH de Contabo (últimas 24 h)
+Intentos fallidos: $fallos (contra root: $contra_root)
+fail2ban: $(systemctl is-active fail2ban) · bloqueadas ahora: ${banes:-?} · bloqueadas en total: ${total_banes:-?}
+Los que más insisten:
+${top:-  ninguno}
+Entradas que SÍ entraron:
+${entradas:-  ninguna}
+Configuración: root ${raiz:-?} · contraseñas ${clave:-?} · cortafuegos ${ufw:-?} · llaves autorizadas ${llaves:-?}"
+}
+
