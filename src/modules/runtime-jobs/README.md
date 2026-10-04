@@ -11,9 +11,15 @@
 
 | Documento o código | Responsabilidad |
 |---|---|
+| [`expedientes-jobs.controller.ts`](./expedientes-jobs.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`job-run-recorder.service.ts`](./job-run-recorder.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`job-tick-guard.ts`](./job-tick-guard.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`optional-jobs.catalog.ts`](./optional-jobs.catalog.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`outbox-backlog.ts`](./outbox-backlog.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`outbox-unregistered.ts`](./outbox-unregistered.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`retention-execution.ts`](./retention-execution.ts) | Artefacto de soporte específico de esta carpeta. |
 | [`retention-targets.ts`](./retention-targets.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`runtime-decision-jobs.controller.ts`](./runtime-decision-jobs.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`runtime-jobs-scheduler.service.ts`](./runtime-jobs-scheduler.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`runtime-jobs.controller.ts`](./runtime-jobs.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`runtime-jobs.module.ts`](./runtime-jobs.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
@@ -21,6 +27,8 @@
 | [`runtime-jobs.service.ts`](./runtime-jobs.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`runtime-maintenance-jobs.service.ts`](./runtime-maintenance-jobs.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`scheduled-jobs.catalog.ts`](./scheduled-jobs.catalog.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`scheduled-jobs.credit.ts`](./scheduled-jobs.credit.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`scheduled-jobs.privacy.ts`](./scheduled-jobs.privacy.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento
 

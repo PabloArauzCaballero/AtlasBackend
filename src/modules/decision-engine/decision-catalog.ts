@@ -117,6 +117,35 @@ const DECISION_CATALOG: Record<DecisionType, CatalogEntry> = {
       'La resolucion del caso vuelve al expediente',
     ],
   },
+  privacy: {
+    title: 'Privacidad (solicitudes del titular)',
+    description: 'Opina si una solicitud para corregir un dato o borrar la cuenta se acepta, se rechaza o la mira una persona.',
+    business:
+      'La Constitucion (art. 130) deja a cualquiera exigir que se corrijan o borren sus datos, y la Ley 393 y el DS 4904 obligan a conservar 10 anos las operaciones y la identidad. Decidir a mano cada solicitud es lento y desigual; esta politica pone el criterio en un solo sitio. Hoy corre EN SOMBRA: opina y una persona sigue cerrando cada solicitud, hasta que el acuerdo medido respalde darle autoridad.',
+    systems:
+      'Un trabajo de fondo recorre las solicitudes abiertas de corregir o borrar sin opinion y le manda al motor 17 hechos de la cuenta —deuda, prestamos, mora, pagos por conciliar, fraude o reclamo abierto, contacto o dispositivo nuevos, PIN confirmado, identidad verificada y el CODIGO del dato—, nunca el valor nuevo ni datos personales. Devuelve ACEPTAR, RECHAZAR o REVISION_HUMANA con motivo y accion; se guarda junto a la solicitud sin cambiar su estado. Sin artefacto asignado no consulta nada.',
+    example:
+      'Un borrado con Bs 350 pendientes sale RECHAZAR con DSR_BORRADO_CON_DEUDA; el mismo borrado pedido desde un telefono estrenado esta semana sale REVISION_HUMANA, porque puede ser una cuenta robada.',
+    endpoints: [
+      {
+        method: 'POST',
+        path: '/api/v1/customers/:customerId/privacy/data-subject-requests',
+        purpose: 'El cliente pide corregir un dato o borrar su cuenta desde la app.',
+      },
+      {
+        method: 'GET',
+        path: '/api/v1/operations/privacy/data-subject-requests/:requestId',
+        purpose: 'Cumplimiento ve la opinion del motor junto a la solicitud.',
+      },
+    ],
+    stage: 'Derechos del titular · corregir o borrar',
+    workflowSteps: [
+      'El cliente envia la solicitud tras confirmar su PIN',
+      'Un trabajo de fondo le pide opinion al motor',
+      'La opinion queda junto a la solicitud, sin cambiar su estado',
+      'Una persona la cierra con su motivo, viendo lo que opino el motor',
+    ],
+  },
   risk: {
     title: 'Riesgo',
     description: 'Evalua el riesgo del cliente de forma continua.',

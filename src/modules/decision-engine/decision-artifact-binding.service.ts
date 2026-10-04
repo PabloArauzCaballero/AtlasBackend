@@ -13,7 +13,7 @@ import { DecisionEngineClient } from './decision-engine.client.js';
 import { catalogo } from './decision-catalog.js';
 
 /** Los tipos de decisión que hoy delegan en el motor. Uno por consumidor real. */
-export const DECISION_TYPES = ['identity', 'credit', 'risk', 'partner'] as const;
+export const DECISION_TYPES = ['identity', 'credit', 'risk', 'partner', 'privacy'] as const;
 export type DecisionType = (typeof DECISION_TYPES)[number];
 
 const TABLE = `${atlasSchemaFor('decision_artifact_bindings')}.decision_artifact_bindings`;
@@ -75,6 +75,7 @@ export class DecisionArtifactBindingService {
     if (decisionType === 'identity') return env.DECISION_ENGINE_IDENTITY_ARTIFACT || null;
     if (decisionType === 'credit') return env.DECISION_ENGINE_CREDIT_ARTIFACT || null;
     if (decisionType === 'partner') return env.DECISION_ENGINE_PARTNER_ARTIFACT || null;
+    if (decisionType === 'privacy') return env.DECISION_ENGINE_PRIVACY_ARTIFACT || null;
     return env.DECISION_ENGINE_RISK_ARTIFACT || null;
   }
 

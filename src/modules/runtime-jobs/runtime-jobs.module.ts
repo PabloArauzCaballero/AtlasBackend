@@ -54,6 +54,9 @@ import { QaOrchestrationModule } from '../qa-orchestration/qa-orchestration.modu
 import { QaJourneyConsumerService } from '../qa-orchestration/application/qa-journey-consumer.service.js';
 import { SystemsStressConsumerService } from '../systems-ops/systems-stress-consumer.service.js';
 import { env } from '../../config/env.js';
+import { PrivacyDecisionModule } from '../customer-privacy/privacy-decision.module.js';
+import { PrivacyRequestDecisionService } from '../customer-privacy/application/privacy-request-decision.service.js';
+import { buildPrivacyScheduledJobs } from './scheduled-jobs.privacy.js';
 import { ErpIntegrationModule } from '../erp-integration/erp-integration.module.js';
 import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.service.js';
 
@@ -87,6 +90,8 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
     // Aporta `SupportSlaService`: la vigilancia de los compromisos de atención es un trabajo de
     // fondo, pero el plazo, el calendario hábil y la pausa son reglas del soporte y viven allí.
     SupportModule,
+    // Aporta la opinión en sombra del Motor sobre las solicitudes del titular (sin la superficie HTTP de privacidad).
+    PrivacyDecisionModule,
     SequelizeModule.forFeature([
       SystemJobRunModel,
       SystemActionLogModel,
@@ -128,6 +133,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         erpDelivery: ErpEventDeliveryService,
         qaConsumer: QaJourneyConsumerService,
         creditReconciliation: CreditSubmittedReconciliationService,
+        privacyDecisions: PrivacyRequestDecisionService,
       ) => [
         ...buildScheduledJobs({
           runtimeJobs,
@@ -170,6 +176,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         }),
         // El barrido de solicitudes de crédito atascadas va aparte del catálogo general (ver el archivo).
         ...buildCreditScheduledJobs({ creditReconciliation }),
+        ...buildPrivacyScheduledJobs({ privacyDecisions }),
       ],
       inject: [
         RuntimeJobsService,
@@ -189,6 +196,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         ErpEventDeliveryService,
         QaJourneyConsumerService,
         CreditSubmittedReconciliationService,
+        PrivacyRequestDecisionService,
       ],
     },
   ],

@@ -139,6 +139,14 @@ export const decisionEngineEnvShape = {
    * `decision_artifact_bindings` cuando alguien elige de verdad desde el portal.
    */
   DECISION_ENGINE_PARTNER_ARTIFACT: z.string().trim().max(120).default('PARTNER_KYB_REVIEW'),
+
+  /*
+   * El artefacto que opina sobre las solicitudes del titular (corregir un dato, borrar la cuenta).
+   *
+   * Vacío por omisión a propósito: mientras nadie lo asigne —aquí o, mejor, desde el portal— el
+   * trabajo en sombra no lee ni una fila. Asignarlo es encenderlo; quitarlo, apagarlo.
+   */
+  DECISION_ENGINE_PRIVACY_ARTIFACT: z.string().trim().max(120).default(''),
   DECISION_ENGINE_ENVIRONMENT_CODE: z
     .string()
     .trim()
