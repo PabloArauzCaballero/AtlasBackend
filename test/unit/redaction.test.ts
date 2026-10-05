@@ -64,3 +64,23 @@ describe('stableStringify', () => {
     expect(stableStringify({ b: 2, a: 1 })).toBe(stableStringify({ a: 1, b: 2 }));
   });
 });
+
+describe('secretos de un solo campo: PIN y código de un solo uso', () => {
+  it('redacta `pin` y `code` como clave exacta (cuerpos de /auth/pin/verify, /auth/login/pin y del reset)', () => {
+    const result = redactSensitiveObject({
+      body: { pin: '4821', challengeToken: 'x', code: '123456', newPin: '9999', actorType: 'customer' },
+    }) as { body: Record<string, unknown> };
+    expect(result.body).toEqual({
+      pin: '[REDACTED]',
+      challengeToken: '[REDACTED]',
+      code: '[REDACTED]',
+      newPin: '[REDACTED]',
+      actorType: 'customer',
+    });
+  });
+
+  it('no sobre-redacta claves técnicas que sólo contienen esas letras', () => {
+    const result = redactSensitiveObject({ reasonCode: 'R1', pinnedVersion: 'v2', mapping: 'a', codeSystem: 'x' }) as Record<string, unknown>;
+    expect(result).toEqual({ reasonCode: 'R1', pinnedVersion: 'v2', mapping: 'a', codeSystem: 'x' });
+  });
+});

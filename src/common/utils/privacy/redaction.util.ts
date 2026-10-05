@@ -8,13 +8,17 @@
  * - Exacto (`^name$`): `name` a secas solo se redacta como clave completa, porque como substring
  *   sobre-redactaría claves técnicas sin PII (jobName, actionName, screenName, …).
  *
+ * - `pin` y `code` también van exactos: son el PIN de login del cliente (`POST /auth/pin/verify`,
+ *   `/auth/login/pin`) y el código de un solo uso del reset y del cambio de contraseña. Se quedaban en
+ *   claro en la bitácora HTTP. Como substring arrastrarían `shipping`, `mapping`, `reasonCode`, …
+ *
  * Nota (deuda preexistente): `lat|lng|gps` se matchean como substring, así que colisionan con claves
  * técnicas que los contienen (p.ej. "temp`lat`eName" → redactada). Es fail-safe (sobre-redacta, no
  * filtra); acotarlos a límites de palabra queda pendiente para no arriesgar under-redacción de
  * claves GPS reales. Ver docs/audit/cierre-correcciones-2026-07-21.md.
  */
 const SENSITIVE_KEY_PATTERN =
-  /(password|token|secret|authorization|cookie|otp|verificationCode|documentNumber|declaredNumber|encrypted|phone|email|lat|lng|gps|address|reference|rawPayload|evidence|storageKey|payload|identifier|fullName|firstName|lastName)|^name$/i;
+  /(password|token|secret|authorization|cookie|otp|verificationCode|documentNumber|declaredNumber|encrypted|phone|email|lat|lng|gps|address|reference|rawPayload|evidence|storageKey|payload|identifier|fullName|firstName|lastName)|^(name|pin|newPin|currentPin|code)$/i;
 
 /**
  * Escribe una clave en el objeto de salida SIN pasar por los descriptores heredados.
