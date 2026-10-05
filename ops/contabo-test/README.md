@@ -89,6 +89,14 @@ llave; hace copia de `/etc/ssh`, prueba con `sshd -t`, recarga sin cortar sesion
 llaves en el agente dejaría fuera a quien entra bien. Sin cambios en el cortafuegos (`ufw` sigue inactivo): en un
 servidor compartido se hace con el dueño de cada puerto.
 
+### Limpieza de imágenes de Docker
+
+Además de la caché de build, el monitor borra las imágenes **sin nombre ni etiqueta y de más de 24 h**
+(`docker image prune -f --filter until=24h`, nunca `-a`): una vez por semana, o una vez al día si el disco está al
+85 % o más. Las `:estable` de los respaldos y las de cada despliegue llevan nombre y no se tocan; las intermedias de
+un build en curso son más recientes que 24 h. Avisa por Telegram cuánto liberó. El 2026-10-04 había 14 candidatas
+(~4,7 GB); otros ~15 GB de imágenes con nombre pero sin uso son de otros proyectos del servidor y no se borran solos.
+
 ## Qué avisa el monitor (sólo al cambiar de estado, con «RECUPERADO» al volver)
 
 Host: RAM disponible < 2 GB · disco ≥ 85 % y ≥ 90 % · caché de build > 150 GB (la poda actúa sola, como mucho cada

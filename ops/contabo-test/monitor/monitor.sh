@@ -150,6 +150,23 @@ if [ "$poda_normal" = 1 ] || [ "$poda_urgente" = 1 ]; then
   fi
 fi
 
+# --- 4b. Imágenes de Docker sin nombre (colgadas) ----------------------------------------------
+# Sólo las que no llevan nombre NI etiqueta y tienen más de 24 h (las intermedias de un build en curso son más
+# recientes). Nunca `-a`: las `:estable` de los respaldos y las de cada despliegue llevan nombre. Una vez por
+# semana, o una vez al día si el disco está al 85 % o más.
+img_cada=10080; [ "$disco" -ge 85 ] && img_cada=1440
+if [ -z "$(find "$E/imagenes" -mmin -"$img_cada" 2>/dev/null)" ]; then
+  : > "$E/imagenes"
+  antes_img=$(docker images -f dangling=true -q 2>/dev/null | wc -l)
+  salida=$(docker image prune -f --filter "until=24h" 2>&1)
+  if [ $? -eq 0 ]; then
+    libre=$(printf '%s\n' "$salida" | awk '/Total reclaimed space/ {print $4$5}')
+    [ "$antes_img" -gt 0 ] && avisar "Imágenes sin nombre borradas: ${antes_img} candidatas, liberado ${libre:-0B} (sólo las de más de 24 h; las de los respaldos no se tocan)."
+  else
+    avisar "El borrado de imágenes sin nombre FALLÓ: $(printf '%s' "$salida" | head -c 160)"
+  fi
+fi
+
 # --- 2. Apps ---------------------------------------------------------------------------------
 sanas=0; total=0; problemas=""; resp_ok=0; resp_total=0; apps_json=""
 echo "$APPS" > "$E/apps.lista"
