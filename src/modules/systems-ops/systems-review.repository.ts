@@ -18,6 +18,35 @@ import {
 import { ReviewDecisionDto, SystemsReviewQueueDto } from './systems-ops.schemas.js';
 import { buildReviewFamilyWhere, ReviewFamily } from './systems-review-where.util.js';
 
+const DATA_ENTITY_METADATA_FIELDS = [
+  'businessPurpose',
+  'dataOwner',
+  'containsPii',
+  'containsFinancialData',
+  'containsRiskData',
+  'containsLegalData',
+  'containsDeviceData',
+  'containsLocationData',
+  'isAuditCritical',
+  'retentionPolicyCode',
+  'status',
+  'reviewStatus',
+] as const;
+
+/** Lo que cambia cómo se gobierna la tabla: su cambio deja evento de revisión. */
+const GOVERNANCE_FIELDS = new Set<string>([
+  'containsPii',
+  'containsFinancialData',
+  'containsRiskData',
+  'containsLegalData',
+  'containsDeviceData',
+  'containsLocationData',
+  'isAuditCritical',
+  'retentionPolicyCode',
+  'status',
+  'reviewStatus',
+]);
+
 @Injectable()
 export class SystemsReviewRepository {
   constructor(
@@ -152,6 +181,55 @@ export class SystemsReviewRepository {
         row.updatedAtValue = new Date();
       },
     );
+  }
+
+  /*
+   * La metadata de una tabla incluye su estado de revisión y las banderas de gobierno (PII, financiera…).
+   * Cambiarlas por aquí sin rastro dejaba aprobar una tabla o quitarle la marca de PII sin evento de
+   * revisión: si cambia alguna, queda un evento con el actor y el antes→después de cada bandera.
+   */
+  updateDataEntityMetadata(
+    entityId: string,
+    body: Record<string, unknown>,
+    actorId: string | null,
+    actorRole: string,
+    tenantId: string | null,
+  ): Promise<SystemDataEntityCatalogModel | null> {
+    return this.reviewEventModel.sequelize!.transaction(async (transaction) => {
+      const row = await this.dataEntityModel.findByPk(entityId, { transaction, lock: transaction.LOCK.UPDATE });
+      if (!row) return null;
+      const fields = row as unknown as Record<string, unknown>;
+      const previousStatus = row.reviewStatus;
+      const governanceChanges: string[] = [];
+      for (const field of DATA_ENTITY_METADATA_FIELDS) {
+        if (!(field in body)) continue;
+        if (GOVERNANCE_FIELDS.has(field) && fields[field] !== body[field]) {
+          governanceChanges.push(`${field}: ${String(fields[field])}→${String(body[field])}`);
+        }
+        fields[field] = body[field];
+      }
+      row.updatedAtValue = new Date();
+      const saved = await row.save({ transaction });
+      if (governanceChanges.length > 0 || row.reviewStatus !== previousStatus) {
+        await this.recordReview(
+          {
+            targetType: 'data_entity',
+            targetId: entityId,
+            previousStatus,
+            previousConfidence: row.confidenceLevel,
+            decision: {
+              reviewStatus: row.reviewStatus,
+              notes: `metadata: ${governanceChanges.join('; ') || 'reviewStatus'}`,
+            } as ReviewDecisionDto,
+            actorId,
+            actorRole,
+            tenantId,
+          },
+          transaction,
+        );
+      }
+      return saved;
+    });
   }
 
   /*

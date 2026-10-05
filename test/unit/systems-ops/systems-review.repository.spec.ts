@@ -127,6 +127,48 @@ describe('SystemsReviewRepository', () => {
     });
   });
 
+  describe('updateDataEntityMetadata', () => {
+    it('devuelve null si no existe; si existe aplica solo los campos presentes en el body y guarda', async () => {
+      const missing = buildRepo();
+      (missing.models.dataEntity.findByPk as jest.Mock).mockResolvedValue(null as never);
+      expect(await missing.repo.updateDataEntityMetadata('e1', {}, 'u1', 'admin', null)).toBeNull();
+
+      const found = buildRepo();
+      const save = jest.fn(async (..._args: unknown[]) => found);
+      const entity = { businessPurpose: 'old', status: 'ACTIVE', reviewStatus: 'NEEDS_REVIEW', save } as Record<string, unknown>;
+      (found.models.dataEntity.findByPk as jest.Mock).mockResolvedValue(entity as never);
+      await found.repo.updateDataEntityMetadata('e1', { businessPurpose: 'nuevo', dataOwner: 'riesgo' }, 'u1', 'admin', null);
+      expect(entity.businessPurpose).toBe('nuevo');
+      expect(entity.status).toBe('ACTIVE'); // no venía en el body
+      expect(save).toHaveBeenCalledWith({ transaction: found.transaction });
+      // Texto descriptivo: no cambia cómo se gobierna la tabla, no hay evento.
+      expect(found.models.reviewEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('aprobar o quitar la marca de PII por metadata deja evento de revisión con actor y antes→después', async () => {
+      const { repo, models, transaction } = buildRepo();
+      const save = jest.fn(async (..._args: unknown[]) => ({}));
+      const entity = { reviewStatus: 'NEEDS_REVIEW', confidenceLevel: 'MEDIUM', containsPii: true, save } as Record<string, unknown>;
+      (models.dataEntity.findByPk as jest.Mock).mockResolvedValue(entity as never);
+      (models.reviewEvent.create as jest.Mock).mockResolvedValue({} as never);
+      await repo.updateDataEntityMetadata('e1', { reviewStatus: 'APPROVED', containsPii: false }, 'u9', 'admin', 't1');
+      expect((models.dataEntity.findByPk as jest.Mock).mock.calls[0][1]).toEqual({ transaction, lock: 'UPDATE' });
+      const [event, options] = (models.reviewEvent.create as jest.Mock).mock.calls[0] as [Record<string, unknown>, unknown];
+      expect(event).toMatchObject({
+        targetType: 'data_entity',
+        targetId: 'e1',
+        previousStatus: 'NEEDS_REVIEW',
+        newStatus: 'APPROVED',
+        actorId: 'u9',
+        actorRole: 'admin',
+        tenantId: 't1',
+      });
+      expect(event.notes).toContain('containsPii: true→false');
+      expect(event.notes).toContain('reviewStatus: NEEDS_REVIEW→APPROVED');
+      expect(options).toEqual({ transaction });
+    });
+  });
+
   describe('updateDataColumnReview', () => {
     it('marca detectedFrom=manual, escribe operationalNotes y registra data_column', async () => {
       const { repo, models } = buildRepo();
