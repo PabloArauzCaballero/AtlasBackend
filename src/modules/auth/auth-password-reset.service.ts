@@ -167,6 +167,9 @@ export class AuthPasswordResetService {
     const oneTimeCode = await this.oneTimeCodeRepository.findActiveOneTimeCodeByActor(input.actorType, actor.id, 'password_reset');
     if (!oneTimeCode || oneTimeCode.expiresAt.getTime() < Date.now()) throw invalidCodeError;
 
+    // El intento se reserva antes de comparar (ver `reserveOneTimeCodeAttempt`): sin intentos, nada que comparar.
+    if (!(await this.oneTimeCodeRepository.reserveOneTimeCodeAttempt(oneTimeCode, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS)))
+      throw invalidCodeError;
     if (!verifyOneTimeCode(input.code, oneTimeCode.codeHash)) {
       await this.oneTimeCodeRepository.registerOneTimeCodeFailedAttempt(oneTimeCode, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
       throw invalidCodeError;
@@ -175,7 +178,7 @@ export class AuthPasswordResetService {
     const credential = await this.authRepository.findCredentialsByActor(input.actorType, actor.id);
     if (!credential) throw invalidCodeError;
 
-    await this.oneTimeCodeRepository.consumeOneTimeCode(oneTimeCode);
+    if (!(await this.oneTimeCodeRepository.consumeOneTimeCode(oneTimeCode))) throw invalidCodeError;
     await this.authRepository.updatePasswordHash(credential, await hashPassword(input.newPassword));
 
     // Cambio de contraseña = cerrar toda sesión previa: refresh tokens revocados y tokenVersion

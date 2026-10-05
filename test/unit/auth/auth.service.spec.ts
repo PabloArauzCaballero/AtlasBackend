@@ -37,8 +37,9 @@ function buildAuthRepositoryMock() {
     createOneTimeCode: asyncMock(),
     findActiveOneTimeCodeByActor: asyncMock(),
     findActiveOneTimeCodeByChallenge: asyncMock(),
+    reserveOneTimeCodeAttempt: jest.fn(async (..._args: unknown[]) => true),
     registerOneTimeCodeFailedAttempt: asyncMock(),
-    consumeOneTimeCode: asyncMock(),
+    consumeOneTimeCode: jest.fn(async (..._args: unknown[]) => true),
     reserveLoginAttempt: asyncMock(),
     clearFailedAttempts: asyncMock(),
     recordSuccessfulLogin: asyncMock(),
@@ -988,6 +989,30 @@ describe('AuthService.verifyLoginPin (2FA por PIN de super admin / MFA cliente)'
       expect.objectContaining({ successful: false, failureReasonCode: 'invalid_login_pin', actorId: '5' }),
     );
     expect(authRepository.consumeOneTimeCode).not.toHaveBeenCalled();
+  });
+
+  it('sin intentos que reservar: rechaza sin comparar el PIN ni contar otro fallo', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge());
+    authRepository.reserveOneTimeCodeAttempt.mockResolvedValue(false);
+    const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
+    await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null })).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(authRepository.registerOneTimeCodeFailedAttempt).not.toHaveBeenCalled();
+    expect(authRepository.consumeOneTimeCode).not.toHaveBeenCalled();
+  });
+
+  it('PIN correcto pero otra petición ya consumió el desafío: no emite una segunda sesión', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge());
+    authRepository.findInternalUserById.mockResolvedValue(activeInternalUser);
+    authRepository.consumeOneTimeCode.mockResolvedValue(false);
+    const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
+    await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null })).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(authRepository.recordSuccessfulLogin).not.toHaveBeenCalled();
   });
 
   it('PIN correcto pero el actor ya no existe: consume el código y lanza "ya no está disponible"', async () => {

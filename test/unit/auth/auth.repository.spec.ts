@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { Op } from 'sequelize';
 import { AuthOneTimeCodeRepository } from '../../../src/modules/auth/auth-one-time-code.repository.js';
 import { AuthRepository } from '../../../src/modules/auth/auth.repository.js';
 
@@ -158,22 +159,32 @@ describe('AuthRepository', () => {
       expect(models.oneTimeCode.create).toHaveBeenCalledTimes(1);
     });
 
-    it('registerOneTimeCodeFailedAttempt consume el código al agotar los intentos', async () => {
-      const { repo } = buildOneTimeCodeRepo();
-      const save = jest.fn(async (..._args: unknown[]) => undefined);
-      const code = { attempts: 4, consumedAt: null, save } as never;
-      await repo.registerOneTimeCodeFailedAttempt(code, 5);
-      expect((code as { attempts: number }).attempts).toBe(5);
-      expect((code as { consumedAt: Date | null }).consumedAt).toBeInstanceOf(Date);
+    it('reserveOneTimeCodeAttempt suma en SQL y sólo si quedan intentos y el código sigue vivo', async () => {
+      const { repo, models } = buildOneTimeCodeRepo();
+      (models.oneTimeCode.update as jest.Mock).mockResolvedValueOnce([1] as never).mockResolvedValueOnce([0] as never);
+      await expect(repo.reserveOneTimeCodeAttempt({ id: 'otc1' } as never, 5)).resolves.toBe(true);
+      await expect(repo.reserveOneTimeCodeAttempt({ id: 'otc1' } as never, 5)).resolves.toBe(false);
+      const [values, options] = (models.oneTimeCode.update as jest.Mock).mock.calls[0] as [
+        Record<string, unknown>,
+        { where: Record<string, unknown> },
+      ];
+      // `attempts = attempts + 1` en la base, no el valor leído + 1: N peticiones en paralelo suman N.
+      expect(String((values.attempts as { val: string }).val)).toBe('"attempts" + 1');
+      expect(options.where).toMatchObject({ id: 'otc1', consumedAt: null });
+      expect((options.where.attempts as Record<symbol, number>)[Op.lt]).toBe(5);
     });
 
-    it('registerOneTimeCodeFailedAttempt solo incrementa si aún quedan intentos', async () => {
-      const { repo } = buildOneTimeCodeRepo();
-      const save = jest.fn(async (..._args: unknown[]) => undefined);
-      const code = { attempts: 1, consumedAt: null, save } as never;
-      await repo.registerOneTimeCodeFailedAttempt(code, 5);
-      expect((code as { attempts: number }).attempts).toBe(2);
-      expect((code as { consumedAt: Date | null }).consumedAt).toBeNull();
+    it('registerOneTimeCodeFailedAttempt consume el código sólo si con ese intento se agotaron', async () => {
+      const { repo, models } = buildOneTimeCodeRepo();
+      (models.oneTimeCode.update as jest.Mock).mockResolvedValue([1] as never);
+      await repo.registerOneTimeCodeFailedAttempt({ id: 'otc1' } as never, 5);
+      const [values, options] = (models.oneTimeCode.update as jest.Mock).mock.calls[0] as [
+        Record<string, unknown>,
+        { where: Record<string, unknown> },
+      ];
+      expect(values.consumedAt).toBeInstanceOf(Date);
+      expect(options.where).toMatchObject({ id: 'otc1', consumedAt: null });
+      expect((options.where.attempts as Record<symbol, number>)[Op.gte]).toBe(5);
     });
   });
 
@@ -290,13 +301,17 @@ describe('AuthRepository', () => {
       expect((models.oneTimeCode.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { challengeHash: 'h', consumedAt: null } });
     });
 
-    it('consumeOneTimeCode marca consumedAt y guarda', async () => {
-      const { repo } = buildOneTimeCodeRepo();
-      const save = jest.fn(async (..._args: unknown[]) => undefined);
-      const code = { consumedAt: null, save } as never;
-      await repo.consumeOneTimeCode(code);
-      expect((code as { consumedAt: Date | null }).consumedAt).not.toBeNull();
-      expect(save).toHaveBeenCalled();
+    it('consumeOneTimeCode consume sólo un código vivo y dice si fue él quien lo consumió', async () => {
+      const { repo, models } = buildOneTimeCodeRepo();
+      (models.oneTimeCode.update as jest.Mock).mockResolvedValueOnce([1] as never).mockResolvedValueOnce([0] as never);
+      await expect(repo.consumeOneTimeCode({ id: 'otc1' } as never)).resolves.toBe(true);
+      await expect(repo.consumeOneTimeCode({ id: 'otc1' } as never)).resolves.toBe(false);
+      const [values, options] = (models.oneTimeCode.update as jest.Mock).mock.calls[0] as [
+        Record<string, unknown>,
+        { where: Record<string, unknown> },
+      ];
+      expect(values.consumedAt).toBeInstanceOf(Date);
+      expect(options.where).toEqual({ id: 'otc1', consumedAt: null });
     });
 
     it('findActiveRefreshTokenByHash exige tokenHash + no-revocado', async () => {

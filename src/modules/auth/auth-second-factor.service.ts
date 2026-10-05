@@ -197,6 +197,9 @@ export class AuthSecondFactorService {
     }
 
     const actorType = challenge.actorType as ActorType;
+    // El intento se reserva antes de comparar (ver `reserveOneTimeCodeAttempt`): sin intentos, nada que comparar.
+    if (!(await this.oneTimeCodeRepository.reserveOneTimeCodeAttempt(challenge, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS)))
+      throw invalidPinError;
     if (!verifyOneTimeCode(input.pin, challenge.codeHash)) {
       await this.oneTimeCodeRepository.registerOneTimeCodeFailedAttempt(challenge, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
       await this.authRepository.recordLoginAttemptEvent({
@@ -212,7 +215,8 @@ export class AuthSecondFactorService {
       throw invalidPinError;
     }
 
-    await this.oneTimeCodeRepository.consumeOneTimeCode(challenge);
+    // Dos canjes concurrentes del PIN correcto: sólo el que consume emite sesión.
+    if (!(await this.oneTimeCodeRepository.consumeOneTimeCode(challenge))) throw invalidPinError;
 
     const actor = await this.actorResolver.reResolveActorRole(actorType, challenge.actorId, challenge.tenantId);
     const credential = actor ? await this.authRepository.findCredentialsByActor(actorType, actor.id) : null;

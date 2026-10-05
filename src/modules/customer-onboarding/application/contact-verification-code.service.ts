@@ -201,12 +201,16 @@ export class ContactVerificationCodeService {
       return { ok: false, reason: 'expired' };
     }
 
+    // El intento se reserva antes de comparar (ver `reserveOneTimeCodeAttempt`): sin intentos, nada que comparar.
+    if (!(await this.oneTimeCodeRepository.reserveOneTimeCodeAttempt(record, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS))) {
+      return { ok: false, reason: 'invalid' };
+    }
     if (!verifyOneTimeCode(input.candidate, record.codeHash)) {
       await this.oneTimeCodeRepository.registerOneTimeCodeFailedAttempt(record, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
       return { ok: false, reason: 'invalid' };
     }
 
-    await this.oneTimeCodeRepository.consumeOneTimeCode(record);
+    if (!(await this.oneTimeCodeRepository.consumeOneTimeCode(record))) return { ok: false, reason: 'invalid' };
     return { ok: true };
   }
 
