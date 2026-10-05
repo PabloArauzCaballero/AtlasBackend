@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock } from '../../support/jest-mocks.js';
+import { ForbiddenException } from '@nestjs/common';
 import { EventsService } from '../../../src/modules/events/events.service.js';
 
 /**
@@ -297,6 +298,19 @@ describe('EventsService', () => {
       const result = await service.publish({ tenantId: 't1', eventCode: 'user.registered', aggregateType: 'customer' } as never);
 
       expect(result).toMatchObject({ id: '2', tenantId: '5', priority: 9, attempts: 2, maxAttempts: 7 });
+    });
+
+    it('publishFromDto rechaza con 403 EVENT_RESERVED_FOR_SYSTEM un evento que avisa a un cliente u operaciones', async () => {
+      const { service, repository } = buildService();
+      for (const eventCode of ['kyc.approved', 'customer.lifecycle.active', 'payment.confirmed', 'support.sla.breached']) {
+        const attempt = service.publishFromDto({
+          tenantId: 't1',
+          body: { eventCode, aggregateType: 'customer', payload: { customerId: '123', html: '<a>x</a>', bcc: ['v@x.com'] } } as never,
+        });
+        await expect(attempt).rejects.toBeInstanceOf(ForbiddenException);
+        await expect(attempt).rejects.toThrow('EVENT_RESERVED_FOR_SYSTEM');
+      }
+      expect(repository.createEvent).not.toHaveBeenCalled();
     });
 
     it('publishFromDto sin opcionales usa los fallbacks (origen operations_api/publish_event, ids en null)', async () => {

@@ -335,6 +335,39 @@ describe('NotificationOrchestratorService', () => {
       expect(emailCall[0].subject).not.toBeNull();
     });
 
+    it('el mensaje NO hereda del payload del evento el HTML, las copias ni el destino: salen de la plantilla y de los contactos', async () => {
+      const { service, rulesService, repository, renderer } = buildService();
+      (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([
+        {
+          eventCode: 'x',
+          channels: ['email'],
+          recipientType: 'customer',
+          recipientIdPath: ['customerId'],
+          required: false,
+          templatePrefix: 'x',
+        },
+      ] as never);
+      const eventPayload = {
+        customerId: 'c1',
+        amount: 10,
+        html: '<a href="https://phish">Verifica</a>',
+        htmlBody: '<p>x</p>',
+        bcc: ['victima@x.com'],
+        CC: 'otro@x.com',
+        replyTo: 'atacante@x.com',
+        email: 'tercero@x.com',
+        smsTo: '+59170000000',
+        fcmToken: 'tok',
+      };
+
+      await service.handleEvent(fakeEvent({ eventPayloadJson: eventPayload }) as never);
+
+      const [[created]] = (repository.createMessage as jest.Mock).mock.calls as Array<[{ payload: Record<string, unknown> }]>;
+      expect(created.payload).toEqual({ customerId: 'c1', amount: 10 });
+      // La plantilla sí se rinde con el payload entero: quitar claves de envío no quita datos al texto.
+      expect((renderer.render as jest.Mock).mock.calls[0][1]).toBe(eventPayload);
+    });
+
     it('handleEvent entrega cada mensaje creado SIN re-leerlo (optimización #1: pasa el modelo directo)', async () => {
       const { service, rulesService, repository, adapters } = buildService();
       (rulesService.getRulesForEvent as jest.Mock).mockReturnValueOnce([

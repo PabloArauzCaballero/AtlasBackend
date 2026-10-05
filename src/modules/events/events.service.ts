@@ -3,7 +3,7 @@
  * @business Esta pieza desacopla procesos de negocio y permite reintentos auditables sin perder eventos.
  * @system registra definiciones, outbox y procesamiento idempotente de eventos de dominio.
  */
-import { BadRequestException, ConflictException, Injectable, Logger, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
 import type { Transaction } from 'sequelize';
 import { env } from '../../config/env.js';
 import { OutboxRelayService } from '../../platform/events/outbox-relay.service.js';
@@ -14,6 +14,7 @@ import { eventStatusSchema, ListEventsQueryDto, PublishEventDto } from './events
 import { ProcessEventsInput, ProcessEventsResult, PublishEventInput } from './event-types.js';
 import { OutboxEventModel } from '../../database/models/index.js';
 import { NotificationOrchestratorService } from '../notifications/notification-orchestrator.service.js';
+import { hasNotificationRule } from '../notifications/notification-rules.service.js';
 
 function addBackoff(now: Date, attempts: number): Date {
   const minutes = Math.min(60, Math.max(1, attempts * attempts));
@@ -80,7 +81,15 @@ export class EventsService {
     return eventToResponse(event);
   }
 
+  /**
+   * Publicación MANUAL (`POST /operations/events`). Un evento con regla de aviso queda fuera: quien lo
+   * publicara a mano mandaría a un cliente un «KYC aprobado» o un «pago confirmado» que nadie aprobó,
+   * por push, correo y SMS, con el `customerId` que eligiera en el payload.
+   */
   async publishFromDto(input: { tenantId: string; body: PublishEventDto; idempotencyKey?: string | null }) {
+    if (hasNotificationRule(input.body.eventCode)) {
+      throw new ForbiddenException(`EVENT_RESERVED_FOR_SYSTEM: ${input.body.eventCode} sólo lo publica su productor`);
+    }
     return this.publish({
       tenantId: input.tenantId,
       eventCode: input.body.eventCode,

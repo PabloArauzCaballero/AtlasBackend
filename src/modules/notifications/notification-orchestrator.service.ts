@@ -37,6 +37,24 @@ function defaultRecipientId(event: OutboxEventModel, recipientType: RecipientTyp
   return null;
 }
 
+/**
+ * Claves del payload que los adaptadores leen como CONTENIDO o DESTINO del envío (`email-payload.util`,
+ * `getFirstDeliveryTarget`). En un aviso nacido de un evento de dominio no pintan nada: el texto sale de
+ * la plantilla del servidor y el destino, de los contactos del cliente. Si viajaran, quien controlara el
+ * payload del evento elegiría el HTML del correo, sus copias ocultas y a qué dirección o teléfono sale.
+ */
+const DELIVERY_OVERRIDE_KEYS: ReadonlySet<string> = new Set(
+  [
+    ...['html', 'htmlBody', 'cc', 'bcc', 'replyTo', 'reply_to'],
+    ...['email', 'toEmail', 'recipientEmail', 'phone', 'toPhone', 'recipientPhone', 'smsTo', 'whatsappTo', 'whatsapp'],
+    ...['fcmToken', 'pushToken', 'deviceToken'],
+  ].map((key) => key.toLowerCase()),
+);
+
+function withoutDeliveryOverrides(payload: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(payload).filter(([key]) => !DELIVERY_OVERRIDE_KEYS.has(key.toLowerCase())));
+}
+
 /** Resuelve el id de un mensaje de forma robusta: `.id` directo o `getDataValue('id')` como fallback. */
 function resolveMessageId(message: NotificationMessageModel): string {
   if (message.id !== undefined && message.id !== null) return String(message.id);
@@ -114,7 +132,7 @@ export class NotificationOrchestratorService {
           subject,
           title,
           body,
-          payload,
+          payload: withoutDeliveryOverrides(payload),
           priority: event.priority ?? 0,
           category: template?.category ?? null,
           icon: template?.icon ?? null,

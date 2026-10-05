@@ -74,13 +74,20 @@ export class EventsController {
     return this.eventsService.getEvent(tenantId, params.eventId);
   }
 
+  /*
+   * Publicar a mano es fabricar un hecho: lo hace plataforma, no un analista. Leer, reintentar y
+   * cancelar siguen con los roles de la clase. Los eventos que avisan a una persona no se publican
+   * por aquí ni con estos roles (`EVENT_RESERVED_FOR_SYSTEM`).
+   */
   @ApiOperation({ summary: 'Publicar un evento de dominio' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiHeader({ name: 'x-idempotency-key', required: true })
   @ApiBody({ schema: zodToApiSchema(publishEventSchema) })
   @ApiResponse({ status: 201, description: 'Evento publicado (encolado en outbox).' })
+  @ApiResponse({ status: 403, description: 'EVENT_RESERVED_FOR_SYSTEM: el evento dispara avisos y sólo lo publica su productor.' })
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Roles('admin', 'platform_admin', 'system')
   createEvent(
     @CurrentTenant() tenantId: string,
     @Headers('x-idempotency-key') idempotencyKeyHeader: string | undefined,

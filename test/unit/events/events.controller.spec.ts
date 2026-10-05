@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { EventsController } from '../../../src/modules/events/events.controller.js';
 import { requireIdempotencyKey, tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.js';
+import { ROLES_KEY } from '../../../src/common/decorators/roles.decorator.js';
 
 /**
  * `EventsController` es la cara HTTP del outbox de eventos. Spec directo con el servicio mockeado:
@@ -58,5 +59,11 @@ describe('EventsController', () => {
     await controller.cancelEvent('1', key, { eventId: '7' } as never);
     expect(service.cancelEvent).toHaveBeenCalledWith(tenantIdFromHeader('1'), '7');
     expect(() => controller.retryEvent('1', undefined, { eventId: '7' } as never)).toThrow();
+  });
+  it('publicar a mano es de plataforma: createEvent no admite analistas ni operadores; leer sí', () => {
+    const handlerRoles = Reflect.getMetadata(ROLES_KEY, EventsController.prototype.createEvent) as string[];
+    expect(handlerRoles).toEqual(['admin', 'platform_admin', 'system']);
+    const classRoles = Reflect.getMetadata(ROLES_KEY, EventsController) as string[];
+    expect(classRoles).toEqual(expect.arrayContaining(['risk_analyst', 'internal_operator']));
   });
 });
