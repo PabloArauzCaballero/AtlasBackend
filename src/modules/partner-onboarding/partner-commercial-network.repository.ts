@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, Transaction } from 'sequelize';
+import { Op, Sequelize, Transaction } from 'sequelize';
 import {
   PartnerBranchModel,
   PartnerLegalRepresentativeModel,
@@ -124,8 +124,38 @@ export class PartnerCommercialNetworkRepository {
         branchId: branchId === null ? { [Op.is]: null } : branchId,
         status: { [Op.in]: ['pending_review', 'active'] },
       },
+      // El ACTIVO primero ('active' < 'pending_review'): sin orden podía salir un pendiente viejo.
+      order: [['status', 'ASC']],
       transaction: options.transaction,
     });
+  }
+
+  inTransaction<T>(work: (transaction: Transaction) => Promise<T>): Promise<T> {
+    return (this.qrModel.sequelize as Sequelize).transaction(work);
+  }
+
+  /**
+   * Archiva TODOS los QR vivos del ámbito menos el nuevo. Antes del 2026-10-02 convivían un activo
+   * y pendientes: archivar uno solo dejaba el otro en pie y activar el nuevo chocaba con el índice.
+   */
+  async archiveLiveQrs(
+    scope: { tenantId: string; partnerProfileId: string; qrKind: string; branchId: string | null },
+    replacedById: string,
+    options: RepositoryOptions = {},
+  ): Promise<number> {
+    const [archivados] = await this.qrModel.update(
+      { status: 'replaced', replacedById, updatedAtValue: new Date() },
+      {
+        where: {
+          ...scope,
+          branchId: scope.branchId === null ? { [Op.is]: null } : scope.branchId,
+          status: { [Op.in]: ['pending_review', 'active'] },
+          id: { [Op.ne]: replacedById },
+        },
+        transaction: options.transaction,
+      },
+    );
+    return archivados;
   }
 
   createQrCode(
@@ -151,11 +181,9 @@ export class PartnerCommercialNetworkRepository {
   }
 
   /**
-   * Activa un QR recién registrado SIN revisión interna: lo confirma el propio comercio.
-   *
-   * Va en una escritura aparte de `createQrCode`, y después de archivar el activo anterior, porque
-   * el índice único de «un activo por ámbito» rechazaría crear el nuevo ya activo mientras el viejo
-   * siga en `active`. `verified_at` marca el momento de la confirmación; no hay revisor interno.
+   * Activa un QR recién registrado SIN revisión interna: lo confirma el propio comercio. Va después
+   * de `archiveLiveQrs`: el índice de «un activo por ámbito» no admite dos. `verified_at` marca la
+   * confirmación; no hay revisor interno.
    */
   markQrActive(qr: PartnerQrCodeModel, note: string, options: RepositoryOptions = {}): Promise<PartnerQrCodeModel> {
     const now = new Date();

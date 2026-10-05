@@ -535,6 +535,8 @@ describe('PartnerQrService', () => {
       findLiveQr: jest.fn(async (..._a: unknown[]) => null as AnyRecord | null),
       createQrCode: jest.fn(async (..._a: unknown[]) => ({ id: '99' })),
       markQrReplaced: jest.fn(async (..._a: unknown[]) => ({})),
+      inTransaction: jest.fn(async (work: (transaction: unknown) => Promise<unknown>) => work(undefined)),
+      archiveLiveQrs: jest.fn(async (..._a: unknown[]) => 1),
       markQrActive: jest.fn(async (target: AnyRecord, note: string) => ({ ...target, status: 'active', reviewNote: note })),
       findBranchById: jest.fn(async (..._a: unknown[]) => ({ id: '5' }) as AnyRecord | null),
       ...repositoryOverrides,
@@ -630,7 +632,11 @@ describe('PartnerQrService', () => {
       accountNumberMasked: '****7890',
     });
 
-    expect(repository.markQrReplaced).toHaveBeenCalledWith(previous, '99');
+    expect(repository.archiveLiveQrs).toHaveBeenCalledWith(
+      expect.objectContaining({ partnerProfileId: '10', qrKind: 'bank' }),
+      '99',
+      expect.anything(),
+    );
   });
 
   /*
@@ -652,7 +658,11 @@ describe('PartnerQrService', () => {
       accountNumberMasked: '****7890',
     });
 
-    expect(repository.markQrReplaced).toHaveBeenCalledWith(activo, '99');
+    expect(repository.archiveLiveQrs).toHaveBeenCalledWith(
+      expect.objectContaining({ partnerProfileId: '10', qrKind: 'bank' }),
+      '99',
+      expect.anything(),
+    );
     expect(creado.status).toBe('active');
     expect(notice.avisarCambioDeQrDeCobro).toHaveBeenCalledTimes(1);
   });
@@ -666,6 +676,7 @@ describe('PartnerQrService', () => {
 
     expect(repository.createQrCode).toHaveBeenCalledWith(
       expect.objectContaining({ contentType: 'image/jpeg', sizeBytes: 4096, sha256: 'c'.repeat(64) }),
+      expect.anything(),
     );
   });
 
@@ -971,6 +982,8 @@ describe('PartnerQrService · clave de objeto', () => {
       createQrCode: jest.fn(async (values: AnyRecord) => ({ id: '1', ...values })),
       markQrActive: jest.fn(async (target: AnyRecord, note: string) => ({ ...target, status: 'active', reviewNote: note })),
       markQrReplaced: jest.fn(async () => undefined),
+      inTransaction: jest.fn(async (work: (transaction: unknown) => Promise<unknown>) => work(undefined)),
+      archiveLiveQrs: jest.fn(async () => 0),
       findBranchById: jest.fn(async () => ({ id: '5' })),
     };
     const profiles = {

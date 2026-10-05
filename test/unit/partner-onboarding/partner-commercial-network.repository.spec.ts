@@ -186,6 +186,46 @@ describe('PartnerCommercialNetworkRepository', () => {
       expect(values.verifiedAt).toBeInstanceOf(Date);
     });
 
+    it('entre un activo y un pendiente del mismo ámbito, «vigente» es el ACTIVO: se ordena, no se deja al plan de la consulta', async () => {
+      await repo.findLiveQr('t1', 'pp-1', 'bank', null);
+
+      // 'active' < 'pending_review': con ASC el activo sale primero.
+      expect(ultima(qrs.findOne).order).toEqual([['status', 'ASC']]);
+    });
+
+    it('archivar lo vivo alcanza a TODOS los del ámbito (activo y pendientes) menos el nuevo, y devuelve cuántos', async () => {
+      const update = jest.fn(async (_valores?: unknown, _opciones?: unknown) => [2]);
+      (qrs as unknown as { update: jest.Mock }).update = update;
+
+      const archivados = await repo.archiveLiveQrs(
+        { tenantId: 't1', partnerProfileId: 'pp-1', qrKind: 'bank', branchId: null },
+        'qr-nuevo',
+        {
+          transaction: tx,
+        },
+      );
+
+      const [values, opciones] = update.mock.calls.at(-1) as [
+        Record<string, unknown>,
+        { where: Record<string | symbol, unknown>; transaction: unknown },
+      ];
+      expect(archivados).toBe(2);
+      expect(values.status).toBe('replaced');
+      expect(values.replacedById).toBe('qr-nuevo');
+      expect(opciones.where).toMatchObject({ tenantId: 't1', partnerProfileId: 'pp-1', qrKind: 'bank' });
+      expect(opciones.where.branchId).toEqual({ [Op.is]: null });
+      expect(opciones.where.status).toEqual({ [Op.in]: ['pending_review', 'active'] });
+      expect(opciones.where.id).toEqual({ [Op.ne]: 'qr-nuevo' });
+      expect(opciones.transaction).toBe(tx);
+    });
+
+    it('el reemplazo corre en una transacción de la conexión del modelo', async () => {
+      const transaction = jest.fn(async (work: (t: unknown) => Promise<unknown>) => work('tx-real'));
+      (qrs as unknown as { sequelize: unknown }).sequelize = { transaction };
+
+      await expect(repo.inTransaction(async (t) => `dentro de ${String(t)}`)).resolves.toBe('dentro de tx-real');
+    });
+
     it('reemplazar deja apuntando al sucesor en vez de borrar el anterior', async () => {
       const update = jest.fn(async (_valores?: unknown, _opciones?: unknown) => undefined);
 

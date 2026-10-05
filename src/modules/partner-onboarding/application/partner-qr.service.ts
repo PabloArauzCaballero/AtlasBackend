@@ -113,29 +113,31 @@ export class PartnerQrService {
     await this.assertImagenContieneQr(dto.qrKind, dto.storageKey, metadata.contentType);
 
     /*
-     * El nuevo QR reemplaza al vigente —esté activo o aún en `pending_review` de antes del
-     * 2026-10-02— y queda activo en el acto. Orden: crear el nuevo, archivar el anterior y SÓLO
-     * ENTONCES activar el nuevo; el índice único de «un activo por ámbito» no admite dos a la vez
-     * y crearlo ya activo con el viejo en pie fallaría. El comercio nunca se queda sin QR: el
-     * viejo sigue `active` hasta la misma escritura que activa el nuevo.
+     * El nuevo QR reemplaza a TODO lo vivo del ámbito —el activo y los `pending_review` de antes del
+     * 2026-10-02— y queda activo en el acto. Orden: crear el nuevo, archivar los anteriores y SÓLO
+     * ENTONCES activar; el índice único de «un activo por ámbito» no admite dos a la vez. Va en una
+     * transacción: si la activación choca (dos subidas a la vez), no queda un pendiente huérfano ni
+     * el vigente archivado, y el comercio nunca se queda sin QR.
      */
-    const previous = await this.network.findLiveQr(tenantId, partnerId, dto.qrKind, branchId);
-    const created = await this.network.createQrCode({
-      tenantId,
-      partnerProfileId: partnerId,
-      branchId,
-      qrKind: dto.qrKind,
-      storageKey: dto.storageKey,
-      // El tipo REAL del objeto, no el que declaró quien subió. La guarda de arriba ya garantiza
-      // que es una imagen, así que aquí no hace falta ningún respaldo.
-      contentType: metadata.contentType,
-      sizeBytes: metadata.sizeBytes,
-      sha256: metadata.sha256Hex,
-      bankInstitutionCode: dto.bankInstitutionCode ?? null,
-      accountNumberMasked: dto.accountNumberMasked ?? null,
+    const ambito = { tenantId, partnerProfileId: partnerId, qrKind: dto.qrKind, branchId };
+    let reemplazados = 0;
+    const activo = await this.network.inTransaction(async (transaction) => {
+      const created = await this.network.createQrCode(
+        {
+          ...ambito,
+          storageKey: dto.storageKey,
+          // El tipo REAL del objeto, no el que declaró quien subió (la guarda de arriba ya garantiza imagen).
+          contentType: metadata.contentType as string,
+          sizeBytes: metadata.sizeBytes,
+          sha256: metadata.sha256Hex,
+          bankInstitutionCode: dto.bankInstitutionCode ?? null,
+          accountNumberMasked: dto.accountNumberMasked ?? null,
+        },
+        { transaction },
+      );
+      reemplazados = await this.network.archiveLiveQrs(ambito, created.id, { transaction });
+      return this.network.markQrActive(created, 'Confirmado por el comercio al registrarlo.', { transaction });
     });
-    if (previous) await this.network.markQrReplaced(previous, created.id);
-    const activo = await this.network.markQrActive(created, 'Confirmado por el comercio al registrarlo.');
 
     /*
      * El QR también se ve en Operaciones › Archivos, en la carpeta del comercio. Se anota con lo
@@ -154,7 +156,7 @@ export class PartnerQrService {
     this.metrics.recordPartnerOnboardingStep({ step: `qr_${dto.qrKind}`, outcome: 'ok' });
     this.logger.log(
       `QR de partner registrado y activo: partnerId=${partnerId} tipo=${dto.qrKind} ` +
-        `sucursal=${branchId ?? 'empresa'} reemplaza=${previous?.id ?? 'ninguno'}`,
+        `sucursal=${branchId ?? 'empresa'} reemplazados=${reemplazados}`,
     );
     await this.notice.avisarCambioDeQrDeCobro(profile, activo);
     return activo;
