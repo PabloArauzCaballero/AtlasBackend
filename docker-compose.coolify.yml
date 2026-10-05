@@ -494,7 +494,10 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   NOTIFICATION_SMS_WEBHOOK_URL: '${NOTIFICATION_SMS_WEBHOOK_URL:-}'
   NOTIFICATION_WHATSAPP_WEBHOOK_URL: '${NOTIFICATION_WHATSAPP_WEBHOOK_URL:-}'
   NOTIFICATION_PHONE_WEBHOOK_URL: '${NOTIFICATION_PHONE_WEBHOOK_URL:-}'
-  NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION: '${NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION:-false}'
+  # `false` mandaba el push SÓLO como datos: el sistema no pinta nada y la app no lo convierte en banner,
+  # así que los avisos automáticos (cuota próxima, mora) no se veían nunca; sólo los de campaña, que se
+  # marcan visibles por su cuenta. Se enciende para que el aviso se vea en TestFlight.
+  NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION: '${NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION:-true}'
   NOTIFICATION_DEFAULT_COUNTRY_CODE: '${NOTIFICATION_DEFAULT_COUNTRY_CODE:-+591}'
 
   # --- Proveedores de correo, push, SMS y WhatsApp (credenciales; cada canal se enciende con NOTIFICATION_*_PROVIDER) ---
