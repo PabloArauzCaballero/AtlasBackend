@@ -26,6 +26,7 @@ describe('NotificationsRepository — núcleo', () => {
       findAll: jest.fn(async (..._args: unknown[]) => []),
     };
     const deviceTokenModel = {
+      update: jest.fn(async (..._args: unknown[]) => [0]),
       findOne: jest.fn(),
       create: jest.fn(async (v: unknown) => ({ id: 'dt1', ...(v as object) })),
       findAll: jest.fn(async (..._args: unknown[]) => []),
@@ -237,6 +238,20 @@ describe('NotificationsRepository — núcleo', () => {
       expect(created.isActive).toBe(true);
       expect(created.tokenLast4).toBe('abcd');
     });
+  });
+
+  it('upsertDeviceToken apaga el mismo token en los OTROS clientes del tenant antes de dejarlo activo aquí', async () => {
+    const { repo, deviceTokenModel } = build();
+    (deviceTokenModel.findOne as jest.Mock).mockResolvedValueOnce(null as never);
+    await repo.upsertDeviceToken('t1', 'c2', { token: 'telefono-compartido', platform: 'android' } as never);
+    const [values, options] = (deviceTokenModel.update as jest.Mock).mock.calls[0] as [
+      Record<string, unknown>,
+      { where: Record<string, unknown> },
+    ];
+    expect(values).toMatchObject({ isActive: false });
+    expect(options.where).toMatchObject({ tenantId: 't1', isActive: true, customerId: { [Op.ne]: 'c2' } });
+    const created = (deviceTokenModel.create as jest.Mock).mock.calls[0][0] as { tokenHash: string };
+    expect(options.where.tokenHash).toBe(created.tokenHash);
   });
 
   it('getMessageDeliveryTargets descifra los targets del mensaje (round-trip)', async () => {

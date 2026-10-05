@@ -208,6 +208,9 @@ export class NotificationsService {
   }
 
   async upsertDeviceToken(tenantId: string, customerId: string, body: UpsertDeviceTokenDto, currentUser: AuthenticatedUser) {
+    // Registrar un teléfono es cosa de su dueño: un interno que pusiera aquí su propio token recibiría los
+    // push del cliente. Dar de baja sí lo puede hacer el personal (`deactivateDeviceToken`).
+    if (currentUser.role !== 'customer' && currentUser.role !== 'system') throw new ForbiddenException('DEVICE_TOKEN_OWNER_ONLY');
     assertCustomerAccess(currentUser, customerId);
     return mapDeviceToken(await this.repository.upsertDeviceToken(tenantId, customerId, body));
   }

@@ -116,6 +116,22 @@ describe('NotificationsService', () => {
     expect(repository.deactivateDeviceToken).toHaveBeenCalledTimes(1);
   });
 
+  it('registrar un token push es del propio cliente (o de system): un interno no puede colgar su teléfono de otro cliente', async () => {
+    const { service, repository } = build();
+    await expect(service.upsertDeviceToken('1', '555', { platform: 'android' } as never, internal)).rejects.toThrow(
+      'DEVICE_TOKEN_OWNER_ONLY',
+    );
+    await expect(service.upsertDeviceToken('1', '99', { platform: 'android' } as never, customer)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(repository.upsertDeviceToken).not.toHaveBeenCalled();
+    await service.upsertDeviceToken('1', '555', { platform: 'android' } as never, { role: 'system', tenantId: '1' } as never);
+    // La baja sí la puede hacer el personal.
+    await service.deactivateDeviceToken('1', '555', 'dt1', internal);
+    expect(repository.upsertDeviceToken).toHaveBeenCalledTimes(1);
+    expect(repository.deactivateDeviceToken).toHaveBeenCalledTimes(1);
+  });
+
   it('el autoservicio interno exige internalUserId (Forbidden si falta)', async () => {
     const { service, repository } = build();
     await service.listMyNotifications('1', q, internal);

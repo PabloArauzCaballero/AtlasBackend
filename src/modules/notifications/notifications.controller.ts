@@ -166,10 +166,10 @@ export class NotificationsController {
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(customerNotificationsParamsSchema.shape.customerId) })
   @ApiBody({ schema: zodToApiSchema(upsertDeviceTokenSchema) })
   @ApiResponse({ status: 201, description: 'Token de dispositivo registrado.' })
-  @ApiResponse({ status: 403, description: 'CUSTOMER_NOTIFICATION_ACCESS_DENIED.' })
+  @ApiResponse({ status: 403, description: 'CUSTOMER_NOTIFICATION_ACCESS_DENIED / DEVICE_TOKEN_OWNER_ONLY.' })
   @Post('customers/:customerId/device-tokens')
   @HttpCode(HttpStatus.CREATED)
-  @Roles('customer', 'internal_operator', 'admin', 'platform_admin', 'system')
+  @Roles('customer', 'system')
   upsertDeviceToken(
     @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(customerNotificationsParamsSchema)) params: CustomerNotificationsParamsDto,
