@@ -127,3 +127,25 @@ y copian las del portal admin para que Telegram y el portal digan lo mismo.
 App web principal parada 21 s: 45/45 sondas 200. API de AtlasBackend parada 21 s: 41/45 (4 s de hueco). Un
 despliegue real de AtlasBackend con migraciones: el guardián prestó `atlas-backend` al respaldo y lo devolvió
 al quedar sana la nueva. Aviso y «RECUPERADO» reales al parar y arrancar un respaldo.
+
+## Llevarlo a producción
+
+Todo esto nació de las caídas de TEST del 2026-10-01/02; producción no debería descubrir el modo de fallo en caliente.
+Lo que hay que replicar y lo que hay que decidir antes de salir:
+
+- **Replicar:** guardián, respaldo por app con `:estable`, failover de Traefik (reintento sólo en portales, nunca en
+  APIs), alias estables en los compose, monitor con bot de Telegram, y la prueba de failover (parar la principal ~20 s
+  midiendo cada segundo desde el servidor).
+- **Un respaldo de API no es la API:** hay que apagar lo que la principal corre por dentro (`APP_ROLE=api`,
+  `RUNTIME_JOBS_*`, `IDENTITY_RECONCILE_DISABLED=true`, outbox y barridos del Motor, el cron de tableros) y unirlo a la
+  red del proyecto (los Redis sólo viven ahí).
+- **Host propio** (en TEST el cuello fue la CPU y la caché de build compartidas con otros proyectos, no la RAM).
+- **SSH endurecido desde el día 1** (`endurecer-ssh.sh`, `fail2ban`, cortafuegos) y vigilado (`ssh.sh`).
+- **Secreto de servicio propio de producción** (`CONTEXT_SERVICE_TOKEN_SECRET`; nunca el de TEST). También enciende el
+  directorio de destinatarios entre contextos.
+- **Copias de las bases fuera del host** y simulacro de restauración: `respaldar.sh` copia a disco local y no sobrevive
+  a perder el VPS.
+- **Bot de Telegram distinto** al de TEST y un segundo canal (correo).
+
+La versión larga, con las trampas medidas, está en la memoria del proyecto (`atlas-prod-resiliencia-y-monitoreo`).
+
