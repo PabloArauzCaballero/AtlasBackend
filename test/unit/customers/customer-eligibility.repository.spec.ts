@@ -4,6 +4,7 @@
  * @system Ejercita todas las consultas y las relaciones indirectas de CustomerEligibilityRepository.
  */
 import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
+import { Op } from 'sequelize';
 import { env } from '../../../src/config/env.js';
 import { CustomerEligibilityRepository } from '../../../src/modules/customers/repositories/customer-eligibility.repository.js';
 import { CustomerEligibilityRiskRepository } from '../../../src/modules/customers/repositories/customer-eligibility-risk.repository.js';
@@ -137,6 +138,21 @@ describe('CustomerEligibilityRepository', () => {
     expect(models.evidenceReview.count).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ tenantId: '7' }) }),
     );
+  });
+
+  it('los consentimientos obligatorios son sólo los VIGENTES: ni programados ni relevados', async () => {
+    const { repository, models } = build();
+    models.attributeValue.findAll.mockResolvedValueOnce([]);
+    models.evidence.findAll.mockResolvedValueOnce([]);
+
+    await repository.loadFacts('7', '10');
+
+    const where = (models.consentDocument.findAll.mock.calls[0]?.[0] as { where: Record<string | symbol, unknown> }).where;
+    expect(where).toMatchObject({ tenantId: '7', status: 'published', requiresExplicitAction: true });
+    expect(where[Op.and]).toEqual([
+      { [Op.or]: [{ effectiveFrom: null }, { effectiveFrom: { [Op.lte]: expect.any(Date) } }] },
+      { [Op.or]: [{ effectiveUntil: null }, { effectiveUntil: { [Op.gt]: expect.any(Date) } }] },
+    ]);
   });
 
   it('FALLA sin el fix: un intento posterior sin resolver no tapa un verified anterior (I-2)', async () => {
