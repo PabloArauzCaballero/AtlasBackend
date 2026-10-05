@@ -4,8 +4,7 @@
  * @system acepta las fotos, pide la decisión al motor y publica el estado que el móvil consulta.
  */
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { env } from '../../config/env.js';
 import { DecisionArtifactBindingService } from '../decision-engine/decision-artifact-binding.service.js';
 import { DecisionEngineClient } from '../decision-engine/decision-engine.client.js';
@@ -124,11 +123,14 @@ export class MobileIdentityService {
   }
 
   /** El estado del trámite. Es lo que el móvil consulta en bucle. */
-  async get(tenantId: string, verificationId: string): Promise<IdentityVerificationView> {
+  async get(tenantId: string, verificationId: string, currentUser?: AuthenticatedUser): Promise<IdentityVerificationView> {
     const attempt = await this.repository.findById(tenantId, verificationId);
-    if (!attempt) {
-      // 404 y no 403 cuando la fila es de otro inquilino: un 403 confirmaría que
-      // existe, que es justo lo que no debe poder averiguarse.
+    // Un cliente sólo ve SU intento: los ids son secuenciales y la respuesta lleva lo leído del
+    // carnet. Un intento ajeno, o sin dueño, contesta lo mismo que uno que no existe.
+    const ajeno = currentUser?.role === 'customer' && String(attempt?.customerId ?? '') !== String(currentUser.customerId ?? '-');
+    if (!attempt || ajeno) {
+      // 404 y no 403 cuando la fila es de otro inquilino o de otra persona: un 403
+      // confirmaría que existe, que es justo lo que no debe poder averiguarse.
       throw new NotFoundException({
         code: 'IDENTITY_VERIFICATION_NOT_FOUND',
         message: 'No hay ninguna verificación con ese identificador.',
