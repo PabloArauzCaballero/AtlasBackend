@@ -137,6 +137,9 @@ describe('CustomerEligibilityRepository', () => {
     });
     expect(models.evidenceReview.count).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ tenantId: '7' }) }),
+    ); // C13 cuenta sólo las coincidencias que cumplimiento NO descartó.
+    expect(models.watchlistMatch.count).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { tenantId: '7', customerId: '10', clearedAt: null } }),
     );
   });
 
