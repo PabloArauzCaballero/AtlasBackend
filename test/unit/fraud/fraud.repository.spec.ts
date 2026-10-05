@@ -45,6 +45,32 @@ describe('FraudRepository', () => {
     expect(where.deleted).toBeDefined(); // { [Op.ne]: true }
   });
 
+  it('findFraudCaseById con lock lee FOR UPDATE dentro de la transacción', async () => {
+    const { repo, models } = buildRepo();
+    const transaction = { LOCK: { UPDATE: 'UPDATE' } } as never;
+
+    await repo.findFraudCaseById('t1', 'c1', { transaction, lock: true });
+
+    const options = callArg<CallArgRecord>(models.fraudCaseModel.findOne, 0, 0);
+    expect(options.transaction).toBe(transaction);
+    expect(options.lock).toBe('UPDATE');
+  });
+
+  it('closeFraudCase deja closedAt en null cuando la decisión no cierra el caso', async () => {
+    const { repo } = buildRepo();
+    const caseModel = { save: jest.fn(async (..._args: unknown[]) => ({})), closedAt: new Date('2026-01-01') } as never;
+    const decidedAt = new Date('2026-02-01');
+
+    await repo.closeFraudCase(
+      caseModel,
+      { resolution: 'needs_more_investigation', notes: null, closedAt: null, decidedAt, nextStatus: 'in_progress' },
+      { transaction: tx },
+    );
+
+    expect((caseModel as { closedAt: Date | null }).closedAt).toBeNull();
+    expect((caseModel as { updatedAtValue: Date }).updatedAtValue).toBe(decidedAt);
+  });
+
   it('closeFraudCase muta el caso y lo guarda dentro de la transacción', async () => {
     const { repo } = buildRepo();
     const save = jest.fn(async (..._args: unknown[]) => ({ saved: true }));
@@ -52,7 +78,13 @@ describe('FraudRepository', () => {
 
     await repo.closeFraudCase(
       caseModel,
-      { resolution: 'confirmed_fraud', notes: 'n', closedAt: new Date('2026-01-01'), nextStatus: 'closed' },
+      {
+        resolution: 'confirmed_fraud',
+        notes: 'n',
+        closedAt: new Date('2026-01-01'),
+        decidedAt: new Date('2026-01-01'),
+        nextStatus: 'closed',
+      },
       { transaction: tx },
     );
 
