@@ -112,10 +112,16 @@ tail -n 1500 "$E/hist.tsv" > "$E/hist.tsv.n" && mv "$E/hist.tsv.n" "$E/hist.tsv"
 chequeo ram "$([ "$mem_av" -lt 2048 ] && echo 1 || echo 0)" 3 \
   "RAM: quedan ${mem_av} MB disponibles en Contabo (aviso por debajo de 2048)." \
   "la RAM disponible vuelve a ${mem_av} MB."
-chequeo disco85 "$([ "$disco" -ge 85 ] && echo 1 || echo 0)" 1 \
+# Histéresis: salta al llegar al 85 % y sólo se da por recuperado por debajo del 83 %. Sin ella, un disco que
+# oscila 84↔85 (los builds de otros proyectos suben y bajan la caché) mandaba un aviso y un «recuperado» cada pocos minutos.
+disco85_malo=$([ "$disco" -ge 85 ] && echo 1 || echo 0)
+[ "$(cat "$E/s-disco85" 2>/dev/null)" = MAL ] && [ "$disco" -ge 83 ] && disco85_malo=1
+chequeo disco85 "$disco85_malo" 1 \
   "DISCO al ${disco}% en Contabo (aviso desde el 85%). Caché de build: ${cache_gb} GB." \
   "el disco baja al ${disco}%."
-chequeo disco90 "$([ "$disco" -ge 90 ] && echo 1 || echo 0)" 1 \
+disco90_malo=$([ "$disco" -ge 90 ] && echo 1 || echo 0)
+[ "$(cat "$E/s-disco90" 2>/dev/null)" = MAL ] && [ "$disco" -ge 88 ] && disco90_malo=1
+chequeo disco90 "$disco90_malo" 1 \
   "DISCO CRÍTICO al ${disco}%: la copia de bases deja de respaldar por encima del 90%." \
   "el disco baja del 90% (${disco}%)."
 chequeo cache "$([ "$cache_gb" -gt "$CACHE_MAX_GB" ] && echo 1 || echo 0)" 1 \
@@ -141,6 +147,23 @@ if [ "$poda_normal" = 1 ] || [ "$poda_urgente" = 1 ]; then
     cache_gb=$despues
   else
     avisar "La poda de la caché de build FALLÓ (${cache_gb} GB). Mirar a mano: docker builder prune --reserved-space."
+  fi
+fi
+
+# --- 4b. Imágenes de Docker sin nombre (colgadas) ----------------------------------------------
+# Sólo las que no llevan nombre NI etiqueta y tienen más de 24 h (las intermedias de un build en curso son más
+# recientes). Nunca `-a`: las `:estable` de los respaldos y las de cada despliegue llevan nombre. Una vez por
+# semana, o una vez al día si el disco está al 85 % o más.
+img_cada=10080; [ "$disco" -ge 85 ] && img_cada=1440
+if [ -z "$(find "$E/imagenes" -mmin -"$img_cada" 2>/dev/null)" ]; then
+  : > "$E/imagenes"
+  antes_img=$(docker images -f dangling=true -q 2>/dev/null | wc -l)
+  salida=$(docker image prune -f --filter "until=24h" 2>&1)
+  if [ $? -eq 0 ]; then
+    libre=$(printf '%s\n' "$salida" | awk '/Total reclaimed space/ {print $4$5}')
+    [ "$antes_img" -gt 0 ] && avisar "Imágenes sin nombre borradas: ${antes_img} candidatas, liberado ${libre:-0B} (sólo las de más de 24 h; las de los respaldos no se tocan)."
+  else
+    avisar "El borrado de imágenes sin nombre FALLÓ: $(printf '%s' "$salida" | head -c 160)"
   fi
 fi
 
