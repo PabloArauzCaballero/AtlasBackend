@@ -8,7 +8,7 @@ import { MetricsService } from '../../../common/observability/metrics.service.js
 import { PartnerProfileModel } from '../../../database/models/index.js';
 import { toPartnerProfileDto } from '../partner-onboarding.mapper.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
-import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
+import { PartnerOnboardingRepository, type PartnerProfilePatch } from '../partner-onboarding.repository.js';
 import { PartnerContractTemplateService } from './partner-contract-template.service.js';
 import { PartnerKybDecisionService, type KybDecision } from './partner-kyb-decision.service.js';
 
@@ -125,7 +125,7 @@ export class PartnerVerificationService {
     };
 
     if (decision.outcome === 'APROBADO') {
-      const updated = await this.repository.updateProfile(profile, {
+      const updated = await this.escribirDecision(profile, {
         ...comun,
         onboardingStatus: 'approved',
         decidedAt: decision.evaluatedAt,
@@ -139,7 +139,7 @@ export class PartnerVerificationService {
     }
 
     if (decision.outcome === 'RECHAZADO') {
-      const updated = await this.repository.updateProfile(profile, {
+      const updated = await this.escribirDecision(profile, {
         ...comun,
         onboardingStatus: 'rejected',
         decidedAt: decision.evaluatedAt,
@@ -153,8 +153,23 @@ export class PartnerVerificationService {
 
     // REVISION_MANUAL —o cualquier desenlace que el artefacto añada mañana y este código no
     // conozca—: se queda esperando a una persona. Un desenlace desconocido NUNCA habilita a cobrar.
-    const updated = await this.repository.updateProfile(profile, { ...comun, onboardingStatus: 'under_review' });
+    const updated = await this.escribirDecision(profile, { ...comun, onboardingStatus: 'under_review' });
     return { profile: updated, decision };
+  }
+
+  /**
+   * El veredicto se escribe sólo si el expediente sigue en `under_review`.
+   *
+   * `profile` se leyó ANTES de la llamada al Motor; si mientras tanto una persona lo decidió a mano
+   * (o la sincronización trajo el caso resuelto), escribir sobre esa instancia pisaba la decisión
+   * firme. Responde 409 y deja el expediente como lo dejó quien llegó primero.
+   */
+  private async escribirDecision(profile: PartnerProfileModel, values: PartnerProfilePatch): Promise<PartnerProfileModel> {
+    const updated = await this.repository.updateProfileIfStill(profile, { onboardingStatus: 'under_review' }, values);
+    if (!updated) {
+      throw new ConflictException(`PARTNER_DECISION_CONFLICT: el expediente ${profile.id} cambió mientras se verificaba.`);
+    }
+    return updated;
   }
 
   /**

@@ -231,15 +231,23 @@ export class PartnerProfileService {
     // el expediente `approved` aquí y el caso del ERP imposible de activar. `decision_execution_id` no se
     // toca: aquí no hubo ejecución.
     const decidedAt = new Date();
-    const updated = await this.repository.updateProfile(profile, {
-      onboardingStatus: input.approved ? 'approved' : 'rejected',
-      decidedAt,
-      decidedByInternalUserId: input.internalUserId,
-      rejectionReason: input.approved ? null : (input.rejectionReason ?? null),
-      decisionOutcome: input.approved ? 'APROBADO' : 'RECHAZADO',
-      decisionReason: input.approved ? 'DECISION_MANUAL_PORTAL' : (input.rejectionReason ?? 'DECISION_MANUAL_PORTAL'),
-      decisionEvaluatedAt: decidedAt,
-    });
+    // Con condición: si entre la lectura y la escritura el Motor decidió o abrió caso, no se pisa.
+    const updated = await this.repository.updateProfileIfStill(
+      profile,
+      { onboardingStatus: 'under_review', manualReviewCaseCode: null },
+      {
+        onboardingStatus: input.approved ? 'approved' : 'rejected',
+        decidedAt,
+        decidedByInternalUserId: input.internalUserId,
+        rejectionReason: input.approved ? null : (input.rejectionReason ?? null),
+        decisionOutcome: input.approved ? 'APROBADO' : 'RECHAZADO',
+        decisionReason: input.approved ? 'DECISION_MANUAL_PORTAL' : (input.rejectionReason ?? 'DECISION_MANUAL_PORTAL'),
+        decisionEvaluatedAt: decidedAt,
+      },
+    );
+    if (!updated) {
+      throw new ConflictException(`PARTNER_DECISION_CONFLICT: el expediente ${partnerId} cambió mientras se decidía.`);
+    }
 
     this.metrics.recordPartnerOnboardingStep({ step: 'decision', outcome: input.approved ? 'ok' : 'rejected' });
     this.logger.log(

@@ -18,6 +18,33 @@ import {
 
 type RepositoryOptions = { transaction?: Transaction };
 
+/** Los campos del expediente que se escriben desde la aplicación. */
+export type PartnerProfilePatch = Partial<{
+  onboardingStatus: string;
+  submittedAt: Date | null;
+  decidedAt: Date | null;
+  decidedByInternalUserId: string | null;
+  rejectionReason: string | null;
+  erpAccountId: string | null;
+  emailVerifiedAt: Date | null;
+  phoneVerifiedAt: Date | null;
+  commercialRegistry: string | null;
+  tradeName: string | null;
+  businessCategory: string | null;
+  contactPhone: string | null;
+  mdrRatePercent: string;
+  contactCodeHash: string | null;
+  contactCodeExpiresAt: Date | null;
+  contactCodeAttempts: number;
+  contactCodeSentAt: Date | null;
+  decisionExecutionId: string | null;
+  decisionOutcome: string | null;
+  decisionReason: string | null;
+  decisionArtifactVersion: string | null;
+  manualReviewCaseCode: string | null;
+  decisionEvaluatedAt: Date | null;
+}>;
+
 /** Estados en los que el expediente todavía admite cambios del comercio. */
 export const EDITABLE_PARTNER_STATUSES = ['draft', 'contact_verified', 'documents_submitted'] as const;
 
@@ -250,35 +277,28 @@ export class PartnerOnboardingRepository {
     );
   }
 
-  updateProfile(
-    profile: PartnerProfileModel,
-    values: Partial<{
-      onboardingStatus: string;
-      submittedAt: Date | null;
-      decidedAt: Date | null;
-      decidedByInternalUserId: string | null;
-      rejectionReason: string | null;
-      erpAccountId: string | null;
-      emailVerifiedAt: Date | null;
-      phoneVerifiedAt: Date | null;
-      commercialRegistry: string | null;
-      tradeName: string | null;
-      businessCategory: string | null;
-      contactPhone: string | null;
-      mdrRatePercent: string;
-      contactCodeHash: string | null;
-      contactCodeExpiresAt: Date | null;
-      contactCodeAttempts: number;
-      contactCodeSentAt: Date | null;
-      decisionExecutionId: string | null;
-      decisionOutcome: string | null;
-      decisionReason: string | null;
-      decisionArtifactVersion: string | null;
-      manualReviewCaseCode: string | null;
-      decisionEvaluatedAt: Date | null;
-    }>,
-    options: RepositoryOptions = {},
-  ): Promise<PartnerProfileModel> {
+  updateProfile(profile: PartnerProfileModel, values: PartnerProfilePatch, options: RepositoryOptions = {}): Promise<PartnerProfileModel> {
     return profile.update({ ...values, updatedAtValue: new Date() }, { transaction: options.transaction });
+  }
+
+  /**
+   * Escribe sólo si el expediente SIGUE como estaba al leerlo; si no, devuelve `null` sin tocarlo.
+   *
+   * Es para las decisiones (Motor y firma manual): entre leer el expediente y escribir el veredicto
+   * hay una llamada HTTP al Motor, y escribir sobre la instancia leída pisaba lo que otro camino
+   * hubiera decidido en ese hueco —un rechazo humano vuelto aprobación—. El UPDATE condicional hace
+   * la comprobación y la escritura en una sola sentencia.
+   */
+  async updateProfileIfStill(
+    profile: PartnerProfileModel,
+    expected: { onboardingStatus: string; manualReviewCaseCode?: string | null },
+    values: PartnerProfilePatch,
+  ): Promise<PartnerProfileModel | null> {
+    const [filas] = await this.profileModel.update(
+      { ...values, updatedAtValue: new Date() },
+      { where: { tenantId: profile.tenantId, id: profile.id, deleted: false, ...expected } },
+    );
+    if (filas === 0) return null;
+    return this.findProfileById(profile.tenantId, profile.id);
   }
 }

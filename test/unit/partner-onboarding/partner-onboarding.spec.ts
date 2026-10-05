@@ -245,6 +245,7 @@ describe('PartnerProfileService', () => {
         { qrKind: 'bank', status: 'active' },
       ]),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'REVISION_MANUAL', manualReviewCaseCode: 'MRC-7' });
     const service = new PartnerProfileService(
@@ -274,6 +275,7 @@ describe('PartnerProfileService', () => {
         { qrKind: 'bank', status: 'active' },
       ]),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'APROBADO', reason: 'KYB_COMPLETO' });
     const service = new PartnerProfileService(
@@ -305,6 +307,7 @@ describe('PartnerProfileService', () => {
         { qrKind: 'bank', status: 'active' },
       ]),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'DESENLACE_NUEVO_DEL_ARTEFACTO' });
     const service = new PartnerProfileService(
@@ -331,6 +334,7 @@ describe('PartnerProfileService', () => {
         { qrKind: 'bank', status: 'active' },
       ]),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const kyb = {
       evaluate: jest.fn(async () => {
@@ -377,6 +381,7 @@ describe('PartnerProfileService', () => {
     const repository = {
       findProfileById: jest.fn(async () => profile),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const service = new PartnerProfileService(
       repository as never,
@@ -398,8 +403,10 @@ describe('PartnerProfileService', () => {
     expect(updated.decisionOutcome).toBe('APROBADO');
     expect(updated.decisionReason).toBe('DECISION_MANUAL_PORTAL');
     expect(updated.decisionEvaluatedAt).toBeInstanceOf(Date);
-    const [, patch] = repository.updateProfile.mock.calls[0] as [unknown, AnyRecord];
+    const [, expected, patch] = repository.updateProfileIfStill.mock.calls[0] as [unknown, AnyRecord, AnyRecord];
     expect(patch).not.toHaveProperty('decisionExecutionId');
+    // Con condición: si el Motor decidió o abrió caso entre la lectura y la escritura, no se pisa.
+    expect(expected).toEqual({ onboardingStatus: 'under_review', manualReviewCaseCode: null });
   });
 
   it('el rechazo manual también se publica como veredicto, con el motivo que verá el ERP', async () => {
@@ -407,6 +414,7 @@ describe('PartnerProfileService', () => {
     const repository = {
       findProfileById: jest.fn(async () => profile),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const service = new PartnerProfileService(
       repository as never,
@@ -421,6 +429,52 @@ describe('PartnerProfileService', () => {
     expect(updated.onboardingStatus).toBe('rejected');
     expect(updated.decisionOutcome).toBe('RECHAZADO');
     expect(updated.decisionReason).toBe('NIT sin vigencia');
+  });
+
+  /*
+   * Entre leer el expediente y escribir el veredicto hay una llamada al Motor. Si en ese hueco una
+   * persona lo decidió a mano, el APROBADO del Motor no puede pisar el rechazo humano.
+   */
+  it('el veredicto del Motor no pisa un expediente que cambió mientras se verificaba: 409', async () => {
+    const profile = profileDouble();
+    const repository = {
+      findProfileById: jest.fn(async () => profile),
+      listRepresentatives: jest.fn(async () => [{ powerOfAttorneyKey: 'k' }]),
+      listBranches: jest.fn(async () => [{ id: '1' }]),
+      listQrCodes: jest.fn(async () => [{ qrKind: 'bank', status: 'active' }]),
+      updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async () => null),
+    };
+    const service = new PartnerProfileService(
+      repository as never,
+      repository as never,
+      metricsDouble(),
+      verificationCon(repository, kybDouble({ outcome: 'APROBADO' })),
+      hooksDouble() as never,
+    );
+
+    await expect(service.submit('1', '10')).rejects.toThrow(/PARTNER_DECISION_CONFLICT/);
+    const [, expected] = repository.updateProfileIfStill.mock.calls[0] as unknown as [unknown, AnyRecord];
+    expect(expected).toEqual({ onboardingStatus: 'under_review' });
+  });
+
+  it('la firma manual no pisa un expediente que el Motor decidió en el mismo instante: 409', async () => {
+    const profile = profileDouble({ onboardingStatus: 'under_review', manualReviewCaseCode: null });
+    const repository = {
+      findProfileById: jest.fn(async () => profile),
+      updateProfileIfStill: jest.fn(async () => null),
+    };
+    const service = new PartnerProfileService(
+      repository as never,
+      repository as never,
+      metricsDouble(),
+      verificationCon(repository, kybDouble()),
+      hooksDouble() as never,
+    );
+
+    await expect(service.decide('1', '10', { approved: false, rejectionReason: 'x', internalUserId: '3' })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
   });
 
   it('un expediente ya en revisión no admite más cambios', () => {

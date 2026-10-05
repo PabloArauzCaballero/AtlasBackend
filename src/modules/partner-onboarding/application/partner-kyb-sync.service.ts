@@ -5,7 +5,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op } from 'sequelize';
+import { Op, type WhereOptions } from 'sequelize';
 import { PartnerProfileModel } from '../../../database/models/index.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
 
@@ -59,7 +59,14 @@ export class PartnerKybSyncService {
         manualReviewCaseCode: { [Op.ne]: null },
         deleted: false,
       },
-      order: [['decision_evaluated_at', 'ASC']],
+      /*
+       * Por la última vez que se miró, y no por la antigüedad del caso. Ordenado por
+       * `decision_evaluated_at`, los casos que siguen abiertos (o que el Motor ya no reconoce) eran
+       * SIEMPRE los primeros: con tantos como el límite, la pasada sólo veía esos y un comercio
+       * aprobado después no llegaba nunca a `approved`. Cada consulta sin veredicto toca
+       * `_updated_at` (ver `marcarConsultado`), así que el expediente pasa al final de la cola.
+       */
+      order: [['_updated_at', 'ASC NULLS FIRST']],
       limit: input.limit,
     });
 
@@ -68,11 +75,13 @@ export class PartnerKybSyncService {
       const caso = await this.client.getManualReviewCase(profile.manualReviewCaseCode!);
       if (!caso) {
         resultado.unreachable += 1;
+        await this.marcarConsultado(profile);
         continue;
       }
       const destino = RESUELTOS[caso.status.toUpperCase()];
       if (!destino) {
         resultado.pending += 1;
+        await this.marcarConsultado(profile);
         continue;
       }
       if (destino === 'cancelled') {
@@ -82,13 +91,12 @@ export class PartnerKybSyncService {
          * degradación para la que existe. Tratarlo como rechazo condenaría al comercio por un
          * problema administrativo del que no es responsable.
          */
-        await profile.update({ manualReviewCaseCode: null, updatedAtValue: new Date() });
-        resultado.cancelled += 1;
+        if (await this.escribirSiSigueIgual(profile, { manualReviewCaseCode: null })) resultado.cancelled += 1;
         continue;
       }
 
       const motivo = motivoDeLaResolucion(caso.resolution);
-      await profile.update({
+      const escrito = await this.escribirSiSigueIgual(profile, {
         onboardingStatus: destino,
         decidedAt: caso.resolvedAt ? new Date(caso.resolvedAt) : new Date(),
         // Nulo: lo firmó una persona, pero en el Motor. Poner aquí un usuario interno de Atlas
@@ -98,13 +106,42 @@ export class PartnerKybSyncService {
         rejectionReason: destino === 'rejected' ? motivo : null,
         decisionOutcome: destino === 'approved' ? 'APROBADO' : 'RECHAZADO',
         decisionReason: motivo ?? profile.decisionReason,
-        updatedAtValue: new Date(),
       });
+      if (!escrito) continue;
       resultado[destino] += 1;
       this.logger.log(`Expediente ${profile.id} resuelto en el Motor (${caso.caseCode}): ${destino}.`);
     }
 
     return resultado;
+  }
+
+  /**
+   * Escribe sólo si el expediente sigue en revisión con el MISMO caso que se consultó.
+   *
+   * Entre la lectura y la escritura hay una llamada HTTP al Motor; si en ese hueco el expediente se
+   * decidió por otro camino, escribir sobre la instancia leída pisaba esa decisión (un `rejected`
+   * vuelto `approved`). El UPDATE condicional hace la comprobación y la escritura en una sola
+   * sentencia: si ya no casa, no escribe nada y lo resolverá quien lo cambió.
+   */
+  private async escribirSiSigueIgual(profile: PartnerProfileModel, values: Record<string, unknown>): Promise<boolean> {
+    const where: WhereOptions = {
+      id: profile.id,
+      tenantId: profile.tenantId,
+      onboardingStatus: 'under_review',
+      manualReviewCaseCode: profile.manualReviewCaseCode,
+      deleted: false,
+    };
+    const [filas] = await this.profileModel.update({ ...values, updatedAtValue: new Date() }, { where });
+    if (filas === 0) {
+      this.logger.warn(`Expediente ${profile.id} cambió mientras se consultaba su caso en el Motor; no se reescribe.`);
+      return false;
+    }
+    return true;
+  }
+
+  /** Un caso consultado sin veredicto pasa al final de la cola de la próxima pasada. */
+  private async marcarConsultado(profile: PartnerProfileModel): Promise<void> {
+    await this.escribirSiSigueIgual(profile, {});
   }
 }
 
