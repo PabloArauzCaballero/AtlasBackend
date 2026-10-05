@@ -309,13 +309,20 @@ export class NotificationsRepository {
    * Mensajes a medio entregar que nadie va a retomar (A-03). `sending` entra junto a `pending`: lo deja
    * `markMessageSending` si el proceso muere entre marcar y entregar. El corte por antigüedad evita
    * competir con una entrega en vuelo; los avisos de campaña y los programados a futuro no son suyos.
+   * Quien no tiene corte (el job de pendientes) pide sólo `pending`: un `sending` reciente es una
+   * entrega en vuelo, no un varado.
    */
-  listStuckMessages(input: { tenantId: string; olderThanMinutes: number; limit: number }): Promise<NotificationMessageModel[]> {
+  listStuckMessages(input: {
+    tenantId: string;
+    olderThanMinutes: number;
+    limit: number;
+    statuses?: readonly string[];
+  }): Promise<NotificationMessageModel[]> {
     const cutoff = new Date(Date.now() - input.olderThanMinutes * 60_000);
     return this.messageModel.findAll({
       where: {
         tenantId: input.tenantId,
-        status: { [Op.in]: ['pending', 'sending'] },
+        status: { [Op.in]: input.statuses ?? ['pending', 'sending'] },
         createdAtValue: { [Op.lt]: cutoff },
         ...ownedByGenericJobs(),
       } as never,
@@ -324,12 +331,22 @@ export class NotificationsRepository {
     });
   }
 
-  async markMessageSending(message: NotificationMessageModel): Promise<void> {
+  /**
+   * Reclama el mensaje para entregarlo: compare-and-set sobre el estado que se leyó. Si otra tanda (el
+   * job de pendientes, el de varados, un reintento manual) lo reclamó entre la lectura y aquí, el UPDATE
+   * no toca ninguna fila y quien llega segundo no envía: así un SMS no sale ni se cobra dos veces.
+   */
+  async markMessageSending(message: NotificationMessageModel): Promise<boolean> {
     const now = new Date();
+    const queuedAt = message.queuedAt ?? now;
+    const [claimed] = await this.messageModel.update({ status: 'sending', queuedAt, updatedAtValue: now } as never, {
+      where: { id: message.id, status: message.status } as never,
+    });
+    if (claimed !== 1) return false;
     message.status = 'sending';
-    message.queuedAt = message.queuedAt ?? now;
+    message.queuedAt = queuedAt;
     message.updatedAtValue = now;
-    await message.save();
+    return true;
   }
 
   async recordDelivery(

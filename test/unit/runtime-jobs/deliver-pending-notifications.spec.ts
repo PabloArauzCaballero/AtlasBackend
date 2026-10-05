@@ -44,7 +44,7 @@ describe('RuntimeMaintenanceJobsService.deliverPendingNotifications', () => {
 
     await service.deliverPendingNotifications({ tenantId: 't1', body: { limit: 50, dryRun: true }, currentUser });
 
-    expect(notificationsRepository.listStuckMessages).toHaveBeenCalledWith({ tenantId: 't1', olderThanMinutes: 0, limit: 50 });
+    expect(notificationsRepository.listStuckMessages).toHaveBeenCalledWith({ tenantId: 't1', olderThanMinutes: 0, limit: 50, statuses: ['pending'] });
   });
 
   it('en dryRun cuenta los pendientes sin entregar ninguno', async () => {

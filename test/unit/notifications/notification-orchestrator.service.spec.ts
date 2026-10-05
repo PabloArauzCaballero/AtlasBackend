@@ -62,7 +62,7 @@ describe('NotificationOrchestratorService', () => {
       getActivePushDevices: jest.fn(async (..._args: unknown[]) => []),
       getCustomerContactTargets: jest.fn(async (..._args: unknown[]) => []),
       getMessageDeliveryTargets: jest.fn(async (..._args: unknown[]) => []),
-      markMessageSending: jest.fn(async (..._args: unknown[]) => undefined),
+      markMessageSending: jest.fn(async (..._args: unknown[]) => true),
       recordDelivery: jest.fn(async (..._args: unknown[]) => undefined),
     };
     const renderer = { render: jest.fn((_template: unknown, _payload: unknown, fallback: string) => fallback) };
@@ -467,6 +467,17 @@ describe('NotificationOrchestratorService', () => {
       expect(push).toHaveLength(2);
       // Sin la plataforma, el adaptador no puede separar iPhone de Android.
       expect(push.map((t) => t.metadata?.platform)).toEqual(['android', 'ios']);
+    });
+
+    it('does not send when another batch claimed the message first (markMessageSending → false)', async () => {
+      const { service, repository, adapters } = buildService();
+      (repository.getMessageForDelivery as jest.Mock).mockResolvedValueOnce(fakeMessage({ status: 'pending' }) as never);
+      (repository.markMessageSending as jest.Mock).mockResolvedValueOnce(false as never);
+
+      await service.deliverMessage('msg-1');
+
+      expect(adapters.inAppAdapter.send).not.toHaveBeenCalled();
+      expect(repository.recordDelivery).not.toHaveBeenCalled();
     });
 
     it('records a successful delivery result from the adapter', async () => {

@@ -202,7 +202,8 @@ export class NotificationOrchestratorService {
     };
     if (!adapter.validatePayload(payload)) throw new Error(`INVALID_PAYLOAD_FOR_CHANNEL_${channel}`);
     this.tracing.setAttributes({ 'notification.channel': channel, 'notification.provider': adapter.getProviderName() });
-    await this.repository.markMessageSending(message);
+    // Otra tanda lo reclamó entre la lectura y aquí: es suyo, no se envía dos veces.
+    if (!(await this.repository.markMessageSending(message))) return;
     try {
       const result = await adapter.send(payload);
       await this.repository.recordDelivery(message, payload, result);

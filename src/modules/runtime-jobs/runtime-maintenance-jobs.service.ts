@@ -132,9 +132,9 @@ export class RuntimeMaintenanceJobsService {
    * RECIÉN creado (sin corte por antigüedad, cada 10 segundos). Un solo umbral no puede servir a los
    * dos casos.
    *
-   * Ambos entregan por el mismo `deliverMessage`, que corta solo si el mensaje ya alcanzó un estado
-   * terminal — por eso solaparse es seguro, y por eso un mensaje no se entrega dos veces aunque las
-   * dos tandas lo seleccionen.
+   * Este sólo recoge `pending`: un `sending` reciente es una entrega en vuelo (el worker del outbox
+   * esperando al proveedor), y retomarlo era mandar el SMS dos veces. Si dos tandas seleccionan el
+   * mismo `pending`, `markMessageSending` lo reclama con compare-and-set y sólo una lo envía.
    */
   deliverPendingNotifications(input: { tenantId: string; body: DeliverPendingNotificationsDto; currentUser: AuthenticatedUser }) {
     return this.jobRuns.run(
@@ -144,6 +144,7 @@ export class RuntimeMaintenanceJobsService {
           tenantId: input.tenantId,
           olderThanMinutes: 0,
           limit: input.body.limit,
+          statuses: ['pending'],
         });
 
         if (input.body.dryRun) return { selected: pending.length, delivered: 0, failed: 0, dryRun: true };

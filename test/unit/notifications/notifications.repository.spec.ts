@@ -160,13 +160,26 @@ describe('NotificationsRepository — núcleo', () => {
     expect(where.where.createdAtValue).toBeDefined();
   });
 
-  it('markMessageSending fija status sending y queuedAt (solo la primera vez)', async () => {
-    const { repo } = build();
+  it('markMessageSending reclama con compare-and-set sobre el estado leído y fija sending y queuedAt', async () => {
+    const { repo, messageModel } = build();
+    (messageModel.update as jest.Mock).mockResolvedValueOnce([1] as never);
     const message = baseMessage();
-    await repo.markMessageSending(message as never);
+    const previousStatus = (message as { status: string }).status;
+    await expect(repo.markMessageSending(message as never)).resolves.toBe(true);
+    const [values, options] = (messageModel.update as jest.Mock).mock.calls[0] as [Record<string, unknown>, { where: Record<string, unknown> }];
+    expect(values.status).toBe('sending');
+    expect(options.where).toEqual({ id: (message as { id: unknown }).id, status: previousStatus });
     expect((message as { status: string }).status).toBe('sending');
     expect((message as { queuedAt: Date | null }).queuedAt).not.toBeNull();
-    expect(message.save).toHaveBeenCalled();
+  });
+
+  it('markMessageSending devuelve false y no toca el mensaje si otra tanda ya lo reclamó', async () => {
+    const { repo, messageModel } = build();
+    (messageModel.update as jest.Mock).mockResolvedValueOnce([0] as never);
+    const message = baseMessage();
+    const previousStatus = (message as { status: string }).status;
+    await expect(repo.markMessageSending(message as never)).resolves.toBe(false);
+    expect((message as { status: string }).status).toBe(previousStatus);
   });
 
   describe('recordDelivery — cuenta el intento y transiciona el estado del mensaje', () => {
@@ -479,6 +492,16 @@ describe('NotificationsRepository — núcleo', () => {
       expect(statuses).toEqual(['pending', 'sending']);
       expect(call.order).toEqual([['createdAtValue', 'ASC']]);
       expect(call.limit).toBe(50);
+    });
+
+    it('el job de pendientes puede pedir sólo pending: un sending reciente es una entrega en vuelo', async () => {
+      const { repo, messageModel } = build();
+
+      await repo.listStuckMessages({ tenantId: 't1', olderThanMinutes: 0, limit: 50, statuses: ['pending'] });
+
+      const call = (messageModel.findAll as jest.Mock).mock.calls[0][0] as { where: { status: Record<symbol, string[]> } };
+      const statuses = Object.getOwnPropertySymbols(call.where.status).map((symbol) => call.where.status[symbol])[0];
+      expect(statuses).toEqual(['pending']);
     });
 
     it('el corte por antigüedad no recoge lo que acaba de crearse', async () => {
