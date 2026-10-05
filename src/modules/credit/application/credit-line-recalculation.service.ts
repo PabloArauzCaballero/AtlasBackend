@@ -14,6 +14,9 @@ import { DecisionEngineClient } from '../../decision-engine/decision-engine.clie
 import { SubjectReferenceService } from '../../decision-engine/subject-reference.service.js';
 import { UnderwritingFeaturesService } from '../../decision-engine/underwriting-features.service.js';
 import { lineVariableMetadata } from '../../decision-engine/underwriting-features-line-metadata.js';
+import { percentToUnitRate } from '../../decision-engine/rate-units.js';
+import { CreditRepository } from '../credit.repository.js';
+import { lineBaseRatePercent } from './credit-line-base-rate.js';
 import { pricedRateUnitToPercentNumber } from './credit-decision-pricing.mapper.js';
 import { PaymentCapacityService } from './payment-capacity.service.js';
 import { capacityProvenance, capacityVariables } from './credit-line.service.js';
@@ -104,6 +107,7 @@ export class CreditLineRecalculationService {
     private readonly capacity: PaymentCapacityService,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly escritor: CreditLineWriterService,
+    private readonly credit: CreditRepository,
   ) {}
 
   /**
@@ -162,6 +166,11 @@ export class CreditLineRecalculationService {
       now,
     });
     Object.assign(variables, capacityVariables(capacity));
+    // Sin compra no hay producto, y el artefacto exige la tasa base: ver `credit-line-base-rate.ts`.
+    provenance.product_base_annual_rate = 'derivado';
+    variables.product_base_annual_rate = percentToUnitRate(
+      await lineBaseRatePercent(this.credit, this.logger, { tenantId: input.tenantId, now }),
+    );
     Object.assign(provenance, capacityProvenance(capacity));
 
     const subjectReference = await this.subjects.register({ tenantId: input.tenantId, customerId: input.customerId });
