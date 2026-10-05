@@ -56,6 +56,23 @@ describe('SupportChannelRepository', () => {
       expect(ultima(channels.findOne).where).toEqual({ tenantId: 't1', id: 'ch-1', deleted: false });
     });
 
+    it('bloquear un canal lo lee con FOR UPDATE dentro de la transacción de quien lo toma', async () => {
+      channels.findOne.mockResolvedValueOnce({ id: 5 } as never);
+      const conBloqueo = { LOCK: { UPDATE: 'UPDATE' } } as never;
+
+      await repo.lockById('t1', '5', conBloqueo);
+
+      expect(ultima(channels.findOne)).toEqual({
+        where: { tenantId: 't1', id: '5', deleted: false },
+        transaction: conBloqueo,
+        lock: 'UPDATE',
+      });
+    });
+
+    it('bloquear uno que no existe es 404, no un 500', async () => {
+      await expect(repo.lockById('t1', '5', { LOCK: { UPDATE: 'UPDATE' } } as never)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
     it('exigirlo cuando no existe es 404 con el código del dominio, no un 500', async () => {
       channels.findOne.mockResolvedValueOnce(null as never);
       await expect(repo.requireById('t1', 'ch-1')).rejects.toBeInstanceOf(NotFoundException);

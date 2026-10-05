@@ -3,9 +3,10 @@
  * @business Conecta a quien pide ayuda con un agente elegible disponible, o le deja dejar el mensaje.
  * @system reserva atómica del agente, participantes registrados y cierre que no cierra el caso.
  */
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import type { SupportChannelModel } from '../../../database/models/index.js';
 
 import { SUPPORT_QUEUE_CODES } from '../support.constants.js';
 import { SupportAgentRepository } from '../support-agent.repository.js';
@@ -61,6 +62,9 @@ export class SupportChannelService {
    * nada mal.
    */
   async requestChannel(input: { tenantId: string; actor: SupportActor; dto: OpenChannelDto }) {
+    if (input.dto.partnerProfileId) {
+      await this.actors.assertOwnsPartnerProfile(input.actor, input.dto.partnerProfileId, input.tenantId);
+    }
     const existing =
       input.actor.actorType === 'CUSTOMER' && input.actor.customerId
         ? await this.channels.findLiveChannelForCustomer(input.tenantId, input.actor.customerId)
@@ -68,6 +72,7 @@ export class SupportChannelService {
           ? await this.channels.findLiveChannelForPartnerUser(input.tenantId, input.dto.partnerProfileId, input.actor.actorId)
           : null;
     if (existing) return { ...toChannelDto(existing), reused: true, agentsAvailable: null as number | null };
+    await this.assertMayOpenFor(input);
 
     const defaultQueueCode = input.actor.actorType === 'PARTNER_USER' ? SUPPORT_QUEUE_CODES.PARTNER_L1 : SUPPORT_QUEUE_CODES.CONSUMER_L1;
     // La categoría y la cola por defecto no dependen una de otra: se piden a la vez. Sólo si la categoría
@@ -86,7 +91,12 @@ export class SupportChannelService {
       requiredSkills: (queue?.skillsRequiredJson ?? []) as string[],
     });
 
-    const channel = await this.apertura.persistRequestedChannel({ input, queue, reserved });
+    // La reserva ya subió el contador del agente en su propia sentencia: si la apertura falla —un
+    // `caseId` que no existe basta—, el hueco se devuelve o el agente acaba «lleno» sin conversaciones.
+    const channel = await this.apertura.persistRequestedChannel({ input, queue, reserved }).catch(async (error: unknown) => {
+      if (reserved) await this.disponibilidad.releaseAgentSlot(input.tenantId, reserved.agentProfileId);
+      throw error;
+    });
 
     /*
       Tres cosas que no se esperan entre sí: el aviso de seguridad, la auditoría y el conteo de agentes.
@@ -118,12 +128,41 @@ export class SupportChannelService {
   }
 
   /**
+   * El `caseId` del cuerpo es una afirmación de quien llama, no un hecho: se comprueba que el caso
+   * sea suyo (y del mismo comercio) antes de colgarle una conversación. Sin esto, lo que escribía un
+   * cliente aparecía dentro del expediente de otro.
+   */
+  private async assertMayOpenFor(input: { tenantId: string; actor: SupportActor; dto: OpenChannelDto }): Promise<void> {
+    if (!input.dto.caseId) return;
+    const supportCase = await this.cases.requireById(input.tenantId, input.dto.caseId);
+    await this.actors.assertCanViewCase(input.actor, supportCase, input.tenantId);
+    const casePartner = supportCase.subjectPartnerProfileId ? String(supportCase.subjectPartnerProfileId) : null;
+    if (input.actor.actorType === 'PARTNER_USER' && casePartner !== (input.dto.partnerProfileId ?? null)) {
+      throw new ForbiddenException({ code: 'SUPPORT_CASE_FORBIDDEN' });
+    }
+  }
+
+  /**
+   * Quién puede cerrar: quien está dentro, el titular de la conversación, el agente asignado o un
+   * supervisor. Sin esta comprobación cualquier usuario autenticado cerraba el chat de cualquiera
+   * recorriendo ids, y dejaba su firma en la historia —que no se corrige— de un expediente ajeno.
+   */
+  private async assertMayClose(tenantId: string, channel: SupportChannelModel, actor: SupportActor): Promise<void> {
+    if (actor.isSupervisor) return;
+    if (actor.agentProfileId && String(channel.assignedAgentProfileId ?? '') === actor.agentProfileId) return;
+    if (actor.actorType === 'CUSTOMER' && actor.customerId && String(channel.subjectCustomerId ?? '') === actor.customerId) return;
+    // Repetir el cierre es inofensivo para quien lo cerró, aunque ya no figure dentro.
+    if (channel.status === 'CLOSED' && channel.closedByActorId === actor.actorId) return;
+    await this.messages.assertParticipates(tenantId, String(channel.id), actor);
+  }
+
+  /**
    * Un agente toma un canal encolado.
    *
    * La reserva de capacidad ocurre ANTES de tocar el canal: si el agente ya está al límite, no se
-   * le asigna y el canal sigue en cola para otro. Después se marca el canal con `claimVersion + 1`
-   * condicionado a que siga encolado, así que dos agentes pulsando a la vez producen un ganador y
-   * un 409 —no dos agentes escribiéndole a la misma persona.
+   * le asigna y el canal sigue en cola para otro. Después se BLOQUEA la fila del canal y se vuelve a
+   * mirar que siga encolado, así que dos agentes pulsando a la vez producen un ganador y un 409 —no
+   * dos agentes escribiéndole a la misma persona.
    */
   async claimChannel(input: { tenantId: string; actor: SupportActor; channelId: string }) {
     const agentProfileId = this.actors.assertIsAgent(input.actor);
@@ -140,7 +179,7 @@ export class SupportChannelService {
     // para siempre y el agente acaba «lleno» sin ninguna conversación.
     const updated = await this.sequelize
       .transaction(async (transaction) => {
-        const locked = await this.channels.requireById(input.tenantId, input.channelId, { transaction });
+        const locked = await this.channels.lockById(input.tenantId, input.channelId, transaction);
         if (!['REQUESTED', 'QUEUED'].includes(locked.status)) {
           throw new ConflictException({ code: 'SUPPORT_CHANNEL_ALREADY_CLAIMED', status: locked.status });
         }
@@ -187,6 +226,7 @@ export class SupportChannelService {
    */
   async closeChannel(input: { tenantId: string; actor: SupportActor; channelId: string; dto: CloseChannelDto }) {
     const channel = await this.channels.requireById(input.tenantId, input.channelId);
+    await this.assertMayClose(input.tenantId, channel, input.actor);
     if (channel.status === 'CLOSED') return toChannelDto(channel);
 
     const closed = await this.sequelize.transaction(async (transaction) => {
