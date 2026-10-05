@@ -30,7 +30,13 @@ export class ExternalDataPreviewService {
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
-  async previewExternalDataRequest(input: { tenantId: string; body: ExternalDataRequestDto; requestedByUserId?: string }) {
+  async previewExternalDataRequest(input: {
+    tenantId: string;
+    body: ExternalDataRequestDto;
+    requestedByUserId?: string;
+    /** Aprobación en línea ya verificada por el borde; igual que en la ejecución, nunca sale del cuerpo. */
+    approvedByAdminId?: string;
+  }) {
     const providerCode = toProviderCode(input.body.providerCode);
     const provider = await this.registry.requireProvider(providerCode);
     const policy = await this.repository.findCostPolicy(String(provider.id), input.body.queryType);
@@ -46,7 +52,7 @@ export class ExternalDataPreviewService {
       providerCode,
       policy,
       decisionStage: input.body.decisionStage,
-      approvedByAdminId: input.body.approvedByAdminId,
+      approvedByAdminId: input.approvedByAdminId,
     });
     if (!policyBlock.blocked) {
       policyBlock = await this.decision.evaluateQuotaPolicy({

@@ -72,7 +72,8 @@ describe('ExternalDataDecisionService', () => {
       });
     });
 
-    it('an approvedByAdminId bypasses the high-cost manual-approval block entirely', () => {
+    // El valor llega ya verificado por el borde (`inlineApprovalBy`: actor admin); nunca del cuerpo.
+    it('an edge-verified admin approval (approvedByAdminId) lifts the high-cost manual-approval block', () => {
       const { service } = buildService();
       const policy = { allowedDecisionStagesJson: [], costTier: 'HIGH', blockByDefault: true, requiresManualApproval: true };
       const result = service.evaluateCostPolicy({

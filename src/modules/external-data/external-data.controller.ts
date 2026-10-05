@@ -14,7 +14,13 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { actorId, assertCustomerAccess, customerScopeForConsentMutation, providerProbeRequest } from './external-data-controller.util.js';
+import {
+  actorId,
+  assertCustomerAccess,
+  customerScopeForConsentMutation,
+  inlineApprovalBy,
+  providerProbeRequest,
+} from './external-data-controller.util.js';
 import { ExternalDataService } from './external-data.service.js';
 import {
   approveProviderRequestSchema,
@@ -153,6 +159,7 @@ export class ExternalDataController {
       tenantId: tenantId,
       body,
       requestedByUserId: actorId(currentUser),
+      approvedByAdminId: inlineApprovalBy(currentUser, body.approvedByAdminId),
     });
   }
 
@@ -184,6 +191,7 @@ export class ExternalDataController {
       body,
       idempotencyKey,
       requestedByUserId: actorId(currentUser),
+      approvedByAdminId: inlineApprovalBy(currentUser, body.approvedByAdminId),
     });
   }
 
@@ -437,6 +445,7 @@ export class AdminExternalProvidersController {
       tenantId: tenantId,
       body,
       requestedByUserId: actorId(currentUser),
+      approvedByAdminId: inlineApprovalBy(currentUser, body.approvedByAdminId),
     });
   }
 
@@ -558,7 +567,8 @@ export class AdminExternalProvidersController {
     return this.externalDataService.approveRequest({
       tenantId: tenantId,
       requestId: params.requestId,
-      approvedByAdminId: body.approvedByAdminId ?? actorId(currentUser),
+      // La aprobación queda a nombre de quien la firma; `body.approvedByAdminId` no atribuye a otro.
+      approvedByAdminId: actorId(currentUser),
       approvalReason: body.approvalReason,
     });
   }
@@ -582,6 +592,7 @@ export class AdminExternalProvidersController {
       requestId: params.requestId,
       body,
       requestedByUserId: actorId(currentUser),
+      approvedByAdminId: inlineApprovalBy(currentUser, body.approvedByAdminId),
     });
   }
 

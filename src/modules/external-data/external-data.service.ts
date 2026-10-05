@@ -71,12 +71,18 @@ export class ExternalDataService {
     idempotencyKey?: string;
     requestedByUserId?: string;
     retryOfRequestId?: string;
+    approvedByAdminId?: string;
     syntheticProbe?: boolean;
   }) {
     return this.execution.executeExternalDataRequest(input);
   }
 
-  previewExternalDataRequest(input: { tenantId: string; body: ExternalDataRequestDto; requestedByUserId?: string }) {
+  previewExternalDataRequest(input: {
+    tenantId: string;
+    body: ExternalDataRequestDto;
+    requestedByUserId?: string;
+    approvedByAdminId?: string;
+  }) {
     return this.previsualizacion.previewExternalDataRequest(input);
   }
 
@@ -101,9 +107,10 @@ export class ExternalDataService {
   executeInfocenter(input: {
     tenantId: string;
     customerId: string;
-    body: { documentNumber?: string; decisionStage: string; approvedByAdminId?: string; scenario?: string };
+    body: { documentNumber?: string; decisionStage: string; scenario?: string };
     idempotencyKey?: string;
     requestedByUserId?: string;
+    approvedByAdminId?: string;
   }) {
     return this.convenience.executeInfocenter(input);
   }
@@ -221,6 +228,7 @@ export class ExternalDataService {
     requestId: string;
     body: Partial<ExternalDataRequestDto> & { input?: Record<string, unknown> };
     requestedByUserId?: string;
+    approvedByAdminId?: string;
   }) {
     return this.convenience.retryProviderRequest(input);
   }
