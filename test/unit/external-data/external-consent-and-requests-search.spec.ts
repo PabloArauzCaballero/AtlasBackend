@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { Op } from 'sequelize';
-import { externalConsentSchema } from '../../../src/modules/external-data/external-data.schemas.js';
+import { externalConsentSchema, providerProbeSchema } from '../../../src/modules/external-data/external-data.schemas.js';
 import { ExternalProviderDashboardRepository } from '../../../src/modules/external-data/infrastructure/external-provider-dashboard.repository.js';
 
 describe('Consentimiento externo: sólo se registra lo otorgado', () => {
@@ -17,6 +17,24 @@ describe('Consentimiento externo: sólo se registra lo otorgado', () => {
 
   it('legalTextVersion ya no se promete: se descarta en vez de fingir que queda en la evidencia', () => {
     expect('legalTextVersion' in externalConsentSchema.parse({ ...base, legalTextVersion: 'v9' })).toBe(false);
+  });
+});
+
+describe('Probar proveedor: el cuerpo se valida', () => {
+  it('normaliza queryType y decisionStage a mayúsculas para que casen con la política de costo', () => {
+    expect(providerProbeSchema.parse({ queryType: 'credit_report', decisionStage: 'origination' })).toMatchObject({
+      queryType: 'CREDIT_REPORT',
+      decisionStage: 'ORIGINATION',
+    });
+  });
+
+  it('un customerId no numérico es 400 (antes llegaba a la columna BIGINT); sin cuerpo vale {}', () => {
+    expect(providerProbeSchema.safeParse({ customerId: 'abc' }).success).toBe(false);
+    expect(providerProbeSchema.parse(undefined)).toEqual({});
+  });
+
+  it('approvedByAdminId del cuerpo se descarta: la aprobación la decide el rol del actor', () => {
+    expect('approvedByAdminId' in providerProbeSchema.parse({ approvedByAdminId: '1' })).toBe(false);
   });
 });
 

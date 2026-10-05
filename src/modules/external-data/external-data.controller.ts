@@ -49,6 +49,8 @@ import {
   ProviderUsageQueryDto,
   providerCostPolicyPatchSchema,
   ProviderCostPolicyPatchDto,
+  providerProbeSchema,
+  ProviderProbeDto,
   requestIdParamsSchema,
   RequestIdParamsDto,
   retentionPreviewQuerySchema,
@@ -532,13 +534,14 @@ export class AdminExternalProvidersController {
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'providerCode', schema: zodToApiSchema(providerCodeParamsSchema.shape.providerCode) })
+  @ApiBody({ required: false, schema: zodToApiSchema(providerProbeSchema) })
   @ApiResponse({ status: 200, description: 'Resultado de la ejecución de prueba.' })
   @Post(':providerCode/test')
   @HttpCode(HttpStatus.OK)
   testProvider(
     @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(providerCodeParamsSchema)) params: ProviderCodeParamsDto,
-    @Body() body: Record<string, unknown> = {},
+    @Body(new ZodValidationPipe(providerProbeSchema)) body: ProviderProbeDto = {},
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.externalDataService.executeExternalDataRequest(providerProbeRequest(tenantId, params.providerCode, body, currentUser));
