@@ -83,7 +83,10 @@ export class MobileIdentityController {
   @ApiHeader({ name: 'x-tenant-id', required: true, description: 'Tenant al que pertenece la verificación.' })
   @ApiParam({ name: 'verificationId', description: 'El identificador devuelto al enviar las imágenes.' })
   @ApiResponse({ status: 200, description: 'Estado actual de la verificación.' })
-  @ApiResponse({ status: 404, description: 'IDENTITY_VERIFICATION_NOT_FOUND — no existe en este tenant, o no es del cliente que pregunta.' })
+  @ApiResponse({
+    status: 404,
+    description: 'IDENTITY_VERIFICATION_NOT_FOUND — no existe en este tenant, o no es del cliente que pregunta.',
+  })
   @Get(':verificationId')
   get(
     @CurrentTenant() tenantId: string,
