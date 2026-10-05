@@ -23,6 +23,10 @@ describe('SystemsReviewRepository', () => {
       endpointTool: make(),
       reviewEvent: make(),
     };
+    // Transacción gestionada falsa: ejecuta el callback y deja ver que todo va en la misma.
+    const transaction = { LOCK: { UPDATE: 'UPDATE' } };
+    const sequelize = { transaction: jest.fn(async (work: (t: unknown) => Promise<unknown>) => work(transaction)) };
+    Object.assign(models.reviewEvent, { sequelize });
     const repo = new SystemsReviewRepository(
       models.endpoint as never,
       models.dataEntity as never,
@@ -32,7 +36,7 @@ describe('SystemsReviewRepository', () => {
       models.endpointTool as never,
       models.reviewEvent as never,
     );
-    return { repo, models };
+    return { repo, models, transaction };
   }
 
   describe('listReviewQueue', () => {
@@ -95,6 +99,31 @@ describe('SystemsReviewRepository', () => {
       await repo.updateEndpointReview('e1', { reviewStatus: 'rejected' } as never, null, 'reviewer', null);
       expect((row as { confidenceLevel: string }).confidenceLevel).toBe('medium');
       expect(callArg<CallArgRecord>(models.reviewEvent.create, 0, 0).newConfidence).toBe('medium');
+    });
+  });
+
+  describe('decisión y evento en la misma transacción', () => {
+    it('bloquea la fila y pasa la transacción al save y al evento', async () => {
+      const { repo, models, transaction } = buildRepo();
+      const save = jest.fn(async (..._args: unknown[]) => ({}));
+      const row = { reviewStatus: 'pending', confidenceLevel: 'low', save } as never;
+      (models.endpoint.findByPk as jest.Mock).mockResolvedValue(row as never);
+      (models.reviewEvent.create as jest.Mock).mockResolvedValue({} as never);
+      await repo.updateEndpointReview('e1', { reviewStatus: 'approved' } as never, 'u1', 'admin', 't1');
+      expect((models.endpoint.findByPk as jest.Mock).mock.calls[0][1]).toEqual({ transaction, lock: 'UPDATE' });
+      expect(save).toHaveBeenCalledWith({ transaction });
+      expect((models.reviewEvent.create as jest.Mock).mock.calls[0][1]).toEqual({ transaction });
+    });
+
+    it('si el evento no se escribe, el error sale de la transacción (que la revierte)', async () => {
+      const { repo, models } = buildRepo();
+      const save = jest.fn(async (..._args: unknown[]) => ({}));
+      const row = { reviewStatus: 'pending', confidenceLevel: 'low', save } as never;
+      (models.dataEntity.findByPk as jest.Mock).mockResolvedValue(row as never);
+      (models.reviewEvent.create as jest.Mock).mockRejectedValue(new Error('connection reset') as never);
+      await expect(repo.updateDataEntityReview('d1', { reviewStatus: 'approved' } as never, 'u1', 'admin', 't1')).rejects.toThrow(
+        'connection reset',
+      );
     });
   });
 
