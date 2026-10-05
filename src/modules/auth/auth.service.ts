@@ -99,39 +99,46 @@ export class AuthService {
       throw invalidCredentialsError;
     }
 
-    if (credential.lockedUntil && credential.lockedUntil.getTime() > Date.now()) {
+    /*
+     * El bloqueo dice HASTA CUÁNDO, no «más tarde».
+     *
+     * Antes se respondía con una frase suelta y sin código, así que la app no podía distinguir
+     * «te equivocaste de contraseña» de «estás bloqueado» —caía en el mensaje genérico— y quien
+     * lo leía no tenía forma de saber si esperar un minuto o una hora. La respuesta previsible
+     * es no volver a intentarlo nunca, o intentarlo cada diez segundos: las dos peores.
+     *
+     * Decir cuándo se puede volver no debilita el control: el bloqueo sigue siendo el mismo
+     * tiempo y quien lo provocó ya sabe que existe. Lo que cambia es que el titular legítimo
+     * —que es quien casi siempre se equivoca de contraseña— sabe qué hacer con su tarde.
+     */
+    const rejectLocked = async (lockedUntil: Date | null): Promise<never> => {
       await logAttempt({ actorId: actor.id, reasonCode: 'account_locked' });
-
-      /*
-       * El bloqueo dice HASTA CUÁNDO, no «más tarde».
-       *
-       * Antes se respondía con una frase suelta y sin código, así que la app no podía distinguir
-       * «te equivocaste de contraseña» de «estás bloqueado» —caía en el mensaje genérico— y quien
-       * lo leía no tenía forma de saber si esperar un minuto o una hora. La respuesta previsible
-       * es no volver a intentarlo nunca, o intentarlo cada diez segundos: las dos peores.
-       *
-       * Decir cuándo se puede volver no debilita el control: el bloqueo sigue siendo el mismo
-       * tiempo y quien lo provocó ya sabe que existe. Lo que cambia es que el titular legítimo
-       * —que es quien casi siempre se equivoca de contraseña— sabe qué hacer con su tarde.
-       */
-      const retryAfterSeconds = Math.max(1, Math.ceil((credential.lockedUntil.getTime() - Date.now()) / 1000));
+      const until = lockedUntil ?? new Date(Date.now() + env.AUTH_LOCKOUT_MINUTES * 60_000);
       throw new UnauthorizedException({
         code: 'ACCOUNT_LOCKED',
         message: 'Cuenta bloqueada temporalmente por múltiples intentos fallidos.',
-        lockedUntil: credential.lockedUntil.toISOString(),
-        retryAfterSeconds,
+        lockedUntil: until.toISOString(),
+        retryAfterSeconds: Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000)),
       });
-    }
+    };
+
+    if (credential.lockedUntil && credential.lockedUntil.getTime() > Date.now()) await rejectLocked(credential.lockedUntil);
+
+    // El intento se RESERVA antes de argon2 y en un solo UPDATE: con la lectura de arriba sola, N
+    // peticiones en paralelo veían «sin bloqueo», probaban N secretos y dejaban el contador en k+1.
+    // Sobre un PIN de 4 dígitos eso era recorrer el espacio entero entre bloqueo y bloqueo.
+    const locked = await this.authRepository.reserveLoginAttempt(credential.id, {
+      maxAttempts: env.AUTH_MAX_FAILED_LOGIN_ATTEMPTS,
+      lockoutMinutes: env.AUTH_LOCKOUT_MINUTES,
+    });
+    if (locked) await rejectLocked(locked.lockedUntil);
 
     const passwordMatches = await verifyPassword(credential.passwordHash, input.dto.password);
     if (!passwordMatches) {
-      await this.authRepository.recordFailedAttempt(credential, {
-        maxAttempts: env.AUTH_MAX_FAILED_LOGIN_ATTEMPTS,
-        lockoutMinutes: env.AUTH_LOCKOUT_MINUTES,
-      });
       await logAttempt({ actorId: actor.id, reasonCode: 'invalid_password' });
       throw invalidCredentialsError;
     }
+    await this.authRepository.clearFailedAttempts(credential.id);
 
     if (this.secondFactor.isRequired(input.dto.actorType, credential)) {
       return this.secondFactor.issueChallenge(actor, input.dto.actorType, { ip: input.ip, userAgent: input.userAgent });

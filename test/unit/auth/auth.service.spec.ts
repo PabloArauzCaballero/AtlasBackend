@@ -39,7 +39,8 @@ function buildAuthRepositoryMock() {
     findActiveOneTimeCodeByChallenge: asyncMock(),
     registerOneTimeCodeFailedAttempt: asyncMock(),
     consumeOneTimeCode: asyncMock(),
-    recordFailedAttempt: asyncMock(),
+    reserveLoginAttempt: asyncMock(),
+    clearFailedAttempts: asyncMock(),
     recordSuccessfulLogin: asyncMock(),
     createRefreshToken: jest.fn(async (..._args: unknown[]) => ({ id: 'refresh-row-1' })),
     findActiveRefreshTokenByHash: asyncMock(),
@@ -228,9 +229,50 @@ describe('AuthService.login', () => {
       }),
     ).rejects.toThrow(UnauthorizedException);
 
-    expect(authRepository.recordFailedAttempt).toHaveBeenCalledTimes(1);
+    expect(authRepository.reserveLoginAttempt).toHaveBeenCalledTimes(1);
+    expect(authRepository.clearFailedAttempts).not.toHaveBeenCalled();
     expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
       expect.objectContaining({ successful: false, failureReasonCode: 'invalid_password', actorId: '10' }),
+    );
+  });
+
+  // La lectura de la credencial es anterior a argon2: N peticiones en paralelo veían todas «sin
+  // bloqueo». Si la reserva atómica dice que otra petición ya bloqueó la cuenta, el secreto NO se
+  // evalúa —ni siquiera el correcto—, que es lo que impedía recorrer el PIN de 4 dígitos.
+  it('rejects with ACCOUNT_LOCKED, without evaluating the password, when the atomic reservation finds the account locked', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const lockedUntil = new Date(Date.now() + 60_000);
+    customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
+    authRepository.findCredentialsByActor.mockResolvedValue({
+      id: '77',
+      passwordHash: 'hashed:correct-password',
+      tokenVersion: 1,
+      lockedUntil: null,
+      failedLoginAttempts: 0,
+    });
+    authRepository.reserveLoginAttempt.mockResolvedValue({ lockedUntil });
+
+    const service = buildService(authRepository, customersRepository, tokenRevocationService);
+
+    await expect(
+      service.login({
+        tenantId: '1',
+        dto: { actorType: 'customer', identifier: '70000000', password: 'correct-password' },
+        ip: null,
+        userAgent: null,
+      }),
+    ).rejects.toMatchObject({ response: { code: 'ACCOUNT_LOCKED', lockedUntil: lockedUntil.toISOString() } });
+
+    expect(authRepository.reserveLoginAttempt).toHaveBeenCalledWith('77', {
+      maxAttempts: env.AUTH_MAX_FAILED_LOGIN_ATTEMPTS,
+      lockoutMinutes: env.AUTH_LOCKOUT_MINUTES,
+    });
+    expect(authRepository.recordSuccessfulLogin).not.toHaveBeenCalled();
+    expect(authRepository.createRefreshToken).not.toHaveBeenCalled();
+    expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ successful: false, failureReasonCode: 'account_locked', actorId: '10' }),
     );
   });
 
@@ -257,7 +299,7 @@ describe('AuthService.login', () => {
       }),
     ).rejects.toThrow(UnauthorizedException);
 
-    expect(authRepository.recordFailedAttempt).not.toHaveBeenCalled();
+    expect(authRepository.reserveLoginAttempt).not.toHaveBeenCalled();
     expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
       expect.objectContaining({ successful: false, failureReasonCode: 'account_locked', actorId: '10' }),
     );
@@ -289,6 +331,7 @@ describe('AuthService.login', () => {
     expect(result.tokenType).toBe('Bearer');
     expect(typeof result.accessToken).toBe('string');
     expect(result.refreshToken).toBe('fixed-refresh-token');
+    expect(authRepository.clearFailedAttempts).toHaveBeenCalledTimes(1);
     expect(authRepository.recordSuccessfulLogin).toHaveBeenCalledTimes(1);
     expect(authRepository.createRefreshToken).toHaveBeenCalledTimes(1);
     expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(

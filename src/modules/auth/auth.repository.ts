@@ -16,6 +16,7 @@ import {
   PlatformUserModel,
 } from '../../database/models/index.js';
 
+import { loginAttemptReservation, type LoginAttemptLimits } from './auth-login-attempts.js';
 import type { ActorType, LoginAttemptEvent } from './auth-vocabulary.js';
 
 // El vocabulario (actores, propósitos de OTP, tipos de evento) vive en `auth-vocabulary.ts` y se
@@ -116,14 +117,18 @@ export class AuthRepository {
     await credential.save();
   }
 
-  async recordFailedAttempt(credential: AuthCredentialModel, input: { maxAttempts: number; lockoutMinutes: number }): Promise<void> {
-    credential.failedLoginAttempts += 1;
-    if (credential.failedLoginAttempts >= input.maxAttempts) {
-      credential.lockedUntil = new Date(Date.now() + input.lockoutMinutes * 60_000);
-      credential.failedLoginAttempts = 0;
-    }
-    credential.updatedAtValue = new Date();
-    await credential.save();
+  /** Reserva atómica del intento (ver `loginAttemptReservation`). `null` = reservado; si no, la cuenta está bloqueada. */
+  async reserveLoginAttempt(credentialId: string, limits: LoginAttemptLimits): Promise<{ lockedUntil: Date | null } | null> {
+    const [reserved] = await this.credentialModel.update(...loginAttemptReservation(credentialId, limits));
+    if (reserved > 0) return null;
+    const locked = await this.credentialModel.findOne({ where: { id: credentialId } as never, attributes: ['lockedUntil'] });
+    return { lockedUntil: locked?.lockedUntil ?? null };
+  }
+
+  /** El secreto fue correcto: el intento reservado deja de contar (y con él los fallos previos). */
+  async clearFailedAttempts(credentialId: string): Promise<void> {
+    const values = { failedLoginAttempts: 0, lockedUntil: null, updatedAtValue: new Date() };
+    await this.credentialModel.update(values as never, { where: { id: credentialId } as never });
   }
 
   async recordSuccessfulLogin(credential: AuthCredentialModel, ip: string | null): Promise<void> {

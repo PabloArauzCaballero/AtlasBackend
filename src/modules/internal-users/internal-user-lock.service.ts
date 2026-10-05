@@ -27,7 +27,7 @@ const SIN_BLOQUEO: InternalUserLockState = { locked: false, lockedUntil: null, f
  *
  * `internal_users.status = 'locked'` es una decisión de un administrador y ya tiene su vía
  * (`PATCH /internal/users/:id`). Lo de aquí es el bloqueo automático tras N intentos fallidos
- * (`auth.repository.ts → recordFailedAttempt`), que pone `locked_until` en el futuro y, hasta hoy,
+ * (`auth.repository.ts → reserveLoginAttempt`), que pone `locked_until` en el futuro y, hasta hoy,
  * sólo se levantaba esperando o por SQL — y por SQL con la trampa de escribir un hash por ssh.
  *
  * Va en un servicio aparte porque `InternalRbacRepository` está congelado en la línea base de
