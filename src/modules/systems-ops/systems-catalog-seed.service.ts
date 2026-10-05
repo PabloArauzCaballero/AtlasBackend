@@ -65,18 +65,25 @@ export class SystemsCatalogSeedService {
       throw new ConflictException('SYSTEMS_CATALOG_REFRESH_ALREADY_RUNNING');
     }
     const startedAt = new Date();
-    const job = await this.jobRunModel.create({
-      tenantId: systemsTenantScope(user),
-      jobCode: 'systems_catalog_refresh',
-      status: 'running',
-      startedAt,
-      inputJson: input,
-      resultJson: null,
-      errorMessage: null,
-      triggeredByType: 'user',
-      triggeredById: actorId(user),
-      createdAtValue: startedAt,
-    } as never);
+    // El INSERT va con el candado ya tomado: si lanza y nadie suelta la transacción, la conexión queda
+    // «idle in transaction» con el candado y cada refresco responde 409 hasta que Postgres la corta.
+    const job = await this.jobRunModel
+      .create({
+        tenantId: systemsTenantScope(user),
+        jobCode: 'systems_catalog_refresh',
+        status: 'running',
+        startedAt,
+        inputJson: input,
+        resultJson: null,
+        errorMessage: null,
+        triggeredByType: 'user',
+        triggeredById: actorId(user),
+        createdAtValue: startedAt,
+      } as never)
+      .catch(async (error: unknown) => {
+        await lockTransaction.rollback().catch(() => undefined);
+        throw error;
+      });
     const result = {
       tools: 0,
       dataEntities: 0,
