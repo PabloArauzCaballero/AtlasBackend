@@ -23,6 +23,7 @@ import {
   type ToqueObservado,
 } from './onboarding-behavior-summary.tipos.js';
 import { medirCapturas, segundoPlanoMs } from './onboarding-behavior-summary.capturas.js';
+import { medirRitmo } from './onboarding-behavior-summary.ritmo.js';
 
 export * from './onboarding-behavior-summary.tipos.js';
 
@@ -269,6 +270,7 @@ export function calcularResumen(entradas: EntradasDelResumen): ResumenCalculado 
       (p) => p.stepCode === 'flujo' && (p.eventType === 'cola_recortada' || p.eventType === 'lote_rechazado'),
     ).length,
     senales,
+    ritmo: medirRitmo({ pasos, campos: entradas.campos, toques: entradas.toques }),
   };
 
   return {

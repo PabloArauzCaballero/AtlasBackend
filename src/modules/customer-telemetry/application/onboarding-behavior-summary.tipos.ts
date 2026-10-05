@@ -73,6 +73,12 @@ export type DetalleDelResumen = {
   reanudaciones: number;
   huecosEnLaBitacora: number;
   senales: string[];
+  /**
+   * El ritmo del alta (2026-10-04): regularidad de tiempos, campos imposibles de rápidos, capturas instantáneas.
+   * OPCIONAL y aditivo como las cifras del escáner: no mueve `botLikelihoodScore` ni `senales` de la v1. Sus señales
+   * las lee el riesgo del alta para derivar a una persona (`risk-fraud-flags.ts`).
+   */
+  ritmo?: import('./onboarding-behavior-summary.ritmo.js').RitmoDelAlta;
 };
 
 export type ResumenCalculado = {

@@ -11,6 +11,7 @@ import type { FindOptions } from 'sequelize';
 import { OnboardingBehaviorSummaryModel } from '../../../database/models/index.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { RiskRepository } from '../risk.repository.js';
+import { LocalRiskFraudFactsReader } from './local-risk-fraud-facts.reader.js';
 import type { RiskInputFacts, RiskInputFactsPort } from '../application/ports/risk-input-facts.port.js';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class LocalRiskInputFactsAdapter implements RiskInputFactsPort {
     private readonly risk: RiskRepository,
     // Opcional: la construcción a mano (pruebas, scripts) no lo trae y entonces el comportamiento viaja «no medido».
     @Optional() @InjectModel(OnboardingBehaviorSummaryModel) private readonly behavior?: typeof OnboardingBehaviorSummaryModel,
+    @Optional() private readonly fraudFacts?: LocalRiskFraudFactsReader,
   ) {}
 
   async loadFacts(tenantId: string, customerId: string): Promise<RiskInputFacts> {
@@ -33,10 +35,11 @@ export class LocalRiskInputFactsAdapter implements RiskInputFactsPort {
         verifiedContactCount: 0,
         hasIdentity: false,
         behaviorBotScore: null,
+        fraud: null,
         readAt,
       });
     }
-    const [consents, contacts, identities, resumen] = await Promise.all([
+    const [consents, contacts, identities, resumen, fraud] = await Promise.all([
       this.risk.findCustomerConsents(tenantId, customerId),
       this.risk.findCustomerContacts(tenantId, customerId),
       this.risk.findIdentityDocuments(tenantId, customerId),
@@ -47,6 +50,7 @@ export class LocalRiskInputFactsAdapter implements RiskInputFactsPort {
             order: [['computedAt', 'DESC']],
           } as FindOptions)
         : Promise.resolve(null),
+      this.fraudFacts ? this.fraudFacts.read(tenantId, customerId) : Promise.resolve(null),
     ]);
     const bot = resumen?.botLikelihoodScore;
     return Object.freeze({
@@ -56,6 +60,7 @@ export class LocalRiskInputFactsAdapter implements RiskInputFactsPort {
       verifiedContactCount: contacts.filter((contact) => contact.status === 'verified').length,
       hasIdentity: identities.length > 0,
       behaviorBotScore: bot === null || bot === undefined || !Number.isFinite(Number(bot)) ? null : Number(bot),
+      fraud,
       readAt,
     });
   }

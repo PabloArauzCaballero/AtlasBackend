@@ -190,7 +190,8 @@ describe('calcularResumen', () => {
       paso('flujo', 'primer_plano', 79_500, { eventType: 'primer_plano', detail: 'escaner_sistema' }),
     ];
     const sinCifrasNuevas = (d: DetalleDelResumen) => {
-      const { capturasTomadas: _t, capturasEscaneadas: _e, respaldosDeCamara: _r, ...resto } = d;
+      // `ritmo` también es aditivo y distinto a propósito: con el escáner del sistema no hay «captura más rápida».
+      const { capturasTomadas: _t, capturasEscaneadas: _e, respaldosDeCamara: _r, ritmo: _ri, ...resto } = d;
       return resto;
     };
 
@@ -364,5 +365,20 @@ describe('calcularResumen', () => {
     });
     expect(r.ciCopyPasteDetected).toBe(false);
     expect(r.interScreenTimingJson.detalle.pegadosEnIdentidad).toBe(0);
+  });
+
+  it('el ritmo se guarda con el resumen y NO mueve el bot score ni las señales de la v1', () => {
+    const base = Date.UTC(2026, 9, 1, 14, 0, 0);
+    const toques = [0, 40, 80, 120, 5_000].map((ms) => ({
+      control: 'continuar',
+      screenName: 'registro',
+      rx: 0.3 + ms / 20_000,
+      ry: 0.4,
+      occurredAt: new Date(base + ms),
+    }));
+    const resumen = calcularResumen({ pasos: [], campos: [], toques, permisos: [], abandonosPrevios: 0 });
+    expect(resumen.interScreenTimingJson.detalle.ritmo?.senales).toEqual(['TOQUES_SOBREHUMANOS']);
+    expect(resumen.interScreenTimingJson.detalle.senales).not.toContain('TOQUES_SOBREHUMANOS');
+    expect(resumen.computationVersion).toBe('behavior-summary-v1');
   });
 });

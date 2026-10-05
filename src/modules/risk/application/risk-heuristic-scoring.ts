@@ -4,6 +4,7 @@
  * @system función pura; no consulta la base ni depende de Nest.
  */
 import { RISK_APPROVAL_MIN_SCORE, RISK_LEVEL_THRESHOLDS } from '../risk-heuristic-v0.constants.js';
+import { SIN_HECHOS_DE_FRAUDE, evaluarBanderasDeFraude, type RiskFraudFacts, type RiskFraudFlags } from './risk-fraud-flags.js';
 
 export type HeuristicRiskInputs = {
   hasIdentity: boolean;
@@ -11,6 +12,8 @@ export type HeuristicRiskInputs = {
   hasDevice: boolean;
   /** `botLikelihoodScore` del resumen de comportamiento (0-1), o `null` sin bitácora. */
   behaviorBotScore?: number | null;
+  /** Los hechos de fraude del alta; sin ellos no hay banderas. */
+  fraud?: RiskFraudFacts | null;
 };
 
 export type HeuristicRiskScores = {
@@ -23,6 +26,10 @@ export type HeuristicRiskScores = {
   totalScore: number;
   riskLevel: 'low' | 'medium' | 'high';
   missing: string[];
+  /** Las banderas de fraude que se evaluaron; `escalate` hunde el total por debajo del umbral. */
+  fraudFlags: RiskFraudFlags;
+  /** Los hechos crudos, para que la política del Motor (2.0) aplique sus propias reglas. `null` sin lector. */
+  fraudFacts: RiskFraudFacts | null;
 };
 
 /**
@@ -44,7 +51,13 @@ export function computeHeuristicScores(inputs: HeuristicRiskInputs): HeuristicRi
   const contactScore = hasVerifiedContact ? 90 : 45;
   // `hasDevice` viene del dispositivo con el que el cliente hizo el alta (C-6): el envío lo resuelve
   // en el servidor (`OnboardingRiskTriggerService`). Antes nadie lo mandaba y valía 55 para todos.
-  const deviceScore = hasDevice ? 70 : 55;
+  /*
+   * Las banderas de fraude del alta (dispositivo, red, ritmo, agenda). Con una fuerte o dos medias, el dispositivo
+   * y el fraude se puntúan como lo peor: el total queda por debajo del umbral AUNQUE todo lo demás sea perfecto
+   * (70+90+20+100+75+10)/6 = 60,8 < 65, y el alta la mira una persona. Nunca sube un puntaje: sólo deriva.
+   */
+  const fraudFlags = evaluarBanderasDeFraude(inputs.fraud ?? SIN_HECHOS_DE_FRAUDE);
+  const deviceScore = fraudFlags.escalate ? 20 : hasDevice ? 70 : 55;
   /*
    * El comportamiento del alta (H-10). Hasta el plan F3 valía 50 para todos porque el resumen se calculaba DESPUÉS
    * de evaluar; ahora el envío lo calcula ANTES y aquí se lee: `100 × (1 − bot)`. Sin bitácora sigue siendo 50, que
@@ -56,11 +69,9 @@ export function computeHeuristicScores(inputs: HeuristicRiskInputs): HeuristicRi
    * - sin contacto verificado, ni con comportamiento 100 llega: 60,0 / 62,5.
    * `risk-heuristic-scoring.spec.ts` lo fija.
    */
-  const bot = inputs.behaviorBotScore;
-  const behaviorScore =
-    bot === null || bot === undefined || !Number.isFinite(bot) ? 50 : Math.round(100 * (1 - Math.min(1, Math.max(0, bot))));
+  const behaviorScore = behaviorScoreFor(inputs.behaviorBotScore);
   const consistencyScore = hasIdentity && hasVerifiedContact ? 75 : 45;
-  const fraudScore = hasIdentity && hasVerifiedContact ? 20 : 55;
+  const fraudScore = fraudFlags.escalate ? 90 : hasIdentity && hasVerifiedContact ? 20 : 55;
 
   // El puntaje de fraude entra INVERTIDO: es el único donde "más" significa peor, y promediarlo sin
   // invertir haría que un cliente más sospechoso puntuara más alto.
@@ -80,7 +91,15 @@ export function computeHeuristicScores(inputs: HeuristicRiskInputs): HeuristicRi
     totalScore,
     riskLevel: riskLevelFor(totalScore),
     missing,
+    fraudFlags,
+    fraudFacts: inputs.fraud ?? null,
   };
+}
+
+/** `100 × (1 − bot)` acotado; sin bitácora, 50 («no medido»). */
+function behaviorScoreFor(bot: number | null | undefined): number {
+  if (bot === null || bot === undefined || !Number.isFinite(bot)) return 50;
+  return Math.round(100 * (1 - Math.min(1, Math.max(0, bot))));
 }
 
 function riskLevelFor(totalScore: number): 'low' | 'medium' | 'high' {
@@ -140,5 +159,10 @@ export function toPersistedFeatureMap(
     behaviorScore: scores.behaviorScore,
     consistencyScore: scores.consistencyScore,
     fraudScore: scores.fraudScore,
+    // Qué bandera derivó el alta: es lo que el analista necesita ver, y lo que permitirá medir cada corte.
+    fraudEscalated: scores.fraudFlags.escalate,
+    ...Object.fromEntries(
+      [...scores.fraudFlags.strong, ...scores.fraudFlags.medium, ...scores.fraudFlags.context].map((codigo) => [`flag_${codigo}`, true]),
+    ),
   };
 }

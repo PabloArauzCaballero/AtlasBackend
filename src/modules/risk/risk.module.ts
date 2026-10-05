@@ -6,12 +6,18 @@
 import { Module } from '@nestjs/common';
 import { RISK_INPUT_FACTS_PORT } from './application/ports/risk-input-facts.port.js';
 import { LocalRiskInputFactsAdapter } from './infrastructure/local-risk-input-facts.adapter.js';
+import { LocalRiskFraudFactsReader } from './infrastructure/local-risk-fraud-facts.reader.js';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
   CustomerConsentModel,
   CustomerContactMethodModel,
   CustomerIdentityDocumentModel,
   OnboardingBehaviorSummaryModel,
+  CustomerSessionModel,
+  CustomerDeviceLinkModel,
+  DeviceSnapshotModel,
+  CustomerLocationPingModel,
+  CustomerDeviceContactModel,
   DataChangeLogModel,
   DataQualityIssueModel,
   FeatureComputationRunModel,
@@ -66,6 +72,12 @@ import { RiskService } from './risk.service.js';
       CustomerIdentityDocumentModel,
       // El último resumen de comportamiento del alta, leído por `LocalRiskInputFactsAdapter` (plan F3, H-10).
       OnboardingBehaviorSummaryModel,
+      // Los hechos de fraude del alta (`LocalRiskFraudFactsReader`): sesiones con IP y dispositivo, vínculos, snapshots, rastro y agenda.
+      CustomerSessionModel,
+      CustomerDeviceLinkModel,
+      DeviceSnapshotModel,
+      CustomerLocationPingModel,
+      CustomerDeviceContactModel,
     ]),
     CustomersModule,
     // La evaluación de riesgo consulta primero al motor de políticas versionadas; `risk_heuristic_v0`
@@ -75,6 +87,7 @@ import { RiskService } from './risk.service.js';
   controllers: [RiskController, RiskReviewCallbackController],
   providers: [
     // AT-027: los hechos de entrada llegan por puerto; el adaptador local lee de la misma base.
+    LocalRiskFraudFactsReader,
     LocalRiskInputFactsAdapter,
     { provide: RISK_INPUT_FACTS_PORT, useExisting: LocalRiskInputFactsAdapter },
     RiskRepository,

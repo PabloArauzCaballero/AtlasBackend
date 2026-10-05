@@ -5,6 +5,8 @@
  * @system Interfaz + token. El adaptador local los lee de la misma base; un adaptador remoto los pediría
  *   al dueño. `readAt` deja constancia de la frescura de los hechos con los que se decidió.
  */
+import type { RiskFraudFacts } from '../risk-fraud-flags.js';
+
 export type RiskInputFacts = Readonly<{
   /** `false` cuando el cliente no existe en el tenant: el caso de uso responde 404, no evalúa. */
   exists: boolean;
@@ -17,6 +19,8 @@ export type RiskInputFacts = Readonly<{
    * Hasta el plan F3 el riesgo no lo veía y `behavior_score` valía 50 para todos (H-10).
    */
   behaviorBotScore: number | null;
+  /** Los hechos de fraude del alta (dispositivo, red, ritmo, agenda). `null` si no hay lector: no cuenta en contra. */
+  fraud: RiskFraudFacts | null;
   readAt: string;
 }>;
 
