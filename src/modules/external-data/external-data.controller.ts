@@ -201,10 +201,16 @@ export class ExternalDataController {
   @ApiResponse({ status: 200, description: 'Detalle de la solicitud.' })
   @ApiResponse({ status: 404, description: 'Solicitud no encontrada.' })
   @Get('requests/:requestId')
-  getRequest(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(requestIdParamsSchema)) params: RequestIdParamsDto) {
+  getRequest(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(requestIdParamsSchema)) params: RequestIdParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
     return this.externalDataService.getProviderRequest({
       tenantId: tenantId,
       requestId: params.requestId,
+      // Un cliente sólo ve SUS solicitudes (404 si es de otro); el personal interno, las del tenant.
+      customerId: customerScopeForConsentMutation(currentUser),
     });
   }
 

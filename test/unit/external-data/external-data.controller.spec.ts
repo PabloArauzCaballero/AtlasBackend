@@ -86,8 +86,8 @@ describe('ExternalDataController (ejecución)', () => {
   it('lecturas por cliente y por request (features, scoring-input, decision-package, observations, getRequest, health)', async () => {
     const svc = service();
     const c = new ExternalDataController(svc as never);
-    await c.getRequest('1', { requestId: '7' } as never);
-    expect(svc.getProviderRequest).toHaveBeenCalledWith({ tenantId, requestId: '7' });
+    await c.getRequest('1', { requestId: '7' } as never, user);
+    expect(svc.getProviderRequest).toHaveBeenCalledWith({ tenantId, requestId: '7', customerId: undefined });
     await c.getProviderHealth('SEGIP');
     expect(svc.getProviderHealth).toHaveBeenCalledWith('SEGIP');
     await c.getUserFeatures('1', { customerId: '9' } as never, user);
@@ -103,6 +103,14 @@ describe('ExternalDataController (ejecución)', () => {
     });
     await c.getUserObservations('1', { customerId: '9' } as never, user);
     expect(svc.getCustomerObservations).toHaveBeenCalledWith({ tenantId, customerId: '9' });
+  });
+
+  it('getRequest de un customer va acotado a su propio customerId', async () => {
+    const svc = service();
+    const c = new ExternalDataController(svc as never);
+    const customer = { role: 'customer', tenantId: '1', customerId: '9' } as never;
+    await c.getRequest('1', { requestId: '7' } as never, customer);
+    expect(svc.getProviderRequest).toHaveBeenCalledWith({ tenantId: tenantIdFromHeader('1', customer), requestId: '7', customerId: '9' });
   });
 
   it('bloquea a un customer que consulta datos de otro cliente', () => {

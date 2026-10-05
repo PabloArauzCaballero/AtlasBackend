@@ -123,7 +123,7 @@ export class ExternalDataService {
     return this.evidence.revokeConsent(input);
   }
 
-  getProviderRequest(input: { tenantId: string; requestId: string }) {
+  getProviderRequest(input: { tenantId: string; requestId: string; customerId?: string }) {
     return this.evidence.getProviderRequest(input);
   }
 
