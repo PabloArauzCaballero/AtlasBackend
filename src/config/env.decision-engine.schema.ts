@@ -4,7 +4,7 @@
  * @system valida y compone configuración tipada al arrancar.
  */
 import { z } from 'zod';
-import { optionalUrlEnvSchema } from './env.primitives.js';
+import { optionalNonEmptyStringEnvSchema, optionalUrlEnvSchema } from './env.primitives.js';
 
 /**
  * ATLAS Decision Engine: el motor de políticas versionadas que decide crédito, riesgo y fraude.
@@ -26,8 +26,8 @@ import { optionalUrlEnvSchema } from './env.primitives.js';
  */
 export const decisionEngineEnvShape = {
   DECISION_ENGINE_BASE_URL: optionalUrlEnvSchema,
-  DECISION_ENGINE_API_KEY: z.string().optional(),
-  DECISION_ENGINE_OUTCOME_API_KEY: z.string().optional(),
+  DECISION_ENGINE_API_KEY: optionalNonEmptyStringEnvSchema,
+  DECISION_ENGINE_OUTCOME_API_KEY: optionalNonEmptyStringEnvSchema,
   /*
    * Credencial del plano de GOBIERNO del motor: registrar el consentimiento del titular.
    *
@@ -35,7 +35,7 @@ export const decisionEngineEnvShape = {
    * escribir el permiso que le autoriza a decidir. Si no está configurada se usa la de desenlaces,
    * que ya es del plano de gestión — no se cae a la de ejecución en ningún caso.
    */
-  DECISION_ENGINE_GOVERNANCE_API_KEY: z.string().optional(),
+  DECISION_ENGINE_GOVERNANCE_API_KEY: optionalNonEmptyStringEnvSchema,
   /**
    * El inquilino DEL MOTOR con el que habla este backend por el plano de gestión (catálogo de
    * artefactos, casos de revisión manual, worker de extractos). Es el tenant del Motor, no el de
@@ -66,7 +66,7 @@ export const decisionEngineEnvShape = {
    * locuciones en bucle. Si no está configurada se cae a la de gobierno, que ya es del plano de
    * gestión; nunca a la de ejecución.
    */
-  DECISION_ENGINE_AUDIO_API_KEY: z.string().optional(),
+  DECISION_ENGINE_AUDIO_API_KEY: optionalNonEmptyStringEnvSchema,
   /**
    * Cuánto se espera al worker de locución. Aparte del timeout de las decisiones, y más largo.
    *
@@ -248,7 +248,7 @@ export const decisionEngineEnvShape = {
    * locución es exactamente lo que hay que poder hacer el día que se sospeche de ella. Si no está
    * configurada se cae a la de gobierno, que ya es del plano de gestión, nunca a la de ejecución.
    */
-  DECISION_ENGINE_STATEMENT_API_KEY: z.string().optional(),
+  DECISION_ENGINE_STATEMENT_API_KEY: optionalNonEmptyStringEnvSchema,
   /**
    * Cuánto se espera a CADA llamada del worker de extractos.
    *
