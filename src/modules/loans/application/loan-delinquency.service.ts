@@ -8,7 +8,7 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize';
 import { LoanInstallmentModel, LoanModel } from '../../../database/models/index.js';
-import { bucketForDaysPastDue, loanDaysPastDue } from '../domain/loan-delinquency.js';
+import { bucketForDaysPastDue, civilDateOf, loanDaysPastDue } from '../domain/loan-delinquency.js';
 import { clampToZero, toCents } from '../domain/money.util.js';
 import { amountForLabel, labelForLoan, OUTCOME_WINDOW_DAYS, windowIsMature, type InstallmentHistory } from '../domain/loan-outcome.js';
 import { CreditLineService } from '../../credit/application/credit-line.service.js';
@@ -108,11 +108,28 @@ export class LoanDelinquencyService {
         // Un préstamo que falla no puede detener el barrido: el resto de la cartera sigue sin
         // evaluar y el dato de hoy no se recupera mañana.
         this.logger.error(`No se pudo evaluar el préstamo ${loan.id}: ${(error as Error).message}`);
+        await this.markEvaluationAttempt(loan, now);
       }
     }
 
     const recalculated = await this.refreshCreditLines(affected);
     return { evaluated, enqueued, total: loans.length, recalculated };
+  }
+
+  /**
+   * Avanza la marca del préstamo que falló, fuera de su transacción ya revertida.
+   *
+   * El lote se elige por `delinquency_evaluated_at` más antigua: un préstamo que falla siempre
+   * conservaba la suya y volvía al principio de cada pasada, y con tantos rotos como el límite del
+   * lote ningún otro préstamo se volvía a evaluar. Así va al final de la cola y se reintenta en su
+   * turno. Si esto también falla, sólo queda el log: no puede tumbar el barrido.
+   */
+  private async markEvaluationAttempt(loan: LoanModel, now: Date): Promise<void> {
+    try {
+      await this.loans.markDelinquencyEvaluated(loan.tenantId, loan.id, now);
+    } catch (error) {
+      this.logger.error(`No se pudo avanzar la marca del préstamo ${loan.id}: ${(error as Error).message}`);
+    }
   }
 
   /**
@@ -164,15 +181,25 @@ export class LoanDelinquencyService {
     locked.updatedAtValue = now;
     await locked.save({ transaction });
 
-    // La cuota vencida e impaga se marca como tal: cobranza pregunta por estado, no por fecha.
-    for (const installment of installments) {
+    /*
+     * La cuota vencida e impaga se marca como tal: cobranza pregunta por estado, no por fecha.
+     *
+     * Sólo en préstamos ACTIVOS. El castigo pone en `written_off` las cuotas impagas sin tocar sus
+     * importes, así que siguen con saldo y fecha pasada: sin este corte, el primer barrido las volvía
+     * `overdue` y el castigo desaparecía del calendario y de las cuotas cobrables. Y el atraso de la
+     * cuota se recalcula en cada pasada, no sólo al entrar en mora: si no, se quedaba en 1 día.
+     */
+    const today = civilDateOf(now);
+    for (const installment of locked.status === 'active' ? installments : []) {
+      if (installment.status === 'written_off' || installment.status === 'paid') continue;
       const outstanding = outstandingCentsOf(installment);
-      if (outstanding > 0 && installment.dueDate < now.toISOString().slice(0, 10) && installment.status !== 'overdue') {
-        installment.status = 'overdue';
-        installment.daysPastDue = loanDaysPastDue([{ dueDate: installment.dueDate, outstandingCents: outstanding }], now);
-        installment.updatedAtValue = now;
-        await installment.save({ transaction });
-      }
+      if (outstanding <= 0 || installment.dueDate >= today) continue;
+      const installmentDaysPastDue = loanDaysPastDue([{ dueDate: installment.dueDate, outstandingCents: outstanding }], now);
+      if (installment.status === 'overdue' && installment.daysPastDue === installmentDaysPastDue) continue;
+      installment.status = 'overdue';
+      installment.daysPastDue = installmentDaysPastDue;
+      installment.updatedAtValue = now;
+      await installment.save({ transaction });
     }
 
     if (previousBucket !== locked.delinquencyBucket) {

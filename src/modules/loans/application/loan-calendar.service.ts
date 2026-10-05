@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { LoanInstallmentModel, LoanModel } from '../../../database/models/index.js';
 import { PartnerDirectoryService } from '../../partner-onboarding/application/partner-directory.service.js';
 import { LoansRepository } from '../loans.repository.js';
+import { civilDateOf } from '../domain/loan-delinquency.js';
 
 /**
  * El estado de una cuota, decidido por el SERVIDOR.
@@ -73,7 +74,8 @@ export class LoanCalendarService {
     );
 
     const loanById = new Map(active.map((loan) => [String(loan.id), loan]));
-    const today = now.toISOString().slice(0, 10);
+    // El día del cliente, no el de UTC: a las 20:00 de Bolivia la cuota de hoy no está vencida.
+    const today = civilDateOf(now);
 
     const entries = installments
       .filter((installment) => loanById.has(String(installment.loanId)))
