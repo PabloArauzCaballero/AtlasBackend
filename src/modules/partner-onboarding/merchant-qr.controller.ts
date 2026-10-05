@@ -5,6 +5,7 @@
  */
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -56,6 +57,10 @@ export class MerchantQrController {
   @ApiOperation({ summary: 'Obtener el QR bancario aprobado del comercio de una caja activa' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiBody({ schema: zodToApiSchema(paymentQrForPosSchema) })
+  // Los ids de comercio y caja son secuenciales: sin freno propio, recorrerlos con el límite global
+  // (100/min) armaba el directorio de cuentas de cobro de todos los comercios. Una app que paga una
+  // cuota pide uno o dos por pantalla.
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   @Post('payment')
   @HttpCode(HttpStatus.OK)
   payment(@CurrentTenant() tenantId: string, @Body(new ZodValidationPipe(paymentQrForPosSchema)) body: PaymentQrForPosDto) {
