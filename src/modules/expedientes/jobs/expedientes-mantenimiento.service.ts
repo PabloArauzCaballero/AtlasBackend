@@ -195,19 +195,7 @@ export class ExpedientesMantenimientoService {
     }
 
     // 2. Papelera pasada de plazo.
-    const vencidos = await this.repository.findPapeleraVencida(env.EXPEDIENTES_TRASH_RETENTION_DAYS, 200);
-    let nodosPurgados = 0;
-    for (const nodo of vencidos) {
-      if (nodo.storageKey && !nodo.virtual) {
-        const referencias = await this.refCounter.contar(nodo.storageKey, nodo.id);
-        // Ante la duda no se borra: se reintenta en la vuelta siguiente. Un huérfano cuesta unos
-        // kilobytes; un hueco en la evidencia de una decisión no se repara.
-        if (!this.refCounter.puedeBorrarse(referencias)) continue;
-        await this.storage.deleteObject(nodo.storageKey).catch(() => undefined);
-      }
-      await this.repository.borrarNodoDefinitivo(nodo.tenantId, nodo.id);
-      nodosPurgados += 1;
-    }
+    const nodosPurgados = await this.vaciarPapeleraVencida();
 
     // 3. Expedientes cuya retención venció.
     const expedientes = await this.repository.findExpedientesVencidos(20);
@@ -225,5 +213,48 @@ export class ExpedientesMantenimientoService {
       this.logger.log(`Limpieza de expedientes: ${tickets.length} tickets, ${nodosPurgados} nodos, ${expedientes.length} expedientes.`);
     }
     return { ticketsCaducados: tickets.length, nodosPurgados, expedientesPurgados: expedientes.length };
+  }
+
+  /**
+   * Purga la papelera vencida, por páginas.
+   *
+   * La fila se borra SÓLO si el objeto se borró. Antes el fallo del almacén se tragaba y la fila se
+   * borraba igual: el objeto (un carnet, una selfie) quedaba en el bucket sin ningún puntero, y ni
+   * este job ni `purgar` lo volvían a encontrar. Es el mismo criterio que `ExpedienteService.purgar`.
+   *
+   * Los conservados se saltan con `desplazamiento` para que no tapen al resto en cada pasada.
+   */
+  private async vaciarPapeleraVencida(): Promise<number> {
+    const pagina = 200;
+    let purgados = 0;
+    let conservados = 0;
+    for (let vuelta = 0; vuelta < 5; vuelta += 1) {
+      const vencidos = await this.repository.findPapeleraVencida(env.EXPEDIENTES_TRASH_RETENTION_DAYS, pagina, conservados);
+      for (const nodo of vencidos) {
+        if (nodo.storageKey && !nodo.virtual && !(await this.borrarObjetoSiNadieLoUsa(nodo.storageKey, nodo.id))) {
+          // Ante la duda no se borra: se reintenta en la vuelta siguiente. Un huérfano cuesta unos
+          // kilobytes; un hueco en la evidencia de una decisión no se repara.
+          conservados += 1;
+          continue;
+        }
+        await this.repository.borrarNodoDefinitivo(nodo.tenantId, nodo.id);
+        purgados += 1;
+      }
+      if (vencidos.length < pagina) break;
+    }
+    return purgados;
+  }
+
+  /** `true` si el objeto se borró; `false` si se conserva (referenciado, conteo incierto o fallo del almacén). */
+  private async borrarObjetoSiNadieLoUsa(storageKey: string, nodoId: string): Promise<boolean> {
+    const referencias = await this.refCounter.contar(storageKey, nodoId);
+    if (!this.refCounter.puedeBorrarse(referencias)) return false;
+    try {
+      await this.storage.deleteObject(storageKey);
+      return true;
+    } catch (error) {
+      this.logger.warn(`No se pudo borrar ${storageKey}: ${(error as Error).message}`);
+      return false;
+    }
   }
 }

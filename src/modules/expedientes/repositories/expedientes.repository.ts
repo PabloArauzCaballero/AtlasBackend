@@ -242,10 +242,24 @@ export class ExpedientesRepository {
     await this.nodos.destroy({ where: { tenantId, id: nodoId }, transaction });
   }
 
-  /** Lo que la papelera puede purgar: borrado hace más de `dias`. */
-  findPapeleraVencida(dias: number, limite: number): Promise<ExpedienteNodoModel[]> {
+  /**
+   * Lo que la papelera puede purgar: borrado hace más de `dias`.
+   *
+   * En orden estable y con `desplazamiento`: los nodos que la limpieza CONSERVA (referenciados o con
+   * el almacén caído) siguen cumpliendo el filtro, y sin orden ni salto la pasada leía siempre los
+   * mismos y nunca llegaba al resto.
+   */
+  findPapeleraVencida(dias: number, limite: number, desplazamiento = 0): Promise<ExpedienteNodoModel[]> {
     const corte = new Date(Date.now() - dias * 24 * 60 * 60 * 1000);
-    return this.nodos.findAll({ where: { borradoEn: { [Op.lt]: corte } }, limit: limite });
+    return this.nodos.findAll({
+      where: { borradoEn: { [Op.lt]: corte } },
+      order: [
+        ['borrado_en', 'ASC'],
+        ['_id', 'ASC'],
+      ],
+      limit: limite,
+      offset: desplazamiento,
+    });
   }
 
   listarPapelera(tenantId: string, limite: number): Promise<ExpedienteNodoModel[]> {
