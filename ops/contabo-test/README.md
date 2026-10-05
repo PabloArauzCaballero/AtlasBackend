@@ -119,6 +119,10 @@ y copian las del portal admin para que Telegram y el portal digan lo mismo.
 - Con el servidor cargado, Traefik tarda 2 s en notar que una principal cayó, y 2 s más en confiar en la que
   vuelve: las APIs (sin reintento, para no duplicar escrituras) tienen ese hueco; los portales lo tapan con
   `retry`.
+- El emisor JWT de TEST vale literalmente `Falta JWT_ISSUER` (con espacio, así está en Coolify): en `monitor.env` va entre
+  comillas, y sin ellas `. monitor.env` rompe esa línea y el monitor firma con el emisor por defecto → 401 `SERVICE_TOKEN_INVALID`.
+- Coolify registra solo, VACÍAS y con marca de build, las variables que el compose referencia con `${X:-}`: «existe» no
+  significa «tiene valor».
 - `Host(161.97.85.216)` con prioridad 200 se comería `/ai/` (`atlas-ai-por-ip.yaml`): la regla de la app web
   lo excluye.
 

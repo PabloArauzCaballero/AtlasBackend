@@ -32,7 +32,8 @@ else
   {
     printf 'CONTEXT_SERVICE_TOKEN_SECRET=%s\n' "$secreto"
     printf 'MONITOR_TENANT_ID=%s\n' "$tenant"
-    printf 'JWT_ISSUER=%s\n' "$issuer"
+    # Entre comillas: el emisor de TEST vale literalmente «Falta JWT_ISSUER» (con espacio) y sin ellas `. monitor.env` rompe.
+    printf "JWT_ISSUER='%s'\n" "$issuer"
   } >> "$tmp"
   mv "$tmp" "$ENV"
 fi
