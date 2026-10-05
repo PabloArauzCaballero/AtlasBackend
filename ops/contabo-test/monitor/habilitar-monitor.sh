@@ -19,7 +19,7 @@ touch "$ENV"; chmod 600 "$ENV"
 
 api=$(docker ps -q --filter label=coolify.applicationId=1 --filter label=com.docker.compose.service=api --filter status=running | head -n 1)
 [ -n "$api" ] || { echo "No hay API de AtlasBackend en marcha: no se puede leer su emisor JWT."; exit 1; }
-tenant=$(docker exec atlas-postgres psql -U postgres -d atlas -Atc "select id from iam.tenants order by id limit 1")
+tenant=$(docker exec atlas-postgres psql -U postgres -d atlas -Atc "select _id from iam.tenants order by _id limit 1")
 issuer=$(docker exec "$api" printenv JWT_ISSUER || true)
 [ -n "$tenant" ] || { echo "No se encontró el tenant."; exit 1; }
 
@@ -37,14 +37,14 @@ else
   mv "$tmp" "$ENV"
 fi
 
-# Coolify: la variable se cifra con la clave de la instalación, así que se crea con su propio PHP.
+# Coolify: la variable se cifra con la clave de la instalación, así que se escribe con su propio PHP.
+# Coolify YA registra la variable vacía al leer el compose (`${CONTEXT_SERVICE_TOKEN_SECRET:-}`): por eso no basta
+# con mirar si existe; si está vacía se rellena, y se le quita la marca de build (un secreto no va como build-arg).
 S=$(grep '^CONTEXT_SERVICE_TOKEN_SECRET=' "$ENV" | cut -d= -f2-) \
   docker exec -e S coolify php artisan tinker --execute='
 $app = App\Models\Application::find(1);
-$ya = $app->environment_variables()->where("key", "CONTEXT_SERVICE_TOKEN_SECRET")->where("is_preview", false)->exists();
-if ($ya) { echo "Coolify ya tenía CONTEXT_SERVICE_TOKEN_SECRET: sin cambios.\n"; }
-else {
-  $app->environment_variables()->create(["key" => "CONTEXT_SERVICE_TOKEN_SECRET", "value" => getenv("S"), "is_preview" => false, "is_runtime" => true, "is_buildtime" => false, "is_literal" => true]);
-  echo "Variable creada en Coolify para AtlasBackend.\n";
-}'
+$v = $app->environment_variables()->where("key", "CONTEXT_SERVICE_TOKEN_SECRET")->where("is_preview", false)->first();
+if ($v && strlen((string) $v->value) > 0) { echo "Coolify ya tenía el secreto con valor: sin cambios.\n"; }
+elseif ($v) { $v->value = getenv("S"); $v->is_runtime = true; $v->is_buildtime = false; $v->save(); echo "Secreto escrito en la variable existente de Coolify.\n"; }
+else { $app->environment_variables()->create(["key" => "CONTEXT_SERVICE_TOKEN_SECRET", "value" => getenv("S"), "is_preview" => false, "is_runtime" => true, "is_buildtime" => false, "is_literal" => true]); echo "Variable creada en Coolify para AtlasBackend.\n"; }'
 echo "Hecho. Entra en vigor en el próximo despliegue de AtlasBackend (el monitor la usa desde entonces)."
