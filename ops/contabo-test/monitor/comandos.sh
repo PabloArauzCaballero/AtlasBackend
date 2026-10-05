@@ -143,7 +143,7 @@ $(j 'if .traffic.last24h.slowestRoute then "Ruta más lenta (24 h): \(.traffic.l
 cmd_proveedores() {
   resumen_fresco || { sin_resumen "/proveedores"; return 0; }
   telegram "Proveedores externos: $(ico "$(j .providers.status)")
-$(j '.providers | "Responden \(.respondingProviders) de \(.providers) (sin medir: \(.unmeasuredProviders))\nÉxito de las llamadas: \(.successRate // "s/d")%\nLlamadas: \(.totalCalls) · fallidas \(.failedCalls) · bloqueadas \(.blockedCalls)\nLatencia p95 más alta: \(.worstP95LatencyMs // "s/d") ms"')"
+$(j '.providers | "Responden \(.respondingProviders) de \(.providers) (sin medir: \(.unmeasuredProviders))\nÉxito de las llamadas: \(if .successRate then "\(.successRate)%" else "sin llamadas en 24 h" end)\nLlamadas: \(.totalCalls) · fallidas \(.failedCalls) · bloqueadas \(.blockedCalls)\nLatencia p95 más alta: \(if .worstP95LatencyMs then "\(.worstP95LatencyMs) ms" else "sin datos" end)"')"
 }
 
 cmd_copias() {
