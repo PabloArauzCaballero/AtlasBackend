@@ -13,7 +13,6 @@ import { CustomerContactsSnapshotService } from '../customer-onboarding/applicat
 import { IdentityReviewCaseRepository } from '../customer-onboarding/repositories/identity-review-case.repository.js';
 import { abrirCasoDeIdentidad, anexarExpedienteAlCaso, desenlaceDelMotor, type DesenlaceDelMotor } from './mobile-identity.human-review.js';
 import { OnboardingReviewDossierPublisher } from '../customer-onboarding/application/onboarding-review-dossier.publisher.js';
-
 import { StartIdentityVerificationDto, type IdentityVerificationState, type IdentityVerificationView } from './mobile-identity.schemas.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
 
@@ -129,8 +128,7 @@ export class MobileIdentityService {
     // carnet. Un intento ajeno, o sin dueño, contesta lo mismo que uno que no existe.
     const ajeno = currentUser?.role === 'customer' && String(attempt?.customerId ?? '') !== String(currentUser.customerId ?? '-');
     if (!attempt || ajeno) {
-      // 404 y no 403 cuando la fila es de otro inquilino o de otra persona: un 403
-      // confirmaría que existe, que es justo lo que no debe poder averiguarse.
+      // 404 y no 403: un 403 confirmaría que existe, que es justo lo que no debe poder averiguarse.
       throw new NotFoundException({
         code: 'IDENTITY_VERIFICATION_NOT_FOUND',
         message: 'No hay ninguna verificación con ese identificador.',
