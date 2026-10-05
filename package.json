@@ -180,7 +180,7 @@
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "@scalar/nestjs-api-reference": "^1.2.21",
     "argon2": "^0.45.0",
-    "compression": "^1.7.5",
+    "compression": "^1.8.2",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "helmet": "^8.3.0",
