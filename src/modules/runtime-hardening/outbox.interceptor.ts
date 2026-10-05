@@ -4,9 +4,10 @@
  * @system centraliza idempotencia y outbox como garantías transversales del runtime HTTP.
  */
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
-import { Observable, from, mergeMap, of } from 'rxjs';
+import { Observable, catchError, from, mergeMap, of, throwError } from 'rxjs';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { firstHeader } from '../../common/utils/http/headers.util.js';
+import { markCommittedResult } from './application/committed-result.js';
 import { RuntimeHardeningService } from './runtime-hardening.service.js';
 
 type RequestLike = {
@@ -51,7 +52,12 @@ export class ApiCommandOutboxInterceptor implements NestInterceptor {
             },
             correlationId: request.correlationId ?? null,
           }),
-        ).pipe(mergeMap(() => of(body)));
+        ).pipe(
+          mergeMap(() => of(body)),
+          // El handler ya hizo commit: el fallo es del registro de auditoría, no de la mutación. Se
+          // marca para que la idempotencia guarde este cuerpo y un reintento no la vuelva a ejecutar.
+          catchError((error: unknown) => throwError(() => markCommittedResult(error, body))),
+        );
       }),
     );
   }

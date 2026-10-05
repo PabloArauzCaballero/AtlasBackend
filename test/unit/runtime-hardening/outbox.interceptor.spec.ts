@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { firstValueFrom, of } from 'rxjs';
 import { ApiCommandOutboxInterceptor } from '../../../src/modules/runtime-hardening/outbox.interceptor.js';
+import { committedResultOf } from '../../../src/modules/runtime-hardening/application/committed-result.js';
 
 /**
  * `ApiCommandOutboxInterceptor` (Fase 1.2 — branch coverage): registra en el outbox toda mutación
@@ -81,5 +82,14 @@ describe('ApiCommandOutboxInterceptor', () => {
     const arg = (runtime.emitApiCommandCompleted as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
     expect(arg.eventCode).toBe('put_unknown_completed');
     expect((arg.payload as Record<string, unknown>).resultType).toBe('undefined');
+  });
+
+  it('si falla el outbox, propaga el MISMO error marcado con el cuerpo ya comprometido del handler', async () => {
+    const { interceptor, runtime } = build();
+    const caida = new Error('pool agotado');
+    (runtime.emitApiCommandCompleted as jest.Mock).mockRejectedValueOnce(caida as never);
+    const request = { method: 'POST', originalUrl: '/x', headers: {} };
+    await expect(firstValueFrom(interceptor.intercept(contextOf(request), handlerOf({ id: 'r1' })))).rejects.toBe(caida);
+    expect(committedResultOf(caida)).toEqual({ body: { id: 'r1' } });
   });
 });
