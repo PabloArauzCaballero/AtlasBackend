@@ -47,6 +47,21 @@ describe('ApiCommandOutboxInterceptor', () => {
     expect(arg.payload).toMatchObject({ method: 'POST', actorRole: 'internal_operator', resultType: 'object' });
   });
 
+  it('el eventCode usa la plantilla de la ruta y el path no guarda la query', async () => {
+    const { interceptor, runtime } = build();
+    const request = {
+      method: 'POST',
+      originalUrl: '/api/v1/customers/9/sessions/55/heartbeat?email=a@b.com',
+      route: { path: '/api/v1/customers/:customerId/sessions/:sessionId/heartbeat' },
+      params: { customerId: '9' },
+      headers: {},
+    };
+    await firstValueFrom(interceptor.intercept(contextOf(request), handlerOf({ ok: true })));
+    const arg = (runtime.emitApiCommandCompleted as jest.Mock).mock.calls[0][0] as { eventCode: string; payload: { path: string } };
+    expect(arg.eventCode).toBe('post_api_v1_customers_customerId_sessions_sessionId_heartbeat_completed');
+    expect(arg.payload.path).toBe('/api/v1/customers/9/sessions/55/heartbeat');
+  });
+
   it('mutación pública: tenant del header, rol public_or_unknown, agregado nulo, path de respaldo y correlation null', async () => {
     const { interceptor, runtime } = build();
     const request = {

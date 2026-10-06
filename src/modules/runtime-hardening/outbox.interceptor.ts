@@ -14,6 +14,7 @@ type RequestLike = {
   method: string;
   originalUrl?: string;
   path?: string;
+  route?: { path?: unknown };
   params?: Record<string, string>;
   headers: Record<string, string | string[] | undefined>;
   user?: AuthenticatedUser;
@@ -34,6 +35,10 @@ export class ApiCommandOutboxInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       mergeMap((body) => {
+        const pathNoQuery = (request.originalUrl ?? request.path ?? 'unknown').split('?')[0] ?? 'unknown';
+        // La plantilla de la ruta (`/customers/:customerId/...`) y no la URL con ids: el eventCode es un
+        // tipo de evento, y con ids tenía cardinalidad ilimitada. Sin plantilla, la URL sin query.
+        const routeTemplate = typeof request.route?.path === 'string' ? request.route.path : pathNoQuery;
         const tenantId = request.user?.tenantId ?? tenantFromHeader(request.headers['x-tenant-id']);
         // Antes era fire-and-forget con `void`: si fallaba la escritura del outbox, el cliente
         // recibía OK pero el sistema perdía trazabilidad/eventual processing. Ahora se espera la
@@ -43,10 +48,10 @@ export class ApiCommandOutboxInterceptor implements NestInterceptor {
             tenantId,
             aggregateType: 'api_command',
             aggregateId: request.params?.customerId ?? request.params?.caseId ?? request.params?.sessionId ?? null,
-            eventCode: `${request.method.toLowerCase()}_${(request.originalUrl ?? request.path ?? 'unknown').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '')}_completed`,
+            eventCode: `${request.method.toLowerCase()}_${routeTemplate.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '')}_completed`,
             payload: {
               method: request.method,
-              path: request.originalUrl ?? request.path,
+              path: pathNoQuery,
               actorRole: request.user?.role ?? 'public_or_unknown',
               resultType: body && typeof body === 'object' ? 'object' : typeof body,
             },
