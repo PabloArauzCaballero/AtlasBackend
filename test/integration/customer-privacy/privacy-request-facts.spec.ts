@@ -17,6 +17,7 @@ import { requireIsolatedDatabase } from '../../support/isolated-database.guard.j
 const TENANT = '880001';
 const VIEJA = '880053';
 const NUEVA = '880054';
+const RECHAZADA = '880055';
 let db: Sequelize | null = null;
 let skipped = false;
 
@@ -24,7 +25,8 @@ const SIEMBRA = `
 SET LOCAL session_replication_role = replica;
 INSERT INTO iam.tenants (_id, _created_at) VALUES (${TENANT}, now());
 INSERT INTO customer.customers (_id, _tenant_id, lifecycle_status, _created_at) VALUES
-  (${VIEJA}, ${TENANT}, 'active', now() - interval '30 days'), (${NUEVA}, ${TENANT}, 'onboarding_in_progress', now() - interval '2 days');
+  (${VIEJA}, ${TENANT}, 'active', now() - interval '30 days'), (${NUEVA}, ${TENANT}, 'onboarding_in_progress', now() - interval '2 days'),
+  (${RECHAZADA}, ${TENANT}, 'under_review', now() - interval '20 days');
 INSERT INTO customer.customer_contact_methods (_tenant_id, customer_id, contact_type, _created_at) VALUES
   (${TENANT}, ${VIEJA}, 'email', now() - interval '30 days'), (${TENANT}, ${VIEJA}, 'phone', now() - interval '3 days'),
   (${TENANT}, ${NUEVA}, 'phone', now() - interval '2 days');
@@ -52,7 +54,8 @@ INSERT INTO privacy.data_subject_requests (_id, _tenant_id, customer_id, request
 INSERT INTO credit.bank_statement_reviews (_tenant_id, customer_id, promised_by, status, _created_at) VALUES
   (${TENANT}, ${VIEJA}, now() + interval '1 day', 'processing', now());
 INSERT INTO customer.identity_verification_attempts (_tenant_id, customer_id, final_result, _created_at) VALUES
-  (${TENANT}, ${VIEJA}, 'VERIFIED', now() - interval '10 days'), (${TENANT}, ${VIEJA}, 'PENDING', now());
+  (${TENANT}, ${VIEJA}, 'VERIFIED', now() - interval '10 days'), (${TENANT}, ${VIEJA}, 'PENDING', now()),
+  (${TENANT}, ${RECHAZADA}, 'REJECTED', now() - interval '5 days');
 `;
 
 beforeAll(async () => {
@@ -99,6 +102,7 @@ describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
       lifecycleStatus: 'active',
       // Un intento posterior todavía PENDING no tapa el VERIFIED anterior.
       identidadVerificada: true,
+      evidenciaIdentidad: true,
       contactoCambiado7d: true,
       dispositivoNuevo7d: true,
       fraudeAbierto: true,
@@ -134,11 +138,21 @@ describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
     expect(await hechos(NUEVA, '880045', 'rectification', 'zone')).toMatchObject({
       lifecycleStatus: 'onboarding_in_progress',
       identidadVerificada: false,
+      evidenciaIdentidad: false,
       contactoCambiado7d: false,
       dispositivoNuevo7d: false,
       fraudeAbierto: false,
       saldoPendiente: 0,
       tuvoCredito: false,
+    });
+  });
+
+  it('quien subió evidencia y fue rechazado no está verificado pero SÍ tiene evidencia que se retiene (M-02)', async () => {
+    if (skipped) return;
+    expect(await hechos(RECHAZADA, '880098', 'deletion', null)).toMatchObject({
+      lifecycleStatus: 'under_review',
+      identidadVerificada: false,
+      evidenciaIdentidad: true,
     });
   });
 

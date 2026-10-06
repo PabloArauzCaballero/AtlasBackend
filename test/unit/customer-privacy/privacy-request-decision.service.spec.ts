@@ -17,6 +17,7 @@ import {
 const hechos = {
   lifecycleStatus: 'active',
   identidadVerificada: true,
+  evidenciaIdentidad: true,
   contactoCambiado7d: false,
   dispositivoNuevo7d: false,
   fraudeAbierto: false,

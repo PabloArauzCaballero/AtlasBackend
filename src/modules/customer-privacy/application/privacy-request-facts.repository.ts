@@ -45,6 +45,7 @@ type Fila = {
   pagos_en_conciliacion: number;
   tuvo_credito: boolean;
   extracto_en_revision: boolean;
+  evidencia_identidad: boolean;
   cambios_del_campo: number;
 };
 
@@ -107,6 +108,10 @@ SELECT
     SELECT 1 FROM ${t('bank_statement_reviews')} b
      WHERE b._tenant_id = c._tenant_id AND b.customer_id = c._id AND b.status IN ('received', 'processing') AND b._deleted = FALSE
   ) AS extracto_en_revision,
+  EXISTS (
+    SELECT 1 FROM ${t('identity_verification_attempts')} iv
+     WHERE iv._tenant_id = c._tenant_id AND iv.customer_id = c._id
+  ) AS evidencia_identidad,
   (SELECT COUNT(*)::int FROM ${t('data_subject_requests')} d
     WHERE d._tenant_id = c._tenant_id AND d.customer_id = c._id AND d.request_type = 'rectification'
       AND d.rectification_field IS NOT DISTINCT FROM :campo AND :campo IS NOT NULL
@@ -162,6 +167,7 @@ export class PrivacyRequestFactsRepository {
       pagosEnConciliacion: Number(fila.pagos_en_conciliacion),
       tuvoCredito: Boolean(fila.tuvo_credito),
       extractoEnRevision: Boolean(fila.extracto_en_revision),
+      evidenciaIdentidad: Boolean(fila.evidencia_identidad),
       cambiosDelCampo365d: Number(fila.cambios_del_campo),
     };
   }
