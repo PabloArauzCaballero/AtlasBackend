@@ -183,5 +183,33 @@ describe('ConcesionService', () => {
         }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
+
+    it('quien sólo comparte no revoca una concesión de administración ajena', async () => {
+      concesiones = [concesion({ id: '5', nodoId: '100', principalTipo: 'usuario_interno', principalId: '8', nivel: 'administrar' })];
+      await expect(
+        service.revocar({
+          tenantId: '1',
+          expedienteId: '10',
+          nodoId: '100',
+          concesionId: '5',
+          actor: actor(),
+          nivelDelActor: 'compartir',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(concesiones[0].revocadoEn).toBeNull();
+    });
+
+    it('quien comparte sí revoca una concesión de su nivel o menor', async () => {
+      concesiones = [concesion({ id: '5', nodoId: '100', principalTipo: 'usuario_interno', principalId: '8', nivel: 'leer' })];
+      await service.revocar({
+        tenantId: '1',
+        expedienteId: '10',
+        nodoId: '100',
+        concesionId: '5',
+        actor: actor(),
+        nivelDelActor: 'compartir',
+      });
+      expect(concesiones[0].revocadoEn).not.toBeNull();
+    });
   });
 });
