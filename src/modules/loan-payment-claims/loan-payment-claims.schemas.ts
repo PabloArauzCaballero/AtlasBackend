@@ -9,7 +9,9 @@ import { z } from 'zod';
 const amount = z
   .string()
   .trim()
-  .regex(/^\d{1,16}(\.\d{1,2})?$/u, 'Importe inválido.');
+  .regex(/^\d{1,16}(\.\d{1,2})?$/u, 'Importe inválido.')
+  // «0» y «0.00» pasaban el formato: un aviso por nada bloqueaba la cuota hasta que el comercio lo rechazara.
+  .refine((value) => Number(value) > 0, 'El importe debe ser mayor que cero.');
 
 /**
  * El ticket para subir el comprobante.

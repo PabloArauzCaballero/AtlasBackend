@@ -72,6 +72,16 @@ export class LoanPaymentClaimsService {
     const { loan, installment } = await this.contexto.requireOwnInstallment(input.tenantId, input.customerId, input.body.installmentId);
     if (installment.status === 'paid') throw new ConflictException('INSTALLMENT_ALREADY_PAID');
 
+    /*
+     * La clave tiene que ser de un ticket emitido a ESTE cliente para comprobantes de pago
+     * (`createProofTicket`). Sin esto, el aviso apuntaba a cualquier objeto del almacén y el comercio
+     * lo descargaba después por la ruta del comprobante; además `readObjectMetadata` hacía de oráculo
+     * de existencia de claves ajenas. Se rechaza ANTES de tocar el almacén.
+     */
+    if (!input.body.storageKey.startsWith(`${input.tenantId}/customer-${input.customerId}/PAYMENT_PROOF/`)) {
+      throw new UnprocessableEntityException('PAYMENT_PROOF_STORAGE_KEY_NOT_OWNED');
+    }
+
     const metadata = await this.storage.readObjectMetadata(input.body.storageKey);
     if (!metadata) throw new UnprocessableEntityException('EVIDENCE_OBJECT_NOT_FOUND');
 
