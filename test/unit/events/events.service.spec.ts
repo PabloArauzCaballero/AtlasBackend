@@ -188,6 +188,19 @@ describe('EventsService', () => {
       expect(event.save).not.toHaveBeenCalled();
     });
 
+    it('retryEvent y cancelEvent rechazan un evento que un worker está procesando, salvo bloqueo vencido', async () => {
+      const { service, repository } = buildService();
+      const enVuelo = () => fakeOutboxEvent({ status: 'processing', lockedAt: new Date(), lockedBy: 'w1' });
+      (repository.getById as jest.Mock).mockResolvedValueOnce(enVuelo() as never);
+      await expect(service.retryEvent('t1', '1')).rejects.toMatchObject({ status: 409, message: 'PROCESSING_EVENT_CANNOT_BE_RETRIED' });
+      (repository.getById as jest.Mock).mockResolvedValueOnce(enVuelo() as never);
+      await expect(service.cancelEvent('t1', '1')).rejects.toMatchObject({ status: 409, message: 'PROCESSING_EVENT_CANNOT_BE_CANCELLED' });
+
+      const varado = fakeOutboxEvent({ status: 'processing', lockedAt: new Date(Date.now() - 60 * 60_000), lockedBy: 'muerto' });
+      (repository.getById as jest.Mock).mockResolvedValueOnce(varado as never);
+      await expect(service.retryEvent('t1', '1')).resolves.toMatchObject({ status: 'pending' });
+    });
+
     it('cancelEvent moves a pending event to cancelled', async () => {
       const { service, repository } = buildService();
       const event = fakeOutboxEvent({ status: 'pending' });
