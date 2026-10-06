@@ -35,13 +35,19 @@ export class SessionsDeviceRepository {
     @InjectModel(DeviceRiskEventModel) private readonly deviceRiskEventModel: typeof DeviceRiskEventModel,
   ) {}
 
+  /**
+   * Se busca por la clave ÚNICA real (la huella sola: los índices de `global_device_fingerprints` y de
+   * `devices` no incluyen la versión). Filtrar también por versión hacía que una app con otra versión de
+   * huella no encontrara la fila, intentara crearla y chocara con el índice: 409 en cada inicio de sesión.
+   * La versión sigue guardándose al crear; `_fingerprintVersion` se conserva por compatibilidad de firma.
+   */
   findGlobalDevice(
     deviceFingerprint: string,
-    fingerprintVersion: string,
+    _fingerprintVersion: string,
     options: RepositoryOptions,
   ): Promise<GlobalDeviceFingerprintModel | null> {
     return this.globalDeviceModel.findOne({
-      where: { deviceFingerprint, fingerprintVersion },
+      where: { deviceFingerprint },
       transaction: options.transaction,
     } as FindOptions);
   }
@@ -72,11 +78,11 @@ export class SessionsDeviceRepository {
   findDevice(
     tenantId: string,
     deviceFingerprint: string,
-    fingerprintVersion: string,
+    _fingerprintVersion: string,
     options: RepositoryOptions,
   ): Promise<DeviceModel | null> {
     return this.deviceModel.findOne({
-      where: { tenantId, deviceFingerprint, fingerprintVersion, deleted: { [Op.ne]: true } },
+      where: { tenantId, deviceFingerprint, deleted: { [Op.ne]: true } },
       transaction: options.transaction,
     } as FindOptions);
   }
