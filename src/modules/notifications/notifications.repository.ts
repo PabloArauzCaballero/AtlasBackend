@@ -332,6 +332,17 @@ export class NotificationsRepository {
   }
 
   /**
+   * Reabre un mensaje para reintentarlo, sólo si falló (o quedó a medio reintentar). Compare-and-set:
+   * un entregado, leído o cancelado no se vuelve a mandar ni a cobrar por pulsar «reintentar».
+   */
+  async markMessageRetrying(message: NotificationMessageModel): Promise<boolean> {
+    const [reopened] = await this.messageModel.update({ status: 'retrying', failedAt: null, updatedAtValue: new Date() } as never, {
+      where: { id: message.id, tenantId: message.tenantId, status: { [Op.in]: ['failed', 'retrying'] } } as never,
+    });
+    return reopened === 1;
+  }
+
+  /**
    * Reclama el mensaje para entregarlo: compare-and-set sobre el estado que se leyó. Si otra tanda (el
    * job de pendientes, el de varados, un reintento manual) lo reclamó entre la lectura y aquí, el UPDATE
    * no toca ninguna fila y quien llega segundo no envía: así un SMS no sale ni se cobra dos veces.

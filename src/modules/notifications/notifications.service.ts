@@ -3,7 +3,7 @@
  * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { NotificationPoliciesRepository } from './notification-policies.repository.js';
 import { NotificationsRepository } from './notifications.repository.js';
@@ -78,10 +78,8 @@ export class NotificationsService {
 
   async retryMessage(tenantId: string, messageId: string) {
     const message = await this.repository.getMessage(tenantId, messageId);
-    message.status = 'retrying';
-    message.failedAt = null;
-    message.updatedAtValue = new Date();
-    await message.save();
+    // Sólo se reintenta lo que falló: antes un SMS entregado o un aviso cancelado salía otra vez.
+    if (!(await this.repository.markMessageRetrying(message))) throw new ConflictException('MESSAGE_NOT_RETRYABLE');
     await this.orchestrator.deliverMessage(messageId);
     return this.getMessage(tenantId, messageId);
   }

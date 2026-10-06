@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { NotificationsService } from '../../../src/modules/notifications/notifications.service.js';
 
 /**
@@ -18,6 +18,7 @@ describe('NotificationsService', () => {
         save: jest.fn(async (..._args: unknown[]) => undefined),
       })),
       listDeliveries: jest.fn(async (..._args: unknown[]) => []),
+      markMessageRetrying: jest.fn(async (..._args: unknown[]) => true),
       cancelMessage: jest.fn(async (..._args: unknown[]) => ({ id: 1, status: 'cancelled' })),
       listTemplates: jest.fn(async (..._args: unknown[]) => ({ rows: [], count: 0 })),
       createTemplate: jest.fn(async (..._args: unknown[]) => ({ id: 2, code: 'C' })),
@@ -87,13 +88,20 @@ describe('NotificationsService', () => {
     expect(res.deliveries).toHaveLength(1);
   });
 
-  it('retryMessage marca retrying, guarda, dispara el orchestrator y relee', async () => {
+  it('retryMessage reabre el mensaje fallido, dispara el orchestrator y relee', async () => {
     const { service, repository, orchestrator } = build();
-    const save = jest.fn(async (..._args: unknown[]) => undefined);
-    (repository.getMessage as jest.Mock).mockResolvedValue({ id: 1, channel: 'in_app', status: 'failed', save } as never);
+    const failed = { id: 1, channel: 'in_app', status: 'failed', save: jest.fn() };
+    (repository.getMessage as jest.Mock).mockResolvedValue(failed as never);
     await service.retryMessage('1', '1');
-    expect(save).toHaveBeenCalledTimes(1);
+    expect(repository.markMessageRetrying).toHaveBeenCalledWith(failed);
     expect(orchestrator.deliverMessage).toHaveBeenCalledWith('1');
+  });
+
+  it('retryMessage no reenvía un mensaje entregado, leído o cancelado: 409 MESSAGE_NOT_RETRYABLE', async () => {
+    const { service, repository, orchestrator } = build();
+    (repository.markMessageRetrying as jest.Mock).mockResolvedValueOnce(false as never);
+    await expect(service.retryMessage('1', '1')).rejects.toBeInstanceOf(ConflictException);
+    expect(orchestrator.deliverMessage).not.toHaveBeenCalled();
   });
 
   it('assertCustomerAccess: el customer solo accede a lo suyo; los internos a todo', async () => {

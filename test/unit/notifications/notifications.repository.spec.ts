@@ -173,6 +173,21 @@ describe('NotificationsRepository — núcleo', () => {
     expect((message as { queuedAt: Date | null }).queuedAt).not.toBeNull();
   });
 
+  it('markMessageRetrying sólo reabre mensajes failed o retrying del tenant', async () => {
+    const { repo, messageModel } = build();
+    (messageModel.update as jest.Mock).mockResolvedValueOnce([1] as never).mockResolvedValueOnce([0] as never);
+    const message = baseMessage({ status: 'failed' });
+    await expect(repo.markMessageRetrying(message as never)).resolves.toBe(true);
+    const [values, options] = (messageModel.update as jest.Mock).mock.calls[0] as [
+      Record<string, unknown>,
+      { where: { status: Record<symbol, string[]> } },
+    ];
+    expect(values).toMatchObject({ status: 'retrying', failedAt: null });
+    const statuses = Object.getOwnPropertySymbols(options.where.status).map((symbol) => options.where.status[symbol])[0];
+    expect(statuses).toEqual(['failed', 'retrying']);
+    await expect(repo.markMessageRetrying(baseMessage({ status: 'delivered' }) as never)).resolves.toBe(false);
+  });
+
   it('markMessageSending devuelve false y no toca el mensaje si otra tanda ya lo reclamó', async () => {
     const { repo, messageModel } = build();
     (messageModel.update as jest.Mock).mockResolvedValueOnce([0] as never);
