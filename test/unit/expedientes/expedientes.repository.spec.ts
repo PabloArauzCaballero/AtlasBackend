@@ -120,6 +120,11 @@ describe('ExpedientesRepository', () => {
       expect((expedientes.findOne.mock.calls.at(-1)?.[0] as { order: unknown[] }).order).toEqual([['created_at', 'DESC']]);
     });
 
+    it('con sinPurgar excluye los expedientes ya purgados', async () => {
+      await repo.findExpedientePorSujeto('t1', 'customer', 'c1', null, { sinPurgar: true });
+      expect(where(expedientes.findOne)).toEqual({ tenantId: 't1', subjectType: 'customer', subjectId: 'c1', purgadoEn: null });
+    });
+
     it('el listado sin filtros sólo acota por tenant', async () => {
       await repo.listarExpedientes({ tenantId: 't1', offset: 0, limit: 20 });
       expect(where(expedientes.findAndCountAll)).toEqual({ tenantId: 't1' });

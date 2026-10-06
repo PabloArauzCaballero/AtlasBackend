@@ -368,6 +368,17 @@ describe('ExpedienteService', () => {
       expect(resultado).toEqual({ expedientes: 2, objetosBorrados: 2 });
     });
 
+    it('pide sólo los expedientes sin purgar: uno purgado no tapa a los anteriores del sujeto', async () => {
+      const { service, repository } = construir();
+      repository.findExpedientePorSujeto.mockResolvedValueOnce(expediente({ id: 'exp-1' } as Partial<ExpedienteModel>)).mockResolvedValueOnce(null);
+
+      await service.purgarPorSujeto({ tenantId: 't1', subjectType: 'customer', subjectId: 'c1', actor, motivo: 'gdpr' });
+
+      for (const llamada of repository.findExpedientePorSujeto.mock.calls as unknown as unknown[][]) {
+        expect(llamada[4]).toEqual({ sinPurgar: true });
+      }
+    });
+
     it('para en un expediente ya purgado en vez de reprocesarlo en bucle', async () => {
       const { service, repository } = construir();
       repository.findExpedientePorSujeto.mockResolvedValue(

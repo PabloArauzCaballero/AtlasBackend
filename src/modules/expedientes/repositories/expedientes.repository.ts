@@ -56,15 +56,25 @@ export class ExpedientesRepository {
    *
    * Es la consulta que hace la revisión humana: llega con un `customerId` y necesita la carpeta,
    * sin saber por qué sesión entró el cliente.
+   *
+   * Con `sinPurgar`, sólo los que aún conservan archivos: la purga por sujeto recorre así uno a uno
+   * los expedientes vivos; sin el filtro, el más reciente (ya purgado) tapaba a los anteriores.
    */
   findExpedientePorSujeto(
     tenantId: string,
     subjectType: string,
     subjectId: string,
     sessionId?: string | null,
+    opciones: { sinPurgar?: boolean } = {},
   ): Promise<ExpedienteModel | null> {
     return this.expedientes.findOne({
-      where: { tenantId, subjectType, subjectId, ...(sessionId ? { sessionId } : {}) },
+      where: {
+        tenantId,
+        subjectType,
+        subjectId,
+        ...(sessionId ? { sessionId } : {}),
+        ...(opciones.sinPurgar ? { purgadoEn: null } : {}),
+      },
       order: [['created_at', 'DESC']],
     });
   }
