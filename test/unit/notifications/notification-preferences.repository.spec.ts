@@ -67,6 +67,20 @@ describe('NotificationPreferencesRepository', () => {
     expect(preferenceModel.create).not.toHaveBeenCalled();
   });
 
+  it('un lote con un aviso obligatorio apagado no guarda NINGUNA entrada', async () => {
+    const { repo, preferenceModel } = buildRepo({ mandatory: ['b:push'] });
+    (preferenceModel.findOne as jest.Mock).mockResolvedValue(null as never);
+    await expect(
+      repo.upsertPreferences('t1', 'c1', {
+        preferences: [
+          { eventCode: 'a', channel: 'sms', isEnabled: false },
+          { eventCode: 'b', channel: 'push', isEnabled: false },
+        ],
+      } as never),
+    ).rejects.toThrow('REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED');
+    expect(preferenceModel.create).not.toHaveBeenCalled();
+  });
+
   it('lo que el cliente mande en isRequired se ignora: manda el catálogo', async () => {
     const { repo, preferenceModel } = buildRepo({ mandatory: [] });
     (preferenceModel.findOne as jest.Mock).mockResolvedValue(null as never);
