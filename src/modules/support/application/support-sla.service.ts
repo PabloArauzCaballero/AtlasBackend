@@ -196,7 +196,8 @@ export class SupportSlaService {
     let breached = 0;
 
     for (const clock of clocks) {
-      await this.timeline.updateClock(String(clock.id), { state: 'BREACHED', breachedAt: now });
+      // Condicionado a que siga corriendo: otro barrido o la respuesta del agente pudo adelantarse.
+      if (!(await this.timeline.markClockBreached(String(clock.id), now))) continue;
       breached += 1;
 
       await recordSlaCaseEvent(this.deps, {
