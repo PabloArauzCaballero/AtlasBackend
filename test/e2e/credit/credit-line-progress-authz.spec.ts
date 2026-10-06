@@ -17,7 +17,7 @@ import { authHeader, buildGenericTestApp, TENANT_HEADER } from '../support/gener
  */
 describe('Crédito habilitado y progreso: autorización (e2e/supertest)', () => {
   let app: INestApplication;
-  const creditLines = { requireCurrent: jest.fn(async (..._a: unknown[]) => ({})) };
+  const creditLines = { currentOrRequest: jest.fn(async (..._a: unknown[]) => ({})) };
   const progress = { get: jest.fn(async (..._a: unknown[]) => ({ customerId: '77', rating: { value: 50, scale: { min: 1, max: 100 } } })) };
 
   beforeAll(async () => {
@@ -40,7 +40,7 @@ describe('Crédito habilitado y progreso: autorización (e2e/supertest)', () => 
   });
 
   describe.each([
-    ['/customers/77/credit-line', () => creditLines.requireCurrent],
+    ['/customers/77/credit-line', () => creditLines.currentOrRequest],
     ['/customers/77/progress', () => progress.get],
   ])('GET %s', (ruta, servicio) => {
     it('sin token → 401', async () => {

@@ -58,7 +58,15 @@ export class CreditController {
   })
   @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional para `customer` (se toma del token).' })
   @ApiResponse({ status: 200, description: 'Línea vigente con su explicación.' })
-  @ApiResponse({ status: 404, description: 'CREDIT_LINE_NOT_CALCULATED — el motor todavía no la calculó.' })
+  @ApiResponse({
+    status: 404,
+    description: 'CREDIT_LINE_NOT_CALCULATED — el cliente todavía no está activo, así que no hay línea que pedir al motor.',
+  })
+  @ApiResponse({
+    status: 503,
+    description:
+      'CREDIT_LINE_ENGINE_UNAVAILABLE — el cliente está activo y no tenía línea; se le pidió al motor en ese momento y no respondió. Reintentar.',
+  })
   @Get('credit-line')
   async creditLine(
     @CurrentTenant() tenantId: string,
@@ -66,7 +74,8 @@ export class CreditController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
-    const line = await this.creditLines.requireCurrent(tenantId, params.customerId);
+    // Un cliente activo sin línea la pide al motor ahora mismo: ver `CreditLineService.currentOrRequest`.
+    const line = await this.creditLines.currentOrRequest(tenantId, params.customerId);
     return toCreditLineResponse(line);
   }
 
