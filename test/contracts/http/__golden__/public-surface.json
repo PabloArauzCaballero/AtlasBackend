@@ -1695,6 +1695,27 @@
     ],
     "body": false
   },
+  "GET /customers/{customerId}/bank-statements": {
+    "operationId": "BankStatementArchiveController_list",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
   "POST /customers/{customerId}/bank-statements": {
     "operationId": "CreditController_submitBankStatement",
     "responses": [
@@ -1732,6 +1753,28 @@
     "query": [],
     "path": [
       "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /customers/{customerId}/bank-statements/{reviewId}/file": {
+    "operationId": "BankStatementArchiveController_file",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId",
+      "reviewId"
     ],
     "security": [
       "access-token"

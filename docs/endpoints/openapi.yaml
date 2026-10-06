@@ -5007,6 +5007,52 @@ paths:
       tags:
         - customer-device-signals
   /customers/{customerId}/bank-statements:
+    get:
+      description: >-
+        Todos, del más reciente al más antiguo (hasta 24), cada uno con su
+        estado, el banco y el período que se leyeron, y si el archivo se puede
+        descargar todavía (`file.available`). `bank-statements/latest` sólo
+        decía el estado del último; con esta ruta «Mis datos» enseña el
+        historial completo.
+      operationId: BankStatementArchiveController_list
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: Opcional para `customer` (se toma del token).
+          required: false
+          schema:
+            type: string
+        - name: customerId
+          in: path
+          required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Extractos del cliente; `items` vacío si nunca subió ninguno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Los extractos bancarios que subió el cliente
+      tags:
+        - credit
     post:
       description: >-
         El archivo ya viajó cifrado por `documents/upload-url` con
@@ -5104,6 +5150,60 @@ paths:
       security:
         - access-token: []
       summary: Estado del último extracto que subió
+      tags:
+        - credit
+  /customers/{customerId}/bank-statements/{reviewId}/file:
+    get:
+      description: >-
+        El archivo tal y como se subió. Sale por la API con la sesión del
+        cliente y no por una URL del almacén: un enlace firmado se puede
+        reenviar, una respuesta autenticada no.
+      operationId: BankStatementArchiveController_file
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: Opcional para `customer` (se toma del token).
+          required: false
+          schema:
+            type: string
+        - name: customerId
+          in: path
+          required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - name: reviewId
+          in: path
+          required: true
+          description: Identificador de ruta `reviewId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: PDF del extracto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: >-
+            BANK_STATEMENT_NOT_FOUND — no existe o no es de este cliente.
+            BANK_STATEMENT_FILE_NOT_AVAILABLE — es suyo, pero el archivo ya no
+            está en el almacén.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: El PDF de un extracto bancario del cliente
       tags:
         - credit
   /customers/{customerId}/credit-applications:
