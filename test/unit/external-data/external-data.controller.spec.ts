@@ -34,7 +34,15 @@ describe('ExternalDataController (ejecución)', () => {
     const c = new ExternalDataController(svc as never);
     const body = { customerId: '9', providerCode: 'SEGIP' } as never;
     await c.createConsent('1', '1.2.3.4', 'agent', body, user);
-    expect(svc.createConsent).toHaveBeenCalledWith({ tenantId, body, ipAddress: '1.2.3.4', userAgent: 'agent' });
+    expect(svc.createConsent).toHaveBeenCalledWith({
+      tenantId,
+      body,
+      ipAddress: '1.2.3.4',
+      userAgent: 'agent',
+      assistedByUserId: 'u1',
+    });
+    await c.createConsent('1', '1.2.3.4', 'agent', { customerId: '9' } as never, { role: 'customer', customerId: '9', sub: 's' } as never);
+    expect((svc.createConsent.mock.calls[1][0] as { assistedByUserId?: string }).assistedByUserId).toBeUndefined();
   });
 
   it('listConsents y revokeConsent (revoke usa el scope de mutación del actor)', async () => {

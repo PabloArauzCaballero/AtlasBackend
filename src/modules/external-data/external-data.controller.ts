@@ -102,6 +102,9 @@ export class ExternalDataController {
       body,
       ipAddress,
       userAgent,
+      // Personal interno registrando en nombre del cliente: la fila debe poder distinguirse de la del titular.
+      assistedByUserId:
+        currentUser.role === 'customer' ? undefined : (currentUser.internalUserId ?? currentUser.platformUserId ?? currentUser.sub),
     });
   }
 

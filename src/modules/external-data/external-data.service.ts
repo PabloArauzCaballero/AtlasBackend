@@ -28,7 +28,13 @@ export class ExternalDataService {
     private readonly previsualizacion: ExternalDataPreviewService,
   ) {}
 
-  async createConsent(input: { tenantId: string; body: ExternalConsentDto; ipAddress?: string; userAgent?: string }) {
+  async createConsent(input: {
+    tenantId: string;
+    body: ExternalConsentDto;
+    ipAddress?: string;
+    userAgent?: string;
+    assistedByUserId?: string;
+  }) {
     const providerCode = input.body.providerCode ? toProviderCode(input.body.providerCode) : 'GENERAL';
     const purposeCode =
       providerCode === 'GENERAL' ? input.body.purpose : `${providerCode.toLowerCase()}_${input.body.purpose.toLowerCase()}`;
@@ -36,10 +42,11 @@ export class ExternalDataService {
       tenantId: input.tenantId,
       customerId: input.body.customerId,
       purposeCode,
-      channel: input.body.channel,
+      // Alta asistida: el canal del cuerpo se ignora y el actor queda en user_agent (no hay columna propia).
+      channel: input.assistedByUserId ? 'staff_assisted' : input.body.channel,
       sessionId: input.body.sessionId,
       ipAddress: input.ipAddress,
-      userAgent: input.userAgent,
+      userAgent: input.assistedByUserId ? `staff:${input.assistedByUserId} ${input.userAgent ?? ''}`.trim() : input.userAgent,
       deviceFingerprintSnapshot: input.body.deviceFingerprintSnapshot,
       now: new Date(),
     });
