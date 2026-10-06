@@ -10,6 +10,7 @@ import { LoanInstallmentModel } from '../../../database/models/loan-installments
 import { LoanModel } from '../../../database/models/loans.model.js';
 import { buildExperience } from '../domain/experience.js';
 import { toCustomerCardResponse } from '../card-tier.mapper.js';
+import { toPaymentPoints, toPayerRating } from '../domain/payer-rating.js';
 import { CardTierService } from './card-tier.service.js';
 import { buildRelationshipProgress } from '../domain/relationship-progress.js';
 import { CreditLineService } from './credit-line.service.js';
@@ -85,6 +86,14 @@ export class CreditProgressService {
     ]);
 
     const progreso = buildRelationshipProgress(assessment, relationship);
+    const experiencia = buildExperience({
+      installments: cuotas.facts,
+      loansEver: cuotas.loansEver,
+      loansSettled: relationship.loansSettled,
+      kycComplete: relationship.kycComplete,
+      tenureMonths: relationship.tenureMonths,
+      today: new Date().toISOString().slice(0, 10),
+    });
     // La tarjeta: la que gana por su nivel o la que el personal le puso. Es presentación y estatus; no toca el límite.
     const [tarjeta, catalogo] = await Promise.all([
       this.cards.resolveFor(tenantId, customerId, progreso.tier.code),
@@ -96,15 +105,12 @@ export class CreditProgressService {
       hasCreditLine: current !== null,
       ...progreso,
       card: toCustomerCardResponse(tarjeta, catalogo),
+      // Calificación 1-100 (qué tan buen pagador) y Puntaje (puntos por pagar), con sus nombres de negocio.
+      rating: toPayerRating(progreso.score),
+      points: toPaymentPoints(experiencia),
       // Puntos por boliviano PAGADO a tiempo (no por comprar), rachas e insignias.
-      experience: buildExperience({
-        installments: cuotas.facts,
-        loansEver: cuotas.loansEver,
-        loansSettled: relationship.loansSettled,
-        kycComplete: relationship.kycComplete,
-        tenureMonths: relationship.tenureMonths,
-        today: new Date().toISOString().slice(0, 10),
-      }),
+      experience: experiencia,
+
       signals: {
         tenureMonths: relationship.tenureMonths,
         loansSettled: relationship.loansSettled,

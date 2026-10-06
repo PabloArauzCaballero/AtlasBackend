@@ -130,6 +130,22 @@ describe('CreditProgressService', () => {
     expect(r.experience.badges.find((b) => b.code === 'cien_bs')!.earned).toBe(true);
   });
 
+  it('publica el Puntaje (puntos por pagar) y la Calificación 1-100 como campos con su nombre', async () => {
+    const { service } = armar({
+      linea: null,
+      historial: [],
+      prestamos: [{ id: 'l1' }],
+      cuotas: [{ dueDate: '2026-08-01', status: 'paid', daysPastDue: 0, paidPrincipal: '90.00', paidInterest: '10.00', paidLateFee: '0' }],
+    });
+
+    const r = await service.get('1', '42');
+
+    expect(r.points).toEqual({ value: r.experience.xp, currentStreak: r.experience.currentStreak, bestStreak: r.experience.bestStreak });
+    expect(r.points.value).toBe(100);
+    expect(r.rating.scale).toEqual({ min: 1, max: 100 });
+    expect(r.rating.value).toBe(Math.max(1, Math.min(100, Math.round(r.score))));
+  });
+
   it('sin compras, la experiencia es 0 y ni siquiera consulta las cuotas', async () => {
     const { service, installments } = armar({ linea: null, historial: [] });
 
