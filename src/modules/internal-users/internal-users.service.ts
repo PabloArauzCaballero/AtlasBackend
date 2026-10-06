@@ -157,6 +157,14 @@ export class InternalUsersService {
       }
     }
 
+    // Cambiar el estado o forzar el cambio de contraseña de una cuenta con rol privilegiado exige lo mismo
+    // que tocar sus roles (SUPER_ADMIN): sin esto, quien sólo tiene `internal.users.manage` (p. ej.
+    // INTERNAL_IDENTITY_ADMIN) suspendía o reactivaba a un SUPER_ADMIN. Sobre la propia cuenta no aplica.
+    if (targetUserId !== actor.internalUserId && (dto.status !== undefined || dto.mustChangePassword !== undefined)) {
+      const target = await this.rbacRepository.buildAccessProfile(user);
+      await assertCanAssignRequestedRoles(this.rbacRepository, actor, [], target.user.roles);
+    }
+
     const updated = await this.rbacRepository.updateUser(user, {
       fullName: dto.fullName,
       department: dto.department,

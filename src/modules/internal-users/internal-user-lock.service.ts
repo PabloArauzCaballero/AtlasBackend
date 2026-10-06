@@ -9,7 +9,7 @@ import { AuthCredentialModel } from '../../database/models/index.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
 import { InternalRbacRepository } from './internal-rbac.repository.js';
-import { assertInternalActor } from './internal-users.policy.js';
+import { assertCanAssignRequestedRoles, assertInternalActor } from './internal-users.policy.js';
 import { UnlockInternalUserDto } from './internal-users.schemas.js';
 import { InternalAccessProfile } from './internal-users.types.js';
 
@@ -79,6 +79,13 @@ export class InternalUserLockService {
     const targetUserId = parsePositiveId(internalUserId, 'internalUserId');
     const user = await this.rbacRepository.findUserById(actor.tenantId, targetUserId);
     if (!user) throw new NotFoundException('Usuario interno no encontrado.');
+
+    // Desbloquear a una cuenta con rol privilegiado exige SUPER_ADMIN, como tocar sus roles: el bloqueo es
+    // justo la defensa contra la fuerza bruta sobre las cuentas que más importan.
+    if (targetUserId !== actor.internalUserId) {
+      const target = await this.rbacRepository.buildAccessProfile(user);
+      await assertCanAssignRequestedRoles(this.rbacRepository, actor, [], target.user.roles);
+    }
 
     const credential = await this.findCredential(targetUserId);
     const lockedUntil = credential?.lockedUntil ? new Date(credential.lockedUntil) : null;
