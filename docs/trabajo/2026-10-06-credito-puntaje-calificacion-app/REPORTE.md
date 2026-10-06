@@ -1,6 +1,6 @@
 # Reporte — Crédito habilitado, Puntaje y Calificación (fullstack)
 
-> **AVANCE: 24 / 26 — 92,3 %.** Faltan 2: H1.S1.M1 contra el motor de **dev en vivo** (A MEDIAS: verificado sólo contra la definición versionada) y H3.M3 recorrido real admin → app (BLOQUEADO: sin backend levantado). Push a GitHub BLOQUEADO (403).
+> **AVANCE: 25 / 26 — 96,2 %.** Mergeado en `dev` (AtlasBackend#198, AtlasFrontend#47, AtlasAdminPortal#125). Falta 1: H1.S1.M1 contra el motor de **dev en vivo** (A MEDIAS: el motor de dev está detrás de Tailscale y no es alcanzable desde aquí). El despliegue a DEV de los tres repos falla por infraestructura: `node quota reached on this tailnet`.
 
 - Fecha: 2026-10-06 · Plan: [PLAN.md](./PLAN.md) · Plan hermano de la app: `AtlasFrontend/docs/trabajo/2026-10-06-entrada-puntaje-bot/`
 - Rama: `claude/plan-credito-calificacion-mobile-b95b6f` en AtlasBackend, AtlasFrontend y AtlasAdminPortal (motor sin cambios)
@@ -22,6 +22,12 @@
 | H4.M2 | Gates app | `tsc` · `eslint` · `jest` | 0 · 0 errores (14 avisos, igual que antes) · 820/820 |
 | H4.M3 | Gates AdminPortal | `tsc` · `eslint` · `format:check` · `vitest` | 0 · 0 · OK · 3173/3173 |
 
+## Completado después del merge
+| ID | Qué se logró | Comando | Resultado |
+|---|---|---|---|
+| H3.M3 | Recorrido real operador → cliente: tarjeta BLACK manual visible en `/progress` del cliente y auditada | backend `dev` levantado con Postgres 16 + Redis locales, `yarn db:migration:up`, `yarn db:seed:demo` (965 filas SINTÉTICAS); `POST /operations/customers/910001/card-tier` y `GET /customers/910001/progress` | PASS: `card BLACK manual True`; `credit.card_tier.override_set\|internal_user\|customer\|1` en `audit.operational_audit_logs` |
+| — | `/progress` real del cliente sintético 910001 | `GET /customers/910001/progress` | `rating 68/100`, `points 6928` (= XP), nivel ESTABLECIDO, tarjeta GOLD; otro cliente 403, sin token 401 |
+
 ## A medias
 ### H1.S1.M1 — artefacto asignado en dev
 - Qué anda: la definición versionada del artefacto declara y produce `approved_credit_limit` (70 pruebas del motor).
@@ -32,8 +38,7 @@
 ## Pendiente
 | ID | Estado | Qué lo destraba |
 |---|---|---|
-| Push de las 3 ramas | BLOQUEADO | Instalar la app de Claude con escritura en los repos o reconectar GitHub |
-| H3.M3 recorrido real admin → app | BLOQUEADO | Backend + base levantados; cubierto con pruebas de cada lado |
+| Despliegue a DEV (los tres repos) | BLOQUEADO (infraestructura) | Liberar nodos en la consola de Tailscale o subir el plan: `backend error: node quota reached on this tailnet`. Falla igual en todos los push a `dev` de hoy. |
 
 ## Evidencia
 ```text
