@@ -149,6 +149,12 @@ export class ExternalDataController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiBody({ schema: zodToApiSchema(externalDataRequestSchema) })
   @ApiResponse({ status: 200, description: 'Resultado del preflight — wouldExecute indica si la ejecución real pasaría.' })
+  /*
+   * Sin `customer`: este endpoint deja elegir proveedor, tipo de consulta e `input` libres, así que un
+   * cliente podía lanzar cualquier consulta (buró incluido) con datos del body. Los flujos del cliente
+   * van por endpoints verticales que arman el `input` desde su expediente.
+   */
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
   @Post('requests/preview')
   @HttpCode(HttpStatus.OK)
   previewRequest(
@@ -179,6 +185,12 @@ export class ExternalDataController {
       'Resultado de la ejecución (COMPLETED, CACHED, BLOCKED_BY_COST_POLICY, RATE_LIMITED, MANUAL_APPROVAL_REQUIRED, CONSENT_REQUIRED, FAILED, etc.).',
   })
   @ApiResponse({ status: 403, description: 'Un customer intentó consultar datos de otro cliente.' })
+  /*
+   * Sin `customer`: este endpoint deja elegir proveedor, tipo de consulta e `input` libres, así que un
+   * cliente podía lanzar cualquier consulta (buró incluido) con datos del body. Los flujos del cliente
+   * van por endpoints verticales que arman el `input` desde su expediente.
+   */
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
   @Post('requests')
   @HttpCode(HttpStatus.OK)
   executeRequest(

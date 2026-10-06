@@ -52,3 +52,20 @@ describe('AdminExternalProvidersController — restricción de roles administrat
     expect(classRoles).toEqual(expect.arrayContaining(['risk_analyst', 'compliance_analyst']));
   });
 });
+
+describe('ExternalDataController — consulta genérica sin rol customer (regression)', () => {
+  it.each(['executeRequest', 'previewRequest'] as const)('%s no admite al cliente: elige proveedor e input libres', async (method) => {
+    const { ROLES_KEY } = await import('../../../src/common/decorators/roles.decorator.js');
+    const { ExternalDataController } = await import('../../../src/modules/external-data/external-data.controller.js');
+    const roles = Reflect.getMetadata(ROLES_KEY, ExternalDataController.prototype[method]) as string[] | undefined;
+
+    expect(roles).toEqual(expect.arrayContaining(['internal_operator', 'admin']));
+    expect(roles).not.toContain('customer');
+  });
+
+  it('el resto del controlador sigue abierto al cliente (consentimientos propios)', async () => {
+    const { ROLES_KEY } = await import('../../../src/common/decorators/roles.decorator.js');
+    const { ExternalDataController } = await import('../../../src/modules/external-data/external-data.controller.js');
+    expect(Reflect.getMetadata(ROLES_KEY, ExternalDataController)).toContain('customer');
+  });
+});
