@@ -10,6 +10,7 @@ import {
   BankStatementReviewModel,
   CustomerActivitySummaryModel,
   CustomerModel,
+  FraudCaseModel,
   IdentityVerificationAttemptModel,
   LoanInstallmentModel,
   LoanModel,
@@ -51,6 +52,7 @@ export class PaymentCapacityService {
     @InjectModel(BankStatementReviewModel) private readonly reviews: typeof BankStatementReviewModel,
     @InjectModel(CustomerActivitySummaryModel) private readonly activity: typeof CustomerActivitySummaryModel,
     @InjectModel(IdentityVerificationAttemptModel) private readonly identity: typeof IdentityVerificationAttemptModel,
+    @InjectModel(FraudCaseModel) private readonly fraudCases: typeof FraudCaseModel,
   ) {}
 
   async assess(input: {
@@ -81,7 +83,7 @@ export class PaymentCapacityService {
   }): Promise<{ assessment: PaymentCapacityAssessment; relationship: RelationshipInput }> {
     const now = input.now ?? new Date();
     const [statement, relationship] = await Promise.all([
-      this.statementCapacity(input.tenantId, input.customerId),
+      this.statementCapacity(input.tenantId, input.customerId, now),
       this.relationship(input.tenantId, input.customerId, now),
     ]);
 
@@ -103,8 +105,8 @@ export class PaymentCapacityService {
    * subir un documento malo BORRARA la capacidad que ya se había medido con uno bueno. La evidencia
    * vieja sigue siendo evidencia hasta que otra la sustituya.
    */
-  private async statementCapacity(tenantId: string, customerId: string): Promise<StatementCapacityInput> {
-    const review = await this.reviews.findOne({
+  private async statementCapacity(tenantId: string, customerId: string, now: Date): Promise<StatementCapacityInput> {
+    const found = await this.reviews.findOne({
       where: {
         tenantId,
         customerId,
@@ -113,6 +115,9 @@ export class PaymentCapacityService {
       },
       order: [['_created_at', 'DESC']],
     } as FindOptions);
+    // Un extracto cuyo último movimiento es anterior al tope ya no demuestra cuánto puede pagar hoy: se trata como
+    // si no existiera y la propuesta cae a lo declarado, que es conservador y queda marcado como tal.
+    const review = found && !isStatementTooOld(found.periodTo, now) ? found : null;
 
     if (!review) {
       return {
@@ -139,11 +144,29 @@ export class PaymentCapacityService {
     };
   }
 
+  /**
+   * Casos de fraude que SIGUEN pesando: los abiertos y los que se cerraron confirmando el fraude, bloqueando o
+   * escalando. Un caso cerrado como `false_positive` ya no dice nada de esta persona; con el contador «de por vida»
+   * de antes, un falso positivo la dejaba en el suelo para siempre. «Necesita más investigación» deja el caso en
+   * `in_progress` CON `closed_at` puesto (`fraud.service.ts`), por eso se mira `case_status` y no `closed_at`.
+   */
+  private liveFraudCaseCount(tenantId: string, customerId: string): Promise<number> {
+    return this.fraudCases.count({
+      where: {
+        tenantId,
+        customerId,
+        deleted: { [Op.ne]: true },
+        [Op.or]: [{ caseStatus: null }, { caseStatus: { [Op.ne]: 'closed' } }, { resolution: { [Op.in]: FRAUD_RESOLUTIONS_THAT_STICK } }],
+      },
+    } as FindOptions);
+  }
+
   /** Antigüedad, historial de pago y fidelización, leídos del expediente. */
   private async relationship(tenantId: string, customerId: string, now: Date): Promise<RelationshipInput> {
-    const [customer, loans, summary, identityAttempts] = await Promise.all([
+    const [customer, loans, summary, identityAttempts, liveFraudCases] = await Promise.all([
       this.customers.findOne({ where: { tenantId, id: customerId } } as FindOptions),
-      this.loans.findAll({ where: { tenantId, customerId } } as FindOptions),
+      // Las filas borradas no son historial: un préstamo o una cuota dados de baja no pueden contar como pagados ni como mora.
+      this.loans.findAll({ where: { tenantId, customerId, deleted: false } } as FindOptions),
       this.activity.findOne({ where: { tenantId, customerId } } as FindOptions),
       // Todos los recientes, no sólo el último: un intento posterior sin resolver no puede tapar un
       // `verified` anterior (I-2). Ver `pickCurrentIdentityAttempt`.
@@ -152,6 +175,7 @@ export class PaymentCapacityService {
         order: [['_id', 'DESC']],
         limit: IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
       } as FindOptions),
+      this.liveFraudCaseCount(tenantId, customerId),
     ]);
     const identity = pickCurrentIdentityAttempt(identityAttempts);
 
@@ -172,16 +196,16 @@ export class PaymentCapacityService {
         delinquencyCount12m: 0,
         monthsSinceLastLoan: null,
         kycComplete: isIdentityVerified(identity?.finalResult),
-        fraudFlags: fraudFlagsOf(summary),
+        fraudFlags: fraudFlagsOf(summary, liveFraudCases),
       };
     }
 
     const schedule = await this.installments.findAll({
-      where: { tenantId, loanId: { [Op.in]: loans.map((loan) => String(loan.id)) } },
+      where: { tenantId, deleted: false, loanId: { [Op.in]: loans.map((loan) => String(loan.id)) } },
     } as FindOptions);
 
-    const today = now.toISOString().slice(0, 10);
-    const yearAgo = new Date(now.getTime() - 365 * 86_400_000).toISOString().slice(0, 10);
+    const today = businessDate(now);
+    const yearAgo = businessDate(new Date(now.getTime() - 365 * 86_400_000));
     let onTime = 0;
     let late = 0;
     let overdueInLastYear = 0;
@@ -196,7 +220,9 @@ export class PaymentCapacityService {
       }
     }
 
-    const settledStatuses = new Set(['closed', 'paid', 'settled', 'cancelled_paid']);
+    // `paid_off` es el estado real de un crédito devuelto (`ck_loans_status`): buscar otros nombres dejaba
+    // `loansSettled` siempre en 0 y la fidelización sin su mayor componente.
+    const settledStatuses = new Set(['paid_off']);
     const lastDisbursement = loans
       .map((loan) => (loan.disbursedAt ? new Date(loan.disbursedAt).getTime() : 0))
       .reduce((latest, value) => Math.max(latest, value), 0);
@@ -211,7 +237,7 @@ export class PaymentCapacityService {
       delinquencyCount12m: overdueInLastYear,
       monthsSinceLastLoan: lastDisbursement > 0 ? Math.max(0, Math.floor((now.getTime() - lastDisbursement) / (30.44 * 86_400_000))) : null,
       kycComplete: isIdentityVerified(identity?.finalResult),
-      fraudFlags: fraudFlagsOf(summary),
+      fraudFlags: fraudFlagsOf(summary, liveFraudCases),
     };
   }
 }
@@ -219,13 +245,33 @@ export class PaymentCapacityService {
 /**
  * Señales de fraude vivas sobre la cuenta.
  *
- * Se suman los casos de fraude de por vida y las revisiones manuales abiertas: las dos afirman lo
+ * Se suman los casos de fraude VIVOS (abiertos o cerrados confirmando el fraude) y las revisiones manuales abiertas: las dos afirman lo
  * mismo para este cálculo —hay una duda sin resolver sobre quién es esta persona— y sobre esa duda
  * no se escala ningún límite.
  */
-function fraudFlagsOf(summary: CustomerActivitySummaryModel | null): number {
-  if (!summary) return 0;
-  return Number(summary.fraudCaseCountLifetime ?? 0) + Number(summary.openManualReviewCount ?? 0);
+function fraudFlagsOf(summary: CustomerActivitySummaryModel | null, liveFraudCases: number): number {
+  return Number(liveFraudCases) + Number(summary?.openManualReviewCount ?? 0);
+}
+
+/** Las resoluciones de un caso cerrado que siguen contando contra la persona (D-3 del plan 2026-10-05). */
+export const FRAUD_RESOLUTIONS_THAT_STICK = ['confirmed_fraud', 'blocked', 'escalated'];
+
+/** Hasta qué antigüedad un extracto vale como evidencia de capacidad (D-2 del plan 2026-10-05). */
+export const STATEMENT_MAX_AGE_DAYS = 180;
+
+/** Bolivia es UTC−4 y no tiene horario de verano: «hoy» para una cuota es la fecha de La Paz, no la de UTC. */
+const LA_PAZ_OFFSET_MS = 4 * 3_600_000;
+
+export function businessDate(instant: Date): string {
+  return new Date(instant.getTime() - LA_PAZ_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** Sin fecha de período no se puede probar que sea reciente, así que no se descarta: lo decide quien la lea. */
+export function isStatementTooOld(periodTo: string | Date | null | undefined, now: Date): boolean {
+  if (!periodTo) return false;
+  const end = new Date(periodTo).getTime();
+  if (!Number.isFinite(end)) return false;
+  return now.getTime() - end > STATEMENT_MAX_AGE_DAYS * 86_400_000;
 }
 
 function numberOrNull(value: string | number | null | undefined): number | null {
