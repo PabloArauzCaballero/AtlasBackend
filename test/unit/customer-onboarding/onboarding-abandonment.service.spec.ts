@@ -84,7 +84,7 @@ describe('OnboardingAbandonmentService.markAbandonedFlows', () => {
 
     expect(flowModel.findAll).toHaveBeenCalledTimes(2);
     const segunda = (flowModel.findAll as jest.Mock).mock.calls[1][0] as { where: { id: Record<symbol, string> } };
-    expect(Object.values(segunda.where.id)).toContain('2');
+    expect(Object.getOwnPropertySymbols(segunda.where.id).map((k) => segunda.where.id[k])).toContain('2');
     expect(result.evaluated).toBe(3);
     expect(result.abandoned).toBe(1);
     expect(flowRepository.closeOnboardingFlow).toHaveBeenCalledTimes(1);
