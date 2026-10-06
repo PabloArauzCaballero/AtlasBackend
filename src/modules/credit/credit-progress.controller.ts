@@ -39,7 +39,7 @@ export class CreditProgressController {
   @ApiResponse({
     status: 200,
     description:
-      'Nivel, componentes, misiones, señales e historial. `rating` = Calificación de pagador de 1 a 100; `points` = Puntaje, los puntos ganados pagando a tiempo (1 por boliviano). Ninguno de los dos es el score 0-1000 del motor.',
+      'Nivel, componentes, misiones, señales e historial. `rating` = Calificación de pagador de 1 a 100; `points` = Puntaje, los puntos ganados pagando a tiempo (1 por boliviano). Ninguno de los dos es el score 0-1000 del motor. `level`/`nextLevel`/`levelLadder` = Nivel Atlas medido en PUNTOS (Nuevo 0 · En construcción 500 · Establecido 2.000 · Consolidado 5.000 · Preferente 10.000); la tarjeta sigue a ese nivel. `tier` sigue siendo el escalón de la relación que usa la capacidad de pago.',
   })
   @Get('progress')
   progressOf(
