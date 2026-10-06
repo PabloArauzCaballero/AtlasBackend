@@ -20,6 +20,7 @@ import {
   DeviceSnapshotModel,
   CustomerDeviceLinkModel,
   OnboardingBehaviorSummaryModel,
+  CustomerConsentModel,
   CustomerDeviceContactModel,
   WatchlistEntryModel,
   IdentityVerificationAttemptModel,
@@ -91,6 +92,8 @@ import { UnderwritingDeviceSignalsService } from './underwriting-device-signals.
       OnboardingBehaviorSummaryModel,
       CustomerDeviceContactModel,
       WatchlistEntryModel,
+      // El consentimiento vigente de agenda y ubicación: sin él, las señales no leen lo ya guardado.
+      CustomerConsentModel,
     ]),
   ],
   controllers: [DecisionArtifactBindingController],
