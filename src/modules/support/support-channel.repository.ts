@@ -149,6 +149,28 @@ export class SupportChannelRepository {
     });
   }
 
+  /**
+   * Saca a una persona del equipo de TODAS las conversaciones en las que sigue dentro.
+   *
+   * Es lo que hace efectiva la baja de la mesa: cada lectura y escritura del canal comprueba
+   * `findLiveParticipant`, que mira la participación y no el perfil de agente.
+   */
+  async removeInternalParticipantEverywhere(
+    tenantId: string,
+    who: { internalUserId: string | null; agentProfileId: string },
+    leaveReason: string,
+  ): Promise<number> {
+    // Por perfil Y por persona: la participación guarda los dos, y una fila sin perfil (entró como
+    // supervisor) también tiene que caer.
+    const quien: Record<string, unknown>[] = [{ agentProfileId: who.agentProfileId }];
+    if (who.internalUserId) quien.push({ actorId: who.internalUserId });
+    const [count] = await this.participants.update(
+      { leftAt: new Date(), leaveReason },
+      { where: { tenantId, actorType: { [Op.in]: ['AGENT', 'SUPERVISOR'] }, leftAt: null, [Op.or]: quien } },
+    );
+    return count;
+  }
+
   async removeParticipant(
     channelId: string,
     actorType: string,
