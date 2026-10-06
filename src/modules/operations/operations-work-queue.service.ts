@@ -3,7 +3,7 @@
  * @business Operaciones ve cuántos casos esperan en cada cola y los busca por el código que conoce.
  * @system pagina las dos colas, las cuenta para las pestañas, resuelve el código del cliente y acota a fraude a quien sólo ve fraude.
  */
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { buildPaginationMeta } from '../../common/utils/pagination/pagination.util.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { CursorWorkQueueResponseDto, PaginatedWorkQueueResponseDto, WorkQueueItemDto, WorkQueueSummaryDto } from './operations.dtos.js';
@@ -19,6 +19,12 @@ import { CursorWorkQueueQueryDto, WorkQueueQueryDto } from './operations.schemas
  * cifras de revisión manual, que antes tampoco veía. Lo que no amplía es su acceso a datos.
  */
 export const FRAUD_ONLY_QUEUE_ROLES: readonly string[] = ['fraud_analyst'];
+
+/**
+ * Techo de `page * limit` en la cola combinada: cada fuente se trae entera hasta ahí (offset 0) y se
+ * mezcla en memoria, así que un `page` enorme se llevaba a memoria las dos tablas.
+ */
+export const WORK_QUEUE_ALL_MAX_WINDOW = 2000;
 
 @Injectable()
 export class OperationsWorkQueueService {
@@ -87,17 +93,29 @@ export class OperationsWorkQueueService {
     // contienen todo lo que puede aportar esa fuente al top-`page*limit` de la unión ordenada, y
     // recién ahí mezclar, ordenar y cortar una sola vez en el rango [start, start+limit).
     const topK = query.page * query.limit;
+    if (topK > WORK_QUEUE_ALL_MAX_WINDOW) {
+      throw new BadRequestException(
+        `WORK_QUEUE_WINDOW_TOO_DEEP: con queue=all sólo se llega hasta el puesto ${WORK_QUEUE_ALL_MAX_WINDOW}; filtra o pide una sola cola (queue=manual_review o fraud).`,
+      );
+    }
     const topKQuery = { ...query, page: 1, limit: topK };
     const [manualResult, fraudResult] = await Promise.all([
       this.cola.findManualReviewCasesForQueue(tenantId, topKQuery),
       this.cola.findFraudCasesForQueue(tenantId, topKQuery),
     ]);
 
-    const allItems = [...manualResult.rows.map(toManualReviewWorkItem), ...fraudResult.rows.map(toFraudWorkItem)].sort((a, b) => {
-      const dateA = a.openedAt ?? a.createdAt;
-      const dateB = b.openedAt ?? b.createdAt;
-      return query.sortOrder === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+    // La mezcla ordena por el MISMO campo que cada fuente (sortBy) y con el mismo desempate; con otro
+    // campo (antes `openedAt`) el top-K de cada fuente no era el top-K de la unión y las páginas
+    // saltaban o repetían casos.
+    const keyed = [
+      ...manualResult.rows.map((row) => this.keyed(row, toManualReviewWorkItem(row), query.sortBy)),
+      ...fraudResult.rows.map((row) => this.keyed(row, toFraudWorkItem(row), query.sortBy)),
+    ].sort((a, b) => {
+      const byKey = query.sortOrder === 'asc' ? a.key.localeCompare(b.key) : b.key.localeCompare(a.key);
+      if (byKey !== 0) return byKey;
+      return (b.item.caseId ?? '').localeCompare(a.item.caseId ?? '', undefined, { numeric: true });
     });
+    const allItems = keyed.map((entry) => entry.item);
 
     const totalCount = manualResult.meta.total + fraudResult.meta.total;
     const start = (query.page - 1) * query.limit;
@@ -107,6 +125,15 @@ export class OperationsWorkQueueService {
       meta: buildPaginationMeta({ page: query.page, limit: query.limit }, totalCount),
       summary: { byType: { manual_review: manualResult.meta.total, fraud: fraudResult.meta.total } },
     };
+  }
+
+  private keyed(row: { updatedAtValue?: Date }, item: WorkQueueItemDto, sortBy?: string) {
+    return { item, key: this.sortKey(row, item, sortBy) };
+  }
+
+  /** El valor por el que la fuente ordenó la fila (ISO, comparable como texto). */
+  private sortKey(row: { updatedAtValue?: Date }, item: WorkQueueItemDto, sortBy?: string): string {
+    return sortBy === 'updatedAt' ? (row.updatedAtValue?.toISOString() ?? item.createdAt) : item.createdAt;
   }
 
   /** El código de cliente de toda la página en UNA consulta, no uno por fila. */
