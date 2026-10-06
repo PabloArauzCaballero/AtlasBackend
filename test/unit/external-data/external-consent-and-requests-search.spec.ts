@@ -65,3 +65,14 @@ describe('Solicitudes a proveedores: búsqueda', () => {
     expect(whereOf(findAndCountAll)[Op.or]).toBeUndefined();
   });
 });
+
+describe('providerRequestsQuerySchema — customerId', () => {
+  it('exige dígitos: un valor no numérico da 400, no un 500 contra la columna BIGINT', async () => {
+    const { providerRequestsQuerySchema } = await import('../../../src/modules/external-data/external-providers-dashboard.schemas.js');
+
+    expect(providerRequestsQuerySchema.safeParse({ customerId: 'abc' }).success).toBe(false);
+    expect(providerRequestsQuerySchema.safeParse({ customerId: '12; DROP' }).success).toBe(false);
+    expect(providerRequestsQuerySchema.safeParse({ customerId: '123' }).success).toBe(true);
+    expect(providerRequestsQuerySchema.safeParse({}).success).toBe(true);
+  });
+});
