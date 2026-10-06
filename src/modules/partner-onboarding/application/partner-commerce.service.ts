@@ -167,6 +167,11 @@ export class PartnerCommerceService {
     // así que leerlo después registraría «de=active a=active» y la traza perdería justo el dato
     // por el que existe.
     const previousStatus = terminal.status;
+    // «Retirado» es para siempre: su serial queda libre para un equipo reacondicionado (índice
+    // parcial) y reactivar el viejo lo dejaría cobrando otra vez, o chocando con el nuevo.
+    if (previousStatus === 'retired' && dto.status !== 'retired') {
+      throw new ConflictException('Un terminal retirado no se puede reactivar: registra uno nuevo.');
+    }
     const updated = await this.network.updatePosStatus(terminal, dto.status);
     this.logger.log(
       `Terminal de partner cambió de estado: partnerId=${partnerId} terminal=${terminalId} ` + `de=${previousStatus} a=${dto.status}`,

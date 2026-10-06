@@ -870,6 +870,13 @@ describe('PartnerCommerceService', () => {
     expect(profiles.assertEditable).not.toHaveBeenCalled();
   });
 
+  it('no reactiva un terminal retirado: se da de baja para siempre', async () => {
+    const { service, repository } = build({ findPosById: jest.fn(async () => ({ id: '7', status: 'retired' })) });
+
+    await expect(service.changePosStatus('1', '10', '7', { status: 'active' })).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.updatePosStatus).not.toHaveBeenCalled();
+  });
+
   it('rechaza el código de sucursal repetido', async () => {
     const { service } = build({ listBranches: jest.fn(async () => [{ branchCode: 'SC-01' }]) });
 
