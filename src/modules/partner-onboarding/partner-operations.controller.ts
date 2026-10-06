@@ -127,8 +127,9 @@ export class PartnerOperationsController {
   /**
    * Una persona aprueba o rechaza el QR de cobro de un comercio.
    *
-   * Es el único camino por el que un QR pasa a `active` y, con ello, el único por el que un cliente
-   * llega a verlo en la app. Se corta en el servicio (409 si no está pendiente) y no en la pantalla.
+   * Un QR ya NO espera esta revisión para verse: el comercio lo confirma al registrarlo y nace
+   * `active` (`markQrActive`). Esta ruta sólo resuelve los que siguen en `pending_review` (los que
+   * dejó la revisión retirada el 2026-10-02). Se corta en el servicio (409 si no está pendiente).
    */
   @InternalPermissions('partner.qr.review')
   @ApiOperation({
