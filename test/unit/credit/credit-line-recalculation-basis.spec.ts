@@ -111,3 +111,42 @@ describe('P-09 · recálculo de línea: base habilitante antes de decidir', () =
     expect(DecisionEngineClient.basisBlocker({ status: 'superseded', marker: 's1' })).toBeNull();
   });
 });
+
+/**
+ * El crédito habilitado que ve la app es el que DECIDIÓ el motor (plan 2026-10-06, H1.S1.M2), en tres niveles:
+ * el monto del motor se escribe tal cual con su ejecución; un monto 0 es una decisión y no se rellena; y un motor
+ * caído no escribe nada (la línea vigente queda como estaba).
+ */
+describe('H1.S1.M2 · el monto de la línea es el del motor', () => {
+  const persistido = (escritor: ReturnType<typeof build>['escritor']) => JSON.stringify((escritor.persist.mock.calls as unknown[][])[0]);
+
+  it('correcto: escribe el límite que devolvió el motor, con su ejecución', async () => {
+    const { service, escritor } = build({ status: 'ready', marker: '1' });
+    await service.recalculate(input);
+    const escrito = persistido(escritor);
+    expect(escrito).toContain('"approvedLimit":900,');
+    expect(escrito).toContain('e1');
+  });
+
+  it('límite: un monto 0 del motor se respeta, no se sustituye por la capacidad', async () => {
+    const { service, client, escritor } = build({ status: 'ready', marker: '1' });
+    client.execute.mockResolvedValueOnce({
+      executionId: 'e0',
+      status: 'SUCCEEDED',
+      outcome: 'DECLINE',
+      reasonCodes: [],
+      output: { approved_credit_limit: 0 },
+    } as never);
+    await service.recalculate(input);
+    const escrito = persistido(escritor);
+    expect(escrito).toContain('e0');
+    expect(escrito).toContain('"approvedLimit":0,');
+  });
+
+  it('inválido: si el motor falla, no escribe ninguna línea', async () => {
+    const { service, client, escritor } = build({ status: 'ready', marker: '1' });
+    client.execute.mockRejectedValueOnce(new Error('motor caído') as never);
+    await expect(service.recalculate(input)).resolves.toBeNull();
+    expect(escritor.persist).not.toHaveBeenCalled();
+  });
+});

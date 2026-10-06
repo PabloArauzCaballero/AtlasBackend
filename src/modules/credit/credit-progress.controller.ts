@@ -36,7 +36,11 @@ export class CreditProgressController {
       'Comprar no suma puntos: sólo pagar a tiempo.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional para `customer` (se toma del token).' })
-  @ApiResponse({ status: 200, description: 'Nivel, puntos, componentes, misiones, señales e historial.' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Nivel, componentes, misiones, señales e historial. `rating` = Calificación de pagador de 1 a 100; `points` = Puntaje, los puntos ganados pagando a tiempo (1 por boliviano). Ninguno de los dos es el score 0-1000 del motor.',
+  })
   @Get('progress')
   progressOf(
     @CurrentTenant() tenantId: string,
