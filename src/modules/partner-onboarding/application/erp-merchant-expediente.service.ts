@@ -8,7 +8,7 @@ import { ExpedienteHooksService } from '../../expedientes/application/expediente
 import { ExpedientesRepository } from '../../expedientes/repositories/expedientes.repository.js';
 import type { PartnerProfileModel } from '../../../database/models/index.js';
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
-import { isProfileEditable } from './partner-profile.guards.js';
+import { assertCommercialNetworkEditable, assertPaymentQrEditable, isProfileEditable } from './partner-profile.guards.js';
 import { startPartnerOnboardingSchema } from '../partner-onboarding.schemas.js';
 import { normalizeBusinessCategory } from '../partner-business-categories.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
@@ -181,7 +181,7 @@ export class ErpMerchantExpedienteService {
       }
     }
 
-    if (input.branch) {
+    if (input.branch && admite(assertCommercialNetworkEditable, profile)) {
       const sucursales = await this.network.listBranches(tenantId, profile.id);
       if (!sucursales.some((item) => item.branchCode === input.branch?.branchCode)) {
         await this.commerce.registerBranch(tenantId, profile.id, input.branch);
@@ -189,7 +189,7 @@ export class ErpMerchantExpedienteService {
       }
     }
 
-    if (input.bankQr) {
+    if (input.bankQr && admite(assertPaymentQrEditable, profile)) {
       const vigente = await this.network.findLiveQr(tenantId, profile.id, 'bank', null);
       if (!vigente) {
         await this.qr.register(tenantId, profile.id, { ...input.bankQr, qrKind: 'bank' });
@@ -216,4 +216,14 @@ function esEditable(profile: PartnerProfileModel): boolean {
 
 function vacio(reason: ErpMerchantExpedienteResult['reason']): ErpMerchantExpedienteResult {
   return { partnerId: null, expedienteId: null, created: false, reason, loaded: [], gaps: [], onboardingStatus: null };
+}
+
+/** Pasa una compuerta del expediente en modo «saltar»: false en vez de lanzar, para no romper la carga. */
+function admite(compuerta: (profile: PartnerProfileModel) => void, profile: PartnerProfileModel): boolean {
+  try {
+    compuerta(profile);
+    return true;
+  } catch {
+    return false;
+  }
 }
