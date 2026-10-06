@@ -8,7 +8,12 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { CreditLineRecalculationService } from '../../../src/modules/credit/application/credit-line-recalculation.service.js';
 import { DecisionEngineClient } from '../../../src/modules/decision-engine/decision-engine.client.js';
 
-function build(readiness: { status: 'ready' | 'pending' | 'superseded' | 'revoked'; marker: string | null }) {
+type Productos = () => Promise<Array<{ annualInterestRate: unknown }>>;
+
+function build(
+  readiness: { status: 'ready' | 'pending' | 'superseded' | 'revoked'; marker: string | null },
+  productos: Productos = async () => [{ annualInterestRate: '22.0000' }, { annualInterestRate: '18.0000' }],
+) {
   const order: string[] = [];
   const client = {
     isConfigured: true,
@@ -50,6 +55,7 @@ function build(readiness: { status: 'ready' | 'pending' | 'superseded' | 'revoke
     capacity as never,
     {} as never,
     escritor as never,
+    { findOfferableProducts: productos } as never,
   );
   return { service, client, escritor, order };
 }
@@ -78,6 +84,27 @@ describe('P-09 · recálculo de línea: base habilitante antes de decidir', () =
     await expect(service.recalculate(input)).resolves.toBeNull();
     expect(client.execute).not.toHaveBeenCalled();
     expect(escritor.persist).not.toHaveBeenCalled();
+  });
+
+  it('manda la tasa base del producto ofertable más barato, en tanto por uno y fechada al pedir', async () => {
+    const { service, client } = build({ status: 'ready', marker: '1' });
+    await service.recalculate(input);
+    const [[, request]] = client.execute.mock.calls as unknown as [
+      [string, { variables: Record<string, unknown>; context: { provenance: Record<string, unknown> } }],
+    ];
+    expect(request.variables.product_base_annual_rate).toBeCloseTo(0.18, 9);
+    expect(request.context.provenance.product_base_annual_rate).toBe('derivado');
+  });
+
+  it.each([
+    ['sin productos ofertables', async () => []],
+    ['si la consulta del catálogo falla', async () => Promise.reject(new Error('caída'))],
+  ] as Array<[string, Productos]>)('%s manda 0 y sigue decidiendo', async (_caso, productos) => {
+    const { service, client, escritor } = build({ status: 'ready', marker: '1' }, productos);
+    await service.recalculate(input);
+    const [[, request]] = client.execute.mock.calls as unknown as [[string, { variables: Record<string, unknown> }]];
+    expect(request.variables.product_base_annual_rate).toBe(0);
+    expect(escritor.persist).toHaveBeenCalled();
   });
 
   it('la regla de bloqueo del cliente es la del módulo del motor', () => {
