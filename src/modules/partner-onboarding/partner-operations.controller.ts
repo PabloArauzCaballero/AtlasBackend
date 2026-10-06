@@ -19,7 +19,14 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
 import { PartnerQrReviewService } from './application/partner-qr-review.service.js';
 import { PartnerVerificationService } from './application/partner-verification.service.js';
-import { partnerIdParamsSchema, qrIdParamsSchema, QrIdParamsDto, reviewQrSchema, ReviewQrDto } from './partner-onboarding.schemas.js';
+import {
+  partnerIdParamsSchema,
+  PartnerIdParamsDto,
+  qrIdParamsSchema,
+  QrIdParamsDto,
+  reviewQrSchema,
+  ReviewQrDto,
+} from './partner-onboarding.schemas.js';
 import {
   FindPartnerQueryDto,
   findPartnerQuerySchema,
@@ -215,7 +222,7 @@ export class PartnerOperationsController {
   @HttpCode(HttpStatus.OK)
   async linkErpAccount(
     @CurrentTenant() tenantId: string,
-    @Param('partnerId') partnerId: string,
+    @Param(new ZodValidationPipe(partnerIdParamsSchema)) { partnerId }: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(linkErpAccountSchema)) body: LinkErpAccountDto,
   ) {
     return toPartnerProfileDto(await this.verification.linkErpAccount(tenantId, partnerId, body.erpAccountId));
@@ -241,7 +248,7 @@ export class PartnerOperationsController {
   @HttpCode(HttpStatus.OK)
   async requestKybReview(
     @CurrentTenant() tenantId: string,
-    @Param('partnerId') partnerId: string,
+    @Param(new ZodValidationPipe(partnerIdParamsSchema)) { partnerId }: PartnerIdParamsDto,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(requestKybReviewSchema)) body: RequestKybReviewDto,
   ) {
@@ -276,7 +283,7 @@ export class PartnerOperationsController {
   @HttpCode(HttpStatus.OK)
   async decide(
     @CurrentTenant() tenantId: string,
-    @Param('partnerId') partnerId: string,
+    @Param(new ZodValidationPipe(partnerIdParamsSchema)) { partnerId }: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(partnerDecisionSchema)) body: PartnerDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
