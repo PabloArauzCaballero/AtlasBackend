@@ -146,6 +146,17 @@ describe('CreditProgressService', () => {
     expect(r.rating.value).toBe(Math.max(1, Math.min(100, Math.round(r.score))));
   });
 
+  it('la tarjeta Normal…Black sale del nivel de la MISMA calificación que se publica, no de otro número', async () => {
+    const { service, cards } = armar({ linea: null, historial: [] });
+
+    const r = await service.get('1', '42');
+
+    const [[, , nivelPedido]] = cards.resolveFor.mock.calls as unknown as [[string, string, string]];
+    expect(nivelPedido).toBe(r.tier.code);
+    expect(r.rating.value).toBe(Math.max(1, Math.min(100, Math.round(r.score))));
+    expect((r.card as unknown as { levelCode: string }).levelCode).toBe(r.tier.code);
+  });
+
   it('sin compras, la experiencia es 0 y ni siquiera consulta las cuotas', async () => {
     const { service, installments } = armar({ linea: null, historial: [] });
 
