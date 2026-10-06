@@ -61,7 +61,7 @@
 
 | ID | Microtarea | CA (binario) | DoD (comando) | Estado |
 |---|---|---|---|---|
-| H1.S2.M1 | Extraer `CreditoHabilitadoCard` (`src/ui/credito-habilitado-card.tsx`) reusando `Card`, `CardHeader`, `Stat`, `StatRow` y tokens, con los estados de F2 | El componente renderiza datos / cargando / sin calcular / error | `yarn jest credito-habilitado-card` → 4 casos PASS | TODO |
+| H1.S2.M1 | Extraer `CreditoHabilitadoCard` (`AtlasFrontend/apps/consumer-app/src/ui/credito-habilitado-card.tsx`) reusando `Card`, `CardHeader`, `Stat`, `StatRow` y tokens, con los estados de F2 | El componente renderiza datos / cargando / sin calcular / error | `yarn jest credito-habilitado-card` → 4 casos PASS | TODO |
 | H1.S2.M2 | Rótulo de procedencia: «Lo decidió el motor de Atlas el <fecha>» desde `decision.calculatedAt`; nunca se rellena con una constante | Con `executionId` nulo no se muestra la marca | `yarn jest credito-habilitado-card` → caso de procedencia PASS | TODO |
 | H1.S2.M3 | Sustituir el `BrandPanel` de `index.tsx` por la tarjeta, conservando el `TourTarget` de la línea y el botón «Escanear QR» | El tour de Inicio sigue apuntando a la tarjeta | `yarn jest tour-inicio` + `yarn type-check` → PASS | TODO |
 | H1.S2.M4 | Evidencia visual: 3 viewports × claro/oscuro × 4 estados | 24 capturas revisadas a mano | capturas en `evidencia/h1/` + nota de revisión | TODO |
