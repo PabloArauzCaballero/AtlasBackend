@@ -509,7 +509,9 @@ describe('ExternalDataGovernanceService', () => {
         { id: 'r1', providerId: 'p1', customerId: 'c1', requestedAt: new Date(), responseStatus: 'COMPLETED' },
       ] as never);
 
-      const result = await service.getRetentionPreview({ days: 365, limit: 100 });
+      const result = await service.getRetentionPreview({ tenantId: 't1', days: 365, limit: 100 });
+
+      expect((repository.listProviderRequests as jest.Mock).mock.calls[0][0]).toMatchObject({ tenantId: 't1' });
 
       expect(result.candidates[0].action).toBe('REVIEW_BEFORE_PURGE_OR_ARCHIVE');
       expect(result.note).toMatch(/no borra datos/i);

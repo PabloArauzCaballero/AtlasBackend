@@ -436,8 +436,11 @@ export class AdminExternalProvidersController {
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(retentionPreviewQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Vista previa de purga.' })
   @Get('retention/preview')
-  retentionPreview(@Query(new ZodValidationPipe(retentionPreviewQuerySchema)) query: RetentionPreviewQueryDto) {
-    return this.externalDataService.getRetentionPreview({ days: query.days, limit: query.limit });
+  retentionPreview(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(retentionPreviewQuerySchema)) query: RetentionPreviewQueryDto,
+  ) {
+    return this.externalDataService.getRetentionPreview({ tenantId, days: query.days, limit: query.limit });
   }
 
   @ApiOperation({
@@ -448,8 +451,11 @@ export class AdminExternalProvidersController {
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(sanitizationAuditQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Auditoría de sanitización.' })
   @Get('sanitization-audit')
-  sanitizationAudit(@Query(new ZodValidationPipe(sanitizationAuditQuerySchema)) query: SanitizationAuditQueryDto) {
-    return this.externalDataService.auditResponseSanitization({ limit: query.limit });
+  sanitizationAudit(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(sanitizationAuditQuerySchema)) query: SanitizationAuditQueryDto,
+  ) {
+    return this.externalDataService.auditResponseSanitization({ tenantId, limit: query.limit });
   }
 
   @ApiOperation({ summary: 'Vista previa de política (alias administrativo de requests/preview)' })

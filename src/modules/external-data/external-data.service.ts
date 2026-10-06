@@ -256,11 +256,11 @@ export class ExternalDataService {
     return this.governance.activateProviderKillSwitch(input);
   }
 
-  getRetentionPreview(input: { days: number; limit: number }) {
+  getRetentionPreview(input: { tenantId: string; days: number; limit: number }) {
     return this.governance.getRetentionPreview(input);
   }
 
-  auditResponseSanitization(input: { limit: number }) {
+  auditResponseSanitization(input: { limit: number; tenantId?: string }) {
     return this.governance.auditResponseSanitization(input);
   }
 

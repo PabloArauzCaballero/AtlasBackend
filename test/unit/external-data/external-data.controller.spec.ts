@@ -174,10 +174,10 @@ describe('AdminExternalProvidersController (administración)', () => {
     expect(svc.getProviderUsage).toHaveBeenCalledWith({ tenantId, providerCode: 'SEGIP', days: 30 });
     await c.idempotencyAudit('1', { days: 3, limit: 10 } as never);
     expect(svc.auditIdempotencyKeys).toHaveBeenCalledWith({ tenantId, days: 3, limit: 10 });
-    await c.retentionPreview({ days: 90, limit: 5 } as never);
-    expect(svc.getRetentionPreview).toHaveBeenCalledWith({ days: 90, limit: 5 });
-    await c.sanitizationAudit({ limit: 20 } as never);
-    expect(svc.auditResponseSanitization).toHaveBeenCalledWith({ limit: 20 });
+    await c.retentionPreview('1', { days: 90, limit: 5 } as never);
+    expect(svc.getRetentionPreview).toHaveBeenCalledWith({ tenantId, days: 90, limit: 5 });
+    await c.sanitizationAudit('1', { limit: 20 } as never);
+    expect(svc.auditResponseSanitization).toHaveBeenCalledWith({ tenantId, limit: 20 });
   });
 
   it('mutaciones de runtime/costo (patchRuntime, killSwitch, getCostPolicy, updateCostPolicy)', async () => {

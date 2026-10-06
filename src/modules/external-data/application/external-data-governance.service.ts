@@ -326,10 +326,10 @@ Runtime change: ${input.patch.reason}`
     });
   }
 
-  async getRetentionPreview(input: { days: number; limit: number }) {
+  async getRetentionPreview(input: { tenantId: string; days: number; limit: number }) {
     const from = new Date(0);
     const to = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
-    const requests = await this.repository.listProviderRequests({ from, to, limit: input.limit });
+    const requests = await this.repository.listProviderRequests({ tenantId: input.tenantId, from, to, limit: input.limit });
     return {
       generatedAt: new Date().toISOString(),
       olderThanDays: input.days,
@@ -346,8 +346,8 @@ Runtime change: ${input.patch.reason}`
     };
   }
 
-  async auditResponseSanitization(input: { limit: number }) {
-    const responses = await this.repository.listRecentProviderResponses(input.limit);
+  async auditResponseSanitization(input: { limit: number; tenantId?: string }) {
+    const responses = await this.repository.listRecentProviderResponses(input.limit, input.tenantId);
     const findings = [];
     for (const response of responses) {
       const payload = JSON.stringify(response.redactedPayloadJson ?? {}).toLowerCase();
