@@ -38,7 +38,7 @@ function build(options: { acquired?: boolean; createFails?: boolean } = {}) {
     {} as never,
     {} as never,
   );
-  return { service, lockTransaction, job };
+  return { service, lockTransaction, job, sequelize };
 }
 
 describe('SystemsCatalogSeedService.refreshCatalog', () => {
@@ -62,5 +62,17 @@ describe('SystemsCatalogSeedService.refreshCatalog', () => {
     expect(job.status).toBe('succeeded');
     expect(lockTransaction.commit).toHaveBeenCalledTimes(1);
     expect(lockTransaction.rollback).not.toHaveBeenCalled();
+  });
+
+  it('comparte candado con la puesta al día automática y amplía el corte por ociosidad sólo en su transacción', async () => {
+    const { service, sequelize, lockTransaction } = build();
+    await service.refreshCatalog(INPUT, USER);
+    const calls = sequelize.query.mock.calls as unknown as [string, Record<string, unknown>][];
+    const [lockSql, lockOptions] = calls[0]!;
+    expect(lockSql).toContain("hashtext('atlas_systems_catalog_refresh')");
+    expect(lockSql).toContain('hashtext(:selfSyncKey)');
+    expect(lockOptions.replacements).toEqual({ selfSyncKey: 'atlas_systems_catalog_auto_sync' });
+    expect(calls[1]![0]).toMatch(/^SET LOCAL idle_in_transaction_session_timeout/);
+    expect(calls[1]![1]).toEqual({ transaction: lockTransaction });
   });
 });

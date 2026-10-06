@@ -10,7 +10,11 @@ import { join } from 'node:path';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { SYSTEM_TOOL_SEEDS } from './systems-ops.constants.js';
-import { SystemsCatalogAutoSyncService } from './systems-catalog-auto-sync.service.js';
+import {
+  CATALOG_LOCK_IDLE_TIMEOUT_SQL,
+  CATALOG_SELF_SYNC_LOCK_KEY,
+  SystemsCatalogAutoSyncService,
+} from './systems-catalog-auto-sync.service.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { SystemsErpInventoryService } from './systems-erp-inventory.service.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
@@ -56,14 +60,21 @@ export class SystemsCatalogSeedService {
     user: AuthenticatedUser,
   ) {
     const lockTransaction = await this.sequelize.transaction();
+    // Dos llaves: la propia del refresco y la de la puesta al día automática, que también cataloga las
+    // rutas propias. Con llaves distintas un refresco manual y la pasada programada deprecaban en paralelo.
     const [lock] = await this.sequelize.query<{ acquired: boolean }>(
-      `SELECT pg_try_advisory_xact_lock(hashtext('atlas_systems_catalog_refresh')) AS acquired`,
-      { type: QueryTypes.SELECT, transaction: lockTransaction },
+      `SELECT pg_try_advisory_xact_lock(hashtext('atlas_systems_catalog_refresh'))
+          AND pg_try_advisory_xact_lock(hashtext(:selfSyncKey)) AS acquired`,
+      { type: QueryTypes.SELECT, transaction: lockTransaction, replacements: { selfSyncKey: CATALOG_SELF_SYNC_LOCK_KEY } },
     );
     if (!lock?.acquired) {
       await lockTransaction.rollback();
       throw new ConflictException('SYSTEMS_CATALOG_REFRESH_ALREADY_RUNNING');
     }
+    await this.sequelize.query(CATALOG_LOCK_IDLE_TIMEOUT_SQL, { transaction: lockTransaction }).catch(async (error: unknown) => {
+      await lockTransaction.rollback().catch(() => undefined);
+      throw error;
+    });
     const startedAt = new Date();
     // El INSERT va con el candado ya tomado: si lanza y nadie suelta la transacción, la conexión queda
     // «idle in transaction» con el candado y cada refresco responde 409 hasta que Postgres la corta.
