@@ -81,7 +81,7 @@ export class PaymentCapacityService {
   }): Promise<{ assessment: PaymentCapacityAssessment; relationship: RelationshipInput }> {
     const now = input.now ?? new Date();
     const [statement, relationship] = await Promise.all([
-      this.statementCapacity(input.tenantId, input.customerId),
+      this.statementCapacity(input.tenantId, input.customerId, now),
       this.relationship(input.tenantId, input.customerId, now),
     ]);
 
@@ -103,8 +103,8 @@ export class PaymentCapacityService {
    * subir un documento malo BORRARA la capacidad que ya se había medido con uno bueno. La evidencia
    * vieja sigue siendo evidencia hasta que otra la sustituya.
    */
-  private async statementCapacity(tenantId: string, customerId: string): Promise<StatementCapacityInput> {
-    const review = await this.reviews.findOne({
+  private async statementCapacity(tenantId: string, customerId: string, now: Date): Promise<StatementCapacityInput> {
+    const found = await this.reviews.findOne({
       where: {
         tenantId,
         customerId,
@@ -113,6 +113,9 @@ export class PaymentCapacityService {
       },
       order: [['_created_at', 'DESC']],
     } as FindOptions);
+    // Un extracto cuyo último movimiento es anterior al tope ya no demuestra cuánto puede pagar hoy: se trata como
+    // si no existiera y la propuesta cae a lo declarado, que es conservador y queda marcado como tal.
+    const review = found && !isStatementTooOld(found.periodTo, now) ? found : null;
 
     if (!review) {
       return {
@@ -180,8 +183,8 @@ export class PaymentCapacityService {
       where: { tenantId, loanId: { [Op.in]: loans.map((loan) => String(loan.id)) } },
     } as FindOptions);
 
-    const today = now.toISOString().slice(0, 10);
-    const yearAgo = new Date(now.getTime() - 365 * 86_400_000).toISOString().slice(0, 10);
+    const today = businessDate(now);
+    const yearAgo = businessDate(new Date(now.getTime() - 365 * 86_400_000));
     let onTime = 0;
     let late = 0;
     let overdueInLastYear = 0;
@@ -196,7 +199,9 @@ export class PaymentCapacityService {
       }
     }
 
-    const settledStatuses = new Set(['closed', 'paid', 'settled', 'cancelled_paid']);
+    // `paid_off` es el estado real de un crédito devuelto (`ck_loans_status`): buscar otros nombres dejaba
+    // `loansSettled` siempre en 0 y la fidelización sin su mayor componente.
+    const settledStatuses = new Set(['paid_off']);
     const lastDisbursement = loans
       .map((loan) => (loan.disbursedAt ? new Date(loan.disbursedAt).getTime() : 0))
       .reduce((latest, value) => Math.max(latest, value), 0);
@@ -226,6 +231,24 @@ export class PaymentCapacityService {
 function fraudFlagsOf(summary: CustomerActivitySummaryModel | null): number {
   if (!summary) return 0;
   return Number(summary.fraudCaseCountLifetime ?? 0) + Number(summary.openManualReviewCount ?? 0);
+}
+
+/** Hasta qué antigüedad un extracto vale como evidencia de capacidad (D-2 del plan 2026-10-05). */
+export const STATEMENT_MAX_AGE_DAYS = 180;
+
+/** Bolivia es UTC−4 y no tiene horario de verano: «hoy» para una cuota es la fecha de La Paz, no la de UTC. */
+const LA_PAZ_OFFSET_MS = 4 * 3_600_000;
+
+export function businessDate(instant: Date): string {
+  return new Date(instant.getTime() - LA_PAZ_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** Sin fecha de período no se puede probar que sea reciente, así que no se descarta: lo decide quien la lea. */
+export function isStatementTooOld(periodTo: string | Date | null | undefined, now: Date): boolean {
+  if (!periodTo) return false;
+  const end = new Date(periodTo).getTime();
+  if (!Number.isFinite(end)) return false;
+  return now.getTime() - end > STATEMENT_MAX_AGE_DAYS * 86_400_000;
 }
 
 function numberOrNull(value: string | number | null | undefined): number | null {

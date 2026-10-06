@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Op } from 'sequelize';
-import { PaymentCapacityService } from '../../../src/modules/credit/application/payment-capacity.service.js';
+import {
+  businessDate,
+  isStatementTooOld,
+  PaymentCapacityService,
+} from '../../../src/modules/credit/application/payment-capacity.service.js';
 import type {
   BankStatementReviewModel,
   CustomerActivitySummaryModel,
@@ -75,7 +79,7 @@ describe('PaymentCapacityService', () => {
    * aquí es lo que este servicio LEE, que es lo único suyo.
    */
   type Interno = {
-    statementCapacity(tenantId: string, customerId: string): Promise<Record<string, unknown>>;
+    statementCapacity(tenantId: string, customerId: string, now: Date): Promise<Record<string, unknown>>;
     relationship(tenantId: string, customerId: string, now: Date): Promise<Record<string, unknown>>;
   };
 
@@ -84,7 +88,7 @@ describe('PaymentCapacityService', () => {
   }
 
   function extracto() {
-    return interno().statementCapacity('t1', 'c1');
+    return interno().statementCapacity('t1', 'c1', AHORA);
   }
 
   function relacion() {
@@ -99,6 +103,37 @@ describe('PaymentCapacityService', () => {
       expect(condicion.where).toMatchObject({ tenantId: 't1', customerId: 'c1', deleted: false });
       expect((condicion.where.affordabilityScore as Record<symbol, null>)[Op.ne]).toBeNull();
       expect(condicion.order).toEqual([['_created_at', 'DESC']]);
+    });
+
+    it('un extracto de más de 180 días ya no es evidencia: se trata como si no existiera', async () => {
+      reviews.findOne.mockResolvedValueOnce({
+        affordabilityEligible: true,
+        maxAffordableInstallment: '900.00',
+        affordabilityScore: 70,
+        periodTo: '2026-02-28',
+      } as never);
+
+      const medida = await extracto();
+
+      expect(medida.eligible).toBe(false);
+      expect(medida.maxAffordableInstallment).toBeNull();
+    });
+
+    it('un extracto reciente, o sin fecha de período, se conserva', async () => {
+      reviews.findOne.mockResolvedValueOnce({
+        affordabilityEligible: true,
+        maxAffordableInstallment: '900',
+        affordabilityScore: 70,
+        periodTo: '2026-08-31',
+      } as never);
+      expect((await extracto()).eligible).toBe(true);
+      reviews.findOne.mockResolvedValueOnce({
+        affordabilityEligible: true,
+        maxAffordableInstallment: '900',
+        affordabilityScore: 70,
+        periodTo: null,
+      } as never);
+      expect((await extracto()).eligible).toBe(true);
     });
 
     it('sin extracto analizado se declara no elegible y sin cifras, en vez de asumir ceros', async () => {
@@ -229,10 +264,13 @@ describe('PaymentCapacityService', () => {
 
     it('separa los saldados de los activos y de los castigados', async () => {
       loans.findAll.mockResolvedValueOnce([
-        { id: 1, status: 'closed' },
-        { id: 2, status: 'settled' },
+        // Los estados reales de `ck_loans_status`. Antes la prueba usaba `closed`/`settled`, que la tabla no admite,
+        // y por eso un crédito pagado nunca contó como saldado.
+        { id: 1, status: 'paid_off' },
+        { id: 2, status: 'paid_off' },
         { id: 3, status: 'active' },
         { id: 4, status: 'written_off' },
+        { id: 5, status: 'cancelled' },
       ] as never);
 
       const evaluacion = await relacion();
@@ -244,7 +282,7 @@ describe('PaymentCapacityService', () => {
 
     it('la peor mora es la máxima de todos sus créditos', async () => {
       loans.findAll.mockResolvedValueOnce([
-        { id: 1, status: 'closed', worstDaysPastDue: 12 },
+        { id: 1, status: 'paid_off', worstDaysPastDue: 12 },
         { id: 2, status: 'active', worstDaysPastDue: 45 },
         { id: 3, status: 'active', worstDaysPastDue: null },
       ] as never);
@@ -391,5 +429,20 @@ describe('PaymentCapacityService', () => {
 
       expect(Number(largo.ceilings.byCapacity)).toBeGreaterThan(Number(corto.ceilings.byCapacity));
     });
+  });
+});
+
+describe('fechas de negocio y estados del libro', () => {
+  it('«hoy» es la fecha de La Paz: a las 22:00 hora boliviana (02:00 UTC del día siguiente) sigue siendo el mismo día', () => {
+    expect(businessDate(new Date('2026-09-11T02:00:00Z'))).toBe('2026-09-10');
+    expect(businessDate(new Date('2026-09-11T04:00:00Z'))).toBe('2026-09-11');
+  });
+
+  it('el tope del extracto es exacto: 180 días justos todavía valen, 181 no', () => {
+    const ahora = new Date('2026-09-10T12:00:00Z');
+    expect(isStatementTooOld(new Date(ahora.getTime() - 180 * 86_400_000), ahora)).toBe(false);
+    expect(isStatementTooOld(new Date(ahora.getTime() - 181 * 86_400_000), ahora)).toBe(true);
+    expect(isStatementTooOld(null, ahora)).toBe(false);
+    expect(isStatementTooOld('no-es-fecha', ahora)).toBe(false);
   });
 });
