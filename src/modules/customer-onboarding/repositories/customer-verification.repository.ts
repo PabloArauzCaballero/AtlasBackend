@@ -78,11 +78,17 @@ export class CustomerVerificationRepository {
    * Es lo que necesita quien YA sabe cuál intento resolver —el callback del Motor lo localizó por su
    * `executionId`—: resolver "el último del cliente" podía caer en otro intento y escribir el
    * veredicto de la revisión sobre él. El tenant va en el `where`, no se comprueba después.
+   * `lock` (dentro de una transacción) toma la fila FOR UPDATE: dos resoluciones a la vez no se pisan.
    */
-  findAttemptById(tenantId: string, attemptId: string, options: RepositoryOptions = {}): Promise<IdentityVerificationAttemptModel | null> {
+  findAttemptById(
+    tenantId: string,
+    attemptId: string,
+    options: RepositoryOptions & { lock?: boolean } = {},
+  ): Promise<IdentityVerificationAttemptModel | null> {
     return this.attemptModel.findOne({
       where: { tenantId, id: attemptId },
       transaction: options.transaction,
+      ...(options.lock && options.transaction ? { lock: options.transaction.LOCK.UPDATE } : {}),
     } as FindOptions);
   }
 

@@ -9,11 +9,16 @@ import { Sequelize } from 'sequelize-typescript';
 import type { Transaction } from 'sequelize';
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { CustomerVerificationRepository } from '../repositories/customer-verification.repository.js';
-import { identityResultForRow } from '../../../common/utils/identity/identity-result.util.js';
+import {
+  identityResultForRow,
+  isTerminalIdentityResult,
+  normalizeIdentityResult,
+} from '../../../common/utils/identity/identity-result.util.js';
 import type { IdentityVerificationAttemptModel } from '../../../database/models/index.js';
 import { IdentityVerdictEventPublisher } from './identity-verdict-event.publisher.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { IdentityReviewCaseRepository } from '../repositories/identity-review-case.repository.js';
+import { assertNotDelegatedToEngine } from './customer-verification.service.js';
 
 export type ManualIdentityDecision = 'approved' | 'rejected';
 
@@ -34,7 +39,22 @@ type ReviewResolution = {
   notes: string;
 };
 
-type ReviewOutcome = { customerId: string; identityResult: string; approvedEvidenceCount: number; lifecycleStatus?: string };
+type ReviewOutcome = {
+  customerId: string;
+  identityResult: string;
+  approvedEvidenceCount: number;
+  lifecycleStatus?: string;
+  /** `false` cuando el intento ya tenía veredicto y el callback no lo reescribe. */
+  applied?: boolean;
+  reason?: string;
+};
+
+/**
+ * Quién llama. El callback del Motor (`engine`) llega por clave de servicio y puede llegar tarde o
+ * repetido: sobre un intento que ya tiene veredicto no escribe nada. El operador (`operator`) decide
+ * a sabiendas, pero no un intento que el Motor tiene en su cola.
+ */
+type Caller = 'engine' | 'operator';
 
 /**
  * La decisión humana tenía que volver al expediente, y no volvía.
@@ -85,7 +105,7 @@ export class IdentityManualReviewOutcomeService {
   async apply(input: ReviewResolution & { attemptId: string }): Promise<ReviewOutcome> {
     const attempt = await this.verificationRepository.findAttemptById(input.tenantId, input.attemptId);
     if (!attempt) throw new NotFoundException('IDENTITY_ATTEMPT_NOT_FOUND');
-    return this.applyToAttempt(attempt, input);
+    return this.applyToAttempt(attempt, input, 'engine');
   }
 
   /**
@@ -94,22 +114,38 @@ export class IdentityManualReviewOutcomeService {
    * Resuelve el intento que ESPERA una decisión (`findAttemptAwaitingReview`), no el último a secas:
    * un `verified` posterior de otro canal no es lo que la persona está revisando.
    */
-  async applyForCustomer(input: ReviewResolution & { customerId: string }): Promise<ReviewOutcome> {
+  async applyForCustomer(input: ReviewResolution & { customerId: string }, caller: Caller = 'engine'): Promise<ReviewOutcome> {
     const attempt = await this.verificationRepository.findAttemptAwaitingReview(input.tenantId, input.customerId);
     if (!attempt) throw new NotFoundException('IDENTITY_ATTEMPT_NOT_FOUND');
-    return this.applyToAttempt(attempt, input);
+    return this.applyToAttempt(attempt, input, caller);
   }
 
-  private async applyToAttempt(attempt: IdentityVerificationAttemptModel, input: ReviewResolution): Promise<ReviewOutcome> {
+  private async applyToAttempt(found: IdentityVerificationAttemptModel, input: ReviewResolution, caller: Caller): Promise<ReviewOutcome> {
     // Un intento sin cliente —una verificación anónima del móvil, antes del alta— no tiene expediente
     // al que propagar nada: mejor decirlo que resolver documentos y evidencias de «null».
-    if (!attempt.customerId) throw new UnprocessableEntityException('IDENTITY_ATTEMPT_WITHOUT_CUSTOMER');
-    const customerId = String(attempt.customerId);
+    if (!found.customerId) throw new UnprocessableEntityException('IDENTITY_ATTEMPT_WITHOUT_CUSTOMER');
+    const customerId = String(found.customerId);
 
     const verified = input.decision === 'approved';
     const now = new Date();
 
     return this.sequelize.transaction(async (transaction) => {
+      // Se relee con FOR UPDATE: dos resoluciones a la vez ya no se pisan, y el estado que se mira es el de ahora.
+      const attempt =
+        (await this.verificationRepository.findAttemptById(input.tenantId, String(found.id), { transaction, lock: true })) ?? found;
+      // La misma regla que el panel (`decideIdentity`): lo que el Motor tiene en su cola se resuelve allí.
+      if (caller === 'operator') assertNotDelegatedToEngine(attempt);
+      // Un callback tardío o de un caso paralelo no revierte un veredicto ya dado (p. ej. el panel rechazó
+      // un intento `UNAVAILABLE` y después el Motor aprueba el caso que sí abrió).
+      if (caller === 'engine' && isTerminalIdentityResult(attempt.finalResult)) {
+        return {
+          customerId,
+          identityResult: normalizeIdentityResult(attempt.finalResult),
+          approvedEvidenceCount: 0,
+          applied: false,
+          reason: 'IDENTITY_ALREADY_DECIDED',
+        };
+      }
       await this.verificationRepository.resolveAttempt(
         attempt,
         {

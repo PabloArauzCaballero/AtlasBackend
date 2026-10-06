@@ -3,7 +3,7 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
@@ -197,8 +197,12 @@ export class CustomerOnboardingController {
   @ApiOperation({ summary: 'Aplica la resolución de una revisión manual de identidad' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Resolución aplicada al expediente.' })
-  @ApiResponse({ status: 403, description: 'El token no tiene rol de analista.' })
+  @ApiResponse({
+    status: 403,
+    description: 'El token no tiene rol de analista, no es de un usuario interno, o `reviewedByInternalUserId` no es quien llama.',
+  })
   @ApiResponse({ status: 404, description: 'Cliente o intento de identidad no encontrado.' })
+  @ApiResponse({ status: 409, description: 'El Motor abrió el caso de ese intento: se resuelve allí.' })
   @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
   @Post(':customerId/identity-manual-review')
   @HttpCode(HttpStatus.OK)
@@ -208,12 +212,15 @@ export class CustomerOnboardingController {
     @Body(new ZodValidationPipe(identityManualReviewSchema)) body: IdentityManualReviewDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.identityManualReviewOutcomeService.applyForCustomer({
-      tenantId,
-      customerId: params.customerId,
-      decision: body.decision,
-      reviewedByInternalUserId: body.reviewedByInternalUserId ?? String(currentUser.internalUserId ?? ''),
-      notes: body.notes,
-    });
+    // Quien decide es quien llama: el cuerpo ya no puede atribuir la decisión a otro analista.
+    const reviewer = currentUser.internalUserId ? String(currentUser.internalUserId) : null;
+    if (!reviewer) throw new ForbiddenException('IDENTITY_REVIEWER_REQUIRED');
+    if (body.reviewedByInternalUserId && body.reviewedByInternalUserId !== reviewer) {
+      throw new ForbiddenException('IDENTITY_REVIEWER_MISMATCH');
+    }
+    return this.identityManualReviewOutcomeService.applyForCustomer(
+      { tenantId, customerId: params.customerId, decision: body.decision, reviewedByInternalUserId: reviewer, notes: body.notes },
+      'operator',
+    );
   }
 }

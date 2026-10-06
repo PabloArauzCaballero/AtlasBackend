@@ -86,6 +86,15 @@ describe('CustomerVerificationRepository', () => {
       expect(ultima(attempts.findOne).transaction).toBe(tx);
     });
 
+    it('con lock y transacción toma la fila FOR UPDATE; sin transacción no pide lock', async () => {
+      const conLock = { LOCK: { UPDATE: 'UPDATE' } } as never;
+      await repo.findAttemptById('t1', '21', { transaction: conLock, lock: true });
+      expect(ultima(attempts.findOne).lock).toBe('UPDATE');
+
+      await repo.findAttemptById('t1', '21', { lock: true });
+      expect(ultima(attempts.findOne).lock).toBeUndefined();
+    });
+
     it('el intento que espera decisión es el más reciente sin veredicto, aunque haya uno posterior ya verificado', async () => {
       // `id DESC`, como lo devuelve la base: el del móvil `VERIFIED` es el último, pero no es el que se revisa.
       attempts.findAll.mockResolvedValueOnce([

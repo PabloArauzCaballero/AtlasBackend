@@ -9,7 +9,7 @@
  *   modo que lo que se comprueba es la fila que quedó escrita y no las llamadas que hizo el código.
  */
 import { afterAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { env } from '../../../src/config/env.js';
 import { IdentityManualReviewOutcomeService } from '../../../src/modules/customer-onboarding/application/identity-manual-review-outcome.service.js';
 import { IdentityReviewCallbackController } from '../../../src/modules/customer-onboarding/identity-review-callback.controller.js';
@@ -237,6 +237,39 @@ describe('la resolución de una revisión humana de identidad', () => {
       expect(enRevision.finalResult).toBe('REJECTED');
     });
 
+    it('FALLA sin el fix: un callback tardío no revierte un veredicto ya dado (el panel rechazó; el Motor aprueba después)', async () => {
+      const rechazado = attempt({
+        id: '42',
+        finalResult: 'REJECTED',
+        reasonCodesJson: { executionId: 'exec-tarde' },
+        manualReviewedBy: '5',
+      });
+      const { controller, repository, events, eligibility } = build([rechazado]);
+      const antes = snapshot(rechazado);
+
+      const resultado = await controller.aplicar(TENANT, CLAVE, {
+        executionId: 'exec-tarde',
+        decision: 'APPROVE',
+        resolvedByInternalUserId: '7',
+      });
+
+      expect(rechazado).toEqual(antes);
+      expect(repository.resolveAttempt).not.toHaveBeenCalled();
+      expect(repository.resolveReview).not.toHaveBeenCalled();
+      expect(eligibility.evaluateAndRecord).not.toHaveBeenCalled();
+      expect(events.publish).not.toHaveBeenCalled();
+      expect(resultado).toMatchObject({ identityResult: 'rejected', applied: false, reason: 'IDENTITY_ALREADY_DECIDED' });
+    });
+
+    it('relee el intento con lock dentro de la transacción, para que dos callbacks a la vez no se pisen', async () => {
+      const enRevision = attempt({ id: '43', finalResult: 'IN_REVIEW', reasonCodesJson: { executionId: 'exec-lock' } });
+      const { controller, repository } = build([enRevision]);
+
+      await controller.aplicar(TENANT, CLAVE, { executionId: 'exec-lock', decision: 'APPROVE', resolvedByInternalUserId: '7' });
+
+      expect(repository.findAttemptById).toHaveBeenCalledWith(TENANT, '43', { transaction: {}, lock: true });
+    });
+
     it('no resuelve nada si ningún intento nació de esa ejecución', async () => {
       const otro = attempt({ id: '41', finalResult: 'IN_REVIEW', reasonCodesJson: { executionId: 'exec-x' } });
       const { controller, repository } = build([otro]);
@@ -312,6 +345,32 @@ describe('la resolución de una revisión humana de identidad', () => {
 
       expect(esperando.finalResult).toBe('rejected');
       expect(yaVerificado).toEqual(antes);
+    });
+
+    it('FALLA sin el fix: el operador no decide un intento que el Motor tiene en su cola (409, como el panel)', async () => {
+      const enLaCola = attempt({ id: '91', finalResult: 'IN_REVIEW', reasonCodesJson: { executionId: 'exec-cola' } });
+      const { service, repository } = build([enLaCola]);
+
+      await expect(
+        service.applyForCustomer(
+          { tenantId: TENANT, customerId: CUSTOMER, decision: 'approved', reviewedByInternalUserId: '7', notes: 'ok' },
+          'operator',
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(repository.resolveAttempt).not.toHaveBeenCalled();
+      expect(enLaCola.finalResult).toBe('IN_REVIEW');
+    });
+
+    it('el operador sí resuelve un intento retenido por la política de revisión humana', async () => {
+      const retenido = attempt({ id: '92', finalResult: 'IN_REVIEW', reasonCodesJson: { executionId: 'exec-h', humanReviewPolicy: true } });
+      const { service } = build([retenido]);
+
+      await service.applyForCustomer(
+        { tenantId: TENANT, customerId: CUSTOMER, decision: 'approved', reviewedByInternalUserId: '7', notes: 'ok' },
+        'operator',
+      );
+
+      expect(retenido.finalResult).toBe('VERIFIED');
     });
 
     it('un cliente sin ningún intento es 404', async () => {
