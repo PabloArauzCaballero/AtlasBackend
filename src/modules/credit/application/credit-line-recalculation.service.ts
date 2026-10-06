@@ -19,20 +19,25 @@ import { CreditRepository } from '../credit.repository.js';
 import { lineBaseRatePercent } from './credit-line-base-rate.js';
 import { pricedRateUnitToPercentNumber } from './credit-decision-pricing.mapper.js';
 import { PaymentCapacityService } from './payment-capacity.service.js';
+import { DEFAULT_CAPACITY_POLICY } from '../domain/payment-capacity.js';
+import { affordabilityRatioFor } from '../../decision-engine/underwriting-income-basis.js';
+import { lineProbeAmount, lineRateWithinUsuryCap } from './credit-line-probe.js';
+
+export { lineProbeAmount, lineRateWithinUsuryCap } from './credit-line-probe.js';
 import { capacityProvenance, capacityVariables } from './credit-line.service.js';
 
 /** Qué movió la línea. Se escribe siempre: una bajada sin causa visible parece un error. */
 export type CalculationTrigger = 'onboarding' | 'bank_statement' | 'delinquency' | 'repayment' | 'manual' | 'application';
 
 /**
- * El importe de referencia con el que se pide la línea cuando NO hay una compra concreta.
+ * El importe con el que se pide la línea cuando NO hay una compra concreta.
  *
- * El artefacto necesita un `requested_amount` para calcular la relación cuota/ingreso. Al abrir la
- * cuenta todavía no hay compra, así que se usa este importe como sonda: es el techo del producto, de
- * modo que la línea que sale es la máxima que la política concede a esa persona, no la que
- * cabría en una compra imaginaria más pequeña.
+ * El artefacto necesita un `requested_amount` para la relación cuota/ingreso. Hasta 2026-10 era una
+ * constante de Bs 5.000: con un ingreso por debajo de Bs 4.763 la sonda sola sumaba 45-70 puntos de
+ * riesgo, aunque la línea que después salía fuera de Bs 1.000. Ahora la sonda es la línea que la
+ * capacidad de pago PROPONE (lo que el cliente podrá gastar de verdad) y, si no propone nada, el
+ * mínimo útil del producto. Ver `lineProbeAmount`.
  */
-const PROBE_AMOUNT = 5000;
 const PROBE_TERM_MONTHS = 3;
 
 function num(value: unknown): number | null {
@@ -150,14 +155,14 @@ export class CreditLineRecalculationService {
     }
 
     const now = new Date();
-    const requestedAmount = input.requestedAmount ?? PROBE_AMOUNT;
     const requestedTermMonths = input.requestedTermMonths ?? PROBE_TERM_MONTHS;
 
     const current = await this.escritor.lineaVigente(input.tenantId, input.customerId);
     const features = await this.features.build({
       tenantId: input.tenantId,
       customerId: input.customerId,
-      requestedAmount,
+      // Provisional: la sonda real se fija abajo, cuando la capacidad haya propuesto la línea.
+      requestedAmount: input.requestedAmount ?? DEFAULT_CAPACITY_POLICY.minimumUsefulLimit,
       requestedTermMonths,
       bankStatementNsfCount: input.bankStatementNsfCount ?? null,
       now,
@@ -184,6 +189,11 @@ export class CreditLineRecalculationService {
       now,
     });
     Object.assign(variables, capacityVariables(capacity));
+    if (input.requestedAmount === undefined) {
+      const probe = lineProbeAmount(capacity);
+      variables.requested_amount = probe;
+      variables.affordability_ratio = affordabilityRatioFor(probe / requestedTermMonths, features.affordabilityIncome);
+    }
     // Sin compra no hay producto, y el artefacto exige la tasa base: ver `credit-line-base-rate.ts`.
     provenance.product_base_annual_rate = 'derivado';
     variables.product_base_annual_rate = percentToUnitRate(
@@ -274,7 +284,8 @@ export class CreditLineRecalculationService {
          * dos lean este campo por un solo sitio es lo que hace posible que lo que el cliente VE en su
          * línea y lo que se le COBRA en el préstamo puedan, alguna vez, ser el mismo número.
          */
-        annualPercentageRate: pricedRateUnitToPercentNumber(output.annual_percentage_rate),
+        // Recortada al tope de usura: lo que la línea MUESTRA no puede superar lo que el desembolso COBRA.
+        annualPercentageRate: lineRateWithinUsuryCap(pricedRateUnitToPercentNumber(output.annual_percentage_rate)),
         affordabilityScore: num(output.affordability_score),
         affordabilityDecision: str(output.affordability_decision),
         probabilityOfDefault: num(output.probability_of_default),
