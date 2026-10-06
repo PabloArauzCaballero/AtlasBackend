@@ -586,6 +586,27 @@ describe('AuthService.refresh', () => {
     expect(authRepository.createRefreshToken).not.toHaveBeenCalled();
   });
 
+  it('un refresh token de otro tipo de actor en la ruta equivocada se rechaza SIN rotarlo ni revocarlo', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    authRepository.findRefreshTokenForUpdate.mockResolvedValue({
+      id: 'rt-1',
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      revokedReason: null,
+      actorType: 'customer',
+      actorId: '10',
+      tenantId: '1',
+    });
+    const service = buildService(authRepository, buildCustomersRepositoryMock(), tokenRevocationService);
+
+    await expect(
+      service.refresh({ refreshToken: 'cliente', ip: null, userAgent: null, expectedActorType: 'internal_user' }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(authRepository.revokeRefreshToken).not.toHaveBeenCalled();
+    expect(authRepository.createRefreshToken).not.toHaveBeenCalled();
+  });
+
   it('rejects an expired refresh token', async () => {
     const authRepository = buildAuthRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
@@ -994,6 +1015,17 @@ describe('AuthService.verifyLoginPin (2FA por PIN de super admin / MFA cliente)'
         UnauthorizedException,
       );
     }
+  });
+
+  it('un desafío de otro tipo de actor en la ruta equivocada se rechaza sin reservar intento ni consumirlo', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge({ actorType: 'customer' }));
+    const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
+    await expect(
+      service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null, expectedActorType: 'internal_user' }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(authRepository.reserveOneTimeCodeAttempt).not.toHaveBeenCalled();
+    expect(authRepository.consumeOneTimeCode).not.toHaveBeenCalled();
   });
 
   it('PIN incorrecto: registra el intento fallido + evento y lanza; no consume el código', async () => {

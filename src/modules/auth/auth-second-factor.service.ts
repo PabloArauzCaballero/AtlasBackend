@@ -188,7 +188,7 @@ export class AuthSecondFactorService {
    * El mismo mensaje para "desafío inexistente", "expirado" y "PIN incorrecto" es deliberado: son
    * tres estados que un atacante no debe poder distinguir.
    */
-  async consumeChallenge(input: { challengeToken: string; pin: string } & Network): Promise<VerifiedSecondFactor> {
+  async consumeChallenge(input: { challengeToken: string; pin: string; expectedActorType?: ActorType } & Network): Promise<VerifiedSecondFactor> {
     const invalidPinError = new UnauthorizedException('PIN inválido o expirado.');
 
     const challenge = await this.oneTimeCodeRepository.findActiveOneTimeCodeByChallenge(hashOneTimeCode(input.challengeToken));
@@ -197,6 +197,8 @@ export class AuthSecondFactorService {
     }
 
     const actorType = challenge.actorType as ActorType;
+    // Un desafío de otro tipo de actor, presentado en la ruta equivocada, no se gasta: se rechaza antes.
+    if (input.expectedActorType && actorType !== input.expectedActorType) throw invalidPinError;
     // El intento se reserva antes de comparar (ver `reserveOneTimeCodeAttempt`): sin intentos, nada que comparar.
     if (!(await this.oneTimeCodeRepository.reserveOneTimeCodeAttempt(challenge, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS)))
       throw invalidPinError;

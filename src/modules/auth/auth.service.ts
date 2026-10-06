@@ -166,7 +166,13 @@ export class AuthService {
    * La verificación vive en `AuthSecondFactorService`; aquí queda solo lo que es competencia de este
    * servicio — decidir qué claims lleva el par de tokens que se emite.
    */
-  async verifyLoginPin(input: { challengeToken: string; pin: string; ip: string | null; userAgent: string | null }): Promise<LoginResult> {
+  async verifyLoginPin(input: {
+    challengeToken: string;
+    pin: string;
+    ip: string | null;
+    userAgent: string | null;
+    expectedActorType?: ActorType;
+  }): Promise<LoginResult> {
     const verified = await this.secondFactor.consumeChallenge(input);
     return this.tokenIssuer.issueTokenPair(verified.actor, verified.actorType, verified.credential.tokenVersion, {
       ip: input.ip,
@@ -187,7 +193,7 @@ export class AuthService {
    * caso de reuso detectado, la revocación de la cadena de descendientes es justo lo que NO
    * queremos perder aunque la solicitud en sí termine en 401.
    */
-  async refresh(input: { refreshToken: string; ip: string | null; userAgent: string | null }): Promise<LoginResult> {
+  async refresh(input: { refreshToken: string; ip: string | null; userAgent: string | null; expectedActorType?: ActorType }): Promise<LoginResult> {
     const tokenHash = hashRefreshToken(input.refreshToken);
 
     const outcome = await this.sequelize.transaction((transaction) =>
@@ -220,7 +226,7 @@ export class AuthService {
 
   private async rotateRefreshTokenWithinTransaction(
     tokenHash: string,
-    input: { ip: string | null; userAgent: string | null },
+    input: { ip: string | null; userAgent: string | null; expectedActorType?: ActorType },
     transaction: Transaction,
   ): Promise<
     | { kind: 'success'; accessToken: string; refreshToken: string }
@@ -232,6 +238,8 @@ export class AuthService {
     if (!stored) return { kind: 'invalid' };
 
     const actorType = stored.actorType as ActorType;
+    // Un token de otro tipo de actor llegado a la ruta equivocada se rechaza SIN rotarlo ni revocarlo.
+    if (input.expectedActorType && actorType !== input.expectedActorType) return { kind: 'invalid' };
 
     if (stored.revokedAt) {
       // El token ya fue consumido antes. Si fue consumido específicamente por una rotación
