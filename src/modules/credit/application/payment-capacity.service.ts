@@ -26,6 +26,9 @@ import {
   isIdentityVerified,
   pickCurrentIdentityAttempt,
 } from '../../../common/utils/identity/identity-result.util.js';
+import { isStatementTooOld } from '../../../common/utils/dates/statement-freshness.util.js';
+
+export { isStatementTooOld, STATEMENT_MAX_AGE_DAYS } from '../../../common/utils/dates/statement-freshness.util.js';
 
 /**
  * La propuesta de límite, armada con el expediente real.
@@ -256,22 +259,11 @@ function fraudFlagsOf(summary: CustomerActivitySummaryModel | null, liveFraudCas
 /** Las resoluciones de un caso cerrado que siguen contando contra la persona (D-3 del plan 2026-10-05). */
 export const FRAUD_RESOLUTIONS_THAT_STICK = ['confirmed_fraud', 'blocked', 'escalated'];
 
-/** Hasta qué antigüedad un extracto vale como evidencia de capacidad (D-2 del plan 2026-10-05). */
-export const STATEMENT_MAX_AGE_DAYS = 180;
-
 /** Bolivia es UTC−4 y no tiene horario de verano: «hoy» para una cuota es la fecha de La Paz, no la de UTC. */
 const LA_PAZ_OFFSET_MS = 4 * 3_600_000;
 
 export function businessDate(instant: Date): string {
   return new Date(instant.getTime() - LA_PAZ_OFFSET_MS).toISOString().slice(0, 10);
-}
-
-/** Sin fecha de período no se puede probar que sea reciente, así que no se descarta: lo decide quien la lea. */
-export function isStatementTooOld(periodTo: string | Date | null | undefined, now: Date): boolean {
-  if (!periodTo) return false;
-  const end = new Date(periodTo).getTime();
-  if (!Number.isFinite(end)) return false;
-  return now.getTime() - end > STATEMENT_MAX_AGE_DAYS * 86_400_000;
 }
 
 function numberOrNull(value: string | number | null | undefined): number | null {
