@@ -165,7 +165,8 @@ export class PaymentCapacityService {
   private async relationship(tenantId: string, customerId: string, now: Date): Promise<RelationshipInput> {
     const [customer, loans, summary, identityAttempts, liveFraudCases] = await Promise.all([
       this.customers.findOne({ where: { tenantId, id: customerId } } as FindOptions),
-      this.loans.findAll({ where: { tenantId, customerId } } as FindOptions),
+      // Las filas borradas no son historial: un préstamo o una cuota dados de baja no pueden contar como pagados ni como mora.
+      this.loans.findAll({ where: { tenantId, customerId, deleted: false } } as FindOptions),
       this.activity.findOne({ where: { tenantId, customerId } } as FindOptions),
       // Todos los recientes, no sólo el último: un intento posterior sin resolver no puede tapar un
       // `verified` anterior (I-2). Ver `pickCurrentIdentityAttempt`.
@@ -200,7 +201,7 @@ export class PaymentCapacityService {
     }
 
     const schedule = await this.installments.findAll({
-      where: { tenantId, loanId: { [Op.in]: loans.map((loan) => String(loan.id)) } },
+      where: { tenantId, deleted: false, loanId: { [Op.in]: loans.map((loan) => String(loan.id)) } },
     } as FindOptions);
 
     const today = businessDate(now);

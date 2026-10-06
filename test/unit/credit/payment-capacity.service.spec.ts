@@ -263,7 +263,14 @@ describe('PaymentCapacityService', () => {
 
       const condicion = (installments.findAll.mock.calls.at(-1)?.[0] as { where: Record<string, unknown> }).where;
       expect(condicion.tenantId).toBe('t1');
+      expect(condicion.deleted).toBe(false);
       expect((condicion.loanId as Record<symbol, string[]>)[Op.in]).toEqual(['1', '2']);
+    });
+
+    it('los préstamos borrados no entran al historial', async () => {
+      await relacion();
+      const condicion = (loans.findAll.mock.calls.at(-1)?.[0] as { where: Record<string, unknown> }).where;
+      expect(condicion).toMatchObject({ tenantId: 't1', customerId: 'c1', deleted: false });
     });
 
     it('separa los saldados de los activos y de los castigados', async () => {
