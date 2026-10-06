@@ -1,7 +1,7 @@
 /**
  * @file Utilidad pura: traduce una solicitud del titular y sus hechos a las variables del Motor.
  * @business El Motor decide con hechos de la cuenta (deuda, señales de robo, procesos abiertos), nunca con datos personales.
- * @system mapea filas ya leídas a las 18 entradas del artefacto PRIVACIDAD_SOLICITUD_TITULAR.
+ * @system mapea filas ya leídas a las 20 entradas del artefacto PRIVACIDAD_SOLICITUD_TITULAR.
  */
 
 /** El vocabulario del Motor para el dato a corregir (`scripts/lib/privacidad-solicitud-titular.definicion.json`). */
@@ -41,6 +41,10 @@ export type HechosDeLaCuenta = {
   identidadVerificada: boolean;
   /** Cualquier intento de verificación registrado, sea cual sea su resultado: esa evidencia se retiene, no se borra. */
   evidenciaIdentidad: boolean;
+  /** PIN o contraseña restablecidos en los últimos 7 días (cuenta que ya existía): lo primero que hace quien roba una cuenta. */
+  credencialRestablecida7d: boolean;
+  /** La creó el propio titular desde su sesión. Sin constancia de quién la creó, `false`: la mira una persona. */
+  creadaPorTitular: boolean;
   contactoCambiado7d: boolean;
   dispositivoNuevo7d: boolean;
   fraudeAbierto: boolean;
@@ -67,7 +71,7 @@ export function esDecidiblePorElMotor(requestType: string | null): boolean {
 }
 
 /**
- * Las 18 entradas del artefacto.
+ * Las 20 entradas del artefacto.
  *
  * Una corrección sin campo (la mandan versiones viejas de la app, sólo con texto) viaja como `OTRO`: el Motor la manda a
  * una persona, que es lo correcto porque nadie sabe qué hay que corregir. Un borrado viaja con `NINGUNO`.
@@ -84,6 +88,8 @@ export function variablesDeLaSolicitud(solicitud: SolicitudADecidir, hechos: Hec
     dsr_pin_confirmado: solicitud.pinVerifiedAt !== null,
     dsr_contacto_cambiado_7d: hechos.contactoCambiado7d,
     dsr_dispositivo_nuevo_7d: hechos.dispositivoNuevo7d,
+    dsr_credencial_restablecida_7d: hechos.credencialRestablecida7d,
+    dsr_creada_por_titular: hechos.creadaPorTitular,
     dsr_fraude_abierto: hechos.fraudeAbierto,
     dsr_caso_abierto: hechos.casoAbierto,
     dsr_solicitudes_iguales_abiertas: hechos.solicitudesIgualesAbiertas,

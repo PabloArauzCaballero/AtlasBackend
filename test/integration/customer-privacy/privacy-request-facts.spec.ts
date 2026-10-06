@@ -35,6 +35,14 @@ INSERT INTO telemetry.customer_sessions (_tenant_id, customer_id, device_id, sta
   (${TENANT}, ${VIEJA}, 8, now() - interval '2 days', now()), (${TENANT}, ${NUEVA}, 9, now() - interval '1 day', now());
 INSERT INTO case_management.fraud_cases (_tenant_id, customer_id, case_status, _created_at) VALUES
   (${TENANT}, ${VIEJA}, 'open', now()), (${TENANT}, ${NUEVA}, 'closed', now());
+-- «Necesita más investigación» deja el caso en in_progress CON closed_at puesto (fraud.service.ts): sigue abierto.
+INSERT INTO case_management.fraud_cases (_tenant_id, customer_id, case_status, closed_at, _created_at) VALUES
+  (${TENANT}, ${RECHAZADA}, 'in_progress', now(), now());
+-- PIN restablecido hace 2 días y una solicitud creada por el titular (880042) y otra por el equipo (880041).
+INSERT INTO audit.operational_audit_logs (_tenant_id, actor_type, action_code, target_type, target_id, occurred_at, _created_at) VALUES
+  (${TENANT}, 'customer', 'auth.password_reset.success', 'actor', '${VIEJA}', now() - interval '2 days', now()),
+  (${TENANT}, 'customer', 'privacy.data_subject_request.create', 'data_subject_request', '880042', now(), now()),
+  (${TENANT}, 'compliance_analyst', 'privacy.data_subject_request.create', 'data_subject_request', '880041', now(), now());
 INSERT INTO credit.loans (_id, _tenant_id, loan_code, customer_id, credit_application_id, credit_product_id, currency_code, principal_amount, term_months, status) VALUES
   (880500, ${TENANT}, 'IT-L-500', ${VIEJA}, 880001, 1, 'BOB', 900, 3, 'active'),
   (880501, ${TENANT}, 'IT-L-501', ${VIEJA}, 880002, 1, 'BOB', 300, 3, 'paid_off');
@@ -103,6 +111,8 @@ describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
       // Un intento posterior todavía PENDING no tapa el VERIFIED anterior.
       identidadVerificada: true,
       evidenciaIdentidad: true,
+      credencialRestablecida7d: true,
+      creadaPorTitular: true,
       contactoCambiado7d: true,
       dispositivoNuevo7d: true,
       fraudeAbierto: true,
@@ -139,6 +149,8 @@ describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
       lifecycleStatus: 'onboarding_in_progress',
       identidadVerificada: false,
       evidenciaIdentidad: false,
+      credencialRestablecida7d: false,
+      creadaPorTitular: false,
       contactoCambiado7d: false,
       dispositivoNuevo7d: false,
       fraudeAbierto: false,
@@ -153,7 +165,14 @@ describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
       lifecycleStatus: 'under_review',
       identidadVerificada: false,
       evidenciaIdentidad: true,
+      // in_progress con closed_at: un caso «en más investigación» sigue abierto.
+      fraudeAbierto: true,
     });
+  });
+
+  it('lo que creó alguien del equipo NO cuenta como pedido por el titular', async () => {
+    if (skipped) return;
+    expect((await hechos(VIEJA, '880041', 'deletion', null))?.creadaPorTitular).toBe(false);
   });
 
   it('un cliente que no existe devuelve null, no una cuenta vacía', async () => {
