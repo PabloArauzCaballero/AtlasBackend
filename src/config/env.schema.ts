@@ -256,6 +256,7 @@ export const envBaseSchema = z.object({
   ...brevoProviderEnvShape,
   ...metaWhatsAppProviderEnvShape,
   NOTIFICATION_TOKEN_ENCRYPTION_KEY: z.string().min(32).default(DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY),
+  NOTIFICATION_TOKEN_ENCRYPTION_PREVIOUS_KEYS: z.string().default(''),
   IDEMPOTENCY_FINGERPRINT_SECRET: z.string().min(32).optional().or(z.literal('')), // huella de idempotencia (AT-010); vacío = derivado
 
   // Opcionales a propósito. Si AMBOS están presentes, `main.ts` ACTIVA `KmsKeyProvider` como
