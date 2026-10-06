@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 /**
  * @file La resolución de una revisión humana de identidad cae sobre EL intento revisado, y sólo sobre él.
  * @business Un cliente que reintentó la verificación desde el móvil tiene dos intentos abiertos a la vez:
@@ -230,10 +231,13 @@ describe('la resolución de una revisión humana de identidad', () => {
       const enRevision = attempt({ id: '39', finalResult: 'IN_REVIEW', reasonCodesJson: { executionId: 'exec-e' } });
       const { controller, lifecycle } = build([enRevision]);
       (lifecycle.advance as jest.Mock).mockRejectedValueOnce(new Error('INVALID_STATUS_TRANSITION') as never);
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 
       await expect(controller.aplicar(TENANT, CLAVE, { executionId: 'exec-e', decision: 'DECLINE' })).resolves.toMatchObject({
         identityResult: 'rejected',
       });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('INVALID_STATUS_TRANSITION'));
+      warn.mockRestore();
       expect(enRevision.finalResult).toBe('REJECTED');
     });
 

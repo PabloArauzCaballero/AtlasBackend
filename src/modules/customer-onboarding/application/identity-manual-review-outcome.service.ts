@@ -250,7 +250,10 @@ export class IdentityManualReviewOutcomeService {
           notes: `Revisión manual de identidad: ${input.decision} por el usuario interno ${input.reviewedByInternalUserId}.`,
           transaction,
         })
-        .catch(() => undefined);
+        // Mejor esfuerzo, pero no mudo: un rechazo que no movió al cliente a `observed` se deja en el log.
+        .catch((error: unknown) => {
+          this.logger.warn(`No se pudo pasar al cliente ${customerId} a observed tras el rechazo manual: ${(error as Error).message}`);
+        });
     }
     return this.eligibilityService.evaluateAndRecord({
       tenantId,
