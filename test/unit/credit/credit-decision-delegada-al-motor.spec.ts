@@ -89,6 +89,22 @@ describe('CreditDecisionService · la decisión humana respeta al Motor', () => 
 });
 
 describe('CreditDecisionService · la revisión hecha en el Motor vuelve', () => {
+  it('no cierra una solicitud cuya bandeja es de Atlas, aunque llegue con la clave de servicio', async () => {
+    const app = { ...decididaPorElMotor(), manualReviewCaseSource: 'atlas', decisionMode: 'engine_unavailable_manual' };
+    const { service, creditRepository } = build(app);
+
+    const result = await service.applyEngineManualReview({
+      tenantId: '7',
+      executionId: '9001',
+      decision: 'APPROVE',
+      reason: null,
+      resolvedByInternalUserId: null,
+    });
+
+    expect(result).toMatchObject({ applied: false, reason: 'CREDIT_REVIEW_NOT_ENGINE_OWNED' });
+    expect(creditRepository.updateApplicationStatus).not.toHaveBeenCalled();
+  });
+
   it('APPROVE aprueba la solicitud por su ejecución y la deja pendiente de la aceptación del negocio', async () => {
     const app = decididaPorElMotor();
     const { service, creditRepository, transaction } = build(app);

@@ -195,6 +195,17 @@ export class CreditDecisionService {
         };
       }
 
+      // El aviso sólo cierra lo que el Motor abrió: una solicitud con bandeja de Atlas se decide aquí, y
+      // un callback con la clave de servicio no puede resolverla por encima de esa bandeja.
+      if (!reviewBelongsToEngine(application)) {
+        return {
+          applied: false,
+          reason: 'CREDIT_REVIEW_NOT_ENGINE_OWNED',
+          applicationId: String(application.id),
+          status: application.status,
+        };
+      }
+
       const previousStatus = application.status;
       const newStatus = ENGINE_REVIEW_TO_STATUS[input.decision];
       const now = new Date();
