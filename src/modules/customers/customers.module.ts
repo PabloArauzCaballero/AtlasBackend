@@ -4,6 +4,7 @@
  * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
  */
 import { Module } from '@nestjs/common';
+import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { CustomerRecipientDirectoryAdapter } from './infrastructure/customer-recipient-directory.adapter.js';
 import { CustomerCampaignAudienceAdapter } from './infrastructure/customer-campaign-audience.adapter.js';
 import { CustomerRecipientDirectoryController } from './customer-recipient-directory.controller.js';
@@ -51,6 +52,8 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
 
 @Module({
   imports: [
+    // El guard de permisos internos de la decisión de habilitación necesita su repositorio RBAC.
+    InternalUsersModule,
     SequelizeModule.forFeature([
       CustomerModel,
       CustomerProfileVersionModel,

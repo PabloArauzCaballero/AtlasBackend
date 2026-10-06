@@ -95,6 +95,10 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'catalog.data.read',
     'reporting.read',
     'audit.events.read',
+    // La decisión manual del expediente de un comercio cuando el Motor no abrió caso.
+    'partner.kyb.decide',
+    // Y la decisión sobre la habilitación crediticia de un cliente (incluida la excepción).
+    'customers.eligibility.decide',
   ],
   RISK_ANALYST: [
     'auth.internal.me.read',
@@ -130,6 +134,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     // Solicitudes de derechos del titular (hallazgo A5): la jefatura ve la cola y la cierra.
     'privacy.requests.read',
     'privacy.requests.manage',
+    // Habilitar o suspender a un cliente por KYC/observaciones es también decisión de cumplimiento.
+    'customers.eligibility.decide',
   ],
   COMPLIANCE_ANALYST: [
     'auth.internal.me.read',
@@ -168,6 +174,9 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     // que da de alta las identidades del comercio, y el ERP —que pide— no tiene que poder activar la
     // cuenta a la que van los cobros.
     'partner.qr.review',
+    // Y decidir a mano el expediente cuando el Motor no abrió caso (la degradación). Mismo motivo:
+    // el ERP, que pide la verificación, no la decide.
+    'partner.kyb.decide',
   ],
   DATA_GOVERNANCE_MANAGER: [
     'auth.internal.me.read',

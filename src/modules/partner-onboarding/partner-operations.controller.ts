@@ -58,8 +58,8 @@ import { toPartnerProfileDto, toPartnerQrDto } from './partner-onboarding.mapper
  * `operations_manager` es un rol interno del RBAC (`internal_rbac.roles`), no uno de los roles de
  * aplicación que `@Roles` entiende, así que la puerta del ERP se abre con `partner.kyb.request` en
  * las dos rutas que necesita —pedir la verificación y enlazar su cuenta—, mientras `@Roles` de la
- * clase sigue gobernando el resto. El ERP pide y NO decide: `POST :partnerId/decision` no lleva ese
- * permiso, la misma separación que ya rige el alta de identidades de comercio
+ * clase sigue gobernando el resto. El ERP pide y NO decide: `POST :partnerId/decision` exige
+ * `partner.kyb.decide`, la misma separación que ya rige el alta de identidades de comercio
  * (`merchant.users.request` frente a `merchant.users.manage`).
  */
 @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
@@ -255,6 +255,9 @@ export class PartnerOperationsController {
   }
 
   @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  // El rol de aplicación no basta: `internal_operator` lo comparten soporte y cobranza, y aprobar
+  // habilita al comercio a cobrar.
+  @InternalPermissions('partner.kyb.decide')
   @ApiOperation({
     summary: 'Aprobar o rechazar el expediente de un comercio',
     description:
@@ -267,6 +270,7 @@ export class PartnerOperationsController {
   @ApiBody({ schema: zodToApiSchema(partnerDecisionSchema) })
   @ApiResponse({ status: 200, description: 'Expediente decidido.' })
   @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
+  @ApiResponse({ status: 403, description: 'Falta el permiso partner.kyb.decide.' })
   @ApiResponse({ status: 409, description: 'PARTNER_NOT_UNDER_REVIEW | PARTNER_DECISION_DELEGADA_AL_MOTOR.' })
   @Post(':partnerId/decision')
   @HttpCode(HttpStatus.OK)

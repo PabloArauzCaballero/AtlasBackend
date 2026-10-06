@@ -54,6 +54,29 @@ export const PEOPLE_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
     riskLevel: 'MEDIUM',
   }),
   permission({
+    code: 'partner.kyb.decide',
+    module: 'merchant',
+    resource: 'partner_profile',
+    action: 'decide',
+    description:
+      'Aprobar o rechazar a mano el expediente de un comercio cuando el Motor no abrió caso. Aprobar lo habilita a cobrar y a vender a crédito.',
+    // Antes la ruta sólo pedía el rol de aplicación `internal_operator`, que comparten soporte y
+    // cobranza: cualquiera de ellos podía habilitar a un comercio. Pedir (`partner.kyb.request`) no
+    // es decidir.
+    riskLevel: 'HIGH',
+  }),
+  permission({
+    code: 'customers.eligibility.decide',
+    module: 'customers',
+    resource: 'customer_eligibility',
+    action: 'decide',
+    description:
+      'Aprobar, rechazar, observar, suspender o reincorporar a un cliente. Aprobar con bloqueadores pendientes (KYC, observaciones) queda como excepción autorizada.',
+    // Antes la ruta sólo pedía el rol de aplicación `internal_operator`, que comparten soporte y
+    // cobranza: cualquiera de ellos podía habilitar a un cliente con el KYC sin cerrar.
+    riskLevel: 'HIGH',
+  }),
+  permission({
     code: 'partner.qr.review',
     module: 'merchant',
     resource: 'partner_qr_code',
