@@ -253,7 +253,8 @@ describe('LoanPaymentService', () => {
 
       expect(pagada.paidPrincipal).toBe('0.00');
       expect(pagada.paidInterest).toBe('0.00');
-      expect(pagada.status).toBe('partially_paid');
+      // Sin nada pagado y con la fecha vencida: `overdue`, no un «pago parcial» de cero.
+      expect(pagada.status).toBe('overdue');
       expect(pagada.settledAt).toBeNull();
       expect(allocation.reversed).toBe(true);
       expect(payment.status).toBe('reversed');
@@ -304,6 +305,57 @@ describe('LoanPaymentService', () => {
         newStatus: 'active',
       });
       expect(result).toMatchObject({ loanStatus: 'active' });
+    });
+
+    function reversar(opts: { loanStatus?: string; cuota: ReturnType<typeof installment>; principalApplied: string }) {
+      const ctx = build({ loan: { status: opts.loanStatus ?? 'active' }, installments: [opts.cuota] });
+      (ctx.loans.findPaymentForUpdate as jest.Mock).mockResolvedValueOnce({
+        id: 'pay-1',
+        loanId: 'loan-1',
+        status: 'applied',
+        paymentCode: 'PAY-1',
+        amount: opts.principalApplied,
+        save: jest.fn(async () => undefined),
+      } as never);
+      (ctx.loans.findAllocationsByPayment as jest.Mock).mockResolvedValueOnce([
+        {
+          loanInstallmentId: 'i1',
+          principalApplied: opts.principalApplied,
+          interestApplied: '0.00',
+          lateFeeApplied: '0.00',
+          reversed: false,
+          save: jest.fn(async () => undefined),
+        },
+      ] as never);
+      return ctx;
+    }
+
+    it('una cuota futura que queda sin nada pagado vuelve a `pending`, no a `partially_paid`', async () => {
+      const futura = installment({ dueDate: '2999-01-31', paidPrincipal: '20.00', status: 'partially_paid' });
+      const { service } = reversar({ cuota: futura, principalApplied: '20.00' });
+
+      await service.reversePayment(reverseInput as never);
+
+      expect(futura.status).toBe('pending');
+    });
+
+    it('una cuota que conserva algo pagado sigue `partially_paid`', async () => {
+      const parcial = installment({ dueDate: '2999-01-31', paidPrincipal: '50.00', status: 'partially_paid' });
+      const { service } = reversar({ cuota: parcial, principalApplied: '20.00' });
+
+      await service.reversePayment(reverseInput as never);
+
+      expect(parcial.paidPrincipal).toBe('30.00');
+      expect(parcial.status).toBe('partially_paid');
+    });
+
+    it('no reversa cobros de un préstamo castigado', async () => {
+      const castigada = installment({ paidPrincipal: '20.00', status: 'written_off' });
+      const { service } = reversar({ loanStatus: 'written_off', cuota: castigada, principalApplied: '20.00' });
+
+      await expect(service.reversePayment(reverseInput as never)).rejects.toThrow(/LOAN_WRITTEN_OFF_PAYMENT_NOT_REVERSIBLE/);
+      expect(castigada.status).toBe('written_off');
+      expect(castigada.paidPrincipal).toBe('20.00');
     });
 
     it('un reverso que no reabre el préstamo registra el mismo estado antes y después', async () => {
