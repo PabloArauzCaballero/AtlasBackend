@@ -74,8 +74,35 @@ describe('bucle del relay de Mensajería', () => {
     const { loop } = loopWith(async () => published);
     expect(loop.status()).toBeNull();
     loop.onModuleInit();
-    loop.onModuleDestroy();
+    void loop.onModuleDestroy();
     // Si el intervalo quedara vivo, jest avisaría de un handle abierto al cerrar la suite.
     expect(loop.status()).toBeNull();
+  });
+
+  it('al destruir el módulo espera el tick en curso antes de resolver', async () => {
+    jest.useFakeTimers();
+    try {
+      let release = (): void => undefined;
+      const { loop, relay } = loopWith(async () => {
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return published;
+      });
+      loop.onModuleInit();
+      await jest.advanceTimersByTimeAsync(60_000);
+      expect(relay.run).toHaveBeenCalledTimes(1);
+      let destroyed = false;
+      const destroying = loop.onModuleDestroy().then(() => {
+        destroyed = true;
+      });
+      await Promise.resolve();
+      expect(destroyed).toBe(false);
+      release();
+      await destroying;
+      expect(destroyed).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
