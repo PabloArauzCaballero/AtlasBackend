@@ -72,4 +72,21 @@ describe('OnboardingAbandonmentService.markAbandonedFlows', () => {
     const threshold = new Date(result.thresholdDate).getTime();
     expect(Date.now() - threshold).toBeGreaterThanOrEqual(7 * 24 * 60 * 60 * 1000 - 5_000);
   });
+
+  it('FALLA sin el fix: sigue a la página siguiente cuando la primera sólo trae flujos vivos', async () => {
+    const { service, flowModel, stepEventModel, flowRepository } = build([]);
+    (stepEventModel.findAll as jest.Mock).mockResolvedValueOnce([{ onboardingFlowId: '1' }, { onboardingFlowId: '2' }] as never);
+    (flowModel.findAll as jest.Mock)
+      .mockResolvedValueOnce([{ id: '1' }, { id: '2' }] as never)
+      .mockResolvedValueOnce([{ id: '3' }] as never);
+
+    const result = await service.markAbandonedFlows({ tenantId: 't1', limit: 2 });
+
+    expect(flowModel.findAll).toHaveBeenCalledTimes(2);
+    const segunda = (flowModel.findAll as jest.Mock).mock.calls[1][0] as { where: { id: Record<symbol, string> } };
+    expect(Object.values(segunda.where.id)).toContain('2');
+    expect(result.evaluated).toBe(3);
+    expect(result.abandoned).toBe(1);
+    expect(flowRepository.closeOnboardingFlow).toHaveBeenCalledTimes(1);
+  });
 });
