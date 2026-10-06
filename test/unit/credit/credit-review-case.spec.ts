@@ -252,6 +252,7 @@ describe('C-1 de punta a punta · el Motor dice review sin caso → hay caso pro
     };
     const cases: Array<Record<string, unknown>> = [];
     const reviewCases = {
+      closeIfResolved: jest.fn(async (..._args: unknown[]) => undefined),
       open: jest.fn(async (values: Record<string, unknown>, _options?: unknown) => {
         const created = { caseCode: `CR-${String(values.applicationCode)}`, customerId: values.customerId, status: 'open' };
         cases.push(created);

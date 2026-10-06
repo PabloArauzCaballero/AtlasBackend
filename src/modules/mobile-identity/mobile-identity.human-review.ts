@@ -4,7 +4,6 @@
  * @system traduce el veredicto del artefacto al estado del intento y abre el caso de la bandeja.
  */
 import { Logger } from '@nestjs/common';
-import { env } from '../../config/env.js';
 import type { IdentityReviewCaseRepository } from '../customer-onboarding/repositories/identity-review-case.repository.js';
 import type { IdentityVerificationState } from './mobile-identity.schemas.js';
 import {
@@ -12,6 +11,7 @@ import {
   MOTIVO_REVISION_HUMANA_OBLIGATORIA,
   type OnboardingReviewDossierPublisher,
 } from '../customer-onboarding/application/onboarding-review-dossier.publisher.js';
+import { identityRequiresHumanReview } from '../../config/decision-engine-auto-apply.js';
 
 /** Cómo se traduce la decisión del artefacto al estado que el móvil entiende. */
 const ESTADO_POR_DECISION: Readonly<Record<string, IdentityVerificationState>> = {
@@ -39,7 +39,7 @@ export type DesenlaceDelMotor = {
 export function desenlaceDelMotor(salida: Record<string, unknown>): DesenlaceDelMotor {
   const sugerencia = ESTADO_POR_DECISION[String(salida.identidad_resultado ?? '')] ?? 'IN_REVIEW';
   const reason = typeof salida.identidad_motivo === 'string' ? salida.identidad_motivo : null;
-  const retenido = env.IDENTITY_REQUIRE_HUMAN_REVIEW && (sugerencia === 'VERIFIED' || sugerencia === 'REJECTED');
+  const retenido = identityRequiresHumanReview() && (sugerencia === 'VERIFIED' || sugerencia === 'REJECTED');
   return {
     finalResult: retenido ? 'IN_REVIEW' : sugerencia,
     motivos: retenido ? { reason, engineDecision: sugerencia, humanReviewPolicy: true } : { reason },
