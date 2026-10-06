@@ -3356,7 +3356,9 @@ paths:
               additionalProperties: false
       responses:
         '201':
-          description: Contacto registrado — queda pendiente de verificación.
+          description: >-
+            Pendiente de verificación. El mismo valor sin verificar devuelve el
+            mismo contactMethodId.
           content:
             application/json:
               schema:
@@ -3370,7 +3372,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: CONTACT_ALREADY_REGISTERED.
+          description: CONTACT_ALREADY_VERIFIED — el cliente ya tiene ese valor verificado.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -3529,7 +3531,10 @@ paths:
             VERIFICATION_ATTEMPT_NOT_FOUND — no hay un intento de verificación
             pendiente.
         '409':
-          description: CONTACT_ALREADY_VERIFIED — el contacto ya estaba verificado.
+          description: >-
+            CONTACT_ALREADY_VERIFIED — el contacto ya estaba verificado.
+            CONTACT_ALREADY_REGISTERED — el valor verificado pertenece a otro
+            cliente del tenant y no puede pasar a principal.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':

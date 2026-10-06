@@ -56,5 +56,6 @@ frontend-gates.txt                 typecheck exit=0 · lint exit=2 (sin eslint.c
 - El 409 `CONTACT_ALREADY_REGISTERED` llega al CONFIRMAR (el correo era de otra cuenta), después de gastar el código. Deliberado: avisarlo antes permitiría enumerar correos registrados.
 
 ## Decisiones y ambigüedades
-- «Elevado a test» = integrar en `main` vía PR (Coolify despliega TEST desde `main`). No hay documentación que lo confirme en los repos. Confirmar con Pablo.
+- «Elevado a test»: el flujo real es `dev` → `test` (`main` quedó atrás, 650 commits detrás de `dev`). Primero se abrió el PR contra `main` por un clon que solo traía esa rama; se rehízo la rama sobre `dev`, se re-ejecutaron gates y tests (`evidencia/*-sobre-dev.txt`) y el PR pasó a apuntar a `dev`. Luego `test` se adelanta a `dev`.
+- El PR del front se integró por error en `main` de AtlasFrontend (rama sin uso); el cambio se lleva a `dev`/`test` con un PR nuevo.
 - La pantalla vive en `(onboarding)` porque ese grupo solo exige sesión y sirve en alta y con cuenta activa.
