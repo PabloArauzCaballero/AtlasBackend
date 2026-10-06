@@ -47,7 +47,7 @@
     }
   },
   "rbac": {
-    "migration": "20260928010000-sync-internal-rbac-catalog-6",
-    "hash": "6b5adcf185ecb02d"
+    "migration": "20261005102000-sync-internal-rbac-catalog-b02",
+    "hash": "8b70d6274fb31a38"
   }
 }

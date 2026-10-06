@@ -11,6 +11,8 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
+import { InternalPermissions } from '../internal-users/internal-permissions.decorator.js';
+import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
@@ -43,7 +45,7 @@ import {
 @ApiTags('credit')
 @ApiBearerAuth('access-token')
 @Controller('operations/credit')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, InternalPermissionsGuard)
 @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
 export class CreditOperationsController {
   constructor(
@@ -91,6 +93,7 @@ export class CreditOperationsController {
   @ApiBody({ schema: zodToApiSchema(createCreditProductSchema) })
   @ApiResponse({ status: 201, description: 'Producto creado en estado `draft`.' })
   @ApiResponse({ status: 409, description: 'CREDIT_PRODUCT_CODE_ALREADY_EXISTS.' })
+  @InternalPermissions('credit.product.manage')
   @Post('products')
   @HttpCode(HttpStatus.CREATED)
   createProduct(
@@ -114,6 +117,7 @@ export class CreditOperationsController {
   @ApiResponse({ status: 200, description: 'Estado actualizado.' })
   @ApiResponse({ status: 404, description: 'CREDIT_PRODUCT_NOT_FOUND.' })
   @ApiResponse({ status: 409, description: 'CREDIT_PRODUCT_STATUS_TRANSITION_NOT_ALLOWED.' })
+  @InternalPermissions('credit.product.manage')
   @Patch('products/:productId/status')
   @HttpCode(HttpStatus.OK)
   changeProductStatus(
@@ -142,6 +146,7 @@ export class CreditOperationsController {
   @ApiResponse({ status: 200, description: 'Decisión aplicada.' })
   @ApiResponse({ status: 404, description: 'CREDIT_APPLICATION_NOT_FOUND.' })
   @ApiResponse({ status: 409, description: 'CREDIT_APPLICATION_ALREADY_DECIDED.' })
+  @InternalPermissions('credit.application.decide')
   @Post('applications/:applicationId/decision')
   @HttpCode(HttpStatus.OK)
   decideApplication(

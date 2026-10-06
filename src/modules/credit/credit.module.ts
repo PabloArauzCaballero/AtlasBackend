@@ -27,6 +27,7 @@ import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboardin
 import { CustomersModule } from '../customers/customers.module.js';
 import { DecisionEngineModule } from '../decision-engine/decision-engine.module.js';
 import { EventsModule } from '../events/events.module.js';
+import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { CreditApplicationService } from './application/credit-application.service.js';
 import { CreditBusinessAcceptanceService } from './application/credit-business-acceptance.service.js';
 import { ExposureReservationService } from './application/exposure-reservation.service.js';
@@ -79,6 +80,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
 @Module({
   imports: [
     ExpedientesModule,
+    InternalUsersModule,
     SequelizeModule.forFeature([
       CreditProductModel,
       CreditApplicationModel,
