@@ -21,23 +21,23 @@ Hoy hay tres entornos:
 
 **Se replica de TEST:** la forma (Coolify + Traefik + Postgres propio + guardián + respaldos + monitor + Telegram + SSH
 endurecido). **No se replica:** los problemas de TEST. El host de TEST es **compartido con otros proyectos** (aportaya,
-SCM, CPA, GymSheet, datacenter, observatorio, whatsapp-gateway: ~30 apps de Coolify, de las cuales 14 son de Atlas)
+SCM, CPA, GymSheet, datacenter, observatorio, whatsapp-gateway: ~30 apps de Coolify, de las cuales 12 son de Atlas)
 y eso fue la causa de fondo de las caídas (carga 18–43, caché de build de 150–185 GB). **PROD va en host propio.**
 
 ## 1. Servidor: la especificación exacta
 
 [MEDIDO, Contabo hoy] — la memoria decía 8 CPU / 23 GiB; el host real ya es otro:
 
-| Recurso   | TEST hoy                                                                                             | PROD (mínimo para Atlas solo)                                                               |
-| --------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| SO        | Ubuntu 24.04.4 LTS, kernel 6.8.0-142                                                                 | igual                                                                                       |
-| CPU / RAM | 12 vCPU / 47 GiB (25 GiB en uso)                                                                     | 8 vCPU / 24 GiB sobran para las 14 apps de Atlas + respaldos; **el cuello fue CPU, no RAM** |
-| Disco     | 400 GB (`sda1` 299 GB, 230 GB usados, 80 %)                                                          | ≥ 300 GB NVMe; la caché de build crece ~10 GB/h                                             |
-| Swap      | `/swapfile` 4 GB, `vm.swappiness=10`                                                                 | igual                                                                                       |
-| Docker    | 29.7.2, Compose v5.5.0, overlayfs, cgroup v2/systemd                                                 | misma versión fijada                                                                        |
-| Coolify   | 4.3.23 (+ `coolify-db` pg15, `coolify-redis` 7, `coolify-realtime` 1.0.19, `coolify-sentinel` 1.0.1) | misma versión                                                                               |
-| Proxy     | `traefik:v3.6` gestionado por Coolify                                                                | igual                                                                                       |
-| Red       | `ufw` **inactivo** (error de TEST)                                                                   | **ufw activo** (§8)                                                                         |
+| Recurso   | TEST hoy                                                                                             | PROD (mínimo para Atlas solo)                                                                                       |
+| --------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| SO        | Ubuntu 24.04.4 LTS, kernel 6.8.0-142                                                                 | igual                                                                                                               |
+| CPU / RAM | 12 vCPU / 47 GiB (25 GiB en uso)                                                                     | 8 vCPU / 24 GiB sobran para las 12 apps de Atlas en Coolify + la landing + respaldos; **el cuello fue CPU, no RAM** |
+| Disco     | 400 GB (`sda1` 299 GB, 230 GB usados, 80 %)                                                          | ≥ 300 GB NVMe; la caché de build crece ~10 GB/h                                                                     |
+| Swap      | `/swapfile` 4 GB, `vm.swappiness=10`                                                                 | igual                                                                                                               |
+| Docker    | 29.7.2, Compose v5.5.0, overlayfs, cgroup v2/systemd                                                 | misma versión fijada                                                                                                |
+| Coolify   | 4.3.23 (+ `coolify-db` pg15, `coolify-redis` 7, `coolify-realtime` 1.0.19, `coolify-sentinel` 1.0.1) | misma versión                                                                                                       |
+| Proxy     | `traefik:v3.6` gestionado por Coolify                                                                | igual                                                                                                               |
+| Red       | `ufw` **inactivo** (error de TEST)                                                                   | **ufw activo** (§8)                                                                                                 |
 
 Ajustes del sistema [MEDIDO]:
 
@@ -48,7 +48,9 @@ Ajustes del sistema [MEDIDO]:
 - Coolify: `concurrent_builds=1`, `dynamic_timeout=3600`, `deployment_queue_limit=25` [MEDIDO].
 - `fail2ban` activo [MEDIDO].
 
-## 2. Inventario de aplicaciones de Atlas en Coolify [MEDIDO]
+## 2. Inventario de aplicaciones de Atlas en Coolify [MEDIDO 2026-10-06 23:42 UTC]
+
+12 apps en Coolify (todas en rama `test`) + la landing, que corre fuera de Coolify en `/opt/atlas/landing`.
 
 Todas con rama `test` hoy → `main` (o `prod`) en PROD. Compose = `/docker-compose.coolify.yml` salvo indicación.
 
@@ -93,7 +95,7 @@ Reglas que se heredan:
 4. Una migración que escribe datos se prueba antes contra copia de la base desplegada (CLAUDE.md §3).
 5. PROD: **base limpia de siembra** y sin `STARTUP_SEED_ENABLED`. Sin `decision_runtime_binding` el Motor responde
    `ACTIVE_DEPLOYMENT_NOT_FOUND`: publicar artefactos con dos firmas (CLAUDE.md §5) y correr
-   `scripts/verificar-artefactos-publicados.mjs` antes de dar el entorno por listo.
+   `verificar-artefactos-publicados.mjs` (en el repo AtlasDecisionEngineBackend) antes de dar el entorno por listo.
 6. Permisos nuevos de `internal-rbac.*` necesitan migración que repita el volcado del catálogo (§2 de CLAUDE.md).
 
 Otros datos [MEDIDO]: `atlas-ai-history-db` (pg16) con backup `/etc/cron.d/atlas-ai-history-backup` a las 02:20;
@@ -148,7 +150,7 @@ tableros ~36 h sin que nadie lo viera.
 6. **Prueba obligatoria en PROD:** parar la principal 20 s midiendo cada segundo **desde el servidor** (`ssh -n`; un `ssh &`
    desde el Mac da 000 falsos). Referencia en TEST: portal 45/45 sondas OK; API 41/45 (hueco ~4 s, aceptado).
 
-Estado hoy [MEDIDO]: 9 contenedores `atlas-*-respaldo` arriba; **`atlas-motor-respaldo` en `Created`** (un `d7de45156ff5_` huérfano de
+Estado hoy [MEDIDO 23:42 UTC]: 9 contenedores `atlas-*-respaldo` arriba y sanos; **`atlas-motor-respaldo` sigue en `Created`** (un `d7de45156ff5_` huérfano de
 un recreate): es exactamente la clase de fallo que este plan previene; revisar en TEST antes de copiarlo.
 
 ## 7. Monitoreo y el bot de Telegram
@@ -236,7 +238,7 @@ roles en `_globales/`, MinIO del Core por `rsync --link-dest`, `ULTIMO_OK` con s
 4. Instalar Coolify 4.3.23; `concurrent_builds=1`; conectar GitHub (deploy key por repo, solo lectura).
 5. Crear `/opt/atlas/postgres` (pg18) con roles `atlas_admin`/`atlas_app` y las 4 bases; red y alias.
 6. Copiar `dynamic/*.yaml` de Traefik y los entrypoints; apuntar DNS; emitir TLS.
-7. Crear las apps de Coolify del §2 (sin el mock), una a una, **un repo a la vez** mirando la cola.
+7. Crear las 12 apps de Coolify del §2 (+ la landing aparte) (sin el mock), una a una, **un repo a la vez** mirando la cola.
 8. Cargar variables desde la bóveda; verificar `strlen` > 0 en cada secreto; quitar `is_buildtime` a secretos.
 9. Publicar artefactos del Motor (dos firmas) y verificar con `verificar-artefactos-publicados.mjs`.
 10. Montar respaldos `:estable` + failover; **probar parando 20 s** y midiendo.
@@ -253,7 +255,7 @@ Aprobadas por Pablo el 2026-10-06 («está perfecto»). Solo quedan abiertos el 
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Host                 | Propio, solo Atlas: 8 vCPU / 24 GB RAM / 300 GB NVMe (Contabo o equivalente). El cuello de botella fue la CPU compartida, no la RAM                                                                              |
 | Versiones            | Ubuntu 24.04 LTS, Docker 29.7.2, Coolify 4.3.23, Traefik v3.6, fijadas; `concurrent_builds=1`                                                                                                                    |
-| Respaldos de apps    | Las 14 apps con failover de Traefik; prueba de parar la principal 20 s antes de salir                                                                                                                            |
+| Respaldos de apps    | Las apps con respaldo (9 contenedores `*-respaldo`) con failover de Traefik; prueba de parar la principal 20 s antes de salir                                                                                    |
 | SSH                  | Solo llave, sin contraseña, `fail2ban` activo; `endurecer-ssh.sh` (reversión a los 10 min si no se confirma)                                                                                                     |
 | Firewall             | `ufw` activo. 80 y 443 abiertos al mundo; 22 solo por Tailscale o IP de Pablo; 8000 y 3010–3040 NO públicos (acceso por Tailscale)                                                                               |
 | Dominios             | Propios con TLS Let's Encrypt; nada de `sslip.io`; cada uno se prueba desde la red de Pablo antes de darlo por listo                                                                                             |
@@ -268,7 +270,14 @@ Aprobadas por Pablo el 2026-10-06 («está perfecto»). Solo quedan abiertos el 
 
 **Abiertas:** proveedor concreto del host, dominios finales y miembros del grupo de guardia.
 
-## 12. Hallazgos del inventario de hoy (corregir en TEST antes de copiar)
+## 12. Estado medido el 2026-10-06 23:42 UTC
+
+- Contabo: 12 vCPU, 47 GiB (25 en uso, 21 disponibles), disco 79 % (227 de 290 GB), Docker 29.7.2, Coolify 4.3.23, Traefik v3.6, `concurrent_builds=1`, `fail2ban` activo, `ufw` inactivo.
+- Timers activos: guardián y monitor (60 s), copia de datos (00/06/12/18:15 UTC), simulacro (domingos 03:30). Última copia: 2026-10-06 18:16 UTC (`atlas` 56 MB, 222 tablas).
+- Ficheros de Traefik presentes: por-ip, dominios-propios, ai-por-ip y los 4 failover (apis, erp, ligeros, tableros).
+- H310: 122 contenedores en marcha; `atlas-auto-atlas` sigue `unhealthy`.
+
+## 13. Hallazgos del inventario de hoy (corregir en TEST antes de copiar)
 
 - `atlas-motor-respaldo` quedó en `Created` (contenedor huérfano con prefijo de hash).
 - Puertos de gestión (`:8000`, `:6001/6002`, `:8080`) abiertos al mundo y `ufw` inactivo.
