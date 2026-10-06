@@ -52,7 +52,11 @@ export const startOnboardingSchema = z.object({
         acceptedAt: z.string().datetime().optional(),
       }),
     )
-    .min(1, 'Se requiere al menos un consentimiento.'),
+    .min(1, 'Se requiere al menos un consentimiento.')
+    // Una consulta por elemento en el alta anónima: sin tope, una sola petición lanzaba miles. Y un documento
+    // repetido (granted y declined a la vez) deja una evidencia contradictoria.
+    .max(20, 'Demasiados consentimientos.')
+    .refine((items) => new Set(items.map((item) => item.consentDocumentId)).size === items.length, 'Consentimiento repetido.'),
 
   device: z.object({
     deviceFingerprintHash: z.string().trim().min(32).max(128),
