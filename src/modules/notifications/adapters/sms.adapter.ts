@@ -10,12 +10,16 @@ import { failedDelivery, getFirstDeliveryTarget, getJson, postForm, postJson, se
 import { NotificationChannelAdapter } from './notification-channel-adapter.js';
 import { NotificationProviderConfigService } from './notification-provider-config.service.js';
 import { toE164, twilioAuthHeader, twilioErrorDetails } from './twilio/twilio-request.util.js';
+import { twilioOutcome } from './provider-delivery-status.util.js';
 import { BREVO_API_BASE, brevoAuthHeader, brevoErrorDetails, brevoMessageId, toBrevoNumber } from './brevo/brevo-request.util.js';
 import { BrevoSmsCreditCache, smsCreditFromAccount, type BrevoSmsCredit } from './brevo/brevo-sms-credit.util.js';
 
 @Injectable()
 export class SmsNotificationAdapter implements NotificationChannelAdapter {
   private readonly brevoCredit = new BrevoSmsCreditCache();
+
+  /** Cuánto se espera antes de preguntarle a Twilio cómo quedó el mensaje (ver `confirmTwilioDelivery`). */
+  protected confirmDelayMs = 1200;
 
   constructor(
     private readonly config: NotificationProviderConfigService,
@@ -67,7 +71,46 @@ export class SmsNotificationAdapter implements NotificationChannelAdapter {
       },
     );
     if (!response.ok) return this.twilioFailure(response.status, response.json);
-    return sentDelivery('twilio_sms', typeof response.json.sid === 'string' ? response.json.sid : null, response.json);
+    const sid = typeof response.json.sid === 'string' ? response.json.sid : null;
+    const early = twilioOutcome(typeof response.json.status === 'string' ? response.json.status : undefined, twilioCode(response.json));
+    if (early?.status === 'failed')
+      return failedDelivery('twilio_sms', early.errorCode ?? 'TWILIO_SMS_UNDELIVERED', 'Twilio no pudo enviar el SMS.', response.json);
+    if (sid && message.payload?.confirmDelivery === true) {
+      const confirmed = await this.confirmTwilioDelivery(config.value, sid);
+      if (confirmed) return confirmed;
+    }
+    return sentDelivery('twilio_sms', sid, response.json);
+  }
+
+  /**
+   * Pregunta a Twilio cómo quedó un mensaje que acaba de aceptar, y sólo para los que lo piden.
+   *
+   * Twilio contesta `201 queued` a TODO: también al SMS que va a fallar un instante después (medido
+   * en TEST el 2026-10-06: seis códigos del alta a Bolivia, `201`, y `failed 21704` en el mismo
+   * segundo). Sin esta pregunta el código de verificación se daba por entregado, la reserva por
+   * correo —que sólo actúa cuando el envío falló— nunca entraba, y la persona se quedaba esperando
+   * un SMS que no existía. Sólo se pregunta para el código del alta: es lo único donde esperar un
+   * segundo evita dejar a alguien sin poder continuar; el resto de mensajes sigue sin esa espera.
+   *
+   * Si la pregunta misma falla, no se condena el envío: devuelve `null` y se da por aceptado.
+   */
+  private async confirmTwilioDelivery(config: { accountSid: string; authToken: string }, sid: string): Promise<DeliveryResult | null> {
+    if (this.confirmDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, this.confirmDelayMs));
+    const status = await getJson(
+      this.executor,
+      'twilio_sms',
+      `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages/${sid}.json`,
+      twilioAuthHeader(config.accountSid, config.authToken),
+    );
+    if (!status.ok) return null;
+    const outcome = twilioOutcome(typeof status.json.status === 'string' ? status.json.status : undefined, twilioCode(status.json));
+    if (outcome?.status !== 'failed') return null;
+    return failedDelivery(
+      'twilio_sms',
+      outcome.errorCode ?? 'TWILIO_SMS_UNDELIVERED',
+      'Twilio aceptó el SMS y lo marcó como no enviado.',
+      status.json,
+    );
   }
 
   /**
@@ -165,4 +208,9 @@ export class SmsNotificationAdapter implements NotificationChannelAdapter {
       return failedDelivery('webhook_sms', 'WEBHOOK_SMS_FAILED', `Webhook respondió HTTP ${response.status}.`, response.json);
     return sentDelivery('webhook_sms', String(response.json.id ?? response.json.messageId ?? message.id), response.json);
   }
+}
+
+function twilioCode(body: Record<string, unknown>): string | null {
+  const code = body.error_code;
+  return code === null || code === undefined ? null : String(code);
 }
