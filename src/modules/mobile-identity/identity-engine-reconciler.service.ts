@@ -19,6 +19,8 @@ const ESPERA_MS = 10 * 60_000;
 const VIGENCIA_MS = 14 * 24 * 3_600_000;
 const CADA_MS = 5 * 60_000;
 const POR_PASADA = 20;
+/** Tope de páginas por pasada: acota la consulta aunque casi todos los paquetes sean de clientes que el Motor ya vio. */
+const MAX_PAGINAS = 10;
 /** Un intento del canal móvil que sigue PENDING más de esto se dio por perdido (el Motor no contestó). */
 const PENDIENTE_VIVO_MS = 15 * 60_000;
 /** Tope de intentos por cliente: un fallo permanente no se reintenta para siempre ni inunda el Motor. */
@@ -67,24 +69,35 @@ export class IdentityEngineReconciler implements OnApplicationBootstrap, OnModul
     let enviados = 0;
     const atascados: IdentityVerificationAttemptModel[] = [];
     try {
-      const pendientes = await this.attempts.findAll({
-        where: {
-          verificationChannel: CANAL_PAQUETE,
-          finalResult: 'pending_review',
-          requestedAt: { [Op.between]: [new Date(ahora.getTime() - VIGENCIA_MS), new Date(ahora.getTime() - ESPERA_MS)] },
-        },
-        order: [['id', 'DESC']],
-        limit: POR_PASADA,
-      } as FindOptions);
       const vistos = new Set<string>();
-      for (const intento of pendientes) {
-        const clave = `${intento.tenantId}:${intento.customerId}`;
-        if (!intento.customerId || vistos.has(clave)) continue;
-        vistos.add(clave);
-        const resultado = await this.reconciliar(intento);
-        if (resultado === 'sin-motor') break;
-        if (resultado === 'enviado') enviados += 1;
-        else if (resultado === 'fallido') atascados.push(intento);
+      let trabajados = 0;
+      let cursor: string | null = null;
+      // Se pagina por `id`: los paquetes de clientes que el Motor ya vio ('omitido') siguen en `pending_review`
+      // y, con un solo `limit`, ocupaban para siempre los huecos de la pasada y dejaban fuera a los atascados más viejos.
+      paginas: for (let pagina = 0; pagina < MAX_PAGINAS && trabajados < POR_PASADA; pagina += 1) {
+        const pendientes: IdentityVerificationAttemptModel[] = await this.attempts.findAll({
+          where: {
+            verificationChannel: CANAL_PAQUETE,
+            finalResult: 'pending_review',
+            requestedAt: { [Op.between]: [new Date(ahora.getTime() - VIGENCIA_MS), new Date(ahora.getTime() - ESPERA_MS)] },
+            ...(cursor ? { id: { [Op.lt]: cursor } } : {}),
+          },
+          order: [['id', 'DESC']],
+          limit: POR_PASADA,
+        } as FindOptions);
+        for (const intento of pendientes) {
+          const clave = `${intento.tenantId}:${intento.customerId}`;
+          if (!intento.customerId || vistos.has(clave)) continue;
+          vistos.add(clave);
+          const resultado = await this.reconciliar(intento);
+          if (resultado === 'sin-motor') break paginas;
+          if (resultado !== 'omitido') trabajados += 1;
+          if (resultado === 'enviado') enviados += 1;
+          else if (resultado === 'fallido') atascados.push(intento);
+          if (trabajados >= POR_PASADA) break paginas;
+        }
+        if (pendientes.length < POR_PASADA) break;
+        cursor = String(pendientes[pendientes.length - 1]?.id);
       }
     } catch (error: unknown) {
       this.log('identity_reconcile_failed', { reason: describir(error) });
