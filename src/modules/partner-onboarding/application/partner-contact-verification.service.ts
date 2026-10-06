@@ -33,6 +33,9 @@ const RESEND_COOLDOWN_MS = 30_000;
  */
 const MAX_ATTEMPTS = 5;
 
+/** Los fallos se acumulan entre códigos mientras el último se pidió hace menos de esto. */
+const ATTEMPTS_WINDOW_MS = 60 * 60_000;
+
 /**
  * Prueba que el comercio controla el correo que declaró.
  *
@@ -60,30 +63,51 @@ export class PartnerContactVerificationService {
    * viajara en el cuerpo, esto no probaría nada: cualquiera pediría el código a su propio buzón.
    */
   async request(tenantId: string, partnerId: string): Promise<{ sent: boolean; expiresInMinutes: number }> {
-    const profile = await this.profiles.requireProfile(tenantId, partnerId);
-    assertEditable(profile);
-
-    if (profile.emailVerifiedAt) {
-      throw new ConflictException('PARTNER_CONTACT_ALREADY_VERIFIED');
-    }
-    const sentAt = profile.contactCodeSentAt?.getTime() ?? 0;
-    if (Date.now() - sentAt < RESEND_COOLDOWN_MS) {
-      throw new ConflictException('PARTNER_VERIFICATION_RATE_LIMITED');
-    }
-    if (!this.mail.isEnabled()) {
-      // Sin canal de correo no hay verificación posible, y fingir que se envió dejaría al comercio
-      // esperando un mensaje que nadie mandó.
-      throw new UnprocessableEntityException('MAIL_CHANNEL_NOT_AVAILABLE');
-    }
-
     const ttlMinutes = env.AUTH_ONE_TIME_CODE_TTL_MINUTES;
     const code = generateNumericCode(6);
-    await this.repository.updateProfile(profile, {
-      contactCodeHash: hashOneTimeCode(code),
-      contactCodeExpiresAt: new Date(Date.now() + ttlMinutes * 60_000),
-      // Los intentos se reinician con cada código: se gastan contra el código, no contra el correo.
-      contactCodeAttempts: 0,
-      contactCodeSentAt: new Date(),
+    /*
+     * Con la fila del expediente bloqueada: leer el enfriamiento, decidir y escribir el código
+     * nuevo es una sola operación, o dos peticiones simultáneas pasaban las dos el enfriamiento y
+     * mandaban dos correos.
+     */
+    const profile = await this.sequelize.transaction(async (transaction) => {
+      const locked = await this.repository.lockProfileById(tenantId, partnerId, transaction);
+      if (!locked) throw new NotFoundException('El expediente del partner no existe.');
+      assertEditable(locked);
+
+      if (locked.emailVerifiedAt) {
+        throw new ConflictException('PARTNER_CONTACT_ALREADY_VERIFIED');
+      }
+      const sentAt = locked.contactCodeSentAt?.getTime() ?? 0;
+      if (Date.now() - sentAt < RESEND_COOLDOWN_MS) {
+        throw new ConflictException('PARTNER_VERIFICATION_RATE_LIMITED');
+      }
+      /*
+       * Los intentos fallidos se ACUMULAN entre códigos dentro de la ventana: si cada código
+       * nuevo los pusiera a cero, pedir un código cada 30 s daba cinco intentos nuevos cada vez y
+       * el tope por código no limitaba nada. Pasada la ventana sin pedir códigos, se reinician.
+       */
+      const previos = Date.now() - sentAt < ATTEMPTS_WINDOW_MS ? locked.contactCodeAttempts : 0;
+      if (previos >= MAX_ATTEMPTS) {
+        throw new ConflictException('PARTNER_VERIFICATION_ATTEMPTS_EXHAUSTED');
+      }
+      if (!this.mail.isEnabled()) {
+        // Sin canal de correo no hay verificación posible, y fingir que se envió dejaría al comercio
+        // esperando un mensaje que nadie mandó.
+        throw new UnprocessableEntityException('MAIL_CHANNEL_NOT_AVAILABLE');
+      }
+
+      await this.repository.updateProfile(
+        locked,
+        {
+          contactCodeHash: hashOneTimeCode(code),
+          contactCodeExpiresAt: new Date(Date.now() + ttlMinutes * 60_000),
+          contactCodeAttempts: previos,
+          contactCodeSentAt: new Date(),
+        },
+        { transaction },
+      );
+      return locked;
     });
 
     await this.mail.sendContactVerificationCode({

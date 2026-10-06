@@ -1006,6 +1006,33 @@ describe('PartnerContactVerificationService', () => {
     expect(mail.sendContactVerificationCode).toHaveBeenCalledWith(expect.objectContaining({ to: 'comercio@atlas.test' }));
   });
 
+  /*
+   * Pedir un código nuevo no devuelve los intentos a cero: si lo hiciera, alternar «pedir» y cinco
+   * fallos cada 30 s dejaría probar códigos sin techo.
+   */
+  it('un código nuevo hereda los intentos fallidos de la ventana', async () => {
+    const { service, updates } = build({ contactCodeAttempts: 3, contactCodeSentAt: new Date(Date.now() - 60_000) });
+
+    await service.request('1', '10');
+
+    expect(updates[0]).toMatchObject({ contactCodeAttempts: 3 });
+  });
+
+  it('con los intentos agotados dentro de la ventana no emite otro código', async () => {
+    const { service, mail } = build({ contactCodeAttempts: 5, contactCodeSentAt: new Date(Date.now() - 60_000) });
+
+    await expect(service.request('1', '10')).rejects.toBeInstanceOf(ConflictException);
+    expect(mail.sendContactVerificationCode).not.toHaveBeenCalled();
+  });
+
+  it('pasada la ventana los intentos se reinician', async () => {
+    const { service, updates } = build({ contactCodeAttempts: 5, contactCodeSentAt: new Date(Date.now() - 2 * 3_600_000) });
+
+    await service.request('1', '10');
+
+    expect(updates[0]).toMatchObject({ contactCodeAttempts: 0 });
+  });
+
   /* El código se guarda HASHEADO: quien lea la base no puede verificar por él. */
   it('nunca guarda el código en claro', async () => {
     const { service, updates, mail } = build();
