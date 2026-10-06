@@ -207,12 +207,7 @@ export class CustomerOnboardingProfileController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(onboardingCustomerIdParamsSchema.shape.customerId) })
   @ApiBody({ schema: zodToApiSchema(addContactMethodSchema) })
-  @ApiResponse({
-    status: 201,
-    description:
-      'Contacto registrado — queda pendiente de verificación. Si el mismo valor ya estaba declarado y SIN verificar, ' +
-      'devuelve ese contacto (mismo `contactMethodId`) para retomar la corrección.',
-  })
+  @ApiResponse({ status: 201, description: 'Pendiente de verificación. El mismo valor sin verificar devuelve el mismo contactMethodId.' })
   @ApiResponse({ status: 409, description: 'CONTACT_ALREADY_VERIFIED — el cliente ya tiene ese valor verificado.' })
   @Post(':customerId/contact-methods')
   @HttpCode(HttpStatus.CREATED)
