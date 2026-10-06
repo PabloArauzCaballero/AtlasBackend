@@ -33,9 +33,10 @@
 ### H1.S2 — Frontend: pantalla de cambio de correo
 | ID | Microtarea | CA (binario) | DoD | Estado |
 |---|---|---|---|---|
-| H1.S2.M1 | API: `addContactMethod` + `contactMethodId` en pedir/confirmar | tipos alineados al backend | `npm run typecheck` exit 0 | TODO |
-| H1.S2.M2 | Pantalla `(onboarding)/cambiar-correo` (escribir → código → confirmado) con estados de carga/error y errores por campo | flujo completo contra el contrato | test unitario de la lógica de pasos + typecheck | TODO |
-| H1.S2.M3 | Accesos: fila «Correo» del Perfil y enlace en Verificar contacto | se navega a la pantalla | typecheck + lint exit 0 | TODO |
+| H1.S2.M1 | API: `addContactMethod` + `contactMethodId` en pedir/confirmar | tipos alineados al backend | `npm run typecheck` exit 0 | HECHO |
+| H1.S2.M2 | Pantalla `(onboarding)/cambiar-correo` (escribir → código → confirmado) con estados de carga/error y errores por campo | flujo completo contra el contrato | test unitario de la lógica de pasos + typecheck | A MEDIAS |
+| H1.S2.M4 | Cliente HTTP: no refrescar/reenviar ante 401 de código incorrecto o vencido (añadida: defecto descubierto) | un código mal escrito gasta UN intento | `npx jest __tests__/change-email.test.ts` (shouldRefreshOn) | HECHO |
+| H1.S2.M3 | Accesos: fila «Correo» del Perfil y enlace en Verificar contacto | se navega a la pantalla | typecheck + lint exit 0 | A MEDIAS |
 
 ### H1.S3 — Elevar a TEST
 | ID | Microtarea | CA | DoD | Estado |
