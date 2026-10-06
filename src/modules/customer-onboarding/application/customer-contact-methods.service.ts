@@ -82,7 +82,30 @@ export class CustomerContactMethodsService {
       const existing = await this.profileDataRepository.findContactMethodByHash(input.tenantId, input.customerId, contactValueHash, {
         transaction,
       });
-      if (existing) throw new ConflictException('CONTACT_ALREADY_REGISTERED');
+      if (existing) {
+        /*
+         * El mismo valor, del mismo cliente, sin verificar: es una corrección que quedó a medias
+         * —la app se cerró entre «agregar» y «confirmar el código»—, no un duplicado. Responder 409
+         * aquí dejaba a la persona sin salida: sin el id no puede pedir el código sobre el contacto
+         * nuevo, y pedirlo sin id elige el principal sin verificar, que es justo el mal escrito.
+         * Se devuelve el existente para que retome; no se crea fila ni se audita otra alta.
+         */
+        if (existing.status !== 'verified') {
+          const assessment = await this.eligibilityService.evaluate(input.tenantId, input.customerId, transaction);
+          return {
+            customerId: input.customerId,
+            contactMethodId: String(existing.id),
+            contactType: existing.contactType,
+            status: existing.status,
+            valueLast4: existing.valueLast4,
+            emailDomain: existing.emailDomain,
+            nextStep: assessment.nextStep,
+          };
+        }
+        // Ya lo tiene verificado: no es «está en otra cuenta», que es lo que la app dice ante
+        // `CONTACT_ALREADY_REGISTERED`. Son dos instrucciones distintas para la persona.
+        throw new ConflictException('CONTACT_ALREADY_VERIFIED');
+      }
 
       const isEmail = input.body.contactType === 'email';
       const contact = await this.profileDataRepository.createContactMethod(

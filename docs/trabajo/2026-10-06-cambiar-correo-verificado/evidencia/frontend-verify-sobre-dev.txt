@@ -1,0 +1,31 @@
+  32:53  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  29:53  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  17:19  warning  A `require()` style import is forbidden                                                                                                             @typescript-eslint/no-require-imports
+  18:44  warning  A `require()` style import is forbidden                                                                                                             @typescript-eslint/no-require-imports
+  19:23  warning  A `require()` style import is forbidden                                                                                                             @typescript-eslint/no-require-imports
+  25:8   warning  React Hook React.useCallback has missing dependencies: 'issueUploadedQrInstruction' and 'item'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  9:17  warning  Array type using 'Array<T>' is forbidden. Use 'T[]' instead  @typescript-eslint/array-type
+  33:1  warning  Import in body of module; reorder to top  import/first
+  34:1  warning  Import in body of module; reorder to top  import/first
+  11:1  warning  Import in body of module; reorder to top  import/first
+  30:21  warning  'AtlasText' is defined but never used  @typescript-eslint/no-unused-vars
+  38:20  warning  'OptionGroup' is defined but never used  @typescript-eslint/no-unused-vars
+  39:3  warning  'Skeleton' is defined but never used  @typescript-eslint/no-unused-vars
+  52:17  warning  'radius' is defined but never used  @typescript-eslint/no-unused-vars
+✖ 14 problems (0 errors, 14 warnings)
+  0 errors and 4 warnings potentially fixable with the `--fix` option.
+check-field-help: 53 campos y 68 opciones revisados; todos dicen qué poner y qué significan.
+    console.error
+    console.error
+    console.error
+    console.error
+    console.error
+    console.error
+    console.error
+    console.error
+    console.error
+    console.error
+    console.error
+    console.error
+    console.error
+verify exit=0
