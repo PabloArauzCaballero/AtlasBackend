@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@aws-sdk/client-kms@^3.1140.0":
-  version "3.1140.0"
-  resolved "https://registry.yarnpkg.com/@aws-sdk/client-kms/-/client-kms-3.1140.0.tgz#be0db9e5afdd77754640aa8c3398ecafd4e00cd5"
-  integrity sha512-Wi/oCH6UrbGN1NomA+if97XraHVjXTPv8xhYA5gvaMA/hXrYRzLaD9HGOPiTiWKlvCwp7prsNHDn4F0Nrjyclg==
+"@aws-sdk/client-kms@^3.1146.0":
+  version "3.1146.0"
+  resolved "https://registry.yarnpkg.com/@aws-sdk/client-kms/-/client-kms-3.1146.0.tgz#ab39c53a50a141cef38f45fbf9d053e3b1fd0beb"
+  integrity sha512-STfnvGIMWIT8svHbmdBD96iqsmuHwOnX1nsDHlldnOxpRW/8hyKqVWEvnedPmfUfF7Dda6UUeYopHwgUJecreg==
   dependencies:
     "@aws-sdk/core" "^3.978.1"
     "@aws-sdk/credential-provider-node" "^3.972.84"
