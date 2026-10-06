@@ -296,6 +296,41 @@ describe('PartnerProfileService', () => {
     expect(updated.decidedByInternalUserId).toBeNull();
   });
 
+  it('un comercio rechazado por el Motor puede corregir y reenviar: se limpia el veredicto y la clave del Motor cambia', async () => {
+    const profile = profileDouble({
+      onboardingStatus: 'rejected',
+      rejectionReason: 'KYB_CORREO_SIN_VERIFICAR',
+      decidedAt: new Date('2026-09-08T00:00:00.000Z'),
+      decidedByInternalUserId: null,
+    });
+    const repository = {
+      findProfileById: jest.fn(async () => profile),
+      listRepresentatives: jest.fn(async () => [{ powerOfAttorneyKey: 'k' }]),
+      listBranches: jest.fn(async () => [{ id: '1' }]),
+      listQrCodes: jest.fn(async () => [
+        { qrKind: 'business', status: 'active' },
+        { qrKind: 'bank', status: 'active' },
+      ]),
+      updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), submittedAt: new Date(5), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
+    };
+    const kyb = kybDouble({ outcome: 'REVISION_MANUAL' });
+    const service = new PartnerProfileService(repository as never, repository as never, metricsDouble(), verificationCon(repository, kyb), hooksDouble() as never);
+
+    const { profile: updated } = await service.submit('1', '10');
+
+    expect(updated.onboardingStatus).toBe('under_review');
+    expect(repository.updateProfile.mock.calls[0]?.[1]).toMatchObject({ onboardingStatus: 'under_review', decidedAt: null, rejectionReason: null });
+    expect((kyb.evaluate.mock.calls[0] as unknown as [{ idempotencyKey: string }])[0].idempotencyKey).toMatch(/^submit-10-\d+$/);
+  });
+
+  it('un rechazo firmado por una persona sigue siendo definitivo: no se reenvía', async () => {
+    const profile = profileDouble({ onboardingStatus: 'rejected', decidedByInternalUserId: '9' });
+    const repository = { findProfileById: jest.fn(async () => profile) };
+    const service = new PartnerProfileService(repository as never, repository as never, metricsDouble(), {} as never, hooksDouble() as never);
+    await expect(service.submit('1', '10')).rejects.toThrow(UnprocessableEntityException);
+  });
+
   it('un desenlace que este código no conoce NUNCA habilita a cobrar', async () => {
     const profile = profileDouble();
     const repository = {
@@ -474,6 +509,13 @@ describe('PartnerProfileService', () => {
 
     await expect(service.decide('1', '10', { approved: false, rejectionReason: 'x', internalUserId: '3' })).rejects.toBeInstanceOf(
       ConflictException,
+    );
+  });
+
+  it('un expediente rechazado por el Motor se puede corregir; el rechazado por una persona, no', () => {
+    expect(() => assertEditable(profileDouble({ onboardingStatus: 'rejected', decidedByInternalUserId: null }) as never)).not.toThrow();
+    expect(() => assertEditable(profileDouble({ onboardingStatus: 'rejected', decidedByInternalUserId: '9' }) as never)).toThrow(
+      UnprocessableEntityException,
     );
   });
 

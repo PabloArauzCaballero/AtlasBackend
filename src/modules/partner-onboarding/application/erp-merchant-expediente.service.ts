@@ -7,7 +7,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { ExpedientesRepository } from '../../expedientes/repositories/expedientes.repository.js';
 import type { PartnerProfileModel } from '../../../database/models/index.js';
-import { PartnerOnboardingRepository, EDITABLE_PARTNER_STATUSES } from '../partner-onboarding.repository.js';
+import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
+import { isProfileEditable } from './partner-profile.guards.js';
 import { startPartnerOnboardingSchema } from '../partner-onboarding.schemas.js';
 import { normalizeBusinessCategory } from '../partner-business-categories.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
@@ -210,7 +211,7 @@ export class ErpMerchantExpedienteService {
 }
 
 function esEditable(profile: PartnerProfileModel): boolean {
-  return EDITABLE_PARTNER_STATUSES.includes(profile.onboardingStatus as (typeof EDITABLE_PARTNER_STATUSES)[number]);
+  return isProfileEditable(profile);
 }
 
 function vacio(reason: ErpMerchantExpedienteResult['reason']): ErpMerchantExpedienteResult {
