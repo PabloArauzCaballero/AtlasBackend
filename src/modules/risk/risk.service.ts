@@ -157,6 +157,19 @@ export class RiskService {
     return { hasGrantedConsent, hasIdentity, verifiedContactCount, scores };
   }
 
+  /**
+   * El dispositivo y la sesión del cuerpo suben el puntaje de dispositivo y quedan escritos en la
+   * corrida: quien los manda no puede apuntar a los de otra persona. Las evaluaciones que dispara
+   * el servidor (alta) ya traen un vínculo propio y pasan sin más.
+   */
+  private async assertOwnDeviceReferences(input: { tenantId: string; customerId: string; body: CreateRiskAssessmentDto }): Promise<void> {
+    const { deviceId, sessionId } = input.body;
+    if (!deviceId && !sessionId) return;
+    const owned = await this.riskRepository.findOwnedDeviceReferences(input.tenantId, input.customerId, { deviceId, sessionId });
+    if (!owned.deviceOwned) throw new UnprocessableEntityException('RISK_DEVICE_NOT_OWNED_BY_CUSTOMER');
+    if (!owned.sessionOwned) throw new UnprocessableEntityException('RISK_SESSION_NOT_OWNED_BY_CUSTOMER');
+  }
+
   async createRiskAssessment(input: {
     tenantId: string;
     customerId: string;
@@ -166,6 +179,7 @@ export class RiskService {
   }) {
     if (!input.idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     assertOwnCustomerResource(input.currentUser, input.customerId);
+    await this.assertOwnDeviceReferences(input);
 
     const now = this.clock.now();
     const { hasGrantedConsent, hasIdentity, verifiedContactCount, scores } = await this.gatherRiskSignals(input);

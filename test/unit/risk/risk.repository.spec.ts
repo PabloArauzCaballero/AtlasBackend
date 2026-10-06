@@ -31,6 +31,8 @@ describe('RiskRepository', () => {
       consent: make(),
       contactMethod: make(),
       identityDocument: make(),
+      session: make(),
+      deviceLink: make(),
     };
     const repo = new RiskRepository(
       models.riskAssessmentResult as never,
@@ -49,10 +51,28 @@ describe('RiskRepository', () => {
       models.consent as never,
       models.contactMethod as never,
       models.identityDocument as never,
+      models.session as never,
+      models.deviceLink as never,
     );
     const revision = new RevisionManualRepository(models.manualReviewCase as never, models.dataQualityIssue as never);
     return { repo, revision, models };
   }
+
+  it('findOwnedDeviceReferences: el dispositivo es del cliente por vínculo o por sesión; la sesión, si es suya', async () => {
+    const { repo, models } = buildRepo();
+    const contar = (m: unknown, n: number) => ((m as { count: jest.Mock }).count = jest.fn(async () => n));
+    contar(models.deviceLink, 0);
+    contar(models.session, 0);
+    await expect(repo.findOwnedDeviceReferences('t1', '5', { deviceId: '9', sessionId: '3' })).resolves.toEqual({
+      deviceOwned: false,
+      sessionOwned: false,
+    });
+    contar(models.deviceLink, 1);
+    await expect(repo.findOwnedDeviceReferences('t1', '5', { deviceId: '9' })).resolves.toEqual({ deviceOwned: true, sessionOwned: true });
+    expect((models.deviceLink as { count: jest.Mock }).count).toHaveBeenCalledWith({
+      where: { tenantId: 't1', customerId: '5', deviceId: '9' },
+    });
+  });
 
   it('findLatestCustomerRiskResult toma el resultado más reciente (decidedAt DESC, id DESC como desempate)', async () => {
     const { repo, models } = buildRepo();
