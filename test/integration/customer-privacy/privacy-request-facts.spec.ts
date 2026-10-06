@@ -11,6 +11,8 @@ import { Sequelize } from 'sequelize-typescript';
 import { buildMigrationSequelizeOptions } from '../../../src/config/database.config.js';
 import { PrivacyRequestFactsRepository } from '../../../src/modules/customer-privacy/application/privacy-request-facts.repository.js';
 import { integrationSkipRequested } from '../support/database.js';
+import { OperationsPrivacyRequestsService } from '../../../src/modules/customer-privacy/operations-privacy-requests.service.js';
+import { operationsPrivacyRequestsQuerySchema } from '../../../src/modules/customer-privacy/operations-privacy-requests.schemas.js';
 import { requireIsolatedDatabase } from '../../support/isolated-database.guard.js';
 
 // Identificadores altos y propios: la transacción se deshace, pero mientras vive no debe pisar filas de otra prueba.
@@ -38,6 +40,17 @@ INSERT INTO case_management.fraud_cases (_tenant_id, customer_id, case_status, _
 -- «Necesita más investigación» deja el caso en in_progress CON closed_at puesto (fraud.service.ts): sigue abierto.
 INSERT INTO case_management.fraud_cases (_tenant_id, customer_id, case_status, closed_at, _created_at) VALUES
   (${TENANT}, ${RECHAZADA}, 'in_progress', now(), now());
+-- La medida de la sombra: 4 cerradas con opinión (3 coinciden, 1 ACEPTAR que una persona rechazó), 1 derivada a persona,
+-- una abierta a la que el Motor se rindió (5 intentos) y otra sin opinión desde hace 2 días.
+INSERT INTO privacy.data_subject_requests (_id, _tenant_id, customer_id, request_type, status, engine_decision, engine_decided_at, engine_attempts, requested_at, resolved_at, _created_at) VALUES
+  (880061, ${TENANT}, ${RECHAZADA}, 'deletion', 'completed', 'ACEPTAR', now(), 1, now(), now(), now()),
+  (880062, ${TENANT}, ${RECHAZADA}, 'deletion', 'rejected', 'RECHAZAR', now(), 1, now(), now(), now()),
+  (880063, ${TENANT}, ${RECHAZADA}, 'rectification', 'completed', 'ACEPTAR', now(), 1, now(), now(), now()),
+  (880064, ${TENANT}, ${RECHAZADA}, 'rectification', 'rejected', 'ACEPTAR', now(), 1, now(), now(), now()),
+  (880065, ${TENANT}, ${RECHAZADA}, 'deletion', 'completed', 'REVISION_HUMANA', now(), 1, now(), now(), now());
+INSERT INTO privacy.data_subject_requests (_id, _tenant_id, customer_id, request_type, status, engine_attempts, requested_at, _created_at) VALUES
+  (880066, ${TENANT}, ${RECHAZADA}, 'deletion', 'received', 5, now(), now()),
+  (880067, ${TENANT}, ${RECHAZADA}, 'rectification', 'received', 1, now() - interval '2 days', now() - interval '2 days');
 -- PIN restablecido hace 2 días y una solicitud creada por el titular (880042) y otra por el equipo (880041).
 INSERT INTO audit.operational_audit_logs (_tenant_id, actor_type, action_code, target_type, target_id, occurred_at, _created_at) VALUES
   (${TENANT}, 'customer', 'auth.password_reset.success', 'actor', '${VIEJA}', now() - interval '2 days', now()),
@@ -173,6 +186,13 @@ describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
   it('lo que creó alguien del equipo NO cuenta como pedido por el titular', async () => {
     if (skipped) return;
     expect((await hechos(VIEJA, '880041', 'deletion', null))?.creadaPorTitular).toBe(false);
+  });
+
+  it('el resumen de la cola mide la sombra: acuerdo, falsos ACEPTAR, derivadas, rendidas y atrasadas', async () => {
+    if (skipped) return;
+    const servicio = new OperationsPrivacyRequestsService({} as never, db!);
+    const { summary } = await servicio.list(TENANT, operationsPrivacyRequestsQuerySchema.parse({}));
+    expect(summary.shadow).toEqual({ compared: 4, agreed: 3, agreement: 0.75, falseAccept: 1, handedToPerson: 1, gaveUp: 1, stale: 1 });
   });
 
   it('un cliente que no existe devuelve null, no una cuenta vacía', async () => {
