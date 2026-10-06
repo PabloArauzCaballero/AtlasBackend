@@ -11,7 +11,7 @@ import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { env } from '../../config/env.js';
 
-import { verifyPassword } from '../../common/utils/crypto/password.util.js';
+import { verifyPassword, verifyPasswordAgainstDummy } from '../../common/utils/crypto/password.util.js';
 import { hashRefreshToken } from '../../common/utils/crypto/refresh-token.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
@@ -89,12 +89,14 @@ export class AuthService {
     };
 
     if (!actor) {
+      await verifyPasswordAgainstDummy(input.dto.password);
       await logAttempt({ actorId: null, reasonCode: 'actor_not_found' });
       throw invalidCredentialsError;
     }
 
     const credential = await this.authRepository.findCredentialsByActor(input.dto.actorType, actor.id);
     if (!credential) {
+      await verifyPasswordAgainstDummy(input.dto.password);
       await logAttempt({ actorId: actor.id, reasonCode: 'no_credentials' });
       throw invalidCredentialsError;
     }

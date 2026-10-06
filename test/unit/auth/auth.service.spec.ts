@@ -7,6 +7,7 @@ import { UnauthorizedException, ForbiddenException, ConflictException, ServiceUn
 jest.mock('../../../src/common/utils/crypto/password.util.js', () => ({
   hashPassword: jest.fn(async (plain: string) => `hashed:${plain}`),
   verifyPassword: jest.fn(async (hash: string, plain: string) => hash === `hashed:${plain}`),
+  verifyPasswordAgainstDummy: jest.fn(async (..._args: unknown[]) => undefined),
   isPasswordStrongEnough: jest.fn((..._args: unknown[]) => true),
 }));
 
@@ -22,6 +23,7 @@ import { AuthPasswordResetService } from '../../../src/modules/auth/auth-passwor
 import { AuthSecondFactorService } from '../../../src/modules/auth/auth-second-factor.service.js';
 import { hashOneTimeCode } from '../../../src/common/utils/crypto/one-time-code.util.js';
 import { env } from '../../../src/config/env.js';
+import { verifyPasswordAgainstDummy } from '../../../src/common/utils/crypto/password.util.js';
 import { AuthCredentialsService } from '../../../src/modules/auth/auth-credentials.service.js';
 
 function buildAuthRepositoryMock() {
@@ -202,9 +204,26 @@ describe('AuthService.login', () => {
       }),
     ).rejects.toThrow(UnauthorizedException);
 
+    // Mismo coste que un login real: no se distingue «no existe» de «PIN incorrecto» por la latencia.
+    expect(verifyPasswordAgainstDummy).toHaveBeenCalledWith('x');
     expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
       expect.objectContaining({ successful: false, failureReasonCode: 'actor_not_found', actorId: null }),
     );
+  });
+
+  it('un actor sin credenciales también gasta el coste de argon2 antes de rechazar', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
+    authRepository.findCredentialsByActor.mockResolvedValue(null);
+    const service = buildService(authRepository, customersRepository, buildTokenRevocationServiceMock());
+
+    await expect(
+      service.login({ tenantId: '1', dto: { actorType: 'customer', identifier: '70000000', password: 'x' }, ip: null, userAgent: null }),
+    ).rejects.toThrow(UnauthorizedException);
+
+    expect(verifyPasswordAgainstDummy).toHaveBeenCalledWith('x');
+    expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(expect.objectContaining({ failureReasonCode: 'no_credentials' }));
   });
 
   it('throws UnauthorizedException when the password does not match, and records a failed attempt', async () => {
