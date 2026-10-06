@@ -17,6 +17,11 @@ import type { HechosDeLaCuenta } from './privacy-request-features.js';
 
 const t = (tabla: string) => `${atlasSchemaFor(tabla)}.${tabla}`;
 
+/**
+ * «Igual en curso» sólo cuenta las ANTERIORES (`_id <`): con `<>`, dos solicitudes creadas a la vez (un doble toque) se
+ * veían la una a la otra y las dos salían rechazadas por «ya hay una en curso». Así sólo la posterior se rechaza.
+ */
+
 /** Los mismos que `underwriting-signals.service.ts` cuenta como fraude abierto. */
 const FRAUDE_ABIERTO = ['open', 'in_review', 'pending', 'escalated'];
 /** Un caso de soporte cerrado ya no retiene nada; cualquier otro estado sí. */
@@ -80,7 +85,7 @@ SELECT
   ) AS caso_abierto,
   (SELECT COUNT(*)::int FROM ${t('data_subject_requests')} d
     WHERE d._tenant_id = c._tenant_id AND d.customer_id = c._id AND d.request_type = :requestType
-      AND d.status IN ('received', 'in_progress') AND d._id <> :requestId AND d._deleted = FALSE) AS iguales_abiertas,
+      AND d.status IN ('received', 'in_progress') AND d._id < :requestId AND d._deleted = FALSE) AS iguales_abiertas,
   (SELECT COALESCE(SUM(GREATEST(
             i.principal_amount + i.interest_amount + i.late_fee_amount - i.paid_principal - i.paid_interest - i.paid_late_fee, 0)), 0)
      FROM ${t('loan_installments')} i JOIN ${t('loans')} l ON l._id = i.loan_id AND l._tenant_id = i._tenant_id

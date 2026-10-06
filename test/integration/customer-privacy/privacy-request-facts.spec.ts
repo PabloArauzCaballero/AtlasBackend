@@ -95,7 +95,7 @@ const hechos = (customerId: string, requestId: string, requestType: string, rect
 describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
   it('la cuenta vieja activa cada señal, con las cifras calculadas a mano', async () => {
     if (skipped) return;
-    expect(await hechos(VIEJA, '880041', 'deletion', null)).toEqual({
+    expect(await hechos(VIEJA, '880042', 'deletion', null)).toEqual({
       lifecycleStatus: 'active',
       // Un intento posterior todavía PENDING no tapa el VERIFIED anterior.
       identidadVerificada: true,
@@ -103,7 +103,7 @@ describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
       dispositivoNuevo7d: true,
       fraudeAbierto: true,
       casoAbierto: false,
-      // La otra solicitud de borrado abierta; ésta no se cuenta a sí misma.
+      // La anterior (880041). Sólo cuentan las ANTERIORES: ésta no se cuenta a sí misma ni a la que llegó después.
       solicitudesIgualesAbiertas: 1,
       // Cuota 2: 300 + 10 + 2,5 − 100 = 212,5; cuota 3: 310. El préstamo pagado no suma.
       saldoPendiente: 522.5,
@@ -114,6 +114,12 @@ describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
       extractoEnRevision: true,
       cambiosDelCampo365d: 0,
     });
+  });
+
+  it('dos borrados a la vez no se rechazan entre sí: la primera no ve a la segunda', async () => {
+    if (skipped) return;
+    expect((await hechos(VIEJA, '880041', 'deletion', null))?.solicitudesIgualesAbiertas).toBe(0);
+    expect((await hechos(VIEJA, '880042', 'deletion', null))?.solicitudesIgualesAbiertas).toBe(1);
   });
 
   it('las correcciones del mismo dato cuentan sólo las cerradas en el último año', async () => {
