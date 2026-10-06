@@ -213,4 +213,22 @@ describe('HttpActionLogInterceptor', () => {
       await expect(firstValueFrom(interceptor.intercept(ctx({ method: 'GET', url: '/x', headers: {} }), boom))).rejects.toThrow('original');
     });
   });
+
+  it('no guarda en claro el secreto de ruta del webhook de Brevo', async () => {
+    const request = {
+      method: 'POST',
+      originalUrl: '/api/v1/internal/notifications/brevo-sms-events/s3cr3t',
+      headers: {},
+      params: { secreto: 's3cr3t' },
+    };
+    const context = {
+      switchToHttp: () => ({ getRequest: () => request, getResponse: () => ({ statusCode: 200 }) }),
+    } as unknown as ExecutionContext;
+    const actionLog = { createHttpAction: jest.fn((..._args: unknown[]) => Promise.resolve()) };
+
+    const interceptor = new HttpActionLogInterceptor(actionLog as unknown as HttpActionLogService);
+    await firstValueFrom(interceptor.intercept(context, buildHandler({ ok: true })));
+
+    expect(JSON.stringify(actionLog.createHttpAction.mock.calls)).not.toContain('s3cr3t');
+  });
 });

@@ -7,6 +7,7 @@ import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nes
 import { Observable, from, mergeMap, of } from 'rxjs';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { firstHeader } from '../../common/utils/http/headers.util.js';
+import { redactPathSecrets } from '../../common/utils/privacy/path-secret-redaction.util.js';
 import { RuntimeHardeningService } from './runtime-hardening.service.js';
 
 type RequestLike = {
@@ -34,6 +35,7 @@ export class ApiCommandOutboxInterceptor implements NestInterceptor {
     return next.handle().pipe(
       mergeMap((body) => {
         const tenantId = request.user?.tenantId ?? tenantFromHeader(request.headers['x-tenant-id']);
+        const path = redactPathSecrets(request.originalUrl ?? request.path ?? 'unknown');
         // Antes era fire-and-forget con `void`: si fallaba la escritura del outbox, el cliente
         // recibía OK pero el sistema perdía trazabilidad/eventual processing. Ahora se espera la
         // persistencia del evento antes de devolver la respuesta de mutación.
@@ -42,10 +44,10 @@ export class ApiCommandOutboxInterceptor implements NestInterceptor {
             tenantId,
             aggregateType: 'api_command',
             aggregateId: request.params?.customerId ?? request.params?.caseId ?? request.params?.sessionId ?? null,
-            eventCode: `${request.method.toLowerCase()}_${(request.originalUrl ?? request.path ?? 'unknown').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '')}_completed`,
+            eventCode: `${request.method.toLowerCase()}_${path.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '')}_completed`,
             payload: {
               method: request.method,
-              path: request.originalUrl ?? request.path,
+              path,
               actorRole: request.user?.role ?? 'public_or_unknown',
               resultType: body && typeof body === 'object' ? 'object' : typeof body,
             },

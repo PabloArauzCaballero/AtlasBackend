@@ -10,6 +10,7 @@ import { AuthenticatedUser } from '../types/auth.types.js';
 import { HttpActionLogService } from '../../modules/audit/http-action-log.service.js';
 import { moduleFromPath } from '../../modules/systems-ops/endpoint-code.util.js';
 import { redactSensitiveObject } from '../utils/privacy/redaction.util.js';
+import { redactPathSecrets } from '../utils/privacy/path-secret-redaction.util.js';
 import { firstHeader } from '../utils/http/headers.util.js';
 
 type RequestLike = {
@@ -32,7 +33,7 @@ type RequestLike = {
 type ResponseLike = { statusCode?: number };
 
 function cleanPath(path: string): string {
-  return path.split('?')[0] ?? path;
+  return redactPathSecrets(path.split('?')[0] ?? path);
 }
 
 function actionCode(method: string, path: string): string {
