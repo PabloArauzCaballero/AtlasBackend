@@ -114,11 +114,14 @@ export class PrivacyRequestDecisionService {
         purposeCode: PRIVACY_DECISION_PURPOSE,
       });
       const fetchedAt = now.toISOString();
+      const intentoId = `dsr-${solicitud.id}-${solicitud.engineAttempts + 1}`;
       const response = await this.client.execute(artifactCode, {
-        requestId: `dsr-${solicitud.id}-${solicitud.engineAttempts + 1}`,
-        // La misma clave en cada intento: si el Motor decidió y la respuesta se perdió, el reintento devuelve esa
-        // ejecución en vez de crear otra.
-        idempotencyKey: `dsr-${solicitud.id}`,
+        requestId: intentoId,
+        // Una clave POR INTENTO. El Motor mete `requestId` y `variables` en el hash de la petición y, con la misma clave y
+        // otra carga, responde 409 `IDEMPOTENCY_PAYLOAD_MISMATCH` durante 24 h: con una clave fija por solicitud, un primer
+        // intento que llegó al Motor y falló dejaba los cuatro siguientes quemados con 409 y la solicitud sin opinión para
+        // siempre. Cada intento es una consulta nueva (en sombra no cambia nada), así que no hace falta repetir la anterior.
+        idempotencyKey: intentoId,
         correlationId: randomUUID(),
         subjectReference,
         variables,
