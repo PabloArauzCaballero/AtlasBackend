@@ -10,6 +10,7 @@ import {
   BankStatementReviewModel,
   CustomerActivitySummaryModel,
   CustomerModel,
+  FraudCaseModel,
   IdentityVerificationAttemptModel,
   LoanInstallmentModel,
   LoanModel,
@@ -51,6 +52,7 @@ export class PaymentCapacityService {
     @InjectModel(BankStatementReviewModel) private readonly reviews: typeof BankStatementReviewModel,
     @InjectModel(CustomerActivitySummaryModel) private readonly activity: typeof CustomerActivitySummaryModel,
     @InjectModel(IdentityVerificationAttemptModel) private readonly identity: typeof IdentityVerificationAttemptModel,
+    @InjectModel(FraudCaseModel) private readonly fraudCases: typeof FraudCaseModel,
   ) {}
 
   async assess(input: {
@@ -142,9 +144,26 @@ export class PaymentCapacityService {
     };
   }
 
+  /**
+   * Casos de fraude que SIGUEN pesando: los abiertos y los que se cerraron confirmando el fraude, bloqueando o
+   * escalando. Un caso cerrado como `false_positive` ya no dice nada de esta persona; con el contador «de por vida»
+   * de antes, un falso positivo la dejaba en el suelo para siempre. «Necesita más investigación» deja el caso en
+   * `in_progress` CON `closed_at` puesto (`fraud.service.ts`), por eso se mira `case_status` y no `closed_at`.
+   */
+  private liveFraudCaseCount(tenantId: string, customerId: string): Promise<number> {
+    return this.fraudCases.count({
+      where: {
+        tenantId,
+        customerId,
+        deleted: { [Op.ne]: true },
+        [Op.or]: [{ caseStatus: null }, { caseStatus: { [Op.ne]: 'closed' } }, { resolution: { [Op.in]: FRAUD_RESOLUTIONS_THAT_STICK } }],
+      },
+    } as FindOptions);
+  }
+
   /** Antigüedad, historial de pago y fidelización, leídos del expediente. */
   private async relationship(tenantId: string, customerId: string, now: Date): Promise<RelationshipInput> {
-    const [customer, loans, summary, identityAttempts] = await Promise.all([
+    const [customer, loans, summary, identityAttempts, liveFraudCases] = await Promise.all([
       this.customers.findOne({ where: { tenantId, id: customerId } } as FindOptions),
       this.loans.findAll({ where: { tenantId, customerId } } as FindOptions),
       this.activity.findOne({ where: { tenantId, customerId } } as FindOptions),
@@ -155,6 +174,7 @@ export class PaymentCapacityService {
         order: [['_id', 'DESC']],
         limit: IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
       } as FindOptions),
+      this.liveFraudCaseCount(tenantId, customerId),
     ]);
     const identity = pickCurrentIdentityAttempt(identityAttempts);
 
@@ -175,7 +195,7 @@ export class PaymentCapacityService {
         delinquencyCount12m: 0,
         monthsSinceLastLoan: null,
         kycComplete: isIdentityVerified(identity?.finalResult),
-        fraudFlags: fraudFlagsOf(summary),
+        fraudFlags: fraudFlagsOf(summary, liveFraudCases),
       };
     }
 
@@ -216,7 +236,7 @@ export class PaymentCapacityService {
       delinquencyCount12m: overdueInLastYear,
       monthsSinceLastLoan: lastDisbursement > 0 ? Math.max(0, Math.floor((now.getTime() - lastDisbursement) / (30.44 * 86_400_000))) : null,
       kycComplete: isIdentityVerified(identity?.finalResult),
-      fraudFlags: fraudFlagsOf(summary),
+      fraudFlags: fraudFlagsOf(summary, liveFraudCases),
     };
   }
 }
@@ -224,14 +244,16 @@ export class PaymentCapacityService {
 /**
  * Señales de fraude vivas sobre la cuenta.
  *
- * Se suman los casos de fraude de por vida y las revisiones manuales abiertas: las dos afirman lo
+ * Se suman los casos de fraude VIVOS (abiertos o cerrados confirmando el fraude) y las revisiones manuales abiertas: las dos afirman lo
  * mismo para este cálculo —hay una duda sin resolver sobre quién es esta persona— y sobre esa duda
  * no se escala ningún límite.
  */
-function fraudFlagsOf(summary: CustomerActivitySummaryModel | null): number {
-  if (!summary) return 0;
-  return Number(summary.fraudCaseCountLifetime ?? 0) + Number(summary.openManualReviewCount ?? 0);
+function fraudFlagsOf(summary: CustomerActivitySummaryModel | null, liveFraudCases: number): number {
+  return Number(liveFraudCases) + Number(summary?.openManualReviewCount ?? 0);
 }
+
+/** Las resoluciones de un caso cerrado que siguen contando contra la persona (D-3 del plan 2026-10-05). */
+export const FRAUD_RESOLUTIONS_THAT_STICK = ['confirmed_fraud', 'blocked', 'escalated'];
 
 /** Hasta qué antigüedad un extracto vale como evidencia de capacidad (D-2 del plan 2026-10-05). */
 export const STATEMENT_MAX_AGE_DAYS = 180;

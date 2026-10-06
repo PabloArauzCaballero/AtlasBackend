@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { pickWindow } from '../../../src/modules/credit/application/credit-line-refresh.service.js';
+import { graduationBase } from '../../../src/modules/credit/application/credit-line-recalculation.service.js';
 
 /**
  * La ventana del refresco. Un cliente que el Motor no resuelve sigue «sin línea» y, con un corte fijo, volvía a
@@ -29,5 +30,20 @@ describe('pickWindow', () => {
       expect(ventana).toHaveLength(50);
       expect(new Set(ventana).size).toBe(50);
     }
+  });
+});
+
+describe('graduationBase', () => {
+  it('parte de lo RECOMENDADO por la capacidad, no del aprobado ya recortado por banda', () => {
+    expect(graduationBase({ recommendedLimit: '2000.00', approvedLimit: '1000.00' })).toBe(2000);
+  });
+
+  it('sin recomendación guardada, o en cero, cae al aprobado como antes', () => {
+    expect(graduationBase({ recommendedLimit: null, approvedLimit: '1500.00' })).toBe(1500);
+    expect(graduationBase({ recommendedLimit: '0.00', approvedLimit: '0.00' })).toBe(0);
+  });
+
+  it('sin línea vigente no hay base', () => {
+    expect(graduationBase(null)).toBeNull();
   });
 });

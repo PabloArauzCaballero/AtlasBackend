@@ -9,6 +9,7 @@ import type {
   BankStatementReviewModel,
   CustomerActivitySummaryModel,
   CustomerModel,
+  FraudCaseModel,
   IdentityVerificationAttemptModel,
   LoanInstallmentModel,
   LoanModel,
@@ -50,6 +51,7 @@ describe('PaymentCapacityService', () => {
   let reviews: Doble;
   let activity: Doble;
   let identity: Doble;
+  let fraud: { count: jest.Mock<(...args: unknown[]) => Promise<number>> };
   let service: PaymentCapacityService;
 
   beforeEach(() => {
@@ -59,6 +61,7 @@ describe('PaymentCapacityService', () => {
     reviews = doble();
     activity = doble();
     identity = doble();
+    fraud = { count: jest.fn(async (..._args: unknown[]) => 0) };
     service = new PaymentCapacityService(
       customers as unknown as typeof CustomerModel,
       loans as unknown as typeof LoanModel,
@@ -66,6 +69,7 @@ describe('PaymentCapacityService', () => {
       reviews as unknown as typeof BankStatementReviewModel,
       activity as unknown as typeof CustomerActivitySummaryModel,
       identity as unknown as typeof IdentityVerificationAttemptModel,
+      fraud as unknown as typeof FraudCaseModel,
     );
   });
 
@@ -330,11 +334,26 @@ describe('PaymentCapacityService', () => {
       await expect(relacion()).resolves.toHaveProperty('kycComplete', true);
     });
 
-    it('las señales de fraude suman los casos de por vida y las revisiones manuales abiertas', async () => {
-      activity.findOne.mockResolvedValueOnce({ fraudCaseCountLifetime: 1, openManualReviewCount: 2 } as never);
+    it('las señales de fraude suman los casos VIVOS y las revisiones manuales abiertas; el contador de por vida ya no pesa', async () => {
+      // 1 caso vivo + 2 revisiones abiertas. `fraudCaseCountLifetime: 9` incluye falsos positivos cerrados y NO debe sumar.
+      fraud.count.mockResolvedValueOnce(1);
+      activity.findOne.mockResolvedValueOnce({ fraudCaseCountLifetime: 9, openManualReviewCount: 2 } as never);
 
       const evaluacion = await relacion();
       expect(evaluacion.fraudFlags).toBe(3);
+    });
+
+    it('un caso cerrado como falso positivo no cuenta; uno abierto, uno «más investigación» o uno confirmado sí', async () => {
+      await relacion();
+
+      const { where } = fraud.count.mock.calls.at(-1)?.[0] as { where: Record<string | symbol, unknown> };
+      expect(where).toMatchObject({ tenantId: 't1', customerId: 'c1' });
+      const ramas = where[Op.or] as Array<Record<string, unknown>>;
+      // Abierto o sin estado: se mira case_status y no closed_at, que «más investigación» deja puesto.
+      expect(ramas[0]).toEqual({ caseStatus: null });
+      expect((ramas[1]!.caseStatus as Record<symbol, string>)[Op.ne]).toBe('closed');
+      // Cerrado pero que sigue pesando.
+      expect((ramas[2]!.resolution as Record<symbol, string[]>)[Op.in]).toEqual(['confirmed_fraud', 'blocked', 'escalated']);
     });
 
     it('sin resumen de actividad no se inventan señales', async () => {

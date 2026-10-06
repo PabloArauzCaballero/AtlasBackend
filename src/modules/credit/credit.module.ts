@@ -16,6 +16,7 @@ import {
   CustomerCardTierOverrideModel,
   CreditProductModel,
   CustomerActivitySummaryModel,
+  FraudCaseModel,
   CustomerModel,
   IdentityVerificationAttemptModel,
   LoanInstallmentModel,
@@ -98,6 +99,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
       LoanModel,
       LoanInstallmentModel,
       CustomerActivitySummaryModel,
+      FraudCaseModel,
       IdentityVerificationAttemptModel,
       // Sólo para saber a QUIÉN le falta línea. El expediente del cliente lo sigue gobernando
       // `CustomersModule`; aquí se lee su identidad y su estado de ciclo de vida, nada más.

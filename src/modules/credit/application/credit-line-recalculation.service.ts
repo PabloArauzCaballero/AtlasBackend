@@ -62,6 +62,24 @@ export function usableLimit(
   return { write: true, approvedLimit: limit };
 }
 
+/**
+ * La base de la subida escalonada: lo que la capacidad RECOMENDÓ en el cálculo anterior, no lo que se aprobó.
+ *
+ * El límite aprobado ya viene recortado por la banda de riesgo (D al 50 %). Graduar sobre él acopla los dos factores:
+ * el tope «el doble del vigente» valía 2 × 0,5 × recomendado = recomendado, así que en banda D la línea no podía subir
+ * nunca aunque la capacidad creciera, y si bajaba una vez no volvía (C-04 del plan 2026-10-05). Sin recomendación
+ * guardada (líneas anteriores a ese campo) se cae al aprobado, como antes.
+ */
+export function graduationBase(
+  current: { recommendedLimit?: string | number | null; approvedLimit: string | number } | null,
+): number | null {
+  if (!current) return null;
+  const recommended = Number(current.recommendedLimit);
+  if (current.recommendedLimit !== null && current.recommendedLimit !== undefined && Number.isFinite(recommended) && recommended > 0)
+    return recommended;
+  return Number(current.approvedLimit);
+}
+
 function str(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
@@ -161,7 +179,7 @@ export class CreditLineRecalculationService {
       tenantId: input.tenantId,
       customerId: input.customerId,
       declaredMonthlyIncome: num(variables.declared_monthly_income) ?? null,
-      currentLimit: current ? Number(current.approvedLimit) : null,
+      currentLimit: graduationBase(current),
       termMonths: requestedTermMonths,
       now,
     });
