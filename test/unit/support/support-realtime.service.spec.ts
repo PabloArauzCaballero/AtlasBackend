@@ -61,4 +61,51 @@ describe('bus de tiempo real de soporte', () => {
     const service = build();
     expect(() => service.emit({ type: 'channel.closed', tenantId: '1', channelId: '10', payload: {} })).not.toThrow();
   });
+
+  /**
+   * Redis entrega la publicación también a la conexión suscrita del propio proceso. Sin filtrar el
+   * origen, cada evento llegaba dos veces a los SSE de la instancia que lo emitía.
+   */
+  describe('con el puente por Redis', () => {
+    const fakeRedis = () => {
+      let onMessage: (channel: string, raw: string) => void = () => undefined;
+      const subscriber = {
+        subscribe: async () => 1,
+        on: (name: string, fn: (channel: string, raw: string) => void) => {
+          if (name === 'message') onMessage = fn;
+        },
+        quit: async () => 'OK',
+        disconnect: () => undefined,
+      };
+      const redis = {
+        duplicate: () => subscriber,
+        publish: async (channel: string, raw: string) => {
+          onMessage(channel, raw);
+          return 1;
+        },
+      };
+      return { redis, deliver: (raw: string) => onMessage('atlas:support:events', raw) };
+    };
+
+    it('el evento propio no vuelve por el bus: se entrega una sola vez', async () => {
+      const { redis } = fakeRedis();
+      const service = new SupportRealtimeService(redis as never);
+      const collected = firstValueFrom(service.streamFor('1', '10').pipe(take(2), toArray()));
+      service.emit({ type: 'message.created', tenantId: '1', channelId: '10', payload: { n: 1 } });
+      service.emit({ type: 'message.created', tenantId: '1', channelId: '10', payload: { n: 2 } });
+
+      const events = await collected;
+      expect(events.map((event) => event.payload.n)).toEqual([1, 2]);
+    });
+
+    it('el evento de otra instancia sí se entrega', async () => {
+      const { redis, deliver } = fakeRedis();
+      const service = new SupportRealtimeService(redis as never);
+      const received = firstValueFrom(service.streamFor('1', '10').pipe(take(1)));
+
+      deliver(JSON.stringify({ type: 'message.created', tenantId: '1', channelId: '10', payload: { n: 9 }, emittedAt: 'x', origin: 'otra' }));
+
+      expect((await received).payload).toEqual({ n: 9 });
+    });
+  });
 });
