@@ -80,7 +80,10 @@ describe('secretos de un solo campo: PIN y código de un solo uso', () => {
   });
 
   it('no sobre-redacta claves técnicas que sólo contienen esas letras', () => {
-    const result = redactSensitiveObject({ reasonCode: 'R1', pinnedVersion: 'v2', mapping: 'a', codeSystem: 'x' }) as Record<string, unknown>;
+    const result = redactSensitiveObject({ reasonCode: 'R1', pinnedVersion: 'v2', mapping: 'a', codeSystem: 'x' }) as Record<
+      string,
+      unknown
+    >;
     expect(result).toEqual({ reasonCode: 'R1', pinnedVersion: 'v2', mapping: 'a', codeSystem: 'x' });
   });
 });

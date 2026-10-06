@@ -193,7 +193,12 @@ export class AuthService {
    * caso de reuso detectado, la revocación de la cadena de descendientes es justo lo que NO
    * queremos perder aunque la solicitud en sí termine en 401.
    */
-  async refresh(input: { refreshToken: string; ip: string | null; userAgent: string | null; expectedActorType?: ActorType }): Promise<LoginResult> {
+  async refresh(input: {
+    refreshToken: string;
+    ip: string | null;
+    userAgent: string | null;
+    expectedActorType?: ActorType;
+  }): Promise<LoginResult> {
     const tokenHash = hashRefreshToken(input.refreshToken);
 
     const outcome = await this.sequelize.transaction((transaction) =>

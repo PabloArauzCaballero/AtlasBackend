@@ -188,7 +188,9 @@ export class AuthSecondFactorService {
    * El mismo mensaje para "desafío inexistente", "expirado" y "PIN incorrecto" es deliberado: son
    * tres estados que un atacante no debe poder distinguir.
    */
-  async consumeChallenge(input: { challengeToken: string; pin: string; expectedActorType?: ActorType } & Network): Promise<VerifiedSecondFactor> {
+  async consumeChallenge(
+    input: { challengeToken: string; pin: string; expectedActorType?: ActorType } & Network,
+  ): Promise<VerifiedSecondFactor> {
     const invalidPinError = new UnauthorizedException('PIN inválido o expirado.');
 
     const challenge = await this.oneTimeCodeRepository.findActiveOneTimeCodeByChallenge(hashOneTimeCode(input.challengeToken));
