@@ -60,8 +60,7 @@ export class SystemsCatalogSeedService {
     user: AuthenticatedUser,
   ) {
     const lockTransaction = await this.sequelize.transaction();
-    // Dos llaves: la propia del refresco y la de la puesta al día automática, que también cataloga las
-    // rutas propias. Con llaves distintas un refresco manual y la pasada programada deprecaban en paralelo.
+    // Dos llaves: la del refresco y la de la pasada automática, que también cataloga las rutas propias.
     const [lock] = await this.sequelize.query<{ acquired: boolean }>(
       `SELECT pg_try_advisory_xact_lock(hashtext('atlas_systems_catalog_refresh'))
           AND pg_try_advisory_xact_lock(hashtext(:selfSyncKey)) AS acquired`,

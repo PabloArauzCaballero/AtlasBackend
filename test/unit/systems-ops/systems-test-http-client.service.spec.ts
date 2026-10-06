@@ -1,7 +1,10 @@
 import { describe, expect, it, jest, beforeEach, afterEach } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
 import { env } from '../../../src/config/env.js';
-import { SYSTEM_TEST_MAX_RESPONSE_BYTES, SystemsTestHttpClientService } from '../../../src/modules/systems-ops/systems-test-http-client.service.js';
+import {
+  SYSTEM_TEST_MAX_RESPONSE_BYTES,
+  SystemsTestHttpClientService,
+} from '../../../src/modules/systems-ops/systems-test-http-client.service.js';
 
 /**
  * Cobertura de `SystemsTestHttpClientService` (Fase 1.2): el cliente HTTP del runner de pruebas de
