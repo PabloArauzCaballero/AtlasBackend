@@ -139,8 +139,12 @@ describe('AuthRepository', () => {
     it('registerOneTimeCodeFailedAttempt consume el código al agotar los intentos', async () => {
       const { repo } = buildOneTimeCodeRepo();
       const save = jest.fn(async (..._args: unknown[]) => undefined);
-      const code = { attempts: 4, consumedAt: null, save } as never;
+      const increment = jest.fn(async function (this: { attempts: number }, ..._args: unknown[]) {
+        this.attempts += 1;
+      });
+      const code = { attempts: 4, consumedAt: null, save, increment } as never;
       await repo.registerOneTimeCodeFailedAttempt(code, 5);
+      expect(increment).toHaveBeenCalledWith('attempts', { by: 1 });
       expect((code as { attempts: number }).attempts).toBe(5);
       expect((code as { consumedAt: Date | null }).consumedAt).toBeInstanceOf(Date);
     });
@@ -148,8 +152,12 @@ describe('AuthRepository', () => {
     it('registerOneTimeCodeFailedAttempt solo incrementa si aún quedan intentos', async () => {
       const { repo } = buildOneTimeCodeRepo();
       const save = jest.fn(async (..._args: unknown[]) => undefined);
-      const code = { attempts: 1, consumedAt: null, save } as never;
+      const increment = jest.fn(async function (this: { attempts: number }, ..._args: unknown[]) {
+        this.attempts += 1;
+      });
+      const code = { attempts: 1, consumedAt: null, save, increment } as never;
       await repo.registerOneTimeCodeFailedAttempt(code, 5);
+      expect(increment).toHaveBeenCalledWith('attempts', { by: 1 });
       expect((code as { attempts: number }).attempts).toBe(2);
       expect((code as { consumedAt: Date | null }).consumedAt).toBeNull();
     });

@@ -83,7 +83,9 @@ export class AuthOneTimeCodeRepository {
   }
 
   async registerOneTimeCodeFailedAttempt(code: AuthOneTimeCodeModel, maxAttempts: number): Promise<void> {
-    code.attempts += 1;
+    // Incremento atómico en SQL (`attempts = attempts + 1`): con `attempts += 1; save()` cien intentos en
+    // paralelo leían el mismo valor y escribían 1, y el tope no se alcanzaba nunca.
+    await code.increment('attempts', { by: 1 });
     if (code.attempts >= maxAttempts) {
       // Agotó los intentos: se consume para que ni siquiera el código correcto sirva después.
       code.consumedAt = new Date();
