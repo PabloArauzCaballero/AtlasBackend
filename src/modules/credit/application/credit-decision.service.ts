@@ -67,7 +67,7 @@ export class CreditDecisionService {
 
   async decide(input: { tenantId: string; applicationId: string; body: CreditApplicationDecisionDto; currentUser: AuthenticatedUser }) {
     return this.sequelize.transaction(async (transaction) => {
-      const application = await this.creditRepository.findApplicationById(input.tenantId, input.applicationId, { transaction });
+      const application = await this.creditRepository.findApplicationById(input.tenantId, input.applicationId, { transaction, lock: true });
       if (!application) throw new NotFoundException('CREDIT_APPLICATION_NOT_FOUND');
       if (CLOSED_STATUSES.includes(application.status)) throw new ConflictException('CREDIT_APPLICATION_ALREADY_DECIDED');
       /*
@@ -184,7 +184,7 @@ export class CreditDecisionService {
     resolvedByInternalUserId: string | null;
   }) {
     return this.sequelize.transaction(async (transaction) => {
-      const application = await this.creditRepository.findApplicationByExecutionId(input.tenantId, input.executionId, { transaction });
+      const application = await this.creditRepository.findApplicationByExecutionId(input.tenantId, input.executionId, { transaction, lock: true });
       if (!application) throw new NotFoundException(`Ninguna solicitud de crédito nació de la ejecución ${input.executionId}.`);
       if (CLOSED_STATUSES.includes(application.status)) {
         return {

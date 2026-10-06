@@ -46,7 +46,7 @@ export class CreditBusinessAcceptanceService {
 
   async decide(input: { tenantId: string; applicationId: string; body: CreditBusinessAcceptanceDto; currentUser: AuthenticatedUser }) {
     return this.sequelize.transaction(async (transaction) => {
-      const application = await this.credit.findApplicationById(input.tenantId, input.applicationId, { transaction });
+      const application = await this.credit.findApplicationById(input.tenantId, input.applicationId, { transaction, lock: true });
       if (!application) throw new NotFoundException('CREDIT_APPLICATION_NOT_FOUND');
 
       /*

@@ -102,7 +102,7 @@ describe('CreditDecisionService · la revisión hecha en el Motor vuelve', () =>
     });
 
     expect(result).toEqual({ applied: true, applicationId: '31', previousStatus: 'under_review', status: 'approved' });
-    expect(creditRepository.findApplicationByExecutionId).toHaveBeenCalledWith('7', '9001', { transaction });
+    expect(creditRepository.findApplicationByExecutionId).toHaveBeenCalledWith('7', '9001', { transaction, lock: true });
     expect(creditRepository.updateApplicationStatus).toHaveBeenCalledWith(
       app,
       expect.objectContaining({ status: 'approved', reasonCode: 'engine_manual_review_approved', decidedByInternalUserId: '12' }),

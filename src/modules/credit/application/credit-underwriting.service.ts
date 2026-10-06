@@ -72,7 +72,7 @@ export class CreditUnderwritingService {
     const now = new Date();
 
     return this.sequelize.transaction(async (transaction) => {
-      const application = await this.credit.findApplicationById(input.tenantId, input.applicationId, { transaction });
+      const application = await this.credit.findApplicationById(input.tenantId, input.applicationId, { transaction, lock: true });
       if (!application) return { status: 'unknown', decisionMode: null, executionId: null, reasonCodes: [] };
 
       if (application.status !== 'submitted') {

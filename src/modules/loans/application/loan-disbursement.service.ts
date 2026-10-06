@@ -69,7 +69,7 @@ export class LoanDisbursementService {
     const idempotencyKeyHash = sha256Hex(input.idempotencyKey);
 
     const resultado = await this.sequelize.transaction(async (transaction) => {
-      const application = await this.credit.findApplicationById(input.tenantId, input.applicationId, { transaction });
+      const application = await this.credit.findApplicationById(input.tenantId, input.applicationId, { transaction, lock: true });
       if (!application) throw new NotFoundException('CREDIT_APPLICATION_NOT_FOUND');
       assertDisbursable(application);
 
