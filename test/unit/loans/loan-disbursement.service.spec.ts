@@ -403,22 +403,49 @@ describe('LoanDisbursementService', () => {
       });
     });
 
-    it('sin primera fecha, el primer vencimiento cae un mes después del desembolso', async () => {
-      await desembolsar({ disbursedAt: '2026-01-31T10:00:00.000Z' });
+    const diasDesdeHoy = (dias: number) => new Date(Date.now() + dias * 86_400_000).toISOString().slice(0, 10);
 
+    it('sin primera fecha, el primer vencimiento cae un mes después del desembolso', async () => {
+      const decidida = new Date(Date.now() - 2 * 3_600_000);
+      const desembolso = new Date(Date.now() - 3_600_000);
+      credit.findApplicationById.mockResolvedValueOnce(solicitud({ decidedAt: decidida }) as never);
+      await desembolsar({ disbursedAt: desembolso.toISOString() });
+
+      const esperado = new Date(Date.UTC(desembolso.getUTCFullYear(), desembolso.getUTCMonth() + 1, 1));
       const [filas] = loans.bulkCreateInstallments.mock.calls.at(-1) as [Array<{ dueDate: string }>];
-      expect(filas[0].dueDate).toBe('2026-02-28');
+      expect(filas[0].dueDate.slice(0, 7)).toBe(esperado.toISOString().slice(0, 7));
     });
 
     it('con primera fecha explícita se respeta', async () => {
-      await desembolsar({ firstDueDate: '2026-03-15' });
+      const fecha = diasDesdeHoy(40);
+      await desembolsar({ firstDueDate: fecha });
 
       const [filas] = loans.bulkCreateInstallments.mock.calls.at(-1) as [Array<{ dueDate: string }>];
-      expect(filas[0].dueDate).toBe('2026-03-15');
+      expect(filas[0].dueDate).toBe(fecha);
+    });
+
+    describe('las fechas del cuerpo no retrofechan ni adelantan el préstamo', () => {
+      it('un desembolso anterior a la decisión que lo autoriza se rechaza', async () => {
+        await expect(desembolsar({ disbursedAt: '2020-01-01T00:00:00.000Z' })).rejects.toThrow('DISBURSED_AT_BEFORE_DECISION');
+        expect(loans.createLoan).not.toHaveBeenCalled();
+      });
+
+      it('un desembolso en el futuro se rechaza', async () => {
+        const futuro = new Date(Date.now() + 3 * 86_400_000).toISOString();
+        await expect(desembolsar({ disbursedAt: futuro })).rejects.toThrow('DISBURSED_AT_IN_THE_FUTURE');
+      });
+
+      it('una primera cuota que no es posterior al desembolso se rechaza', async () => {
+        await expect(desembolsar({ firstDueDate: diasDesdeHoy(-30) })).rejects.toThrow('FIRST_DUE_DATE_NOT_AFTER_DISBURSEMENT');
+      });
+
+      it('una primera cuota a años vista se rechaza', async () => {
+        await expect(desembolsar({ firstDueDate: diasDesdeHoy(400) })).rejects.toThrow('FIRST_DUE_DATE_TOO_FAR');
+      });
     });
 
     it('la fecha de vencimiento del préstamo es la de la ÚLTIMA cuota', async () => {
-      const dto = await desembolsar({ firstDueDate: '2026-03-15' });
+      const dto = await desembolsar({ firstDueDate: diasDesdeHoy(40) });
       const [filas] = loans.bulkCreateInstallments.mock.calls.at(-1) as [Array<{ dueDate: string }>];
 
       expect(dto.maturityDate).toBe(filas[filas.length - 1].dueDate);
