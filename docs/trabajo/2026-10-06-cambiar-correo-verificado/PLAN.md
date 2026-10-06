@@ -16,7 +16,7 @@
 ## Alcance
 - IN: backend `addContactMethod` idempotente para el mismo valor no verificado + código distinto para «ya verificado por ti»; tests unitarios; doc OpenAPI. Frontend: endpoint `addContactMethod`, `contactMethodId` en pedir/confirmar, pantalla `cambiar-correo`, accesos desde Perfil y desde Verificar contacto.
 - OUT: cambio de teléfono en la app (mismo mecanismo, otro pedido); aviso al correo anterior; reautenticación con contraseña antes del cambio (ver riesgos); volver a un correo antiguo ya verificado no principal.
-- Ambigüedades: «elevado a test» se interpreta como integrar en `main` vía PR con CI verde (Coolify despliega TEST desde `main`). Confirmar con Pablo.
+- «Elevado a test»: flujo real `dev` → `test` (`main` está abandonado). Corregido el 2026-10-06 tras abrir primero contra `main`.
 
 ## H1 — Cambiar el correo de la cuenta
 **CA:** Dado un cliente con contacto verificado, cuando escribe un correo nuevo en la app y confirma el código que llegó a ese correo, entonces su correo principal y de ingreso pasa a ser el nuevo.
@@ -41,8 +41,9 @@
 ### H1.S3 — Elevar a TEST
 | ID | Microtarea | CA | DoD | Estado |
 |---|---|---|---|---|
-| H1.S3.M1 | PR backend → main con CI verde e integrado | merge hecho | estado del PR | TODO |
-| H1.S3.M2 | PR frontend → main con CI verde e integrado | merge hecho | estado del PR | TODO |
+| H1.S3.M1 | PR backend (#201) → `dev` con CI verde e integrado | merge hecho | estado del PR | EN CURSO |
+| H1.S3.M2 | PR frontend (AtlasFrontend#52) → `dev` con CI verde e integrado | merge hecho | estado del PR | EN CURSO |
+| H1.S3.M3 | Adelantar `test` a `dev` en ambos repos (así se eleva a TEST) | `test` == `dev` | `git rev-parse origin/test origin/dev` | TODO |
 
 ## Riesgos y bloqueos previstos
 | Riesgo | Impacto | Mitigación |
