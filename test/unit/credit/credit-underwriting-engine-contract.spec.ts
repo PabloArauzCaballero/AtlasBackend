@@ -45,6 +45,7 @@ function build(outcomes: DecisionOutcome[], application: Record<string, unknown>
   };
   const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
   const reviewCases = {
+    closeIfResolved: jest.fn(async (..._args: unknown[]) => undefined),
     open: jest.fn(async (values: Record<string, unknown>, _options?: unknown) => ({
       caseCode: `CR-${String(values.applicationCode)}`,
       customerId: values.customerId,

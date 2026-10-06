@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Transaction } from 'sequelize';
 import { ManualReviewCaseModel } from '../../database/models/index.js';
 import { CREDIT_REVIEW_CASE_TYPE } from '../../common/types/review-case.types.js';
+import { REVIEW_CASE_SOURCE } from './credit-review-case.constants.js';
 
 type RepositoryOptions = { transaction?: Transaction };
 
@@ -87,5 +88,23 @@ export class CreditReviewCaseRepository {
     found.updatedAtValue = values.now;
     await found.save({ transaction: options.transaction });
     return true;
+  }
+
+  /**
+   * Una solicitud que resolvió el reintento automático (una diferida, P-09) saca su caso de Atlas de
+   * la bandeja: si no, quedaría abierto un caso de algo que ya está decidido.
+   */
+  async closeIfResolved(
+    application: { tenantId: string; manualReviewCaseCode: string | null; manualReviewCaseSource: string | null },
+    status: string,
+    now: Date,
+    options: RepositoryOptions,
+  ): Promise<void> {
+    if (status !== 'approved' && status !== 'rejected') return;
+    if (application.manualReviewCaseSource !== REVIEW_CASE_SOURCE.atlas || !application.manualReviewCaseCode) return;
+    await this.close(
+      { tenantId: application.tenantId, caseCode: application.manualReviewCaseCode, resolution: status, notes: null, now },
+      options,
+    );
   }
 }
