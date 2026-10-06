@@ -315,19 +315,35 @@ describe('PartnerProfileService', () => {
       updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'REVISION_MANUAL' });
-    const service = new PartnerProfileService(repository as never, repository as never, metricsDouble(), verificationCon(repository, kyb), hooksDouble() as never);
+    const service = new PartnerProfileService(
+      repository as never,
+      repository as never,
+      metricsDouble(),
+      verificationCon(repository, kyb),
+      hooksDouble() as never,
+    );
 
     const { profile: updated } = await service.submit('1', '10');
 
     expect(updated.onboardingStatus).toBe('under_review');
-    expect(repository.updateProfile.mock.calls[0]?.[1]).toMatchObject({ onboardingStatus: 'under_review', decidedAt: null, rejectionReason: null });
+    expect(repository.updateProfile.mock.calls[0]?.[1]).toMatchObject({
+      onboardingStatus: 'under_review',
+      decidedAt: null,
+      rejectionReason: null,
+    });
     expect((kyb.evaluate.mock.calls[0] as unknown as [{ idempotencyKey: string }])[0].idempotencyKey).toMatch(/^submit-10-\d+$/);
   });
 
   it('un rechazo firmado por una persona sigue siendo definitivo: no se reenvía', async () => {
     const profile = profileDouble({ onboardingStatus: 'rejected', decidedByInternalUserId: '9' });
     const repository = { findProfileById: jest.fn(async () => profile) };
-    const service = new PartnerProfileService(repository as never, repository as never, metricsDouble(), {} as never, hooksDouble() as never);
+    const service = new PartnerProfileService(
+      repository as never,
+      repository as never,
+      metricsDouble(),
+      {} as never,
+      hooksDouble() as never,
+    );
     await expect(service.submit('1', '10')).rejects.toThrow(UnprocessableEntityException);
   });
 
@@ -559,6 +575,15 @@ describe('PartnerRepresentativeService · poder del representante', () => {
     documentType: 'ci' as const,
     documentNumber: '1234567',
     ...(powerOfAttorneyKey ? { powerOfAttorneyKey } : {}),
+  });
+
+  it('no emite permiso de subida para un expediente que no existe', async () => {
+    const { service, storage, repository } = build();
+    repository.findProfileById.mockResolvedValueOnce(null as never);
+    const dto = { documentKind: 'power_of_attorney', contentType: 'application/pdf', sizeBytes: 1000 } as never;
+
+    await expect(service.createDocumentUploadTicket('1', '999', dto)).rejects.toBeInstanceOf(NotFoundException);
+    expect(storage.createUploadTicket).not.toHaveBeenCalled();
   });
 
   it('acepta al representante sin poder: el papel puede llegar después', async () => {
