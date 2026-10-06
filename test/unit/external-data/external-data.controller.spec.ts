@@ -185,8 +185,12 @@ describe('AdminExternalProvidersController (administración)', () => {
     const c = new AdminExternalProvidersController(svc as never);
     await c.patchRuntime({ providerCode: 'SEGIP' } as never, { mode: 'disabled' } as never);
     expect(svc.updateProviderRuntimePolicy).toHaveBeenCalledWith({ providerCode: 'SEGIP', patch: { mode: 'disabled' } });
-    await c.killSwitch({ providerCode: 'SEGIP' } as never, { reason: 'leak' } as never);
-    expect(svc.activateProviderKillSwitch).toHaveBeenCalledWith({ providerCode: 'SEGIP', reason: 'leak' });
+    await c.killSwitch(
+      { providerCode: 'SEGIP' } as never,
+      { reason: 'leak' } as never,
+      { role: 'risk_analyst', internalUserId: '7' } as never,
+    );
+    expect(svc.activateProviderKillSwitch).toHaveBeenCalledWith({ providerCode: 'SEGIP', reason: 'leak', activatedBy: '7' });
     await c.getCostPolicy({ providerCode: 'SEGIP' } as never);
     expect(svc.getProviderCostPolicies).toHaveBeenCalledWith('SEGIP');
     await c.updateCostPolicy({ providerCode: 'SEGIP' } as never, 'CREDIT_CHECK', { blockByDefault: false } as never);

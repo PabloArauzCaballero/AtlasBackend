@@ -311,14 +311,17 @@ Runtime change: ${input.patch.reason}`
     };
   }
 
-  async activateProviderKillSwitch(input: { providerCode: string; reason?: string }) {
+  async activateProviderKillSwitch(input: { providerCode: string; reason?: string; activatedBy?: string }) {
+    // `data_providers` es global y sólo guarda el motivo: el actor viaja dentro de él para que quien
+    // mire el proveedor apagado sepa quién lo apagó sin cruzar el log HTTP a mano.
+    const reason = input.reason ?? 'Kill switch activado manualmente.';
     return this.updateProviderRuntimePolicy({
       providerCode: input.providerCode,
       patch: {
         defaultMode: 'disabled',
         providerStatus: 'DISABLED',
         isActive: false,
-        reason: input.reason ?? 'Kill switch activado manualmente.',
+        reason: input.activatedBy ? `${reason} (activado por usuario ${input.activatedBy})` : reason,
       },
     });
   }

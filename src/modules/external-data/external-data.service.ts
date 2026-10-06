@@ -252,7 +252,7 @@ export class ExternalDataService {
     return this.governance.updateProviderRuntimePolicy(input);
   }
 
-  activateProviderKillSwitch(input: { providerCode: string; reason?: string }) {
+  activateProviderKillSwitch(input: { providerCode: string; reason?: string; activatedBy?: string }) {
     return this.governance.activateProviderKillSwitch(input);
   }
 

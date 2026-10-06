@@ -483,6 +483,23 @@ describe('ExternalDataGovernanceService', () => {
 
       expect(result.reason).toBe('Kill switch activado manualmente.');
     });
+
+    it('deja en el motivo quién lo activó, porque data_providers es global y no guarda actor', async () => {
+      const { service, registry, repository } = buildService();
+      (registry.requireProviderAllowDisabled as jest.Mock).mockResolvedValueOnce({
+        id: 'p1',
+        providerCode: 'INFOCENTER',
+        description: null,
+      } as never);
+      (repository.updateProviderRuntime as jest.Mock).mockImplementationOnce(async (_id, patch) => ({
+        providerCode: 'INFOCENTER',
+        ...(patch as object),
+      }));
+
+      const result = await service.activateProviderKillSwitch({ providerCode: 'INFOCENTER', reason: 'fuga', activatedBy: '7' });
+
+      expect(result.reason).toBe('fuga (activado por usuario 7)');
+    });
   });
 
   describe('getRetentionPreview — nunca borra nada', () => {

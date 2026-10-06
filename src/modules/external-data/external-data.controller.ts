@@ -228,9 +228,12 @@ export class ExternalDataController {
     });
   }
 
+  // Sin `customer`: cada llamada ejecuta los checks de todos los proveedores y escribe un
+  // `provider_health_logs` por cada uno; es un dato operativo, no del cliente.
   @ApiOperation({ summary: 'Estado de salud de proveedores externos' })
   @ApiQuery({ name: 'providerCode', required: false, description: 'Filtra por un proveedor específico; sin filtro devuelve todos.' })
   @ApiResponse({ status: 200, description: 'Estado de salud por proveedor.' })
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
   @Get('providers/health')
   getProviderHealth(@Query('providerCode') providerCode?: string) {
     return this.externalDataService.getProviderHealth(providerCode);
@@ -504,8 +507,13 @@ export class AdminExternalProvidersController {
   killSwitch(
     @Param(new ZodValidationPipe(providerCodeParamsSchema)) params: ProviderCodeParamsDto,
     @Body(new ZodValidationPipe(providerRuntimePatchSchema)) body: ProviderRuntimePatchDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.externalDataService.activateProviderKillSwitch({ providerCode: params.providerCode, reason: body.reason });
+    return this.externalDataService.activateProviderKillSwitch({
+      providerCode: params.providerCode,
+      reason: body.reason,
+      activatedBy: actorId(currentUser),
+    });
   }
 
   @ApiOperation({ summary: 'Listar políticas de costo de un proveedor (por tipo de consulta)' })
