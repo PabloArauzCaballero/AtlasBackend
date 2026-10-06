@@ -22,8 +22,8 @@ const assignSchema = z
     artifactCode: z.string().trim().min(1).max(120),
     /*
      * Version a fijar. Sin ella se sigue la vigente del despliegue —que es el comportamiento de
-     * siempre—; con ella, publicar una version nueva en el motor deja de cambiar lo que decide en
-     * produccion sin que nadie lo apruebe.
+     * siempre—. Con ella el servicio responde 422: el motor aún no ejecuta por versión y guardarla
+     * sin aplicarla daba una fijación falsa.
      */
     pinnedVersion: z.string().trim().max(40).nullable().optional(),
     notes: z.string().trim().max(500).optional(),
@@ -71,7 +71,7 @@ export class DecisionArtifactBindingController {
   @ApiOperation({ summary: 'Elegir el artefacto que decide un tipo' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Asignación guardada.' })
-  @ApiResponse({ status: 422, description: 'DECISION_ARTIFACT_NOT_PUBLISHED — el motor no publica ese código.' })
+  @ApiResponse({ status: 422, description: 'DECISION_ARTIFACT_NOT_PUBLISHED — el motor no publica ese código; DECISION_PINNED_VERSION_NOT_SUPPORTED — pinnedVersion aún no se aplica.' })
   @Post()
   @HttpCode(HttpStatus.OK)
   async assign(
@@ -90,7 +90,7 @@ export class DecisionArtifactBindingController {
       });
     } catch (error) {
       const message = (error as Error).message;
-      if (message.startsWith('DECISION_ARTIFACT_NOT_PUBLISHED')) throw new UnprocessableEntityException(message);
+      if (message.startsWith('DECISION_ARTIFACT_NOT_PUBLISHED') || message.startsWith('DECISION_PINNED_VERSION_NOT_SUPPORTED')) throw new UnprocessableEntityException(message);
       throw error;
     }
   }
