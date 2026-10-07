@@ -106,5 +106,28 @@ describe('guardSqlStatement', () => {
       const codes = codesOf('SELECT pg_read_file(1), drop FROM pg_authid');
       expect(new Set(codes)).toEqual(new Set(['SQL_FORBIDDEN_FUNCTION', 'SQL_FORBIDDEN_KEYWORD', 'SQL_FORBIDDEN_RELATION']));
     });
+
+    /** Postgres decodifica `U&"…"` antes de resolver el nombre: comparar el texto crudo no sirve. */
+    it('rechaza los escapes Unicode, que disfrazan la relación o la función', () => {
+      expect(codesOf('SELECT password_hash FROM iam.U&"auth\\005fcredentials"')).toContain('SQL_UNICODE_ESCAPE');
+      expect(codesOf("SELECT U&'a'")).toContain('SQL_UNICODE_ESCAPE');
+    });
+
+    it('rechaza la función aunque se llame entre comillas', () => {
+      expect(codesOf(`SELECT "set_config"('statement_timeout','0',true)`)).toContain('SQL_FORBIDDEN_FUNCTION');
+      expect(codesOf(`SELECT "PG_READ_FILE"('/etc/passwd')`)).toContain('SQL_FORBIDDEN_FUNCTION');
+    });
+
+    it('rechaza los códigos de un solo uso y las estadísticas de columna', () => {
+      expect(codesOf('SELECT code_hash FROM iam.auth_one_time_codes')).toContain('SQL_FORBIDDEN_RELATION');
+      expect(codesOf('SELECT most_common_vals FROM pg_stats')).toContain('SQL_FORBIDDEN_RELATION');
+    });
+
+    it('sin baseSchemas sólo se lee read_api, también entre comillas', () => {
+      expect(codesOf('SELECT email AS e FROM customer.customers')).toContain('SQL_BASE_SCHEMA');
+      expect(codesOf('SELECT * FROM "customer"."customers"')).toContain('SQL_BASE_SCHEMA');
+      expect(guardSqlStatement('SELECT email FROM customer.customers', { baseSchemas: true }).ok).toBe(true);
+      expect(guardSqlStatement('SELECT * FROM read_api.customers').ok).toBe(true);
+    });
   });
 });

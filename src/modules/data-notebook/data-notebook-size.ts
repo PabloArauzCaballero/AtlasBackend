@@ -5,8 +5,8 @@
  */
 import { DATA_NOTEBOOK_LIMITS } from './data-notebook.constants.js';
 
-export type PaginaRecortada = {
-  rows: Record<string, unknown>[];
+export type PaginaRecortada<T = Record<string, unknown>> = {
+  rows: T[];
   /** Bytes que ocupan las filas servidas, ya recortadas. */
   bytes: number;
   /** Filas que el techo dejó fuera. Cero cuando la página cupo entera. */
@@ -25,11 +25,11 @@ export type PaginaRecortada = {
  * fila no es JSON, y quien la recibiera no tendría un dato incompleto sino un error de sintaxis a
  * mitad de la respuesta.
  */
-export function recortarPorTamano(
-  rows: readonly Record<string, unknown>[],
+export function recortarPorTamano<T extends object = Record<string, unknown>>(
+  rows: readonly T[],
   techoBytes: number = DATA_NOTEBOOK_LIMITS.maxResponseBytes,
-): PaginaRecortada {
-  const cabidas: Record<string, unknown>[] = [];
+): PaginaRecortada<T> {
+  const cabidas: T[] = [];
   let bytes = 0;
 
   for (const fila of rows) {

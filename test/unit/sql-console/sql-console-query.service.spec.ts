@@ -46,7 +46,7 @@ describe('SqlConsoleQueryService · validar sin ejecutar', () => {
   it('planifica sin ejecutar y devuelve el coste y las relaciones', async () => {
     const { service, sentencias } = montar();
 
-    const veredicto = await service.validate('SELECT * FROM customer.customers JOIN credit.loans ON true');
+    const veredicto = await service.validate('SELECT * FROM customer.customers JOIN credit.loans ON true', admin);
 
     expect(veredicto.valid).toBe(true);
     expect(veredicto.estimate?.estimatedRows).toBe(12);
@@ -62,7 +62,7 @@ describe('SqlConsoleQueryService · validar sin ejecutar', () => {
   it('un plan que falla es una validación negativa, no un error', async () => {
     const { service } = montar({ explainFalla: true });
 
-    const veredicto = await service.validate('SELECT 1');
+    const veredicto = await service.validate('SELECT 1', admin);
 
     expect(veredicto.valid).toBe(false);
     expect(veredicto.violations[0].code).toBe('SQL_PLAN_FAILED');
@@ -71,7 +71,7 @@ describe('SqlConsoleQueryService · validar sin ejecutar', () => {
   it('lo que el guard rechaza no llega siquiera a planificarse', async () => {
     const { service, sentencias } = montar();
 
-    const veredicto = await service.validate('DELETE FROM customer.customers');
+    const veredicto = await service.validate('DELETE FROM customer.customers', admin);
 
     expect(veredicto.valid).toBe(false);
     expect(sentencias).toHaveLength(0);
@@ -146,12 +146,24 @@ describe('SqlConsoleQueryService · ejecutar', () => {
     const fila = [{ email: 'ana@correo.test', document_number: '1234567' }];
 
     const conAnalista = montar({ filas: fila });
-    const deAnalista = await conAnalista.service.execute('SELECT email, document_number FROM customer.customers', analista);
+    const deAnalista = await conAnalista.service.execute('SELECT email, document_number FROM read_api.customers', analista);
 
     const conAdmin = montar({ filas: fila });
     const deAdmin = await conAdmin.service.execute('SELECT email, document_number FROM customer.customers', admin);
 
     expect(deAnalista.rows[0]).not.toEqual(deAdmin.rows[0]);
+  });
+
+  /* El techo de filas no basta: mil filas gordas caben en él y revientan la memoria al serializar. */
+  it('recorta por bytes aunque las filas quepan en el techo de filas', async () => {
+    const gorda = 'x'.repeat(2 * 1024 * 1024);
+    const { service } = montar({ filas: Array.from({ length: 10 }, () => ({ blob: gorda })) });
+
+    const resultado = await service.execute('SELECT blob FROM customer.x', admin);
+
+    expect(resultado.rowCount).toBeLessThan(10);
+    expect(resultado.rowCount).toBeGreaterThan(0);
+    expect(resultado.truncated).toBe(true);
   });
 
   /* La consola pinta valores planos: una fecha o un objeto viajan como texto, no `[object Object]`. */
@@ -189,6 +201,35 @@ describe('SqlConsoleQueryService · ejecutar', () => {
     expect(transaccion.commit).not.toHaveBeenCalled();
   });
 
+  /* Un error de la consulta es de quien la escribió: 422 con el motivo, no un 500 de servidor. */
+  it('un error de sintaxis o de relación inexistente es 422, y un fallo de conexión sigue siendo 500', async () => {
+    const mala = montar();
+    mala.sequelize.query.mockImplementation(async (sql: string) => {
+      if (sql.startsWith('EXPLAIN')) throw Object.assign(new Error('relation "x" does not exist'), { original: { code: '42P01' } });
+      return [];
+    });
+    await expect(mala.service.execute('SELECT 1 FROM customer.x', admin)).rejects.toMatchObject({
+      status: 422,
+      response: { code: 'SQL_EXECUTION_FAILED', message: 'relation "x" does not exist' },
+    });
+
+    const plazo = montar();
+    plazo.sequelize.query.mockImplementation(async (sql: string) => {
+      if (sql.startsWith('SELECT * FROM (')) throw Object.assign(new Error('canceling statement'), { parent: { code: '57014' } });
+      return sql.startsWith('EXPLAIN') ? [{ 'QUERY PLAN': [{ Plan: {} }] }] : [];
+    });
+    await expect(plazo.service.execute('SELECT 1 FROM customer.x', admin)).rejects.toMatchObject({
+      status: 422,
+      response: { code: 'SQL_TIMEOUT' },
+    });
+
+    const caida = montar();
+    caida.sequelize.query.mockImplementation(async () => {
+      throw Object.assign(new Error('connection refused'), { original: { code: 'ECONNREFUSED' } });
+    });
+    await expect(caida.service.execute('SELECT 1 FROM customer.x', admin)).rejects.toThrow('connection refused');
+  });
+
   /* El catálogo de esquemas se pregunta una vez por proceso: es estable y la consola se usa a ráfagas. */
   it('no vuelve a preguntar los esquemas en cada consulta', async () => {
     const { service, readQuery } = montar({ filas: [] });
@@ -197,5 +238,40 @@ describe('SqlConsoleQueryService · ejecutar', () => {
     await service.execute('SELECT id FROM customer.customers', admin);
 
     expect(readQuery.select).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SqlConsoleQueryService · quien no puede revelar se queda en read_api', () => {
+  /*
+   * El enmascarado decide por el NOMBRE de la columna del resultado, y quien escribe la consulta lo
+   * elige con un alias: `SELECT email AS e` sale en claro. Por eso a quien no puede revelar no se le
+   * abren las tablas base: lo que no se debe ver no se alcanza.
+   */
+  it('rechaza con 422 las tablas base aunque se alias la columna', async () => {
+    const { service, sentencias } = montar();
+
+    await expect(service.execute('SELECT email AS e FROM customer.customers', analista)).rejects.toMatchObject({
+      status: 422,
+      response: { code: 'SQL_BASE_SCHEMA' },
+    });
+    expect(sentencias).toHaveLength(0);
+  });
+
+  it('acota el search_path a read_api, y el que puede revelar conserva todos', async () => {
+    const deAnalista = montar({ filas: [{ id: '1' }] });
+    await deAnalista.service.execute('SELECT id FROM read_api.customers', analista);
+    expect(deAnalista.sentencias).toContain('SET LOCAL search_path = "read_api"');
+
+    const deAdmin = montar({ filas: [{ id: '1' }] });
+    await deAdmin.service.execute('SELECT id FROM customer.customers', admin);
+    expect(deAdmin.sentencias.find((s) => s.startsWith('SET LOCAL search_path'))).toContain('"customer"');
+  });
+
+  it('validar aplica la misma regla que ejecutar', async () => {
+    const { service } = montar();
+
+    const veredicto = await service.validate('SELECT 1 FROM iam.auth_one_time_codes', analista);
+
+    expect(veredicto.valid).toBe(false);
   });
 });

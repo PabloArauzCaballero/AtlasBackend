@@ -185,6 +185,23 @@ describe('CatalogIngestionService', () => {
       expect(result).toMatchObject({ approved: 1, rejected: 0, itemsCreated: 1 });
     });
 
+    it('rejects deciding a staging item that is already approved or rejected (no duplicate context item)', async () => {
+      const { service, repository } = buildService();
+      (repository.findCatalogVersionById as jest.Mock).mockResolvedValueOnce({ id: 'v1', status: 'draft' } as never);
+      (repository.findStagingItemById as jest.Mock).mockResolvedValueOnce({
+        id: 'staging-1',
+        reviewStatus: 'approved',
+        proposedItemCode: 'sc1',
+        proposedItemName: 'x',
+      } as never);
+
+      await expect(
+        service.decideStagingItems(baseInput([{ stagingItemId: 'staging-1', decision: 'approve', aliases: [], riskMappings: [] }])),
+      ).rejects.toThrow(/STAGING_ITEM_ALREADY_DECIDED/);
+      expect(repository.createContextItem).not.toHaveBeenCalled();
+      expect(repository.updateStagingItemDecision).not.toHaveBeenCalled();
+    });
+
     it('a "reject" decision does NOT create a context item, and marks the staging item rejected', async () => {
       const { service, repository } = buildService();
       (repository.findCatalogVersionById as jest.Mock).mockResolvedValueOnce({ id: 'v1', status: 'draft' } as never);

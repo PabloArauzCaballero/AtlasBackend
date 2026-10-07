@@ -71,7 +71,7 @@ export class DataQualityService {
     if (!input.idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     const now = new Date();
     return this.sequelize.transaction(async (transaction) => {
-      const issue = await this.repository.findIssueById(input.tenantId, input.params.issueId);
+      const issue = await this.repository.findIssueById(input.tenantId, input.params.issueId, { transaction });
       if (!issue) throw new NotFoundException('DATA_QUALITY_ISSUE_NOT_FOUND');
       const current = normalizeIssueStatus(issue.issueStatus);
       const wasAcknowledged = current === DATA_QUALITY_ACKNOWLEDGED_STATUS;

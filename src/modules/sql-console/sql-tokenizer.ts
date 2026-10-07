@@ -18,6 +18,8 @@ export type SqlScan = {
   words: SqlWord[];
   /** Identificadores entre comillas dobles, en minúsculas: `"Pg_Authid"` no debe escapar por la caja. */
   quotedIdentifiers: string[];
+  /** `U&"…"` / `U&'…'`: Postgres decodifica el escape ANTES de resolver el nombre, así que no se puede comparar tal cual. */
+  unicodeEscapes: boolean;
   /** Cuántas sentencias separa el texto: un `;` final no cuenta. */
   statementCount: number;
   /** Un literal o un comentario que nunca se cierra. */
@@ -43,6 +45,7 @@ export function scanSql(sql: string): SqlScan {
   let statementCount = 1;
   let sawContentSinceSemicolon = false;
   let unterminated: SqlScan['unterminated'] = null;
+  let unicodeEscapes = false;
   let index = 0;
 
   const previousChar = (at: number): string | null => {
@@ -81,6 +84,8 @@ export function scanSql(sql: string): SqlScan {
       normalizedParts.push(' ');
       continue;
     }
+
+    if ((char === '"' || char === "'") && /^u&$/i.test(sql.slice(Math.max(0, index - 2), index))) unicodeEscapes = true;
 
     if (char === "'") {
       const end = readSingleQuoted(sql, index);
@@ -161,6 +166,7 @@ export function scanSql(sql: string): SqlScan {
   return {
     words,
     quotedIdentifiers,
+    unicodeEscapes,
     statementCount,
     unterminated,
     normalized: normalizedParts.join('').replace(/\s+/g, ' ').trim().replace(/;+$/, '').trim(),
