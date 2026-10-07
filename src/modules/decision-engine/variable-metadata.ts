@@ -8,8 +8,19 @@ import type { VariableMetadata } from './decision-engine.types.js';
 
 type Provenance = Record<string, 'expediente' | 'derivado' | 'ausente'>;
 
-/** Lo que el solicitante pide en ESTA petición: es cierto al pedir. */
-export const REQUEST_VARIABLES = ['requested_amount', 'requested_term_months', 'currency_code', 'product_code', 'purpose_code'] as const;
+/**
+ * Lo que el solicitante pide en ESTA petición, y la tasa base que Core lee del catálogo de productos
+ * al pedirla: es cierto al pedir. La tasa iba sin fecha, y el Motor la contaba como dato crítico de
+ * frescura desconocida —Core no escribe una decisión así—.
+ */
+export const REQUEST_VARIABLES = [
+  'requested_amount',
+  'requested_term_months',
+  'currency_code',
+  'product_code',
+  'purpose_code',
+  'product_base_annual_rate',
+] as const;
 
 /**
  * Lo que Core LEE en vivo de su propio libro al decidir (historial dentro de Atlas, contactos

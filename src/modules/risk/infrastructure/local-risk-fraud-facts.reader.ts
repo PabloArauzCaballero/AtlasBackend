@@ -9,6 +9,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op, type FindOptions } from 'sequelize';
 
 import {
+  CustomerConsentModel,
   CustomerDeviceContactModel,
   CustomerDeviceLinkModel,
   CustomerLocationPingModel,
@@ -16,6 +17,7 @@ import {
   DeviceSnapshotModel,
   OnboardingBehaviorSummaryModel,
 } from '../../../database/models/index.js';
+import { ADDRESS_BOOK_PURPOSE, LOCATION_TRACKING_PURPOSE, isConsentInForce } from '../../../common/utils/consent/consent-in-force.util.js';
 import { calcularFormaDeLaAgenda } from '../../../common/utils/contact/contact-book-shape.util.js';
 import { SIN_HECHOS_DE_FRAUDE, type RiskFraudFacts } from '../application/risk-fraud-flags.js';
 
@@ -56,7 +58,17 @@ export class LocalRiskFraudFactsReader {
     @InjectModel(CustomerLocationPingModel) private readonly pings: typeof CustomerLocationPingModel,
     @InjectModel(OnboardingBehaviorSummaryModel) private readonly behavior: typeof OnboardingBehaviorSummaryModel,
     @InjectModel(CustomerDeviceContactModel) private readonly contacts: typeof CustomerDeviceContactModel,
+    @InjectModel(CustomerConsentModel) private readonly consents: typeof CustomerConsentModel,
   ) {}
+
+  /**
+   * Si la ÚLTIMA decisión de esa finalidad es un «sí» sin retirar. Lo que la persona entregó antes de decir que no
+   * sigue guardado hasta que se borra, pero deja de leerse aquí: un dato sin consentimiento vigente no pesa.
+   */
+  private async vigente(tenantId: string, customerId: string, purposeCode: string): Promise<boolean> {
+    const ultima = await this.consents.findOne({ where: { tenantId, customerId, purposeCode }, order: [['_id', 'DESC']] } as FindOptions);
+    return isConsentInForce(ultima);
+  }
 
   /** Los hechos de un cliente. Cada lectura que falla deja su parte en «no se sabe», sin tumbar la evaluación. */
   async read(tenantId: string, customerId: string, now: Date = new Date()): Promise<RiskFraudFacts> {
@@ -71,7 +83,7 @@ export class LocalRiskFraudFactsReader {
     const [red, dispositivo, mockedLocationPings, comportamiento, agenda] = await Promise.all([
       seguro('red', () => this.red(tenantId, customerId, now), { sameIpCustomers24h: 0, sessionDevices: 0 }),
       seguro('dispositivo', () => this.dispositivo(tenantId, customerId), { emulator: null, rooted: null, sharedDeviceCustomers: 0 }),
-      seguro('ubicación', () => this.pings.count({ where: { tenantId, customerId, isMocked: true } } as FindOptions), 0),
+      seguro('ubicación', () => this.posicionesSimuladas(tenantId, customerId), 0),
       seguro('comportamiento', () => this.comportamiento(tenantId, customerId), { botScore: null, rhythmSignals: [] as string[] }),
       seguro('agenda', () => this.agenda(tenantId, customerId, now), SIN_AGENDA),
     ]);
@@ -155,6 +167,13 @@ export class LocalRiskFraudFactsReader {
     };
   }
 
+  /** Posiciones simuladas, sólo con el consentimiento de ubicación vigente. */
+  private async posicionesSimuladas(tenantId: string, customerId: string): Promise<number> {
+    if (!(await this.vigente(tenantId, customerId, LOCATION_TRACKING_PURPOSE))) return 0;
+    const total: unknown = await this.pings.count({ where: { tenantId, customerId, isMocked: true } } as FindOptions);
+    return Number(total);
+  }
+
   private async comportamiento(tenantId: string, customerId: string): Promise<Pick<RiskFraudFacts, 'botScore' | 'rhythmSignals'>> {
     const fila = await this.behavior.findOne({
       where: { tenantId, customerId },
@@ -170,6 +189,7 @@ export class LocalRiskFraudFactsReader {
 
   /** La forma de la agenda guardada. Sin agenda no hay señales: no compartirla no cuenta en contra. */
   private async agenda(tenantId: string, customerId: string, now: Date): Promise<HechosDeAgenda> {
+    if (!(await this.vigente(tenantId, customerId, ADDRESS_BOOK_PURPOSE))) return SIN_AGENDA;
     const filas = await this.contacts.findAll({
       where: { tenantId, customerId, deleted: { [Op.ne]: true } },
       attributes: ['phoneHashes', 'emailCount', 'isFavorite', 'birthday', 'contactType', 'createdAtValue'],

@@ -9,6 +9,8 @@ import { env } from '../../config/env.js';
 import { UnderwritingSignalsService } from './underwriting-signals.service.js';
 import { UnderwritingCreditHistoryService } from './underwriting-credit-history.service.js';
 import { UnderwritingDeviceSignalsService, variablesEnVivo } from './underwriting-device-signals.service.js';
+import { UnderwritingStatementService, statementObservedAt, statementVariables } from './underwriting-statement.service.js';
+import { clamp, EMPLOYMENT_MAP, incomeBasis } from './underwriting-income-basis.js';
 import type { VariableMetadata } from './decision-engine.types.js';
 import { buildVariableMetadata } from './variable-metadata.js';
 
@@ -27,6 +29,8 @@ export type UnderwritingFeatures = {
   variableMetadata: VariableMetadata;
   /** Las fechas de grupo, para quien añade variables propias (el recálculo de línea). */
   observedAt: { economy: Date | null; identity: Date | null };
+  /** El ingreso con el que se midió `affordability_ratio`: el verificado por extracto si lo hay, si no el declarado. */
+  affordabilityIncome: number;
   deviceSignals?: Awaited<ReturnType<UnderwritingDeviceSignalsService['signalsFor']>>;
 };
 
@@ -52,22 +56,6 @@ const INCOME = 'monthly_income_declared';
 const OTHER_INCOME = 'other_monthly_income';
 const EXPENSES = 'monthly_expenses_declared';
 const SENIORITY = 'employment_seniority_months';
-
-/** Del vocabulario del alta al del artefacto. Lo que no encaje va a `UNEMPLOYED`, que no aprueba. */
-const EMPLOYMENT_MAP: Record<string, string> = {
-  employee: 'EMPLOYED',
-  employed: 'EMPLOYED',
-  self_employed: 'SELF_EMPLOYED',
-  independent: 'SELF_EMPLOYED',
-  business_owner: 'SELF_EMPLOYED',
-  retired: 'RETIRED',
-  student: 'STUDENT',
-  unemployed: 'UNEMPLOYED',
-};
-
-function clamp(value: number, low: number, high: number): number {
-  return Math.min(high, Math.max(low, value));
-}
 
 /**
  * El expediente del cliente, traducido al contrato del motor.
@@ -100,6 +88,7 @@ export class UnderwritingFeaturesService {
     private readonly signals: UnderwritingSignalsService,
     private readonly historial: UnderwritingCreditHistoryService,
     private readonly deviceSignals: UnderwritingDeviceSignalsService,
+    private readonly statement: UnderwritingStatementService,
   ) {}
 
   async build(input: {
@@ -118,13 +107,14 @@ export class UnderwritingFeaturesService {
       return value;
     };
 
-    const [economy, contactState, hasAddress, identity, history, complianceSignals] = await Promise.all([
+    const [economy, contactState, hasAddress, identity, history, complianceSignals, extracto] = await Promise.all([
       this.signals.economicAttributes(input.tenantId, input.customerId),
       this.signals.contactVerification(input.tenantId, input.customerId),
       this.signals.hasVerifiedAddress(input.tenantId, input.customerId),
       this.signals.identitySignals(input.tenantId, input.customerId),
       this.historial.creditHistory(input.tenantId, input.customerId, now),
       this.signals.complianceSignals(input.tenantId, input.customerId),
+      this.statement.signalsFor(input.tenantId, input.customerId, now),
     ]);
     const telefono = await this.deviceSignals.signalsFor(input.tenantId, input.customerId, now);
     const income = economy[INCOME] ?? 0;
@@ -141,11 +131,17 @@ export class UnderwritingFeaturesService {
      * tres meses y pedirlos a doce no comprometen el mismo sueldo.
      */
     const monthlyInstalment = input.requestedTermMonths > 0 ? input.requestedAmount / input.requestedTermMonths : input.requestedAmount;
-    const affordabilityRatio = totalIncome > 0 ? clamp(monthlyInstalment / totalIncome, 0, 5) : 5;
-    const debtToIncome = totalIncome > 0 ? clamp((expenses + history.monthlyCommitted) / totalIncome, 0, 5) : 5;
+    const { verified, affordabilityIncome, affordabilityRatio, debtKnown, debtToIncome } = incomeBasis({
+      extracto,
+      monthlyInstalment,
+      declaredIncome: totalIncome,
+      expenses,
+      expensesKnown,
+      monthlyCommitted: history.monthlyCommitted,
+    });
 
     const employmentRaw = String(economy.__employmentStatus ?? '').toLowerCase();
-    const employment = EMPLOYMENT_MAP[employmentRaw] ?? 'UNEMPLOYED';
+    const employment = employmentRaw ? (EMPLOYMENT_MAP[employmentRaw] ?? 'UNKNOWN') : 'UNKNOWN';
     const seniorityMonths = economy[SENIORITY] ?? 0;
 
     const variables: Record<string, unknown> = {
@@ -163,8 +159,8 @@ export class UnderwritingFeaturesService {
        */
       declared_monthly_income: put('declared_monthly_income', Math.round(totalIncome * 100) / 100, income > 0 ? FILE : MISSING),
       disposable_income: put('disposable_income', Math.round(disposable * 100) / 100, expensesKnown ? DERIVED : MISSING),
-      affordability_ratio: put('affordability_ratio', Math.round(affordabilityRatio * 1000) / 1000, DERIVED),
-      debt_to_income_ratio: put('debt_to_income_ratio', Math.round(debtToIncome * 1000) / 1000, expensesKnown ? DERIVED : MISSING),
+      affordability_ratio: put('affordability_ratio', affordabilityRatio, verified > 0 ? FILE : DERIVED),
+      debt_to_income_ratio: put('debt_to_income_ratio', Math.round(debtToIncome * 1000) / 1000, debtKnown ? DERIVED : MISSING),
       /*
        * La estabilidad se estima con la antigüedad en el empleo: dos años ya es un ingreso que se
        * ha sostenido, y por encima de eso el dato deja de discriminar. Es una aproximación honesta
@@ -172,7 +168,7 @@ export class UnderwritingFeaturesService {
        */
       income_stability_score: put(
         'income_stability_score',
-        seniorityMonths > 0 ? clamp(Math.round((seniorityMonths / 24) * 100), 0, 100) : 0,
+        seniorityMonths > 0 ? clamp(Math.round((seniorityMonths / 24) * 100), 0, 100) : 50,
         seniorityMonths > 0 ? DERIVED : MISSING,
       ),
       employment_status: put('employment_status', employment, employmentRaw ? FILE : MISSING),
@@ -286,6 +282,8 @@ export class UnderwritingFeaturesService {
        * dos puntas.
        */
       usury_cap_rate: put('usury_cap_rate', env.USURY_CAP_RATE, FILE),
+
+      ...statementVariables(extracto, put),
     };
 
     for (const [codigo, valor] of variablesEnVivo(telefono)) variables[codigo] = put(codigo, valor, DERIVED);
@@ -298,7 +296,8 @@ export class UnderwritingFeaturesService {
       provenance,
       economyObservedAt: observedAt.economy,
       identityObservedAt: observedAt.identity,
+      observed: statementObservedAt(extracto, verified > 0),
     });
-    return { variables, provenance, variableMetadata, observedAt, deviceSignals: telefono };
+    return { variables, provenance, variableMetadata, observedAt, affordabilityIncome, deviceSignals: telefono };
   }
 }

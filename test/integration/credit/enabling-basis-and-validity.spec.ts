@@ -10,7 +10,7 @@
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import { randomUUID } from 'node:crypto';
-import { CreditApplicationModel, DecisionConsentReplicationModel } from '../../../src/database/models/index.js';
+import { CreditApplicationModel, DecisionConsentReplicationModel, ManualReviewCaseModel } from '../../../src/database/models/index.js';
 import { CreditUnderwritingService, DEFERRED_BASIS_REASON } from '../../../src/modules/credit/application/credit-underwriting.service.js';
 import { ConsentReplicationStore } from '../../../src/modules/decision-engine/consent-replication.store.js';
 import { DecisionEngineClient } from '../../../src/modules/decision-engine/decision-engine.client.js';
@@ -18,6 +18,7 @@ import { ensureUnderwritingBasis } from '../../../src/modules/decision-engine/un
 import type { IntegrationDatabase } from '../support/database.js';
 import { openIntegrationDatabase } from '../support/database.js';
 import { buildLoanBookHarness, type LoanBookHarness } from './support/loan-book-harness.js';
+import { CreditReviewCaseRepository } from '../../../src/modules/credit/credit-review-case.repository.js';
 
 let database: IntegrationDatabase | null = null;
 let harness: LoanBookHarness | null = null;
@@ -33,7 +34,11 @@ afterEach(() => {
 
 afterAll(async () => {
   if (harness) {
-    for (const table of ['credit.decision_consent_replications', 'credit.credit_application_events']) {
+    for (const table of [
+      'credit.decision_consent_replications',
+      'credit.credit_application_events',
+      'case_management.manual_review_cases',
+    ]) {
       await harness.sequelize.query(`DELETE FROM ${table} WHERE _tenant_id = $tenantId`, { bind: { tenantId: harness.tenantId } });
     }
   }
@@ -204,7 +209,7 @@ describe('P-09 · una solicitud diferida se decide sola cuando la base llega (Po
       decider as never,
       harness.creditRepository,
       harness.sequelize as never,
-      {} as never,
+      new CreditReviewCaseRepository(ManualReviewCaseModel),
       {} as never,
     );
     const input = {
@@ -222,11 +227,22 @@ describe('P-09 · una solicitud diferida se decide sola cuando la base llega (Po
     expect((await underwriting.underwrite(input)).status).toBe('submitted');
     const deferred = await CreditApplicationModel.findByPk(created.id);
     expect(deferred).toMatchObject({ status: 'submitted', decisionReasonCode: DEFERRED_BASIS_REASON, decidedAt: null });
+    // Diferida, pero NO invisible: tiene caso abierto en la bandeja de operaciones.
+    expect(deferred).toMatchObject({ manualReviewCaseSource: 'atlas', manualReviewCaseCode: `CR-${created.applicationCode}` });
+    const abierto = await ManualReviewCaseModel.findOne({
+      where: { tenantId: harness.tenantId, caseCode: `CR-${created.applicationCode}` },
+    });
+    expect(abierto).toMatchObject({ status: 'open', closedAt: null, caseType: 'credit_application_review' });
 
     const summary = await underwriting.retryDeferred({ tenantId: harness.tenantId, limit: 50, maxAgeHours: 72 });
     expect(summary).toMatchObject({ candidates: 1, decided: 1 });
     const decided = await CreditApplicationModel.findByPk(created.id);
     expect(decided?.status).toBe('approved');
     expect(decided?.decisionValidUntil?.getTime()).toBe(validUntil.getTime());
+    // Resuelta por el reintento, el caso sale de la bandeja.
+    const cerrado = await ManualReviewCaseModel.findOne({
+      where: { tenantId: harness.tenantId, caseCode: `CR-${created.applicationCode}` },
+    });
+    expect(cerrado).toMatchObject({ status: 'closed', resolution: 'approved' });
   });
 });

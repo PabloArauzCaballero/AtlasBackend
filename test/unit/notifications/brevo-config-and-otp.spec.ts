@@ -116,6 +116,7 @@ describe('El código de verificación dentro de la plantilla', () => {
   it('el payload del OTP lleva el código como hueco con nombre Y como lista posicional', () => {
     expect(otpMessagePayload('ref-1', '482913', 10)).toEqual({
       reference: 'ref-1',
+      confirmDelivery: true,
       whatsappTemplateParams: { codigo: '482913', minutos: '10' },
       whatsappTemplateParameters: ['482913', '10'],
     });

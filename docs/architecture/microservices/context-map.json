@@ -274,6 +274,8 @@
   "tableOwners": {
     "devices": "sessions",
     "device_snapshots": "sessions",
+    "credit_applications": "credit",
+    "bank_statement_reviews": "credit",
     "customer_device_contacts": "customer-device-signals",
     "customer_location_pings": "customer-device-signals",
     "qa_runs": "qa-orchestration",

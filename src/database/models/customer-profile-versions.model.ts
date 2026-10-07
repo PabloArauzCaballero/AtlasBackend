@@ -35,6 +35,10 @@ export class CustomerProfileVersionModel extends Model {
   @Column({ field: 'gender_declared', type: DataType.STRING(30) })
   declare genderDeclared: string | null;
 
+  /** El «¿cuál?» de `genderDeclared = 'other'`, en palabras de la persona. */
+  @Column({ field: 'gender_self_described', type: DataType.STRING(60) })
+  declare genderSelfDescribed: string | null;
+
   @Column({ field: 'preferred_language', type: DataType.STRING(10) })
   declare preferredLanguage: string | null;
 

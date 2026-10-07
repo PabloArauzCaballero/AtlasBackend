@@ -7,6 +7,7 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { randomUUID } from 'node:crypto';
 import { DecisionArtifactBindingService } from '../../decision-engine/decision-artifact-binding.service.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
+import { ENGINE_VERDICT_HELD_FOR_MANUAL_REVIEW, engineVerdictApplies } from '../../../config/decision-engine-auto-apply.js';
 import type { DecisionResponse } from '../../decision-engine/decision-engine.types.js';
 import { env } from '../../../config/env.js';
 import { PartnerProfileModel } from '../../../database/models/index.js';
@@ -144,7 +145,7 @@ export class PartnerKybDecisionService {
         throw new ServiceUnavailableException(`DECISION_ENGINE_UNAVAILABLE: el Motor respondió ${response.status} y no un veredicto.`);
       }
 
-      return toKybDecision(response);
+      return holdForManualReview(toKybDecision(response));
     } catch (error) {
       if (error instanceof ServiceUnavailableException) throw error;
       this.logger.error(`El Motor no pudo verificar el expediente ${input.profile.id}: ${(error as Error).message}`);
@@ -188,6 +189,19 @@ function toKybDecision(response: DecisionResponse): KybDecision {
     requisitosFaltantes: numero(output.kyb_requisitos_faltantes),
     senalesOperativas: numero(output.kyb_senales_operativas),
     evaluatedAt: new Date(),
+  };
+}
+
+/**
+ * Con los comercios fuera de `DECISION_ENGINE_AUTO_APPLY`, el veredicto del Motor queda como
+ * propuesta en el motivo y el expediente va a revisión manual: nadie se habilita ni se rechaza solo.
+ */
+function holdForManualReview(decision: KybDecision): KybDecision {
+  if (engineVerdictApplies('partner') || decision.outcome === 'REVISION_MANUAL') return decision;
+  return {
+    ...decision,
+    outcome: 'REVISION_MANUAL',
+    reason: `${ENGINE_VERDICT_HELD_FOR_MANUAL_REVIEW}:${decision.outcome}${decision.reason ? `:${decision.reason}` : ''}`,
   };
 }
 
