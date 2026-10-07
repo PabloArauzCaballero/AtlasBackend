@@ -4,7 +4,7 @@
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
 import { env } from '../../../config/env.js';
-import { toAdapterError } from '../../../common/resilience/adapter-error.js';
+import { AdapterError, toAdapterError } from '../../../common/resilience/adapter-error.js';
 import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
 import { DeliveryResult, NotificationMessagePayload } from '../notification-types.js';
 
@@ -97,6 +97,27 @@ async function fetchOnce(input: {
 }
 
 /**
+ * Un POST de envío que se quedó sin respuesta (plazo vencido o conexión cortada a mitad) pudo haber
+ * llegado al proveedor: repetirlo manda el SMS o el correo dos veces y se cobran dos. Ninguno de los
+ * proveedores recibe clave de idempotencia, así que esos fallos no se reintentan aquí; el job de
+ * varados decide si se reenvía. Un 429/5xx o una conexión que nunca se abrió sí siguen reintentándose.
+ */
+export function sinReintentoSiPudoSalir(method: 'GET' | 'POST', error: AdapterError): AdapterError {
+  if (method !== 'POST' || !error.retryable) return error;
+  const code = (error.cause as NodeJS.ErrnoException | undefined)?.code;
+  const sinRespuesta = error.code === 'TIMEOUT' || (error.code === 'NETWORK' && (code === 'ECONNRESET' || code === 'ETIMEDOUT'));
+  if (!sinRespuesta) return error;
+  return new AdapterError({
+    code: error.code,
+    provider: error.provider,
+    message: error.message,
+    retryable: false,
+    httpStatus: error.httpStatus,
+    cause: error.cause,
+  });
+}
+
+/**
  * Envoltura única para que CUALQUIER canal de notificación (email/sms/push/whatsapp, o uno
  * nuevo) obtenga retry+backoff y circuit breaker por proveedor "gratis" al llamar `postJson`/
  * `postForm` — la lógica de reintento y de apertura de circuito vive una sola vez en
@@ -113,7 +134,9 @@ async function callResilient(
   try {
     const result = await executor.run(
       async () => {
-        const raw = await fetchOnce(request);
+        const raw = await fetchOnce(request).catch((error: unknown) => {
+          throw sinReintentoSiPudoSalir(request.method, toAdapterError({ provider, error }));
+        });
         if (!raw.ok) {
           throw toAdapterError({ provider, httpStatus: raw.status, message: `HTTP ${raw.status}`, error: raw.json });
         }
