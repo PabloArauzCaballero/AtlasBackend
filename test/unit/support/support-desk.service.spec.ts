@@ -4,6 +4,7 @@ import { SupportDeskService } from '../../../src/modules/support/application/sup
 import type { SupportDeskListRepository } from '../../../src/modules/support/support-desk-list.repository.js';
 import type { SupportAgentRepository } from '../../../src/modules/support/support-agent.repository.js';
 import type { SupportActorService, SupportActor } from '../../../src/modules/support/application/support-actor.service.js';
+import type { SupportChannelRepository } from '../../../src/modules/support/support-channel.repository.js';
 import type { SupportCatalogRepository } from '../../../src/modules/support/support-catalog.repository.js';
 
 /**
@@ -50,6 +51,7 @@ describe('SupportDeskService', () => {
   };
   let actors: { assertIsAgent: jest.Mock; caseCategoryAudiences: jest.Mock };
   let catalog: { listCategories: jest.Mock; listQueues: jest.Mock; requireQueueByCode: jest.Mock };
+  let channelMembers: { removeInternalParticipantEverywhere: jest.Mock };
   let service: SupportDeskService;
 
   beforeEach(() => {
@@ -75,11 +77,13 @@ describe('SupportDeskService', () => {
       listQueues: jest.fn(async () => []),
       requireQueueByCode: jest.fn(async () => ({ id: 11 })),
     };
+    channelMembers = { removeInternalParticipantEverywhere: jest.fn(async () => 0) };
     service = new SupportDeskService(
       channels as unknown as SupportDeskListRepository,
       agents as unknown as SupportAgentRepository,
       actors as unknown as SupportActorService,
       catalog as unknown as SupportCatalogRepository,
+      channelMembers as unknown as SupportChannelRepository,
     );
   });
 
@@ -313,6 +317,25 @@ describe('SupportDeskService', () => {
 
       expect(agents.deactivateProfile).toHaveBeenCalledWith('t1', 'ag-1');
       expect(resultado).toEqual({ agentProfileId: 'ag-1', isActive: false });
+    });
+
+    it('quitar a alguien lo saca de todos sus chats: sin eso seguía leyendo y escribiendo a clientes', async () => {
+      agents.findById.mockResolvedValueOnce({ id: 'ag-1', internalUserId: 77 } as never);
+
+      await service.deactivateAgent({ tenantId: 't1', agentProfileId: 'ag-1' });
+
+      expect(channelMembers.removeInternalParticipantEverywhere).toHaveBeenCalledWith(
+        't1',
+        { internalUserId: '77', agentProfileId: 'ag-1' },
+        'AGENT_DEACTIVATED',
+      );
+    });
+
+    it('quitar a alguien que no existe no toca ninguna conversación', async () => {
+      agents.findById.mockResolvedValueOnce(null as never);
+
+      await expect(service.deactivateAgent({ tenantId: 't1', agentProfileId: 'ag-9' })).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelMembers.removeInternalParticipantEverywhere).not.toHaveBeenCalled();
     });
 
     it('el listado de agentes no exige ser agente: lo consulta quien administra la mesa', async () => {

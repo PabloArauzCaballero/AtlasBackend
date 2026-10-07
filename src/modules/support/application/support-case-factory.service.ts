@@ -49,12 +49,18 @@ const SENSITIVITY_ORDER: readonly SupportSensitivity[] = ['NORMAL', 'SENSITIVE',
  * Que la garantía viva aquí y no en la siembra es la diferencia entre una propiedad del sistema y
  * una coincidencia de configuración: el catálogo puede endurecer, nunca ablandar.
  */
-function sensitivityFor(caseType: SupportCaseType, categorySensitivity: string): SupportSensitivity {
+export function sensitivityFor(caseType: SupportCaseType, categorySensitivity: string): SupportSensitivity {
   const fromCatalog = (
     SENSITIVITY_ORDER.includes(categorySensitivity as SupportSensitivity) ? categorySensitivity : 'NORMAL'
   ) as SupportSensitivity;
   const floor: SupportSensitivity = SECURITY_SENSITIVE_CASE_TYPES.includes(caseType) ? 'SENSITIVE' : 'NORMAL';
   return SENSITIVITY_ORDER.indexOf(fromCatalog) >= SENSITIVITY_ORDER.indexOf(floor) ? fromCatalog : floor;
+}
+
+/** La más estricta de las dos: reclasificar puede endurecer un expediente, nunca ablandarlo de paso. */
+export function strictestSensitivity(a: string, b: string): SupportSensitivity {
+  const [ia, ib] = [SENSITIVITY_ORDER.indexOf(a as SupportSensitivity), SENSITIVITY_ORDER.indexOf(b as SupportSensitivity)];
+  return SENSITIVITY_ORDER[Math.max(ia, ib, 0)] as SupportSensitivity;
 }
 
 function retentionClassFor(caseType: SupportCaseType): string {

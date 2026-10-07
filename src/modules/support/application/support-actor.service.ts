@@ -177,6 +177,21 @@ export class SupportActorService {
   }
 
   /**
+   * El comercio a cuyo nombre se ABRE algo tiene que ser del que llama.
+   *
+   * La lectura ya comprobaba el dueño; la apertura confiaba en el `partnerProfileId` del cuerpo, así
+   * que un comercio abría casos y conversaciones con otro comercio como sujeto. Es la misma regla
+   * que `PartnerOwnershipGuard`: un expediente sin dueño no es de todos, es de nadie.
+   */
+  async assertOwnsPartnerProfile(actor: SupportActor, partnerProfileId: string, tenantId: string): Promise<void> {
+    if (actor.actorType !== 'PARTNER_USER') return;
+    const profile = actor.merchantUserId ? await this.partners.requireProfile(tenantId, partnerProfileId) : null;
+    if (!profile || profile.ownerMerchantUserId !== actor.merchantUserId) {
+      throw new ForbiddenException({ code: 'SUPPORT_CASE_FORBIDDEN', message: 'Ese comercio no pertenece a este usuario.' });
+    }
+  }
+
+  /**
    * Con qué motivos del catálogo puede abrirse o clasificarse un caso de este actor.
    *
    * La audiencia de la categoría no es una etiqueta de presentación: arrastra cola, sensibilidad,

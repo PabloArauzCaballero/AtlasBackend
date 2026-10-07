@@ -54,6 +54,9 @@ export class SupportAttachmentService {
    */
   async createTicket(input: { tenantId: string; actor: SupportActor; channelId: string; contentType: string; sizeBytes: number }) {
     const channel = await this.channels.requireById(input.tenantId, input.channelId);
+    // Quien no está dentro de la conversación no obtiene permiso de escritura en su carpeta.
+    const participant = await this.channels.findLiveParticipant(String(channel.id), input.actor.actorType, input.actor.actorId);
+    if (!participant) throw new ForbiddenException({ code: 'SUPPORT_CHANNEL_NOT_PARTICIPANT' });
     if (['CLOSED', 'ABANDONED'].includes(channel.status)) {
       throw new ForbiddenException({ code: 'SUPPORT_CHANNEL_CLOSED', channelId: input.channelId });
     }
@@ -88,8 +91,16 @@ export class SupportAttachmentService {
    * ninguno de sus metadatos: se descarga el objeto, se recalcula el SHA-256, se contrastan los
    * bytes mágicos con el tipo declarado y se pasa el antivirus.
    */
-  async verify(attachment: NonNullable<SendMessageDto['attachment']>): Promise<VerifiedAttachment> {
+  async verify(
+    attachment: NonNullable<SendMessageDto['attachment']>,
+    scope: { tenantId: string; channelId: string },
+  ): Promise<VerifiedAttachment> {
     const declaredMime = attachment.declaredMime as AllowedEvidenceMimeType;
+    // La clave la emitió `createTicket` para ESTE canal; una que apunte a otra carpeta es de otro
+    // tenant u otra conversación, y colgarla aquí daría lectura de un objeto ajeno por `readContent`.
+    if (!attachment.storageObjectKey.startsWith(`${scope.tenantId}/support-${scope.channelId}/`)) {
+      throw new BadRequestException({ code: 'SUPPORT_ATTACHMENT_KEY_NOT_ISSUED' });
+    }
     if (!CHAT_MIME_TYPES.includes(declaredMime)) {
       throw new BadRequestException({ code: 'SUPPORT_ATTACHMENT_TYPE_NOT_ALLOWED', allowed: CHAT_MIME_TYPES });
     }
@@ -97,11 +108,13 @@ export class SupportAttachmentService {
       return { declaredMime, detectedMime: null, sha256: attachment.sha256 ?? null, scanStatus: 'skipped' };
     }
 
+    if (!attachment.sha256) throw new BadRequestException({ code: 'SUPPORT_ATTACHMENT_SHA256_REQUIRED' });
+
     let verified: Awaited<ReturnType<DocumentStorageService['verifyDeclaredObject']>>;
     try {
       verified = await this.storage.verifyDeclaredObject({
         storageKey: attachment.storageObjectKey,
-        declaredSha256: attachment.sha256 ?? '',
+        declaredSha256: attachment.sha256,
         declaredMimeType: declaredMime,
         declaredSizeBytes: attachment.sizeBytes,
       });

@@ -40,6 +40,22 @@ export class SupportChannelRepository {
     return channel;
   }
 
+  /**
+   * Bloquea la fila del canal antes de decidir quién se lo queda.
+   *
+   * Sin el `FOR UPDATE`, dos agentes que pulsan «Atender» a la vez leen ambos `QUEUED` y ambos
+   * escriben: gana el último, y el hueco que reservó el primero no lo devuelve nadie.
+   */
+  async lockById(tenantId: string, channelId: string, transaction: Transaction): Promise<SupportChannelModel> {
+    const channel = await this.channels.findOne({
+      where: { tenantId, id: channelId, deleted: false },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!channel) throw new NotFoundException({ code: 'SUPPORT_CHANNEL_NOT_FOUND', channelId });
+    return channel;
+  }
+
   async update(tenantId: string, channelId: string, values: Partial<SupportChannelModel>, options: RepositoryOptions = {}): Promise<void> {
     await this.channels.update({ ...values, updatedAtValue: new Date() } as Partial<SupportChannelModel>, {
       where: { tenantId, id: channelId },
@@ -131,6 +147,28 @@ export class SupportChannelRepository {
       where: { channelId, actorType: internal ? { [Op.in]: ['AGENT', 'SUPERVISOR'] } : actorType, actorId, leftAt: null },
       transaction: options.transaction,
     });
+  }
+
+  /**
+   * Saca a una persona del equipo de TODAS las conversaciones en las que sigue dentro.
+   *
+   * Es lo que hace efectiva la baja de la mesa: cada lectura y escritura del canal comprueba
+   * `findLiveParticipant`, que mira la participación y no el perfil de agente.
+   */
+  async removeInternalParticipantEverywhere(
+    tenantId: string,
+    who: { internalUserId: string | null; agentProfileId: string },
+    leaveReason: string,
+  ): Promise<number> {
+    // Por perfil Y por persona: la participación guarda los dos, y una fila sin perfil (entró como
+    // supervisor) también tiene que caer.
+    const quien: Record<string, unknown>[] = [{ agentProfileId: who.agentProfileId }];
+    if (who.internalUserId) quien.push({ actorId: who.internalUserId });
+    const [count] = await this.participants.update(
+      { leftAt: new Date(), leaveReason },
+      { where: { tenantId, actorType: { [Op.in]: ['AGENT', 'SUPERVISOR'] }, leftAt: null, [Op.or]: quien } },
+    );
+    return count;
   }
 
   async removeParticipant(

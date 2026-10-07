@@ -64,7 +64,7 @@ describe('SupportCaseWorkflowService', () => {
   let agents: { findById: jest.Mock };
   let membership: { joinCaseChannels: jest.Mock; leaveCaseChannels: jest.Mock };
   let transitions: { apply: jest.Mock };
-  let actors: { assertIsAgent: jest.Mock };
+  let actors: { assertIsAgent: jest.Mock; assertCanViewCase: jest.Mock };
   let audit: { record: jest.Mock; publish: jest.Mock };
   let enrutado: { resolveClassification: jest.Mock; leaveHandoverSummary: jest.Mock };
   let service: SupportCaseWorkflowService;
@@ -76,7 +76,7 @@ describe('SupportCaseWorkflowService', () => {
     agents = { findById: jest.fn(async () => ({ id: 'ag-1', isActive: true, internalUserId: 7 })) };
     membership = { joinCaseChannels: jest.fn(async () => undefined), leaveCaseChannels: jest.fn(async () => undefined) };
     transitions = { apply: jest.fn(async () => undefined) };
-    actors = { assertIsAgent: jest.fn(() => 'ag-1') };
+    actors = { assertIsAgent: jest.fn(() => 'ag-1'), assertCanViewCase: jest.fn(async () => undefined) };
     audit = { record: jest.fn(async () => undefined), publish: jest.fn(async () => undefined) };
     enrutado = {
       resolveClassification: jest.fn(async () => ({
@@ -173,6 +173,70 @@ describe('SupportCaseWorkflowService', () => {
       );
     });
 
+    it('reclasificar a un motivo NORMAL no ablanda un caso restringido', async () => {
+      cases.requireById.mockResolvedValue(
+        caso({ status: 'ESCALATED', sensitivity: 'RESTRICTED', currentAssigneeAgentId: 'ag-1' }) as never,
+      );
+      enrutado.resolveClassification.mockResolvedValueOnce({
+        category: { id: 3, sensitivity: 'NORMAL' },
+        queue: null,
+        impact: 'INDIVIDUAL',
+        urgency: 'NORMAL',
+        caseType: 'QUESTION',
+        priority: 'P4',
+      } as never);
+
+      await service.triage({ tenantId: 't1', actor: AGENTE, caseId: '7', dto: { reason: 'x' } as never });
+
+      expect(transitions.apply).toHaveBeenCalledWith(
+        expect.objectContaining({ extra: expect.objectContaining({ sensitivity: 'RESTRICTED' }) }),
+      );
+    });
+
+    it('el tipo de caso impone su piso de sensibilidad igual que al nacer', async () => {
+      enrutado.resolveClassification.mockResolvedValueOnce({
+        category: { id: 3, sensitivity: 'NORMAL' },
+        queue: null,
+        impact: 'INDIVIDUAL',
+        urgency: 'NORMAL',
+        caseType: 'ACCOUNT_ACCESS',
+        priority: 'P3',
+      } as never);
+
+      await service.triage({ tenantId: 't1', actor: AGENTE, caseId: '7', dto: { reason: 'x' } as never });
+
+      expect(transitions.apply).toHaveBeenCalledWith(
+        expect.objectContaining({ extra: expect.objectContaining({ sensitivity: 'SENSITIVE' }) }),
+      );
+    });
+
+    it('bajar la sensibilidad es decisión de un supervisor', async () => {
+      cases.requireById.mockResolvedValue(caso({ sensitivity: 'RESTRICTED' }) as never);
+      enrutado.resolveClassification.mockResolvedValueOnce({
+        category: { id: 3, sensitivity: 'NORMAL' },
+        queue: null,
+        impact: 'INDIVIDUAL',
+        urgency: 'NORMAL',
+        caseType: 'QUESTION',
+        priority: 'P4',
+      } as never);
+
+      await service.triage({ tenantId: 't1', actor: SUPERVISOR, caseId: '7', dto: { reason: 'x' } as never });
+
+      expect(transitions.apply).toHaveBeenCalledWith(
+        expect.objectContaining({ extra: expect.objectContaining({ sensitivity: 'NORMAL' }) }),
+      );
+    });
+
+    it('lo que no se puede abrir tampoco se reclasifica', async () => {
+      actors.assertCanViewCase.mockRejectedValueOnce(new ForbiddenException({ code: 'SUPPORT_CASE_RESTRICTED' }) as never);
+
+      await expect(service.triage({ tenantId: 't1', actor: AGENTE, caseId: '7', dto: { reason: 'x' } as never })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(transitions.apply).not.toHaveBeenCalled();
+    });
+
     it('el dominio y el resumen interno sólo se cambian si llegan', async () => {
       await service.triage({ tenantId: 't1', actor: AGENTE, caseId: '7', dto: { reason: 'x' } as never });
       expect(transitions.apply).toHaveBeenLastCalledWith(
@@ -235,6 +299,18 @@ describe('SupportCaseWorkflowService', () => {
       await expect(service.assign({ tenantId: 't1', actor: AGENTE, caseId: '7', dto: { reason: 'x' } as never })).rejects.toBeInstanceOf(
         NotFoundException,
       );
+    });
+
+    it('un caso restringido no se toma pulsando «tomar»: la regla de visibilidad se aplica antes', async () => {
+      cases.requireById.mockResolvedValue(caso({ sensitivity: 'RESTRICTED' }) as never);
+      actors.assertCanViewCase.mockRejectedValueOnce(new ForbiddenException({ code: 'SUPPORT_CASE_RESTRICTED' }) as never);
+
+      await expect(
+        service.assign({ tenantId: 't1', actor: AGENTE, caseId: '7', dto: { reason: 'lo tomo' } as never }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(actors.assertCanViewCase).toHaveBeenCalledWith(AGENTE, expect.objectContaining({ sensitivity: 'RESTRICTED' }), 't1');
+      expect(timeline.createAssignment).not.toHaveBeenCalled();
+      expect(membership.joinCaseChannels).not.toHaveBeenCalled();
     });
 
     it('reasignar al MISMO agente es 409: no se escribe una asignación que no cambia nada', async () => {
@@ -310,6 +386,15 @@ describe('SupportCaseWorkflowService', () => {
 
       expect(orden).toEqual(['resumen', 'liberar']);
       expect(enrutado.leaveHandoverSummary).toHaveBeenCalledWith('t1', '7', AGENTE, 'ya probamos A y B');
+    });
+
+    it('transferir un caso que no se puede abrir es 403 y no deja resumen', async () => {
+      actors.assertCanViewCase.mockRejectedValueOnce(new ForbiddenException({ code: 'SUPPORT_CASE_RESTRICTED' }) as never);
+
+      await expect(
+        service.transfer({ tenantId: 't1', actor: AGENTE, caseId: '7', dto: { reason: 'x', summary: 'resumen' } as never }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(enrutado.leaveHandoverSummary).not.toHaveBeenCalled();
     });
 
     it('el agente que se va SALE de los canales del caso', async () => {

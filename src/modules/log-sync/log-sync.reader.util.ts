@@ -41,7 +41,7 @@ export async function readLogDelta(filePath: string, lastOffset: number, maxChun
 
   const rotated = fileSize < safeLastOffset;
   const offsetFrom = rotated ? 0 : safeLastOffset;
-  const offsetTo = Math.min(fileSize, offsetFrom + maxChunkBytes);
+  let offsetTo = Math.min(fileSize, offsetFrom + maxChunkBytes);
 
   if (offsetTo <= offsetFrom) {
     return {
@@ -62,13 +62,25 @@ export async function readLogDelta(filePath: string, lastOffset: number, maxChun
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   }
 
+  let buffer = Buffer.concat(chunks);
+  // Si el trozo no llega al final del archivo, se corta en el último salto de línea: partir una línea
+  // (o un carácter UTF-8) por la mitad deja un secreto repartido en dos documentos y ninguna mitad
+  // coincide con los patrones de redacción. Sin salto de línea (línea más larga que el trozo) se deja.
+  if (offsetTo < fileSize) {
+    const lastNewline = buffer.lastIndexOf(0x0a);
+    if (lastNewline >= 0) {
+      buffer = buffer.subarray(0, lastNewline + 1);
+      offsetTo = offsetFrom + buffer.length;
+    }
+  }
+
   return {
     exists: true,
     rotated,
     previousOffset: safeLastOffset,
     offsetFrom,
     offsetTo,
-    content: Buffer.concat(chunks).toString('utf8'),
+    content: buffer.toString('utf8'),
     fileSize,
   };
 }

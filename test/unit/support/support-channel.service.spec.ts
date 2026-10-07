@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { Sequelize } from 'sequelize-typescript';
 import { SupportChannelService } from '../../../src/modules/support/application/support-channel.service.js';
 import { SUPPORT_NEVER_ASKS_WARNING } from '../../../src/modules/support/domain/message-dlp.js';
@@ -57,15 +57,16 @@ describe('SupportChannelService', () => {
     findLiveChannelForCustomer: jest.Mock;
     findLiveChannelForPartnerUser: jest.Mock;
     requireById: jest.Mock;
+    lockById: jest.Mock;
     update: jest.Mock;
     addParticipant: jest.Mock;
     listParticipants: jest.Mock;
     removeParticipant: jest.Mock;
   };
   let catalog: { findCategoryByCode: jest.Mock; findQueueById: jest.Mock; findQueueByCode: jest.Mock };
-  let cases: { appendEvent: jest.Mock };
-  let messages: { append: jest.Mock };
-  let actors: { assertIsAgent: jest.Mock };
+  let cases: { appendEvent: jest.Mock; requireById: jest.Mock };
+  let messages: { append: jest.Mock; assertParticipates: jest.Mock };
+  let actors: { assertIsAgent: jest.Mock; assertCanViewCase: jest.Mock; assertOwnsPartnerProfile: jest.Mock };
   let audit: { publish: jest.Mock };
   let apertura: { persistRequestedChannel: jest.Mock };
   let disponibilidad: {
@@ -81,6 +82,7 @@ describe('SupportChannelService', () => {
       findLiveChannelForCustomer: jest.fn(async () => null),
       findLiveChannelForPartnerUser: jest.fn(async () => null),
       requireById: jest.fn(async () => canal()),
+      lockById: jest.fn(async () => canal()),
       update: jest.fn(async () => undefined),
       addParticipant: jest.fn(async () => ({ id: 'p-1' })),
       listParticipants: jest.fn(async () => []),
@@ -91,9 +93,16 @@ describe('SupportChannelService', () => {
       findQueueById: jest.fn(async () => ({ id: 22, skillsRequiredJson: ['qr'] })),
       findQueueByCode: jest.fn(async () => ({ id: 11, skillsRequiredJson: null })),
     };
-    cases = { appendEvent: jest.fn(async () => ({ id: 1 })) };
-    messages = { append: jest.fn(async () => ({ id: 9 })) };
-    actors = { assertIsAgent: jest.fn(() => 'ag-1') };
+    cases = {
+      appendEvent: jest.fn(async () => ({ id: 1 })),
+      requireById: jest.fn(async () => ({ id: 123, subjectPartnerProfileId: null })),
+    };
+    messages = { append: jest.fn(async () => ({ id: 9 })), assertParticipates: jest.fn(async () => undefined) };
+    actors = {
+      assertIsAgent: jest.fn(() => 'ag-1'),
+      assertCanViewCase: jest.fn(async () => undefined),
+      assertOwnsPartnerProfile: jest.fn(async () => undefined),
+    };
     audit = { publish: jest.fn(async () => undefined) };
     apertura = { persistRequestedChannel: jest.fn(async () => canal()) };
     disponibilidad = {
@@ -214,6 +223,56 @@ describe('SupportChannelService', () => {
     });
   });
 
+  describe('quién puede abrir a nombre de qué', () => {
+    it('un `caseId` ajeno no cuelga el chat de ese expediente: 403 y no se reserva agente', async () => {
+      actors.assertCanViewCase.mockRejectedValueOnce(new ForbiddenException({ code: 'SUPPORT_CASE_FORBIDDEN' }) as never);
+
+      await expect(service.requestChannel({ tenantId: 't1', actor: CLIENTE, dto: { caseId: '123' } as never })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(cases.requireById).toHaveBeenCalledWith('t1', '123');
+      expect(disponibilidad.reserveAvailableAgent).not.toHaveBeenCalled();
+      expect(apertura.persistRequestedChannel).not.toHaveBeenCalled();
+    });
+
+    it('el comercio del cuerpo y el del caso tienen que coincidir', async () => {
+      const empleado = { actorType: 'PARTNER_USER', actorId: 'u-9', merchantUserId: 'u-9' } as SupportActor;
+      cases.requireById.mockResolvedValueOnce({ id: 123, subjectPartnerProfileId: 77 } as never);
+
+      await expect(
+        service.requestChannel({ tenantId: 't1', actor: empleado, dto: { caseId: '123', partnerProfileId: 'pp-1' } as never }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(apertura.persistRequestedChannel).not.toHaveBeenCalled();
+    });
+
+    it('un comercio que no es suyo se rechaza antes de buscar o crear nada', async () => {
+      const empleado = { actorType: 'PARTNER_USER', actorId: 'u-9', merchantUserId: 'u-9' } as SupportActor;
+      actors.assertOwnsPartnerProfile.mockRejectedValueOnce(new ForbiddenException({ code: 'SUPPORT_CASE_FORBIDDEN' }) as never);
+
+      await expect(
+        service.requestChannel({ tenantId: 't1', actor: empleado, dto: { partnerProfileId: 'pp-ajeno' } as never }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(actors.assertOwnsPartnerProfile).toHaveBeenCalledWith(empleado, 'pp-ajeno', 't1');
+      expect(channels.findLiveChannelForPartnerUser).not.toHaveBeenCalled();
+      expect(apertura.persistRequestedChannel).not.toHaveBeenCalled();
+    });
+
+    it('si la apertura falla después de reservar, el hueco del agente se devuelve', async () => {
+      apertura.persistRequestedChannel.mockRejectedValueOnce(new Error('fk support_cases') as never);
+
+      await expect(service.requestChannel({ tenantId: 't1', actor: CLIENTE, dto: {} as never })).rejects.toThrow('fk support_cases');
+      expect(disponibilidad.releaseAgentSlot).toHaveBeenCalledWith('t1', 'ag-1');
+    });
+
+    it('si falla sin agente reservado, no se libera el hueco de nadie', async () => {
+      disponibilidad.reserveAvailableAgent.mockResolvedValueOnce(null as never);
+      apertura.persistRequestedChannel.mockRejectedValueOnce(new Error('caída') as never);
+
+      await expect(service.requestChannel({ tenantId: 't1', actor: CLIENTE, dto: {} as never })).rejects.toThrow('caída');
+      expect(disponibilidad.releaseAgentSlot).not.toHaveBeenCalled();
+    });
+  });
+
   describe('abrir sin esperas de más', () => {
     it('el aviso, la auditoría y el conteo de agentes se lanzan JUNTOS, no uno tras otro', async () => {
       // Sin agente libre, para que también se pida el conteo.
@@ -292,7 +351,7 @@ describe('SupportChannelService', () => {
     });
 
     it('si otro lo tomó entre la reserva y el bloqueo, el hueco reservado se devuelve', async () => {
-      channels.requireById.mockResolvedValueOnce(canal() as never).mockResolvedValueOnce(canal({ status: 'OPEN' }) as never);
+      channels.lockById.mockResolvedValueOnce(canal({ status: 'OPEN' }) as never);
 
       await expect(service.claimChannel({ tenantId: 't1', actor: AGENTE, channelId: '5' })).rejects.toBeInstanceOf(ConflictException);
       expect(disponibilidad.releaseAgentSlot).toHaveBeenCalledWith('t1', 'ag-1');
@@ -301,8 +360,8 @@ describe('SupportChannelService', () => {
     it('tomarlo lo abre, sube `claimVersion` y registra al agente como participante', async () => {
       channels.requireById
         .mockResolvedValueOnce(canal() as never)
-        .mockResolvedValueOnce(canal({ claimVersion: 3 }) as never)
         .mockResolvedValueOnce(canal({ status: 'OPEN', claimVersion: 4 }) as never);
+      channels.lockById.mockResolvedValueOnce(canal({ claimVersion: 3 }) as never);
 
       const dto = await service.claimChannel({ tenantId: 't1', actor: AGENTE, channelId: '5' });
 
@@ -320,10 +379,16 @@ describe('SupportChannelService', () => {
     });
 
     it('si otro lo tomó entre la reserva y el bloqueo, se contesta 409 y no se pisa su asignación', async () => {
-      channels.requireById.mockResolvedValueOnce(canal() as never).mockResolvedValueOnce(canal({ status: 'OPEN' }) as never);
+      channels.lockById.mockResolvedValueOnce(canal({ status: 'OPEN' }) as never);
 
       await expect(service.claimChannel({ tenantId: 't1', actor: AGENTE, channelId: '5' })).rejects.toBeInstanceOf(ConflictException);
       expect(channels.update).not.toHaveBeenCalled();
+    });
+
+    it('la relectura dentro de la transacción BLOQUEA la fila: sin `FOR UPDATE` ganaban los dos', async () => {
+      await service.claimChannel({ tenantId: 't1', actor: AGENTE, channelId: '5' });
+
+      expect(channels.lockById).toHaveBeenCalledWith('t1', '5', expect.anything());
     });
   });
 
@@ -373,6 +438,31 @@ describe('SupportChannelService', () => {
       await service.closeChannel({ tenantId: 't1', actor: CLIENTE, channelId: '5', dto: { reason: 'resuelto' } as never });
 
       expect(disponibilidad.releaseAgentSlot).not.toHaveBeenCalled();
+    });
+
+    it('quien no está dentro ni es su titular no lo cierra: 403 y nada escrito', async () => {
+      const otro = { actorType: 'CUSTOMER', actorId: '99', customerId: '99', agentProfileId: null } as SupportActor;
+      channels.requireById.mockResolvedValueOnce(canal({ subjectCustomerId: 42 }) as never);
+      messages.assertParticipates.mockRejectedValueOnce(new ForbiddenException({ code: 'SUPPORT_CHANNEL_FORBIDDEN' }) as never);
+
+      await expect(
+        service.closeChannel({ tenantId: 't1', actor: otro, channelId: '5', dto: { reason: 'resuelto' } as never }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(messages.assertParticipates).toHaveBeenCalledWith('t1', '5', otro);
+      expect(channels.update).not.toHaveBeenCalled();
+      expect(cases.appendEvent).not.toHaveBeenCalled();
+      expect(disponibilidad.releaseAgentSlot).not.toHaveBeenCalled();
+    });
+
+    it('el titular, el agente asignado y un supervisor cierran sin pasar por la participación', async () => {
+      channels.requireById.mockResolvedValue(canal({ subjectCustomerId: 42, assignedAgentProfileId: 'ag-1' }) as never);
+      const supervisor = { actorType: 'SUPERVISOR', actorId: '1', agentProfileId: 'ag-9', isSupervisor: true } as SupportActor;
+
+      for (const actor of [CLIENTE, AGENTE, supervisor]) {
+        await service.closeChannel({ tenantId: 't1', actor, channelId: '5', dto: { reason: 'resuelto' } as never });
+      }
+
+      expect(messages.assertParticipates).not.toHaveBeenCalled();
     });
 
     it('un canal sin caso detrás no escribe evento de expediente', async () => {
