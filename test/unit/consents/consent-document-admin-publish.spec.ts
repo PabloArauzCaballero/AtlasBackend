@@ -14,7 +14,7 @@ function build(existing: Record<string, unknown> | null = null) {
   const documents = {
     findOne: jest.fn(async (..._args: unknown[]) => existing),
     update: jest.fn(async (..._args: unknown[]) => [1]),
-    create: jest.fn(async (values: Record<string, unknown>) => ({ id: '9', ...values })),
+    create: jest.fn(async (values: Record<string, unknown>, _options?: unknown) => ({ id: '9', ...values })),
     sequelize: { transaction: jest.fn(async (work: (tx: unknown) => Promise<unknown>) => work(transaction)) },
   };
   return { documents, transaction, service: new ConsentDocumentAdminService(documents as never) };

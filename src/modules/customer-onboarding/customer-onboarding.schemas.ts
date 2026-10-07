@@ -3,6 +3,7 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
+import { startConsentsSchema } from './customer-onboarding-consents.schema.js';
 import { z } from 'zod';
 import { birthDateSchema } from './customer-onboarding-profile.schemas.js';
 import { captureSourceSchema, IDENTITY_EVIDENCE_TYPES, sinEscanerEnLaSelfie } from '../../common/storage/capture-source.js';
@@ -43,20 +44,7 @@ export const startOnboardingSchema = z.object({
     .regex(/^\d{4}$/, 'Tu PIN debe ser de 4 digitos.')
     .refine(isCustomerPinValid, 'Ese PIN es demasiado facil de adivinar. Elige otro.'),
 
-  consents: z
-    .array(
-      z.object({
-        consentDocumentId: z.string().regex(/^[1-9][0-9]*$/),
-        purposeCode: z.string().trim().min(1).max(80),
-        granted: z.boolean(),
-        acceptedAt: z.string().datetime().optional(),
-      }),
-    )
-    .min(1, 'Se requiere al menos un consentimiento.')
-    // Una consulta por elemento en el alta anónima: sin tope, una sola petición lanzaba miles. Y un documento
-    // repetido (granted y declined a la vez) deja una evidencia contradictoria.
-    .max(20, 'Demasiados consentimientos.')
-    .refine((items) => new Set(items.map((item) => item.consentDocumentId)).size === items.length, 'Consentimiento repetido.'),
+  consents: startConsentsSchema,
 
   device: z.object({
     deviceFingerprintHash: z.string().trim().min(32).max(128),

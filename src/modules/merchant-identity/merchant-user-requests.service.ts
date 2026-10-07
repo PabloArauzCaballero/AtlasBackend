@@ -240,20 +240,14 @@ export class MerchantUserRequestsService {
     dto: RejectMerchantUserRequestDto,
     actor: { internalUserId: string | null },
   ): Promise<MerchantUserProvisioningRequest> {
-    // Con cerrojo, como `approve`: sin él, un rechazo que leyó `pending` antes del commit de una
-    // aprobación la pisaba después y la petición quedaba «rejected» con la identidad ya concedida.
+    // Con cerrojo, como `approve`: sin él un rechazo pisaba una aprobación que ya había confirmado.
     return this.merchantUsersService.connection.transaction(async (transaction) => {
       const request = await this.requireRequest(tenantId, requestId, transaction);
       this.assertPending(request);
 
+      const decision = { status: 'rejected', rejectionReason: dto.reason, decidedAt: new Date() };
       await request.update(
-        {
-          status: 'rejected',
-          rejectionReason: dto.reason,
-          decidedAt: new Date(),
-          decidedByInternalUserId: actor.internalUserId,
-          updatedAtValue: new Date(),
-        } as never,
+        { ...decision, decidedByInternalUserId: actor.internalUserId, updatedAtValue: new Date() } as never,
         { transaction },
       );
 

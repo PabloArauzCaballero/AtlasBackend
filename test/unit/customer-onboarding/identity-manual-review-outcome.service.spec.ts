@@ -56,7 +56,7 @@ function build(rows: Attempt[]) {
     findAttemptByExecutionId: jest.fn(
       async (_tenant: string, executionId: string) => rows.find((row) => row.reasonCodesJson?.executionId === executionId) ?? null,
     ),
-    findAttemptById: jest.fn(async (_tenant: string, id: string) => byId(id)),
+    findAttemptById: jest.fn(async (_tenant: string, id: string, _options?: unknown) => byId(id)),
     findAttemptAwaitingReview: jest.fn(async (_tenant: string, customerId: string) => {
       const attempts = newestFirst(customerId);
       const open = attempts.find((row) => !['verified', 'rejected'].includes((row.finalResult ?? '').toLowerCase()));

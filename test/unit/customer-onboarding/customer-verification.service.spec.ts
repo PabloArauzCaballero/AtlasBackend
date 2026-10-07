@@ -365,7 +365,7 @@ describe('CustomerComplianceScreeningService', () => {
     expect(verificationRepository.clearMatch).toHaveBeenCalledTimes(2);
     expect(verificationRepository.clearMatch).toHaveBeenCalledWith(
       { id: 'm1' },
-      { clearedAt: expect.any(Date), clearedByInternalUserId: analyst.internalUserId ?? null, clearedReasonCode: 'false_positive' },
+      { clearedAt: expect.any(Date), clearedByInternalUserId: (analyst as { internalUserId?: string }).internalUserId ?? null, clearedReasonCode: 'false_positive' },
       expect.anything(),
     );
     expect(eligibilityService.evaluateAndRecord).toHaveBeenCalledWith(
