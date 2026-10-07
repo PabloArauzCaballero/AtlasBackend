@@ -39,7 +39,7 @@ cambia y esta tabla no, CI falla. Se regeneran con `yarn docs:figures`.
 | Tablas / esquemas de dominio | <!-- fig:db.tables -->221<!-- /fig --> / <!-- fig:db.schemas -->15<!-- /fig --> | `ATLAS_DOMAIN_TABLES` (`src/database/domain-tables.ts`) |
 | Rutas montadas | <!-- fig:code.routes -->604<!-- /fig --> | metadata de los controladores; incluye las internas fuera del contrato |
 | Rutas / operaciones del contrato | <!-- fig:openapi.paths -->554<!-- /fig --> / <!-- fig:openapi.operations -->594<!-- /fig --> | `docs/endpoints/openapi.yaml` |
-| Aristas módulo → módulo | <!-- fig:arch.moduleEdges -->96<!-- /fig --> | inventario de imports (`scripts/architecture/inventory-imports.ts`) |
+| Aristas módulo → módulo | <!-- fig:arch.moduleEdges -->97<!-- /fig --> | inventario de imports (`scripts/architecture/inventory-imports.ts`) |
 | Ciclos entre módulos | <!-- fig:arch.cycles -->1<!-- /fig --> | mismo inventario; cada uno con excepción declarada |
 
 Quién puede llamar a cada ruta: [Matriz de roles y permisos](../security/admin-rbac-matrix.md) (generada).

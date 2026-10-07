@@ -4795,13 +4795,11 @@ paths:
               properties:
                 deviceId:
                   type: string
-                  minLength: 1
-                  maxLength: 40
+                  pattern: ^[1-9][0-9]{0,18}$
                 sessionId:
                   anyOf:
                     - type: string
-                      minLength: 1
-                      maxLength: 40
+                      pattern: ^[1-9][0-9]{0,18}$
                     - type: 'null'
                 algorithmVersion:
                   type: string
@@ -5030,7 +5028,9 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: El token no permite operar sobre este cliente.
+          description: >-
+            El token no permite operar sobre este cliente, o el operador interno
+            no tiene `privacy.requests.manage`.
         '404':
           description: Cliente no encontrado.
         '409':
@@ -5820,13 +5820,11 @@ paths:
               properties:
                 deviceId:
                   type: string
-                  minLength: 1
-                  maxLength: 40
+                  pattern: ^[1-9][0-9]{0,18}$
                 sessionId:
                   anyOf:
                     - type: string
-                      minLength: 1
-                      maxLength: 40
+                      pattern: ^[1-9][0-9]{0,18}$
                     - type: 'null'
                 pings:
                   minItems: 1

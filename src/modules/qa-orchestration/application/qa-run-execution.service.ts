@@ -83,6 +83,7 @@ export class QaRunExecutionService {
       namespace: run.namespace,
       seed: run.seed,
       referenceDate: run.reference_date,
+      startedAtMs: run.started_at ? new Date(run.started_at).getTime() : null,
     };
   }
 
@@ -97,7 +98,7 @@ export class QaRunExecutionService {
     // Un apagado o un lease perdido ANTES de empezar: `addEventListener` no avisa de una señal ya
     // abortada, así que sin esta comprobación la corrida entera se ejecutaría ignorando el apagado.
     if (signal.aborted) return { kind: 'ABANDONED', reason: String(signal.reason ?? 'SHUTDOWN') };
-    if (!(await this.runs.markRunning(runId, fence))) return { kind: 'ABANDONED', reason: 'LOST_LEASE' };
+    if (!(await this.runs.markRunning(runId, fence))) return this.closing.closeIfCancelling(ctx);
     await this.runs.appendEvent(runId, 'RUN_STARTED', { persons: ctx.plan.persons, concurrency: ctx.plan.concurrency });
 
     // Una sola señal para cancelar, vencer el plazo o apagar; el motivo decide cómo se cierra.
@@ -106,7 +107,7 @@ export class QaRunExecutionService {
     const onAbort = () => stop(String(signal.reason ?? 'SHUTDOWN'));
     if (signal.aborted) onAbort();
     else signal.addEventListener('abort', onAbort, { once: true });
-    const deadlineAt = Date.now() + ctx.plan.limits.maxDurationMs;
+    const deadlineAt = (ctx.startedAtMs ?? Date.now()) + ctx.plan.limits.maxDurationMs;
     const watcher = setInterval(() => {
       if (Date.now() >= deadlineAt) stop('TIMED_OUT');
       void this.runs.isCancelRequested(runId).then(
@@ -152,7 +153,8 @@ export class QaRunExecutionService {
       onFallback: (input) => this.runs.appendEvent(ctx.runId, 'IDENTITY_IMAGES_FALLBACK', input),
     });
     const { maxRequests, maxInFlightRequests } = ctx.plan.limits;
-    const budget = new RunBudget({ maxRequests, maxInFlightRequests, deadlineAt }, controller.signal);
+    const issued = await this.runs.requestsIssued(ctx.runId);
+    const budget = new RunBudget({ maxRequests, maxInFlightRequests, deadlineAt }, controller.signal, issued);
     controller.signal.addEventListener('abort', () => budget.wakeAll(), { once: true });
     // Fixture «faltante» porque la corrida se abortó mientras se resolvía: no es un bloqueo, se
     // cierra (o se abandona) por el motivo del aborto.

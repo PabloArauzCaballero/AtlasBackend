@@ -258,6 +258,15 @@ describe('ejecución de una corrida QA: antes de la primera persona', () => {
     expect(runs.appendEvent).not.toHaveBeenCalled();
   });
 
+  it('una corrida CANCELLING que retoma otro worker se cierra CANCELLED, no se abandona para siempre', async () => {
+    const { service, world, runs } = fakeWorld(frozenPlan(), { status: 'CANCELLING' });
+    runs.markRunning.mockResolvedValue(false);
+    expect(await service.execute('42', fence, signal())).toMatchObject({ kind: 'FINISHED', runStatus: 'CANCELLED' });
+    expect(world.closedPending).toEqual([{ status: 'CANCELLED', reason: 'corrida cancelada' }]);
+    expect(world.finished).toMatchObject({ status: 'CANCELLED' });
+    expect(runs.appendEvent).not.toHaveBeenCalledWith('42', 'RUN_STARTED', expect.anything());
+  });
+
   it('una fixture que falta bloquea a todas las personas pendientes y la corrida', async () => {
     const { service, world } = fakeWorld(frozenPlan());
     fakeBackend((path) => (path === '/consent-documents/active' ? new Response('{"data":[]}', { status: 200 }) : undefined));
@@ -340,6 +349,17 @@ describe('ejecución de una corrida QA: personas y cierre', () => {
     expect(outcome).toMatchObject({ kind: 'FINISHED', runStatus: 'COMPLETED', verdict: 'INCONCLUSIVE' });
     expect(world.finished?.errorMessage).toBe('BUDGET_EXHAUSTED');
     expect(world.closedPending).toEqual([{ status: 'BLOCKED', reason: 'se agotó el presupuesto de solicitudes' }]);
+  });
+
+  it('al reanudar, lo ya emitido por otro worker cuenta contra el tope y el plazo corre desde started_at', async () => {
+    const plan = frozenPlan({ limits: { maxRequests: 3, maxDurationMs: 600_000, maxInFlightRequests: 10 } });
+    const { service, world } = fakeWorld(plan, { status: 'RUNNING', started_at: new Date(Date.now() - 3_600_000) });
+    world.requests = 3;
+    const http = fakeBackend();
+    await service.execute('42', fence, signal());
+    // Presupuesto ya agotado y plazo vencido: ninguna persona emite una petición.
+    expect(http.mock.calls.some(([url]) => String(url).includes('/auth/'))).toBe(false);
+    expect(world.finished?.errorMessage).toBe('BUDGET_EXHAUSTED');
   });
 
   it.each(['LOST_LEASE', 'SHUTDOWN'])('un %s en mitad de la corrida la abandona sin cerrarla', async (reason) => {
