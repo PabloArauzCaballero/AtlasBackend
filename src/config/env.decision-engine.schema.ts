@@ -154,7 +154,7 @@ export const decisionEngineEnvShape = {
    * trabajo en sombra no lee ni una fila. Asignarlo es encenderlo; quitarlo, apagarlo.
    */
   DECISION_ENGINE_PRIVACY_ARTIFACT: z.string().trim().max(120).default(''),
-  /* Qué decisiones APLICAN solas el veredicto del Motor (credit,risk,identity,partner); el resto
+  /* Qué decisiones APLICAN solas el veredicto del Motor (credit,risk,identity,partner, o `none`); el resto
      llega al Motor igual pero queda en revisión humana. Ver `decision-engine-auto-apply.ts`. */
   DECISION_ENGINE_AUTO_APPLY: z
     .string()
@@ -164,7 +164,9 @@ export const decisionEngineEnvShape = {
       value
         .split(',')
         .map((item) => item.trim().toLowerCase())
-        .filter(Boolean),
+        // `none` es «nada se aplica solo»: una cadena vacía no sirve, porque en Compose `${VAR:-x}`
+        // trata el valor vacío como ausente y vuelve al valor por omisión.
+        .filter((item) => Boolean(item) && item !== 'none'),
     )
     .pipe(z.array(z.enum(['credit', 'risk', 'identity', 'partner']))),
   DECISION_ENGINE_ENVIRONMENT_CODE: z
