@@ -74,6 +74,16 @@ export const WORKFLOW_CATALOG_READ_ROLES = [
   'platform_admin',
 ] as const;
 
+/**
+ * Procesos que el rol `customer` puede leer. El resto (back_office, system_job, integration) describe
+ * la superficie interna —rutas de administración, roles, errores y ficheros del repositorio— y no es
+ * asunto de la app del cliente.
+ */
+export const WORKFLOW_CUSTOMER_VISIBLE_PROCESS_TYPES: readonly string[] = ['customer_journey', 'partner_journey'];
+
+/** Quién pregunta: decide qué procesos se le muestran. Cualquier rol distinto de `customer` es interno. */
+export type WorkflowAudience = 'customer' | 'internal';
+
 /** Roles que pueden pedir el informe de consistencia (expone rutas internas no publicadas). */
 export const WORKFLOW_CATALOG_GOVERNANCE_ROLES = ['system_admin', 'qa_engineer', 'devops', 'admin', 'platform_admin'] as const;
 

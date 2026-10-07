@@ -5,12 +5,14 @@
  */
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { WORKFLOW_CATALOG_READ_ROLES } from './workflow-catalog.constants.js';
+import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { WORKFLOW_CATALOG_READ_ROLES, WorkflowAudience } from './workflow-catalog.constants.js';
 import {
   ListWorkflowsQueryDto,
   ValidateWorkflowTransitionDto,
@@ -57,8 +59,8 @@ export class WorkflowCatalogController {
   @ApiQuery({ name: 'includeDeprecated', required: false })
   @ApiResponse({ status: 200, description: 'Flujos registrados, ordenados por código y versión descendente.' })
   @Get()
-  list(@Query(new ZodValidationPipe(listWorkflowsQuerySchema)) query: ListWorkflowsQueryDto) {
-    return this.catalogService.listWorkflows(query);
+  list(@Query(new ZodValidationPipe(listWorkflowsQuerySchema)) query: ListWorkflowsQueryDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.catalogService.listWorkflows(query, audienceOf(user));
   }
 
   @ApiOperation({ summary: 'Versiones registradas de un flujo' })
@@ -66,8 +68,11 @@ export class WorkflowCatalogController {
   @ApiResponse({ status: 200, description: 'Versiones del flujo, de la más reciente a la más antigua.' })
   @ApiResponse({ status: 404, description: 'WORKFLOW_NOT_FOUND.' })
   @Get(':workflowCode/versions')
-  listVersions(@Param(new ZodValidationPipe(workflowCodeParamsSchema)) params: WorkflowCodeParamsDto) {
-    return this.catalogService.listVersions(params.workflowCode);
+  listVersions(
+    @Param(new ZodValidationPipe(workflowCodeParamsSchema)) params: WorkflowCodeParamsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.catalogService.listVersions(params.workflowCode, audienceOf(user));
   }
 
   @ApiOperation({
@@ -88,8 +93,9 @@ export class WorkflowCatalogController {
   getTree(
     @Param(new ZodValidationPipe(workflowCodeParamsSchema)) params: WorkflowCodeParamsDto,
     @Query(new ZodValidationPipe(workflowTreeQuerySchema)) query: WorkflowTreeQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.catalogService.getTree(params.workflowCode, query);
+    return this.catalogService.getTree(params.workflowCode, query, audienceOf(user));
   }
 
   @ApiOperation({
@@ -102,8 +108,9 @@ export class WorkflowCatalogController {
   listStages(
     @Param(new ZodValidationPipe(workflowCodeParamsSchema)) params: WorkflowCodeParamsDto,
     @Query(new ZodValidationPipe(workflowTreeQuerySchema)) query: WorkflowTreeQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.catalogService.listStages(params.workflowCode, query);
+    return this.catalogService.listStages(params.workflowCode, query, audienceOf(user));
   }
 
   @ApiOperation({ summary: 'Transiciones declaradas del flujo' })
@@ -113,8 +120,9 @@ export class WorkflowCatalogController {
   listTransitions(
     @Param(new ZodValidationPipe(workflowCodeParamsSchema)) params: WorkflowCodeParamsDto,
     @Query(new ZodValidationPipe(workflowTreeQuerySchema)) query: WorkflowTreeQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.catalogService.listTransitions(params.workflowCode, query);
+    return this.catalogService.listTransitions(params.workflowCode, query, audienceOf(user));
   }
 
   @ApiOperation({
@@ -127,8 +135,9 @@ export class WorkflowCatalogController {
   getGraph(
     @Param(new ZodValidationPipe(workflowCodeParamsSchema)) params: WorkflowCodeParamsDto,
     @Query(new ZodValidationPipe(workflowTreeQuerySchema)) query: WorkflowTreeQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.catalogService.getGraph(params.workflowCode, query);
+    return this.catalogService.getGraph(params.workflowCode, query, audienceOf(user));
   }
 
   @ApiOperation({
@@ -147,7 +156,12 @@ export class WorkflowCatalogController {
   validateTransition(
     @Param(new ZodValidationPipe(workflowCodeParamsSchema)) params: WorkflowCodeParamsDto,
     @Body(new ZodValidationPipe(validateWorkflowTransitionSchema)) body: ValidateWorkflowTransitionDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.transitionService.validate(params.workflowCode, body);
+    return this.transitionService.validate(params.workflowCode, body, audienceOf(user));
   }
+}
+
+function audienceOf(user: AuthenticatedUser): WorkflowAudience {
+  return user.role === 'customer' ? 'customer' : 'internal';
 }
