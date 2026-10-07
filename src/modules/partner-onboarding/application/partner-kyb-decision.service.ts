@@ -64,11 +64,16 @@ export class PartnerKybDecisionService {
    * sin nodo MANUAL_REVIEW dejaba `manualReviewCaseCode` en null: el comercio esperaba a alguien
    * y la bandeja del Motor salía vacía. Si el Motor no atiende la petición, el caso queda sin
    * código y `PartnerKybSyncService` lo reintenta; la decisión nunca se pierde ni se aprueba sola.
+   *
+   * Se llama TAMBIÉN cuando el grafo ya abrió el caso: es la misma petición la que adjunta el anexo
+   * del comercio (`evidenceJson.alta`). Antes se salía si había código, y con la versión del
+   * artefacto que abre caso sola el revisor recibía un caso sin un solo dato de la empresa.
    */
-  private async ensureReviewCase(decision: KybDecision, profileId: string): Promise<KybDecision> {
-    if (decision.outcome !== 'REVISION_MANUAL' || decision.manualReviewCaseCode || !decision.executionId) return decision;
-    const caso = await openKybReviewCase(this.client, { executionId: decision.executionId, profileId, reason: decision.reason });
-    return caso ? { ...decision, manualReviewCaseCode: caso.caseCode } : decision;
+  private async ensureReviewCase(decision: KybDecision, profileId: string, dossier?: Record<string, unknown>): Promise<KybDecision> {
+    if (decision.outcome !== 'REVISION_MANUAL' || !decision.executionId) return decision;
+    const caso = await openKybReviewCase(this.client, { executionId: decision.executionId, profileId, reason: decision.reason, dossier });
+    // El código que dio el grafo manda; el del anexo sólo cubre el caso que faltaba.
+    return decision.manualReviewCaseCode || !caso ? decision : { ...decision, manualReviewCaseCode: caso.caseCode };
   }
 
   /**
@@ -133,6 +138,8 @@ export class PartnerKybDecisionService {
     contratoVigente: boolean;
     /** Lo que hace que reintentar la misma petición no produzca dos ejecuciones. */
     idempotencyKey: string;
+    /** Lo que verá quien revise el caso (`buildKybDossier`). No entra en las variables del artefacto. */
+    dossier?: Record<string, unknown>;
   }): Promise<KybDecision> {
     if (!this.client.isConfigured) {
       throw new ServiceUnavailableException('DECISION_ENGINE_UNAVAILABLE: el Motor no está configurado en este despliegue.');
@@ -160,7 +167,7 @@ export class PartnerKybDecisionService {
         throw new ServiceUnavailableException(`DECISION_ENGINE_UNAVAILABLE: el Motor respondió ${response.status} y no un veredicto.`);
       }
 
-      return await this.ensureReviewCase(holdForManualReview(toKybDecision(response)), String(input.profile.id));
+      return await this.ensureReviewCase(holdForManualReview(toKybDecision(response)), String(input.profile.id), input.dossier);
     } catch (error) {
       if (error instanceof ServiceUnavailableException) throw error;
       this.logger.error(`El Motor no pudo verificar el expediente ${input.profile.id}: ${(error as Error).message}`);
