@@ -10,7 +10,7 @@ export type TierCode = PaymentCapacityAssessment['relationshipTier'];
 
 const TIER_LABELS: Record<TierCode, string> = {
   NUEVO: 'Nuevo',
-  EN_CONSTRUCCION: 'En construcción',
+  EN_CONSTRUCCION: 'En crecimiento',
   ESTABLECIDO: 'Establecido',
   CONSOLIDADO: 'Consolidado',
   PREFERENTE: 'Preferente',

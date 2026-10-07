@@ -19,7 +19,7 @@ describe('buildPointsLevel', () => {
   it('dice cuántos puntos faltan para el siguiente nivel', () => {
     const r = buildPointsLevel(24);
     expect(r.level).toMatchObject({ code: 'NUEVO', points: 24, index: 1, of: 5 });
-    expect(r.nextLevel).toEqual({ code: 'EN_CONSTRUCCION', label: 'En construcción', from: 500, pointsMissing: 476 });
+    expect(r.nextLevel).toEqual({ code: 'EN_CONSTRUCCION', label: 'En crecimiento', from: 500, pointsMissing: 476 });
   });
 
   it('en el último nivel no hay siguiente y toda la escalera está alcanzada', () => {
