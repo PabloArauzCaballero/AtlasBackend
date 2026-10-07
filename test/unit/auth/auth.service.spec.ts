@@ -7,6 +7,7 @@ import { UnauthorizedException, ForbiddenException, ConflictException, ServiceUn
 jest.mock('../../../src/common/utils/crypto/password.util.js', () => ({
   hashPassword: jest.fn(async (plain: string) => `hashed:${plain}`),
   verifyPassword: jest.fn(async (hash: string, plain: string) => hash === `hashed:${plain}`),
+  verifyPasswordAgainstDummy: jest.fn(async (..._args: unknown[]) => undefined),
   isPasswordStrongEnough: jest.fn((..._args: unknown[]) => true),
 }));
 
@@ -22,6 +23,7 @@ import { AuthPasswordResetService } from '../../../src/modules/auth/auth-passwor
 import { AuthSecondFactorService } from '../../../src/modules/auth/auth-second-factor.service.js';
 import { hashOneTimeCode } from '../../../src/common/utils/crypto/one-time-code.util.js';
 import { env } from '../../../src/config/env.js';
+import { verifyPasswordAgainstDummy } from '../../../src/common/utils/crypto/password.util.js';
 import { AuthCredentialsService } from '../../../src/modules/auth/auth-credentials.service.js';
 
 function buildAuthRepositoryMock() {
@@ -37,9 +39,11 @@ function buildAuthRepositoryMock() {
     createOneTimeCode: asyncMock(),
     findActiveOneTimeCodeByActor: asyncMock(),
     findActiveOneTimeCodeByChallenge: asyncMock(),
+    reserveOneTimeCodeAttempt: jest.fn(async (..._args: unknown[]) => true),
     registerOneTimeCodeFailedAttempt: asyncMock(),
-    consumeOneTimeCode: asyncMock(),
-    recordFailedAttempt: asyncMock(),
+    consumeOneTimeCode: jest.fn(async (..._args: unknown[]) => true),
+    reserveLoginAttempt: asyncMock(),
+    clearFailedAttempts: asyncMock(),
     recordSuccessfulLogin: asyncMock(),
     createRefreshToken: jest.fn(async (..._args: unknown[]) => ({ id: 'refresh-row-1' })),
     findActiveRefreshTokenByHash: asyncMock(),
@@ -200,9 +204,26 @@ describe('AuthService.login', () => {
       }),
     ).rejects.toThrow(UnauthorizedException);
 
+    // Mismo coste que un login real: no se distingue «no existe» de «PIN incorrecto» por la latencia.
+    expect(verifyPasswordAgainstDummy).toHaveBeenCalledWith('x');
     expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
       expect.objectContaining({ successful: false, failureReasonCode: 'actor_not_found', actorId: null }),
     );
+  });
+
+  it('un actor sin credenciales también gasta el coste de argon2 antes de rechazar', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
+    authRepository.findCredentialsByActor.mockResolvedValue(null);
+    const service = buildService(authRepository, customersRepository, buildTokenRevocationServiceMock());
+
+    await expect(
+      service.login({ tenantId: '1', dto: { actorType: 'customer', identifier: '70000000', password: 'x' }, ip: null, userAgent: null }),
+    ).rejects.toThrow(UnauthorizedException);
+
+    expect(verifyPasswordAgainstDummy).toHaveBeenCalledWith('x');
+    expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(expect.objectContaining({ failureReasonCode: 'no_credentials' }));
   });
 
   it('throws UnauthorizedException when the password does not match, and records a failed attempt', async () => {
@@ -228,9 +249,50 @@ describe('AuthService.login', () => {
       }),
     ).rejects.toThrow(UnauthorizedException);
 
-    expect(authRepository.recordFailedAttempt).toHaveBeenCalledTimes(1);
+    expect(authRepository.reserveLoginAttempt).toHaveBeenCalledTimes(1);
+    expect(authRepository.clearFailedAttempts).not.toHaveBeenCalled();
     expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
       expect.objectContaining({ successful: false, failureReasonCode: 'invalid_password', actorId: '10' }),
+    );
+  });
+
+  // La lectura de la credencial es anterior a argon2: N peticiones en paralelo veían todas «sin
+  // bloqueo». Si la reserva atómica dice que otra petición ya bloqueó la cuenta, el secreto NO se
+  // evalúa —ni siquiera el correcto—, que es lo que impedía recorrer el PIN de 4 dígitos.
+  it('rejects with ACCOUNT_LOCKED, without evaluating the password, when the atomic reservation finds the account locked', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const customersRepository = buildCustomersRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    const lockedUntil = new Date(Date.now() + 60_000);
+    customersRepository.findByContactHash.mockResolvedValue({ id: '10', tenantId: '1', lifecycleStatus: 'registered' });
+    authRepository.findCredentialsByActor.mockResolvedValue({
+      id: '77',
+      passwordHash: 'hashed:correct-password',
+      tokenVersion: 1,
+      lockedUntil: null,
+      failedLoginAttempts: 0,
+    });
+    authRepository.reserveLoginAttempt.mockResolvedValue({ lockedUntil });
+
+    const service = buildService(authRepository, customersRepository, tokenRevocationService);
+
+    await expect(
+      service.login({
+        tenantId: '1',
+        dto: { actorType: 'customer', identifier: '70000000', password: 'correct-password' },
+        ip: null,
+        userAgent: null,
+      }),
+    ).rejects.toMatchObject({ response: { code: 'ACCOUNT_LOCKED', lockedUntil: lockedUntil.toISOString() } });
+
+    expect(authRepository.reserveLoginAttempt).toHaveBeenCalledWith('77', {
+      maxAttempts: env.AUTH_MAX_FAILED_LOGIN_ATTEMPTS,
+      lockoutMinutes: env.AUTH_LOCKOUT_MINUTES,
+    });
+    expect(authRepository.recordSuccessfulLogin).not.toHaveBeenCalled();
+    expect(authRepository.createRefreshToken).not.toHaveBeenCalled();
+    expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ successful: false, failureReasonCode: 'account_locked', actorId: '10' }),
     );
   });
 
@@ -257,7 +319,7 @@ describe('AuthService.login', () => {
       }),
     ).rejects.toThrow(UnauthorizedException);
 
-    expect(authRepository.recordFailedAttempt).not.toHaveBeenCalled();
+    expect(authRepository.reserveLoginAttempt).not.toHaveBeenCalled();
     expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
       expect.objectContaining({ successful: false, failureReasonCode: 'account_locked', actorId: '10' }),
     );
@@ -289,6 +351,7 @@ describe('AuthService.login', () => {
     expect(result.tokenType).toBe('Bearer');
     expect(typeof result.accessToken).toBe('string');
     expect(result.refreshToken).toBe('fixed-refresh-token');
+    expect(authRepository.clearFailedAttempts).toHaveBeenCalledTimes(1);
     expect(authRepository.recordSuccessfulLogin).toHaveBeenCalledTimes(1);
     expect(authRepository.createRefreshToken).toHaveBeenCalledTimes(1);
     expect(authRepository.recordLoginAttemptEvent).toHaveBeenCalledWith(
@@ -520,6 +583,27 @@ describe('AuthService.refresh', () => {
     const service = buildService(authRepository, customersRepository, tokenRevocationService);
 
     await expect(service.refresh({ refreshToken: 'stale-token', ip: null, userAgent: null })).rejects.toThrow(UnauthorizedException);
+    expect(authRepository.createRefreshToken).not.toHaveBeenCalled();
+  });
+
+  it('un refresh token de otro tipo de actor en la ruta equivocada se rechaza SIN rotarlo ni revocarlo', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    const tokenRevocationService = buildTokenRevocationServiceMock();
+    authRepository.findRefreshTokenForUpdate.mockResolvedValue({
+      id: 'rt-1',
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      revokedReason: null,
+      actorType: 'customer',
+      actorId: '10',
+      tenantId: '1',
+    });
+    const service = buildService(authRepository, buildCustomersRepositoryMock(), tokenRevocationService);
+
+    await expect(
+      service.refresh({ refreshToken: 'cliente', ip: null, userAgent: null, expectedActorType: 'internal_user' }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(authRepository.revokeRefreshToken).not.toHaveBeenCalled();
     expect(authRepository.createRefreshToken).not.toHaveBeenCalled();
   });
 
@@ -933,6 +1017,17 @@ describe('AuthService.verifyLoginPin (2FA por PIN de super admin / MFA cliente)'
     }
   });
 
+  it('un desafío de otro tipo de actor en la ruta equivocada se rechaza sin reservar intento ni consumirlo', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge({ actorType: 'customer' }));
+    const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
+    await expect(
+      service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null, expectedActorType: 'internal_user' }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(authRepository.reserveOneTimeCodeAttempt).not.toHaveBeenCalled();
+    expect(authRepository.consumeOneTimeCode).not.toHaveBeenCalled();
+  });
+
   it('PIN incorrecto: registra el intento fallido + evento y lanza; no consume el código', async () => {
     const authRepository = buildAuthRepositoryMock();
     authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge());
@@ -945,6 +1040,30 @@ describe('AuthService.verifyLoginPin (2FA por PIN de super admin / MFA cliente)'
       expect.objectContaining({ successful: false, failureReasonCode: 'invalid_login_pin', actorId: '5' }),
     );
     expect(authRepository.consumeOneTimeCode).not.toHaveBeenCalled();
+  });
+
+  it('sin intentos que reservar: rechaza sin comparar el PIN ni contar otro fallo', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge());
+    authRepository.reserveOneTimeCodeAttempt.mockResolvedValue(false);
+    const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
+    await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null })).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(authRepository.registerOneTimeCodeFailedAttempt).not.toHaveBeenCalled();
+    expect(authRepository.consumeOneTimeCode).not.toHaveBeenCalled();
+  });
+
+  it('PIN correcto pero otra petición ya consumió el desafío: no emite una segunda sesión', async () => {
+    const authRepository = buildAuthRepositoryMock();
+    authRepository.findActiveOneTimeCodeByChallenge.mockResolvedValue(challenge());
+    authRepository.findInternalUserById.mockResolvedValue(activeInternalUser);
+    authRepository.consumeOneTimeCode.mockResolvedValue(false);
+    const service = buildService(authRepository, buildCustomersRepositoryMock(), buildTokenRevocationServiceMock());
+    await expect(service.verifyLoginPin({ challengeToken: 'ct', pin: '123456', ip: null, userAgent: null })).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(authRepository.recordSuccessfulLogin).not.toHaveBeenCalled();
   });
 
   it('PIN correcto pero el actor ya no existe: consume el código y lanza "ya no está disponible"', async () => {

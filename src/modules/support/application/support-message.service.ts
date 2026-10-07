@@ -156,7 +156,9 @@ export class SupportMessageService {
     await this.assertParticipates(input.tenantId, input.channelId, input.actor);
     // El archivo se comprueba ANTES de escribir nada: un mensaje inmutable no debe quedar
     // prometiendo un comprobante que resultó inválido.
-    const verified = input.dto.attachment ? await this.attachments.verify(input.dto.attachment) : null;
+    const verified = input.dto.attachment
+      ? await this.attachments.verify(input.dto.attachment, { tenantId: input.tenantId, channelId: input.channelId })
+      : null;
 
     const message = await this.append({
       tenantId: input.tenantId,
@@ -263,7 +265,9 @@ export class SupportMessageService {
   }
 
   /** Verificación de integridad de una conversación. La usa la exportación y el barrido periódico. */
-  verifyIntegrity(channelId: string) {
+  async verifyIntegrity(tenantId: string, channelId: string) {
+    // Falla con 404 si el canal no es de este tenant: la cadena se leía por id a secas.
+    await this.channels.requireById(tenantId, channelId);
     return this.messages.verifyChannelChain(channelId);
   }
 }

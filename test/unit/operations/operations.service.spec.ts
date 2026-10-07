@@ -77,7 +77,7 @@ describe('OperationsService', () => {
       contactsSnapshotService as never,
       sequelize as never,
     );
-    return { service, operationsRepository, customersRepository, riskRepository, lifecycleService };
+    return { service, operationsRepository, customersRepository, riskRepository, lifecycleService, sequelize };
   }
 
   const internalUser = { role: 'internal_operator', internalUserId: 'iu1', platformUserId: null } as never;
@@ -128,6 +128,21 @@ describe('OperationsService', () => {
       const result = await service.decideManualReviewCase(baseInput({ body: { decision: 'approved', reasonCode: 'r1' } }));
 
       expect(result.decision).toBe('approved');
+    });
+
+    it('lee el caso DENTRO de la transacción, para que el bloqueo de la fila valga', async () => {
+      const { service, operationsRepository, sequelize } = await buildService();
+      const transaction = { id: 'tx-1' };
+      (sequelize.transaction as jest.Mock).mockImplementationOnce(async (cb: unknown) => (cb as (t: unknown) => unknown)(transaction));
+      (operationsRepository.findManualReviewCaseById as jest.Mock).mockResolvedValueOnce({
+        closedAt: null,
+        status: 'open',
+        customerId: null,
+      } as never);
+
+      await service.decideManualReviewCase(baseInput({ body: { decision: 'approved', reasonCode: 'r1' } }));
+
+      expect(operationsRepository.findManualReviewCaseById).toHaveBeenCalledWith('t1', expect.anything(), { transaction });
     });
 
     it('throws CASE_NOT_FOUND when the case does not exist', async () => {

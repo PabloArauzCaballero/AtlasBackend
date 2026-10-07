@@ -86,6 +86,15 @@ describe('CustomerVerificationRepository', () => {
       expect(ultima(attempts.findOne).transaction).toBe(tx);
     });
 
+    it('con lock y transacción toma la fila FOR UPDATE; sin transacción no pide lock', async () => {
+      const conLock = { LOCK: { UPDATE: 'UPDATE' } } as never;
+      await repo.findAttemptById('t1', '21', { transaction: conLock, lock: true });
+      expect((ultima(attempts.findOne) as { lock?: unknown }).lock).toBe('UPDATE');
+
+      await repo.findAttemptById('t1', '21', { lock: true });
+      expect((ultima(attempts.findOne) as { lock?: unknown }).lock).toBeUndefined();
+    });
+
     it('el intento que espera decisión es el más reciente sin veredicto, aunque haya uno posterior ya verificado', async () => {
       // `id DESC`, como lo devuelve la base: el del móvil `VERIFIED` es el último, pero no es el que se revisa.
       attempts.findAll.mockResolvedValueOnce([
@@ -272,12 +281,37 @@ describe('CustomerVerificationRepository', () => {
       );
     });
 
-    it('descartar una coincidencia la borra dentro de la transacción', async () => {
+    it('descartar una coincidencia la MARCA dentro de la transacción: no la borra', async () => {
       const destroy = jest.fn(async (_opciones?: unknown) => undefined);
+      const save = jest.fn(async (_opciones?: unknown) => undefined);
+      const match = { destroy, save } as unknown as WatchlistMatchModel;
+      const ahora = new Date('2026-10-05T10:00:00Z');
 
-      await repo.clearMatch({ destroy } as unknown as WatchlistMatchModel, { transaction: tx });
+      await repo.clearMatch(
+        match,
+        { clearedAt: ahora, clearedByInternalUserId: '9', clearedReasonCode: 'false_positive' },
+        { transaction: tx },
+      );
 
-      expect(destroy).toHaveBeenCalledWith({ transaction: tx });
+      expect(destroy).not.toHaveBeenCalled();
+      expect(save).toHaveBeenCalledWith({ transaction: tx });
+      expect(match).toMatchObject({ clearedAt: ahora, clearedByInternalUserId: '9', clearedReasonCode: 'false_positive' });
+    });
+
+    it('las coincidencias abiertas excluyen las descartadas', async () => {
+      await repo.findMatches('t1', 'c1', { transaction: tx, onlyOpen: true });
+
+      expect(ultima(watchlistMatches.findAll).where).toEqual({ tenantId: 't1', customerId: 'c1', clearedAt: null });
+    });
+
+    it('los hashes del documento juntan declarado, OCR y verificado, sin vacíos ni repetidos', async () => {
+      identityDocuments.findAll.mockResolvedValueOnce([
+        { declaredNumberHash: 'h-ci', ocrNumberHash: 'h-ci', verifiedNumberHash: null },
+        { declaredNumberHash: 'h-viejo', ocrNumberHash: '', verifiedNumberHash: 'h-ci' },
+      ] as never);
+
+      await expect(repo.findIdentityDocumentHashes('t1', 'c1')).resolves.toEqual(['h-ci', 'h-viejo']);
+      expect(ultima(identityDocuments.findAll).where).toEqual({ tenantId: 't1', customerId: 'c1' });
     });
   });
 });

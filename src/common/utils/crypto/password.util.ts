@@ -35,6 +35,19 @@ export async function verifyPassword(hash: string, plainTextPassword: string): P
   }
 }
 
+let dummyHash: Promise<string> | null = null;
+
+/**
+ * Gasta el MISMO coste de argon2 que una verificación real, contra un hash ficticio. Se usa cuando el
+ * actor o su credencial no existen: sin esto, responder sin argon2 hacía que un identificador registrado
+ * tardara decenas de ms más que uno inexistente, y esa diferencia enumeraba los teléfonos de clientes
+ * pese al mensaje idéntico. El resultado se descarta.
+ */
+export async function verifyPasswordAgainstDummy(plainTextPassword: string): Promise<void> {
+  dummyHash ??= hashPassword(`dummy:${randomInt(1_000_000_000)}`);
+  await verifyPassword(await dummyHash, plainTextPassword);
+}
+
 const PASSWORD_MIN_LENGTH = 10;
 
 export function isPasswordStrongEnough(plainTextPassword: string): boolean {

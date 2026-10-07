@@ -72,6 +72,15 @@ describe('readLogDelta', () => {
       fileSize: 6,
     });
   });
+
+  it('cuts a capped chunk at the last newline so a line is never split across documents', async () => {
+    const filePath = join(dir, 'Archivo.log');
+    await writeFile(filePath, 'one\ntwo\nthr', 'utf8');
+
+    const delta = await readLogDelta(filePath, 0, 10);
+
+    expect(delta).toMatchObject({ offsetFrom: 0, offsetTo: 8, content: 'one\ntwo\n', fileSize: 11 });
+  });
 });
 
 describe('countLines', () => {

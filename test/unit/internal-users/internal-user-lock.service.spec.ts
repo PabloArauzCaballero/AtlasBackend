@@ -13,7 +13,10 @@ const PASADO = new Date('2026-09-26T11:00:00.000Z');
 const actor = { sub: '10', tenantId: '1', internalUserId: '10', role: 'admin' as const };
 const red = { ipAddress: '1.1.1.1', userAgent: 'jest' };
 
-function montar(opciones: { credential?: Record<string, unknown> | null; user?: Record<string, unknown> | null } = {}) {
+function montar(
+  opciones: { credential?: Record<string, unknown> | null; user?: Record<string, unknown> | null; roles?: (id: string) => string[] } = {},
+) {
+  const roles = opciones.roles ?? ((id: string) => (id === '10' ? ['SUPER_ADMIN'] : ['SUPPORT_AGENT']));
   const credential =
     opciones.credential === null
       ? null
@@ -24,10 +27,10 @@ function montar(opciones: { credential?: Record<string, unknown> | null; user?: 
           save: jest.fn(async () => undefined),
           ...(opciones.credential ?? {}),
         };
-  const user = opciones.user === null ? null : { id: '5', tenantId: '1', ...(opciones.user ?? {}) };
+  const user = opciones.user === null ? null : { id: '5', tenantId: '1', status: 'active', ...(opciones.user ?? {}) };
   const repository = {
-    findUserById: jest.fn(async (..._args: unknown[]) => user),
-    buildAccessProfile: jest.fn(async (u: { id: string }) => ({ user: { id: u.id } })),
+    findUserById: jest.fn(async (_tenantId: unknown, id: unknown) => (user === null ? null : { ...user, id: String(id) })),
+    buildAccessProfile: jest.fn(async (u: { id: string }) => ({ user: { id: u.id, roles: roles(u.id) } })),
     createAudit: jest.fn(async (..._args: unknown[]) => undefined),
   };
   const credentials = { findOne: jest.fn(async (..._args: unknown[]) => credential) };
@@ -85,7 +88,10 @@ describe('InternalUserLockService', () => {
       ipAddress: '1.1.1.1',
       userAgent: 'jest',
     });
-    expect(result).toEqual({ user: { id: '5' }, lock: { locked: false, lockedUntil: null, failedLoginAttempts: 0 } });
+    expect(result).toEqual({
+      user: { id: '5', roles: ['SUPPORT_AGENT'] },
+      lock: { locked: false, lockedUntil: null, failedLoginAttempts: 0 },
+    });
   });
 
   it('unlock responde 409 si el bloqueo ya venció, si no hay bloqueo o si no hay credencial, sin escribir nada', async () => {
@@ -94,6 +100,17 @@ describe('InternalUserLockService', () => {
       await expect(service.unlock(actor, '5', { reason: 'motivo suficiente' }, red, AHORA)).rejects.toBeInstanceOf(ConflictException);
       expect(repository.createAudit).not.toHaveBeenCalled();
     }
+  });
+
+  it('unlock de una cuenta con rol privilegiado exige SUPER_ADMIN y no escribe nada si el actor no lo es', async () => {
+    const { service, credential, repository } = montar({ roles: (id) => (id === '5' ? ['SUPER_ADMIN'] : ['INTERNAL_IDENTITY_ADMIN']) });
+    await expect(service.unlock(actor, '5', { reason: 'motivo suficiente' }, red, AHORA)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(credential?.save).not.toHaveBeenCalled();
+    expect(repository.createAudit).not.toHaveBeenCalled();
+
+    const conSuper = montar({ roles: () => ['SUPER_ADMIN'] });
+    await conSuper.service.unlock(actor, '5', { reason: 'motivo suficiente' }, red, AHORA);
+    expect(conSuper.credential?.save).toHaveBeenCalled();
   });
 
   it('unlock responde 404 si el usuario no es del tenant del actor', async () => {

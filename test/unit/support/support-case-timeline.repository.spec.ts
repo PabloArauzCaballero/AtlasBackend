@@ -117,6 +117,17 @@ describe('SupportCaseTimelineRepository', () => {
       expect(opciones.where).toEqual({ id: 'reloj-1' });
     });
 
+    it('marcar vencido sólo toca un reloj que sigue RUNNING y dice si lo logró', async () => {
+      clocks.update.mockResolvedValueOnce([1] as never);
+      await expect(repo.markClockBreached('reloj-1', new Date('2026-09-10T12:00:00Z'))).resolves.toBe(true);
+      const [values, opciones] = clocks.update.mock.calls.at(-1) as [Record<string, unknown>, { where: unknown }];
+      expect(values.state).toBe('BREACHED');
+      expect(opciones.where).toEqual({ id: 'reloj-1', state: 'RUNNING' });
+
+      clocks.update.mockResolvedValueOnce([0] as never);
+      await expect(repo.markClockBreached('reloj-1', new Date())).resolves.toBe(false);
+    });
+
     it('vencidos y por vencer parten el tiempo en `now` sin hueco ni solape', async () => {
       const now = new Date('2026-09-10T12:00:00Z');
       await repo.findBreachedClocks('t1', now);

@@ -142,6 +142,27 @@ describe('WorkflowProgressService.getProgress', () => {
     });
   });
 
+  it('no propone como siguiente paso uno que no es HTTP de este backend', async () => {
+    const bundle = progressBundle();
+    bundle.steps.unshift(
+      buildStep({
+        id: '104',
+        stepCode: 'address.job',
+        workflowStageId: '11',
+        executionOrder: 1,
+        httpMethod: null,
+        routePath: null,
+        stepKind: 'job',
+      }),
+      buildStep({ id: '105', stepCode: 'address.erp', workflowStageId: '11', executionOrder: 2, systemCode: 'ERP_BACKEND' }),
+    );
+    const { service } = buildService({ bundle });
+
+    const result = await service.getProgress({ tenantId: '1', customerId: '5', currentUser: CUSTOMER, query: QUERY as never });
+
+    expect(result.nextStep?.stepCode).toBe('address.package');
+  });
+
   it('no propone siguiente paso cuando no queda ninguna etapa pendiente', async () => {
     const { service } = buildService({
       assessment: assessment({

@@ -24,6 +24,8 @@ export type RunContext = {
   namespace: string;
   seed: string;
   referenceDate: string;
+  /** Inicio de la corrida (ms) si ya había empezado: el plazo cuenta desde aquí, no desde cada reanudación. */
+  startedAtMs?: number | null;
 };
 
 export type ExecutionOutcome =
@@ -109,6 +111,18 @@ export class QaRunClosing {
         ? { totalAppended: journal.totalAppended, droppedByRetention: journal.droppedByRetention, complete: journal.complete }
         : null,
     };
+  }
+
+  /**
+   * `markRunning` sólo acepta QUEUED/RUNNING, así que una corrida que se canceló (CANCELLING) mientras
+   * su worker moría llega aquí sin lease perdido: nadie más la va a cerrar. Se cierra como CANCELLED;
+   * cualquier otro motivo sí es un lease perdido y no se toca nada.
+   */
+  async closeIfCancelling(ctx: RunContext): Promise<ExecutionOutcome> {
+    const run = await this.runs.loadRun(ctx.runId);
+    if (run?.status !== 'CANCELLING') return { kind: 'ABANDONED', reason: 'LOST_LEASE' };
+    await this.runs.closePendingPersonas(ctx.runId, 'CANCELLED', 'corrida cancelada', ctx.fence);
+    return this.finish(ctx, { status: 'CANCELLED', verdict: null, evidence: {} });
   }
 
   async finish(ctx: Pick<RunContext, 'runId' | 'fence' | 'plan'>, closing: Closing): Promise<ExecutionOutcome> {

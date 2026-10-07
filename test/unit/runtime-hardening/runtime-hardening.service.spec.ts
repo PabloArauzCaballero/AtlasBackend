@@ -266,21 +266,71 @@ describe('RuntimeHardeningService.completeIdempotency / failIdempotency', () => 
     RuntimeHardeningService['completeIdempotency']
   >[0];
 
-  it('completeIdempotency marca completed, guarda el status HTTP y redacta el response body sensible', async () => {
+  it('completeIdempotency marca completed y guarda el status HTTP; un cuerpo sin campos sensibles queda tal cual', async () => {
     const { service, idempotencyModel } = buildService();
 
-    await service.completeIdempotency(lease, 201, { purchaseId: 'p-1', customerPhone: '77712345' });
+    await service.completeIdempotency(lease, 201, { purchaseId: 'p-1', total: 10 });
 
     expect(idempotencyModel.update).toHaveBeenCalledTimes(1);
     const [values, options] = idempotencyModel.update.mock.calls[0] as [Record<string, unknown>, { where: Record<string, unknown> }];
     expect(values.status).toBe('completed');
     expect(values.responseStatus).toBe(201);
     expect(values.lockedUntil).toBeNull();
-    // `phone` matchea el patrón de campos sensibles de redaction.util.ts → debe quedar redactado.
-    expect((values.responseBodyJson as { customerPhone: string }).customerPhone).toBe('[REDACTED]');
-    expect((values.responseBodyJson as { purchaseId: string }).purchaseId).toBe('p-1');
+    expect(values.responseBodyJson).toEqual({ purchaseId: 'p-1', total: 10 });
     // Fencing: sólo cierra la fila si el testigo sigue siendo el vigente.
     expect(options.where).toMatchObject({ id: '5', ownerToken: 'tok-1', status: 'processing' });
+  });
+
+  it('un cuerpo con campos sensibles NO se guarda en claro ni redactado: va cifrado y el replay lo devuelve idéntico', async () => {
+    const { service, idempotencyModel } = buildService();
+    const original = { purchaseId: 'p-1', customerPhone: '77712345', gpsObservationCreated: true };
+
+    await service.completeIdempotency(lease, 201, original);
+
+    const [values] = idempotencyModel.update.mock.calls[0] as [Record<string, unknown>];
+    const stored = values.responseBodyJson as Record<string, unknown>;
+    expect(JSON.stringify(stored)).not.toContain('77712345');
+    expect(JSON.stringify(stored)).not.toContain('[REDACTED]');
+
+    idempotencyModel.findOne.mockResolvedValueOnce({
+      actorId: 'cust-1',
+      status: 'completed',
+      requestHash: hashOf(service),
+      responseStatus: 201,
+      responseBodyJson: stored,
+    } as never);
+    const result = await service.claimIdempotency({
+      tenantScope: 't1',
+      actorType: 'customer',
+      actorId: 'cust-1',
+      idempotencyKey: 'idem-abc',
+      scope: 'purchases.create',
+      request: REQUEST,
+      now: NOW,
+    });
+    expect(result).toEqual({ mode: 'replay', responseBody: original, responseStatus: 201 });
+  });
+
+  it('si el sobre cifrado no se puede abrir, el replay se rechaza en vez de devolver basura', async () => {
+    const { service, idempotencyModel } = buildService();
+    idempotencyModel.findOne.mockResolvedValueOnce({
+      actorId: 'cust-1',
+      status: 'completed',
+      requestHash: hashOf(service),
+      responseStatus: 201,
+      responseBodyJson: { __atlasSealedResponse: 'v2:desconocido:k:x:y:z:w' },
+    } as never);
+    await expect(
+      service.claimIdempotency({
+        tenantScope: 't1',
+        actorType: 'customer',
+        actorId: 'cust-1',
+        idempotencyKey: 'idem-abc',
+        scope: 'purchases.create',
+        request: REQUEST,
+        now: NOW,
+      }),
+    ).rejects.toThrow('IDEMPOTENCY_REPLAY_NOT_AVAILABLE');
   });
 
   it('completeIdempotency de un dueño ANTERIOR no pisa el resultado del vigente (0 filas afectadas, sin error)', async () => {

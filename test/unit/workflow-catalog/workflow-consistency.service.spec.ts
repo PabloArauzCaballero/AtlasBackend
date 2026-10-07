@@ -170,4 +170,48 @@ describe('WorkflowConsistencyService.check', () => {
       'STEP_UNKNOWN_LIFECYCLE_STATE',
     ]);
   });
+  it('no revienta con un paso job (método y ruta nulos) y no lo cuenta como deriva', async () => {
+    const bundle = buildBundle();
+    bundle.steps.push(
+      buildStep({
+        id: '110',
+        stepCode: 'step.job',
+        workflowStageId: '10',
+        httpMethod: null,
+        routePath: null,
+        stepKind: 'job',
+        jobCode: 'JOB_X',
+      }),
+    );
+    const { service } = buildService({ bundle });
+
+    const report = await service.check('demo_flow', 'latest');
+
+    expect(report.status).toBe('in_sync');
+    expect(report.stepCount).toBe(4);
+    expect(report.issues.filter((issue) => issue.stepCode === 'step.job')).toHaveLength(0);
+  });
+
+  it('ignora los pasos HTTP de otro sistema (ERP) y los estados de procesos que no son del cliente', async () => {
+    const bundle = buildBundle();
+    bundle.definition = { ...bundle.definition, processType: 'partner_journey' } as never;
+    bundle.steps[0] = { ...bundle.steps[0], requiredStates: ['merchant_pending'] } as never;
+    bundle.steps.push(
+      buildStep({
+        id: '111',
+        stepCode: 'step.erp',
+        workflowStageId: '10',
+        httpMethod: 'POST',
+        routePath: '/erp/solo-del-erp',
+        systemCode: 'ERP_BACKEND',
+      }),
+    );
+    const { service } = buildService({ bundle });
+
+    const report = await service.check('demo_flow', 'latest');
+
+    expect(report.status).toBe('in_sync');
+    expect(report.issues.filter((issue) => issue.stepCode === 'step.erp')).toHaveLength(0);
+    expect(report.issues.filter((issue) => issue.code === 'STEP_UNKNOWN_LIFECYCLE_STATE')).toHaveLength(0);
+  });
 });

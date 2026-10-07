@@ -19,6 +19,7 @@ import { InternalPermissionsGuard } from '../../../src/modules/internal-users/gu
 import { InternalAuthController } from '../../../src/modules/internal-users/internal-auth.controller.js';
 import { InternalAuthService } from '../../../src/modules/internal-users/internal-auth.service.js';
 import { InternalRbacRepository } from '../../../src/modules/internal-users/internal-rbac.repository.js';
+import { INTERNAL_PERMISSIONS_CHECKER } from '../../../src/common/guards/internal-permissions.port.js';
 import { InternalUsersService } from '../../../src/modules/internal-users/internal-users.service.js';
 
 const SESSION = {
@@ -50,6 +51,7 @@ describe('AT-005 · cookies de la sesión interna', () => {
         InternalPermissionsGuard,
         { provide: TokenRevocationService, useValue: { getCurrentTokenVersion: jest.fn(async () => null) } },
         { provide: InternalRbacRepository, useValue: {} },
+        { provide: INTERNAL_PERMISSIONS_CHECKER, useExisting: InternalRbacRepository },
         { provide: InternalAuthService, useValue: auth },
         { provide: InternalUsersService, useValue: {} },
       ],

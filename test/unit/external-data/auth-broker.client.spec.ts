@@ -56,6 +56,16 @@ describe('AuthBrokerClient', () => {
   }
 
   describe('configuración', () => {
+    it('un AUTH_BROKER_TIMEOUT_MS no numérico o <= 0 vuelve al plazo por defecto', () => {
+      const plazo = (valor: string) => {
+        process.env.AUTH_BROKER_TIMEOUT_MS = valor;
+        return (cliente() as unknown as { timeoutMs: number }).timeoutMs;
+      };
+      expect(plazo('abc')).toBe(8000);
+      expect(plazo('0')).toBe(8000);
+      expect(plazo('1500')).toBe(1500);
+    });
+
     it('exige base y token: con uno solo no está configurado', () => {
       expect(cliente().isConfigured()).toBe(true);
 
@@ -105,6 +115,15 @@ describe('AuthBrokerClient', () => {
       fetchMock.mockRejectedValueOnce(new Error('conectando a http://broker:9000 con Bearer token-de-servicio') as never);
 
       await expect(cliente().authorize('buro')).rejects.toThrow('AUTH_BROKER_UNREACHABLE');
+    });
+
+    it('el 401/403 del broker (token de servicio) sale como 502 y no como sesión caducada del admin', async () => {
+      fetchMock.mockResolvedValueOnce(respuesta({ code: 'UNAUTHORIZED', message: 'token inválido' }, 401) as never);
+      const fallo = await cliente()
+        .authorize('buro')
+        .catch((e: unknown) => e);
+      expect(fallo).toMatchObject({ status: 502 });
+      expect((fallo as HttpException).getResponse()).toMatchObject({ code: 'AUTH_BROKER_AUTH_FAILED' });
     });
 
     it('un error del broker conserva su código y su estado HTTP', async () => {
@@ -226,7 +245,7 @@ describe('AuthBrokerClient', () => {
     it('un error HTTP del broker se reporta con su estado y la vista sigue en pie', async () => {
       fetchMock.mockResolvedValueOnce(respuesta({ code: 'UNAUTHORIZED', message: 'token inválido' }, 401) as never);
 
-      await expect(cliente().availability()).resolves.toEqual({ configured: true, reachable: false, errorCode: '401' });
+      await expect(cliente().availability()).resolves.toEqual({ configured: true, reachable: false, errorCode: '502' });
     });
   });
 });

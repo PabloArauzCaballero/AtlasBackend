@@ -1,44 +1,6 @@
 /**
- * @file Guard: aplica autenticación o autorización antes del caso de uso.
+ * @file Re-export: el guard vive en `common/guards`; esta ruta se conserva para los importadores actuales.
  * @business Esta pieza controla quién puede operar Atlas y deja evidencia de cada asignación de privilegios.
- * @system implementa identidad interna, RBAC, catálogo de permisos y guards de autorización granular.
+ * @system compatibilidad hacia atrás; el código nuevo importa desde `common/guards`.
  */
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { INTERNAL_PERMISSIONS_KEY } from '../internal-permissions.decorator.js';
-import { RequestWithAuth } from '../../../common/types/auth.types.js';
-import { InternalRbacRepository } from '../internal-rbac.repository.js';
-
-@Injectable()
-export class InternalPermissionsGuard implements CanActivate {
-  constructor(
-    private readonly reflector: Reflector,
-    private readonly rbacRepository: InternalRbacRepository,
-  ) {}
-
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredPermissions = this.reflector.getAllAndOverride<string[]>(INTERNAL_PERMISSIONS_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-
-    if (!requiredPermissions || requiredPermissions.length === 0) return true;
-
-    const request = context.switchToHttp().getRequest<RequestWithAuth>();
-    const user = request.user;
-    if (!user?.tenantId || !user.internalUserId) {
-      throw new ForbiddenException('Esta operación requiere una sesión interna.');
-    }
-
-    const hasAccess = await this.rbacRepository.hasPermissions(user.tenantId, user.internalUserId, requiredPermissions);
-    if (!hasAccess) {
-      // Se nombra el permiso: el ERP y el portal conceden sus botones por ROL y aquí se decide por
-      // PERMISO; sin el código nadie sabía qué pedir ni a quién (ver `ROLE_PERMISSION_CODES`).
-      throw new ForbiddenException(
-        `El usuario interno no tiene los permisos requeridos para esta operación: ${requiredPermissions.join(', ')}.`,
-      );
-    }
-
-    return true;
-  }
-}
+export { InternalPermissionsGuard } from '../../../common/guards/internal-permissions.guard.js';

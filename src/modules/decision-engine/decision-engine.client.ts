@@ -10,7 +10,7 @@ import { parseFacilityOutcomes, parseFacilityRegistrations } from './engine-verd
 import { classifyDecision, type DecisionVerdict } from './decision-verdict.js';
 import { ConsentReplicationStore } from './consent-replication.store.js';
 import { EngineConsentGateway, type ConsentBasis, type ConsentReplicationInput } from './engine-consent.gateway.js';
-import { EngineTransportService, type OpcionesDeLlamada } from './engine-transport.service.js';
+import { EngineTransportService, problemaDelMotor, type OpcionesDeLlamada } from './engine-transport.service.js';
 import { EngineManualReviewGateway } from './engine-manual-review.gateway.js';
 import { basisBlocker, ensureUnderwritingBasis } from './underwriting-basis.js';
 import {
@@ -108,6 +108,16 @@ export class DecisionEngineClient {
 
     const parsed = decisionResponseSchema.safeParse(raw.json);
     if (!parsed.success) {
+      // Un 422 con cuerpo de error no es una decisión: es el motivo por el que el motor no pudo decidir.
+      const problema = problemaDelMotor(raw.json);
+      if (problema) {
+        throw toAdapterError({
+          provider: PROVIDER,
+          httpStatus: raw.status,
+          message: `El motor no pudo decidir «${artifactCode}» (HTTP ${raw.status}): ${problema}`,
+          error: raw.json,
+        });
+      }
       throw toAdapterError({
         provider: PROVIDER,
         httpStatus: raw.status,
@@ -232,7 +242,7 @@ export class DecisionEngineClient {
     const todos: ArtifactSummary[] = [];
     for (let page = 1; page <= ARTIFACT_MAX_PAGES; page += 1) {
       const url = `${this.transport.baseUrl()}/v1/artifacts?page=${page}&pageSize=${ARTIFACT_PAGE_SIZE}`;
-      const response = await fetch(url, { headers });
+      const response = await fetch(url, { headers, signal: AbortSignal.timeout(env.DECISION_ENGINE_TIMEOUT_MS) });
       if (!response.ok) {
         this.logger.warn(`El motor respondió ${response.status} al listar artefactos.`);
         return page === 1 ? [] : todos;
@@ -269,7 +279,10 @@ export class DecisionEngineClient {
     const url = `${this.transport.baseUrl()}/v1/manual-reviews/${encodeURIComponent(caseCode)}`;
     const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_API_KEY ?? '';
     try {
-      const response = await fetch(url, { headers: { 'x-api-key': apiKey, 'x-tenant-id': env.DECISION_ENGINE_TENANT_ID } });
+      const response = await fetch(url, {
+        headers: { 'x-api-key': apiKey, 'x-tenant-id': env.DECISION_ENGINE_TENANT_ID },
+        signal: AbortSignal.timeout(env.DECISION_ENGINE_TIMEOUT_MS),
+      });
       if (!response.ok) {
         this.logger.warn(`El motor respondió ${response.status} al leer el caso ${caseCode}.`);
         return null;

@@ -165,8 +165,19 @@ export const SQL_FORBIDDEN_RELATIONS = [
   'pg_stat_statements',
   'auth_credentials',
   'auth_refresh_tokens',
+  'auth_one_time_codes',
   'device_tokens',
+  'pg_stats',
+  'pg_stats_ext',
+  'pg_stats_ext_exprs',
 ] as const;
+
+/**
+ * Esquemas que sólo ve quien puede ver en claro. Para el resto la consola se queda en `read_api`,
+ * que ya viene desidentificado: el enmascarado por nombre de columna se esquiva con un alias o con
+ * `row_to_json`, así que en las tablas base no es una defensa, y la única que vale es no llegar a ellas.
+ */
+export const SQL_CONSOLE_BASE_SCHEMAS: readonly string[] = SQL_CONSOLE_SCHEMAS.filter((schema) => schema !== 'read_api');
 
 export const SQL_CONSOLE_LIMITS = {
   /** Filas máximas que devuelve una consulta. Por encima, se recorta y se DICE. */

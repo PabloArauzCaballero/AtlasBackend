@@ -69,5 +69,15 @@ describe('CatalogRiskPolicyRepository', () => {
     const count = await repo.retireOtherActiveRulesets('RS-1', 'current', new Date('2026-01-01'), {});
     expect(count).toBe(3);
     expect(models.riskRulesetVersionModel.update).toHaveBeenCalledTimes(1);
+    expect((models.riskRulesetVersionModel.update as jest.Mock).mock.calls[0][0]).toMatchObject({ status: 'retired' });
+  });
+
+  it('retireOtherActiveRulesets con vigencia futura no retira: sólo acota effectiveUntil', async () => {
+    const { repo, models } = buildRepo();
+    (models.riskRulesetVersionModel.update as jest.Mock).mockResolvedValueOnce([1] as never);
+    const mañana = new Date(Date.now() + 86_400_000);
+    await repo.retireOtherActiveRulesets('RS-1', 'current', mañana, {});
+    const cambios = (models.riskRulesetVersionModel.update as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    expect(cambios).toEqual({ effectiveUntil: mañana });
   });
 });

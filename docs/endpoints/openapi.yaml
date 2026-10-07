@@ -475,8 +475,7 @@ paths:
           in: query
           schema:
             type: string
-            minLength: 1
-            maxLength: 40
+            pattern: ^\d{1,19}$
           description: >-
             Filtra por cliente. No sustituye a la comprobación de pertenencia:
             un `customer` sigue viendo solo lo suyo.
@@ -1385,6 +1384,32 @@ paths:
           description: Código del proveedor externo (`segip`, `infocenter`, …).
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              default: {}
+              type: object
+              properties:
+                customerId:
+                  type: string
+                  pattern: ^\d+$
+                queryType: {}
+                purpose:
+                  type: string
+                  minLength: 3
+                  maxLength: 100
+                decisionStage: {}
+                input:
+                  type: object
+                  propertyNames:
+                    type: string
+                  additionalProperties: {}
+                scenario:
+                  type: string
+                  maxLength: 80
+              additionalProperties: false
       responses:
         '200':
           description: Resultado de la ejecución de prueba.
@@ -2868,6 +2893,7 @@ paths:
                   pattern: ^\d{4}$
                 consents:
                   minItems: 1
+                  maxItems: 20
                   type: array
                   items:
                     type: object
@@ -3987,11 +4013,13 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: El token no tiene rol de analista.
+          description: >-
+            El token no tiene rol de analista, no es de un usuario interno, o
+            `reviewedByInternalUserId` no es quien llama.
         '404':
           description: Cliente o intento de identidad no encontrado.
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: 'El Motor abrió el caso de ese intento: se resuelve allí.'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -4770,13 +4798,11 @@ paths:
               properties:
                 deviceId:
                   type: string
-                  minLength: 1
-                  maxLength: 40
+                  pattern: ^[1-9][0-9]{0,18}$
                 sessionId:
                   anyOf:
                     - type: string
-                      minLength: 1
-                      maxLength: 40
+                      pattern: ^[1-9][0-9]{0,18}$
                     - type: 'null'
                 algorithmVersion:
                   type: string
@@ -5005,7 +5031,9 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: El token no permite operar sobre este cliente.
+          description: >-
+            El token no permite operar sobre este cliente, o el operador interno
+            no tiene `privacy.requests.manage`.
         '404':
           description: Cliente no encontrado.
         '409':
@@ -5350,6 +5378,56 @@ paths:
       security:
         - access-token: []
       summary: Crear una solicitud de crédito
+      tags:
+        - credit
+  /customers/{customerId}/credit-applications/{applicationId}/down-payment:
+    post:
+      operationId: CreditDownPaymentCustomerController_submit
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
+        - name: applicationId
+          in: path
+          required: true
+          description: Identificador de ruta `applicationId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Aviso registrado, esperando la confirmación del comercio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: CREDIT_APPLICATION_NOT_FOUND.
+        '409':
+          description: >-
+            DOWN_PAYMENT_NOT_ALLOWED_YET, DOWN_PAYMENT_ALREADY_PENDING o
+            DOWN_PAYMENT_ALREADY_CONFIRMED.
+        '422':
+          description: EVIDENCE_OBJECT_NOT_FOUND o APPLICATION_WITHOUT_PARTNER.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Avisar que se pagó el inicial de una compra
       tags:
         - credit
   /customers/{customerId}/credit-line:
@@ -5795,13 +5873,11 @@ paths:
               properties:
                 deviceId:
                   type: string
-                  minLength: 1
-                  maxLength: 40
+                  pattern: ^[1-9][0-9]{0,18}$
                 sessionId:
                   anyOf:
                     - type: string
-                      minLength: 1
-                      maxLength: 40
+                      pattern: ^[1-9][0-9]{0,18}$
                     - type: 'null'
                 pings:
                   minItems: 1
@@ -6592,9 +6668,13 @@ paths:
             Calificación de pagador de 1 a 100; `points` = Puntaje, los puntos
             ganados pagando a tiempo (1 por boliviano). Ninguno de los dos es el
             score 0-1000 del motor. `level`/`nextLevel`/`levelLadder` = Nivel
-            Atlas medido en PUNTOS (Nuevo 0 · En construcción 500 · Establecido
-            2.000 · Consolidado 5.000 · Preferente 10.000); la tarjeta sigue a
-            ese nivel. `tier` sigue siendo el escalón de la relación que usa la
+            Atlas medido en PUNTOS: doce niveles (Nuevo 0 · Explorador 100 · En
+            crecimiento 500 · Constante 1.000 · Establecido 2.000 · Confiable
+            3.500 · Consolidado 5.000 · Destacado 7.500 · Preferente 10.000 ·
+            Élite 15.000 · Leyenda 25.000 · Titán Atlas 50.000); `code` es el
+            escalón de cinco que sigue la tarjeta e `id` es único por nivel.
+            `experience.badges` trae las insignias con `rank`, `category` y
+            `secret`. `tier` sigue siendo el escalón de la relación que usa la
             capacidad de pago.
           content:
             application/json:
@@ -11299,7 +11379,10 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
-          description: DECISION_ARTIFACT_NOT_PUBLISHED — el motor no publica ese código.
+          description: >-
+            DECISION_ARTIFACT_NOT_PUBLISHED — el motor no publica ese código;
+            DECISION_PINNED_VERSION_NOT_SUPPORTED — pinnedVersion aún no se
+            aplica.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -14693,6 +14776,130 @@ paths:
       summary: Aceptar o rechazar una compra que el motor aprobó
       tags:
         - credit
+  /merchant/partners/{partnerId}/down-payments:
+    get:
+      operationId: MerchantDownPaymentController_list
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: partnerId
+          in: path
+          required: true
+          description: Identificador de ruta `partnerId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Pagos iniciales avisados por los clientes, más recientes primero.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: >-
+        Pagos iniciales de mis compras, por defecto sólo los que esperan mi
+        confirmación
+      tags:
+        - credit
+  /merchant/partners/{partnerId}/down-payments/{applicationId}/proof:
+    get:
+      operationId: MerchantDownPaymentController_proof
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: partnerId
+          in: path
+          required: true
+          description: Identificador de ruta `partnerId`.
+          schema:
+            type: string
+        - name: applicationId
+          in: path
+          required: true
+          description: Identificador de ruta `applicationId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: La imagen del comprobante.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: CREDIT_APPLICATION_NOT_FOUND | DOWN_PAYMENT_WITHOUT_PROOF.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: La imagen del comprobante del pago inicial
+      tags:
+        - credit
+  /merchant/partners/{partnerId}/down-payments/{applicationId}/verification:
+    post:
+      operationId: MerchantDownPaymentController_decide
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: partnerId
+          in: path
+          required: true
+          description: Identificador de ruta `partnerId`.
+          schema:
+            type: string
+        - name: applicationId
+          in: path
+          required: true
+          description: Identificador de ruta `applicationId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Decisión registrada; el cliente la ve en su app.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: La compra no nació en este comercio.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: DOWN_PAYMENT_NOT_PENDING.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Confirmar o rechazar el pago inicial de una compra
+      tags:
+        - credit
   /merchant/partners/{partnerId}/payment-claims:
     get:
       operationId: MerchantPaymentClaimsController_list
@@ -15935,7 +16142,7 @@ paths:
                   default: BO
                 customerId:
                   type: string
-                  maxLength: 40
+                  pattern: ^[1-9][0-9]{0,18}$
                 documentCaptureSource:
                   type: string
                   enum:
@@ -16004,7 +16211,9 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          description: IDENTITY_VERIFICATION_NOT_FOUND — no existe en este tenant.
+          description: >-
+            IDENTITY_VERIFICATION_NOT_FOUND — no existe en este tenant, o no es
+            del cliente que pregunta.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':

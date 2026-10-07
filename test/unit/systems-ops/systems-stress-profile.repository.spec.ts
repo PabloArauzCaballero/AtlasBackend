@@ -11,7 +11,13 @@ import { SystemsStressProfileRepository } from '../../../src/modules/systems-ops
 describe('SystemsStressProfileRepository', () => {
   function buildRepo() {
     const endpointModel = { findAndCountAll: asyncMock(), findAll: asyncMock() };
-    const stressProfileModel = { findAndCountAll: asyncMock(), findByPk: asyncMock(), upsert: asyncMock(), findAll: asyncMock() };
+    const stressProfileModel = {
+      findAndCountAll: asyncMock(),
+      findByPk: asyncMock(),
+      findOne: asyncMock(),
+      upsert: asyncMock(),
+      findAll: asyncMock(),
+    };
     const repo = new SystemsStressProfileRepository(endpointModel as never, stressProfileModel as never);
     return { repo, endpointModel, stressProfileModel };
   }
@@ -44,6 +50,13 @@ describe('SystemsStressProfileRepository', () => {
     (stressProfileModel.findAndCountAll as jest.Mock).mockResolvedValue({ rows: [], count: 0 } as never);
     await repo.listStressProfiles({ page: 1, limit: 20 } as never);
     expect(endpointModel.findAll).not.toHaveBeenCalled();
+  });
+
+  it('findStressProfileByCode busca por el código único', async () => {
+    const { repo, stressProfileModel } = buildRepo();
+    (stressProfileModel.findOne as jest.Mock).mockResolvedValue({ id: 3 } as never);
+    expect(await repo.findStressProfileByCode('STRESS_EP')).toEqual({ id: 3 });
+    expect(callArg<CallArgRecord>(stressProfileModel.findOne, 0, 0).where).toEqual({ code: 'STRESS_EP' });
   });
 
   it('upsertStressProfile aplica notes ?? null y arrastra actorId a createdBy/updatedBy', async () => {

@@ -14,7 +14,7 @@ import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
-import { actorId, assertCustomerAccess } from '../external-data-controller.util.js';
+import { actorId, assertCustomerAccess, inlineApprovalBy } from '../external-data-controller.util.js';
 import { ExternalDataService } from '../external-data.service.js';
 import { infocenterCheckSchema, InfocenterCheckDto, segipVerifySchema, SegipVerifyDto } from '../external-data.schemas.js';
 
@@ -94,6 +94,7 @@ export class BureauExternalDataController {
       body,
       idempotencyKey,
       requestedByUserId: actorId(currentUser),
+      approvedByAdminId: inlineApprovalBy(currentUser, body.approvedByAdminId),
     });
   }
 }

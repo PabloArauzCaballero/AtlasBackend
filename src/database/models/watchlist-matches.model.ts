@@ -47,6 +47,16 @@ export class WatchlistMatchModel extends Model {
   @Column({ field: 'matched_at', type: DataType.DATE })
   declare matchedAt: Date | null;
 
+  /** Descarte de cumplimiento: la fila se queda como evidencia y deja de bloquear (C13). */
+  @Column({ field: 'cleared_at', type: DataType.DATE })
+  declare clearedAt: Date | null;
+
+  @Column({ field: 'cleared_by_internal_user_id', type: DataType.BIGINT })
+  declare clearedByInternalUserId: string | null;
+
+  @Column({ field: 'cleared_reason_code', type: DataType.STRING(80) })
+  declare clearedReasonCode: string | null;
+
   @Column({ field: '_created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 }

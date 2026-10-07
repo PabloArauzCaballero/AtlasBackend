@@ -101,6 +101,34 @@ describe('WorkflowCatalogRepository.findDefinition', () => {
     expect((await repository.findDefinition('demo_flow', 'latest'))?.version).toBe('v2');
   });
 
+  it('latest ordena las versiones como número: v10 es más nueva que v9', async () => {
+    const { repository } = buildRepository({
+      definitionModel: {
+        findAll: jest.fn(async (..._args: unknown[]) => [
+          buildDefinition({ version: 'v9', status: 'active', isDefault: false }),
+          buildDefinition({ version: 'v10', status: 'active', isDefault: false }),
+          buildDefinition({ version: 'v1.2', status: 'active', isDefault: false }),
+        ]),
+      },
+    });
+
+    expect((await repository.findDefinition('demo_flow', 'latest'))?.version).toBe('v10');
+    expect((await repository.findVersions('demo_flow')).map((row) => row.version)).toEqual(['v10', 'v9', 'v1.2']);
+  });
+
+  it('latest devuelve null, no un borrador, cuando no hay predeterminada ni activa', async () => {
+    const { repository } = buildRepository({
+      definitionModel: {
+        findAll: jest.fn(async (..._args: unknown[]) => [
+          buildDefinition({ version: 'v2', status: 'draft', isDefault: false }),
+          buildDefinition({ version: 'v1', status: 'deprecated', isDefault: false }),
+        ]),
+      },
+    });
+
+    expect(await repository.findDefinition('demo_flow', 'latest')).toBeNull();
+  });
+
   it('latest devuelve null cuando el código no existe', async () => {
     const { repository } = buildRepository({ definitionModel: { findAll: jest.fn(async (..._args: unknown[]) => []) } });
 

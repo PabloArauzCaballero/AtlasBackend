@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (129 controladores) | 604 |
+| Total montadas (131 controladores) | 608 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
-| Con `@Roles` | 546 |
+| Con `@Roles` | 550 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 79 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -120,6 +120,7 @@
 | `GET` | `/customers/:customerId/bank-statements/latest` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.latestBankStatement` | guards: `TenantGuard` |
 | `GET` | `/customers/:customerId/credit-applications` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.listApplications` | guards: `TenantGuard` |
 | `POST` | `/customers/:customerId/credit-applications` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.createApplication` | guards: `TenantGuard` |
+| `POST` | `/customers/:customerId/credit-applications/:applicationId/down-payment` | `customer`, `internal_operator`, `admin`, `platform_admin` | — | `CreditDownPaymentCustomerController.submit` | guards: `TenantGuard` |
 | `GET` | `/customers/:customerId/credit-line` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.creditLine` | guards: `TenantGuard` |
 | `GET` | `/customers/:customerId/credit-line/history` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.creditLineHistory` | guards: `TenantGuard` |
 | `GET` | `/customers/:customerId/credit-products` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.listProducts` | guards: `TenantGuard` |
@@ -128,6 +129,9 @@
 | `POST` | `/internal/credit/manual-review-callback` | **sin sesión** (`@Public`) | — | `CreditReviewCallbackController.aplicar` | fuera del contrato OpenAPI |
 | `GET` | `/merchant/partners/:partnerId/credit-applications` | `merchant`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `MerchantCreditController.list` | guards: `TenantGuard` |
 | `POST` | `/merchant/partners/:partnerId/credit-applications/:applicationId/acceptance` | `merchant`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `MerchantCreditController.decide` | guards: `TenantGuard` |
+| `GET` | `/merchant/partners/:partnerId/down-payments` | `merchant`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `MerchantDownPaymentController.list` | guards: `TenantGuard` |
+| `GET` | `/merchant/partners/:partnerId/down-payments/:applicationId/proof` | `merchant`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `MerchantDownPaymentController.proof` | guards: `TenantGuard` |
+| `POST` | `/merchant/partners/:partnerId/down-payments/:applicationId/verification` | `merchant`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `MerchantDownPaymentController.decide` | guards: `TenantGuard` |
 | `GET` | `/operations/credit/applications/:applicationId` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.getApplicationDetail` | guards: `TenantGuard` |
 | `POST` | `/operations/credit/applications/:applicationId/business-acceptance` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.decideBusinessAcceptance` | guards: `TenantGuard` |
 | `POST` | `/operations/credit/applications/:applicationId/decision` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.decideApplication` | guards: `TenantGuard` |
@@ -334,10 +338,10 @@
 | `POST` | `/external-data/consents` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.createConsent` | guards: `TenantGuard` |
 | `POST` | `/external-data/consents/:consentId/revoke` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.revokeConsent` | guards: `TenantGuard` |
 | `GET` | `/external-data/consents/user/:customerId` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.listConsents` | guards: `TenantGuard` |
-| `GET` | `/external-data/providers/health` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getProviderHealth` | guards: `TenantGuard` |
-| `POST` | `/external-data/requests` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.executeRequest` | guards: `TenantGuard` |
+| `GET` | `/external-data/providers/health` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getProviderHealth` | guards: `TenantGuard` |
+| `POST` | `/external-data/requests` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.executeRequest` | guards: `TenantGuard` |
 | `GET` | `/external-data/requests/:requestId` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getRequest` | guards: `TenantGuard` |
-| `POST` | `/external-data/requests/preview` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.previewRequest` | guards: `TenantGuard` |
+| `POST` | `/external-data/requests/preview` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.previewRequest` | guards: `TenantGuard` |
 | `GET` | `/external-data/users/:customerId/decision-package` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getDecisionPackage` | guards: `TenantGuard` |
 | `GET` | `/external-data/users/:customerId/features` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getUserFeatures` | guards: `TenantGuard` |
 | `GET` | `/external-data/users/:customerId/observations` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getUserObservations` | guards: `TenantGuard` |

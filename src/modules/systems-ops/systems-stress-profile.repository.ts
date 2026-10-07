@@ -46,6 +46,11 @@ export class SystemsStressProfileRepository {
     return this.stressProfileModel.findByPk(profileId);
   }
 
+  /** `code` es único: es la clave por la que el upsert decide si crea o reescribe. */
+  findStressProfileByCode(code: string): Promise<SystemStressProfileModel | null> {
+    return this.stressProfileModel.findOne({ where: { code } } as FindOptions);
+  }
+
   async upsertStressProfile(values: UpsertStressProfileDto & { code: string; actorId: string | null }): Promise<SystemStressProfileModel> {
     const now = new Date();
     const [row] = await this.stressProfileModel.upsert({
