@@ -225,8 +225,9 @@ export class SystemsCatalogController {
   updateDataEntityMetadata(
     @Param(new ZodValidationPipe(systemsEntityParamsSchema)) params: SystemsEntityParamsDto,
     @Body(new ZodValidationPipe(updateDataEntityMetadataSchema)) body: UpdateDataEntityMetadataDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.updateDataEntityMetadata(params.entityId, body);
+    return this.service.updateDataEntityMetadata(params.entityId, body, user);
   }
 
   @ApiOperation({ summary: 'Impacto de datos de un endpoint' })

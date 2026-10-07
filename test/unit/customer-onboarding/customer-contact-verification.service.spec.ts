@@ -68,6 +68,7 @@ describe('CustomerContactVerificationService', () => {
       journal,
       contactResolution,
       eligibilityService,
+      sequelize,
     };
   }
 
@@ -245,6 +246,21 @@ describe('CustomerContactVerificationService', () => {
       });
       expect(journal.recordFailure).toHaveBeenCalledWith(expect.anything(), { failureReasonCode: 'invalid_code' });
       expect(onboardingRepository.markContactMethodVerified).not.toHaveBeenCalled();
+    });
+
+    it('FALLA sin el fix: el fallo se escribe en una transacción que CONFIRMA (lanzar dentro la deshacía)', async () => {
+      const { service, onboardingRepository, codeService, sequelize } = buildService();
+      (onboardingRepository.findLatestContactVerificationAttempt as jest.Mock).mockResolvedValueOnce({ id: 'attempt-1' } as never);
+      (codeService.verify as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'invalid' } as never);
+      let confirmada = false;
+      (sequelize.transaction as jest.Mock).mockImplementationOnce((async (cb: (t: unknown) => Promise<unknown>) => {
+        const resultado = await cb({}); // si el callback lanza, no hay commit: el rollback se llevaría la bitácora
+        confirmada = true;
+        return resultado;
+      }) as never);
+
+      await expect(service.submitContactVerification(submitInput())).rejects.toThrow(/INVALID_VERIFICATION_CODE/);
+      expect(confirmada).toBe(true);
     });
 
     it('traduce un código vencido a VERIFICATION_CODE_EXPIRED', async () => {

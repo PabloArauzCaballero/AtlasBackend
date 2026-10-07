@@ -4,6 +4,7 @@
  * @system descubre endpoints, cataloga impacto de datos, ejecuta pruebas controladas y expone salud y cobertura.
  */
 import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import { ForbiddenException } from '@nestjs/common';
 import { env } from '../../config/env.js';
 
@@ -26,14 +27,46 @@ function configuredHosts(environment: SystemTestEnvironment): Set<string> {
   );
 }
 
+/** IPv6 canónica (la misma forma que deja `new URL`): `0:0:…:1` → `::1`, `::ffff:10.0.0.1` → `::ffff:a00:1`. */
+function canonicalIpv6(address: string): string {
+  return new URL(`http://[${address.replace(/%.*$/, '')}]/`).hostname.replace(/^\[|\]$/g, '');
+}
+
+/** IPv4 mapeada en IPv6 (`::ffff:a00:1`) → punteada; si no lo es, null. */
+function ipv4FromMapped(canonical: string): string | null {
+  const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(canonical);
+  if (!hex) return null;
+  const high = Number.parseInt(hex[1], 16);
+  const low = Number.parseInt(hex[2], 16);
+  return [high >> 8, high & 0xff, low >> 8, low & 0xff].join('.');
+}
+
+function isPrivateIpv4(address: string): boolean {
+  const [a, b, c] = address.split('.').map(Number);
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) || // CGNAT y Tailscale
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 192 && b === 0 && c === 0) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    (a === 169 && b === 254)
+  );
+}
+
 export function isPrivateOrMetadataAddress(address: string): boolean {
   const normalized = address.toLowerCase().replace(/^\[|\]$/g, '');
-  if (METADATA_HOSTS.has(normalized) || normalized === '::1' || normalized === '0:0:0:0:0:0:0:1') return true;
-  if (normalized.startsWith('fe80:') || normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
-  const parts = normalized.split('.').map(Number);
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
-  const [a, b] = parts;
-  return a === 0 || a === 10 || a === 127 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254);
+  if (METADATA_HOSTS.has(normalized)) return true;
+  const family = isIP(normalized);
+  if (family === 4) return isPrivateIpv4(normalized);
+  if (family !== 6) return false; // un nombre de host no es una dirección: lo juzga su resolución DNS
+  const canonical = canonicalIpv6(normalized);
+  if (canonical === '::1' || canonical === '::') return true;
+  const mapped = ipv4FromMapped(canonical);
+  if (mapped) return isPrivateIpv4(mapped);
+  return /^fe[89ab]/.test(canonical) || canonical.startsWith('fc') || canonical.startsWith('fd');
 }
 
 export function assertHostAllowed(url: URL, environment: SystemTestEnvironment): void {

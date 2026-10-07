@@ -111,6 +111,14 @@ export class CreditApplicationService {
          */
         businessAcceptance: application.businessAcceptance,
         businessAcceptanceAt: application.businessAcceptanceAt?.toISOString() ?? null,
+        /*
+         * El pago inicial (el 60 % que se paga directo al comercio): `null` = todavía no avisó; `submitted` =
+         * esperando al comercio; `confirmed` = el comercio lo vio entrar; `rejected` = dice por qué y se puede avisar de nuevo.
+         * Es lo que la app necesita para pasar de «esperando al comercio» a «pagado» sin inventarlo en el teléfono.
+         */
+        downPaymentStatus: application.downPaymentStatus ?? null,
+        downPaymentAmount: application.downPaymentAmount ?? null,
+        downPaymentRejectionReason: application.downPaymentRejectionReason ?? null,
       })),
     };
   }

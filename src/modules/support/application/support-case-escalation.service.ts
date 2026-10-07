@@ -62,6 +62,8 @@ export class SupportCaseEscalationService {
 
     const updated = await this.sequelize.transaction(async (transaction) => {
       const supportCase = await this.cases.requireById(input.tenantId, input.caseId, { transaction });
+      // Escalar lo ya restringido —y soltar a su responsable— es de quien puede abrirlo.
+      await this.actors.assertCanViewCase(input.actor, supportCase, input.tenantId);
       await this.timeline.releaseLiveAssignment(input.caseId, `escalated: ${input.dto.escalationType}`, { transaction });
 
       await this.transitions.apply({
@@ -109,6 +111,7 @@ export class SupportCaseEscalationService {
   /** Nota interna: comparte transcripción con el mensaje, nunca visibilidad. */
   async addInternalNote(input: { tenantId: string; actor: SupportActor; caseId: string; dto: InternalNoteDto }) {
     this.actors.assertIsAgent(input.actor);
+    await this.actors.assertCanViewCase(input.actor, await this.cases.requireById(input.tenantId, input.caseId), input.tenantId);
     const channels = await this.channels.listChannelsForCase(input.caseId);
     const target = channels.find((channel) => !['CLOSED', 'ABANDONED'].includes(channel.status)) ?? channels[0];
     if (!target) throw new NotFoundException({ code: 'SUPPORT_CHANNEL_NOT_FOUND', caseId: input.caseId });
@@ -143,7 +146,10 @@ export class SupportCaseEscalationService {
   /** Enlazar dos expedientes. Agrupar no cierra: cada caso conserva su respuesta y su SLA. */
   async link(input: { tenantId: string; actor: SupportActor; caseId: string; dto: LinkCaseDto }) {
     this.actors.assertIsAgent(input.actor);
-    await this.cases.requireById(input.tenantId, input.dto.linkedCaseId);
+    // Los dos extremos: enlazar confirma que el otro expediente existe y deja su número en éste.
+    for (const caseId of [input.caseId, input.dto.linkedCaseId]) {
+      await this.actors.assertCanViewCase(input.actor, await this.cases.requireById(input.tenantId, caseId), input.tenantId);
+    }
 
     await this.sequelize.transaction(async (transaction) => {
       await this.timeline.createLink(

@@ -17,8 +17,9 @@ describe('AuthPasswordResetService', () => {
       createOneTimeCode: jest.fn(async (..._args: unknown[]) => ({})),
       recordLoginAttemptEvent: jest.fn(async (..._args: unknown[]) => ({})),
       findActiveOneTimeCodeByActor: jest.fn(async (..._args: unknown[]) => null),
+      reserveOneTimeCodeAttempt: jest.fn(async (..._args: unknown[]) => true),
       registerOneTimeCodeFailedAttempt: jest.fn(async (..._args: unknown[]) => ({})),
-      consumeOneTimeCode: jest.fn(async (..._args: unknown[]) => ({})),
+      consumeOneTimeCode: jest.fn(async (..._args: unknown[]) => true),
       updatePasswordHash: jest.fn(async (..._args: unknown[]) => ({})),
       revokeAllRefreshTokensForActor: jest.fn(async (..._args: unknown[]) => 0),
     };
@@ -189,6 +190,21 @@ describe('AuthPasswordResetService', () => {
     } as never);
     await expect(service.confirmPasswordReset(confirmInput)).rejects.toBeInstanceOf(UnauthorizedException);
     expect(authRepository.registerOneTimeCodeFailedAttempt).toHaveBeenCalledTimes(1);
+    expect(authRepository.updatePasswordHash).not.toHaveBeenCalled();
+  });
+
+  it('confirmPasswordReset no compara el código si ya no quedan intentos, ni cambia la contraseña si otro lo consumió antes', async () => {
+    const { service, authRepository, actorResolver } = build();
+    const vivo = { expiresAt: new Date(Date.now() + 600_000), codeHash: hashOneTimeCode('123456') };
+    (actorResolver.resolveActorForLogin as jest.Mock).mockResolvedValue(actorWithEmail as never);
+    (authRepository.findActiveOneTimeCodeByActor as jest.Mock).mockResolvedValue(vivo as never);
+
+    (authRepository.reserveOneTimeCodeAttempt as jest.Mock).mockResolvedValueOnce(false as never);
+    await expect(service.confirmPasswordReset(confirmInput)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(authRepository.registerOneTimeCodeFailedAttempt).not.toHaveBeenCalled();
+
+    (authRepository.consumeOneTimeCode as jest.Mock).mockResolvedValueOnce(false as never);
+    await expect(service.confirmPasswordReset(confirmInput)).rejects.toBeInstanceOf(UnauthorizedException);
     expect(authRepository.updatePasswordHash).not.toHaveBeenCalled();
   });
 

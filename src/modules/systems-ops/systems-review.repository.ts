@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindAndCountOptions, Model } from 'sequelize';
+import { FindAndCountOptions, FindOptions, Model, Transaction } from 'sequelize';
 import {
   SystemDataEntityCatalogModel,
   SystemDataFieldCatalogModel,
@@ -17,6 +17,35 @@ import {
 } from '../../database/models/index.js';
 import { ReviewDecisionDto, SystemsReviewQueueDto } from './systems-ops.schemas.js';
 import { buildReviewFamilyWhere, ReviewFamily } from './systems-review-where.util.js';
+
+const DATA_ENTITY_METADATA_FIELDS = [
+  'businessPurpose',
+  'dataOwner',
+  'containsPii',
+  'containsFinancialData',
+  'containsRiskData',
+  'containsLegalData',
+  'containsDeviceData',
+  'containsLocationData',
+  'isAuditCritical',
+  'retentionPolicyCode',
+  'status',
+  'reviewStatus',
+] as const;
+
+/** Lo que cambia cómo se gobierna la tabla: su cambio deja evento de revisión. */
+const GOVERNANCE_FIELDS = new Set<string>([
+  'containsPii',
+  'containsFinancialData',
+  'containsRiskData',
+  'containsLegalData',
+  'containsDeviceData',
+  'containsLocationData',
+  'isAuditCritical',
+  'retentionPolicyCode',
+  'status',
+  'reviewStatus',
+]);
 
 @Injectable()
 export class SystemsReviewRepository {
@@ -52,178 +81,180 @@ export class SystemsReviewRepository {
     return { endpoints, dataEntities, dataImpacts, fieldImpacts, dataColumns, toolRequirements };
   }
 
-  async updateEndpointReview(
+  updateEndpointReview(
     endpointId: string,
     decision: ReviewDecisionDto,
     actorId: string | null,
     actorRole: string,
     tenantId: string | null,
   ): Promise<SystemEndpointCatalogModel | null> {
-    const row = await this.endpointModel.findByPk(endpointId);
-    if (!row) return null;
-    const previousStatus = row.reviewStatus;
-    const previousConfidence = row.confidenceLevel;
-    row.reviewStatus = decision.reviewStatus;
-    if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
-    row.updatedBy = actorId;
-    row.updatedAtValue = new Date();
-    const saved = await row.save();
-    await this.recordReview({
-      targetType: 'endpoint',
-      targetId: endpointId,
-      previousStatus,
-      previousConfidence,
-      decision,
-      actorId,
-      actorRole,
-      tenantId,
-    });
-    return saved;
+    return this.decide<SystemEndpointCatalogModel>(
+      this.endpointModel,
+      { targetType: 'endpoint', targetId: endpointId, decision, actorId, actorRole, tenantId },
+      (row) => {
+        row.updatedBy = actorId;
+        row.updatedAtValue = new Date();
+      },
+    );
   }
 
-  async updateDataEntityReview(
+  updateDataEntityReview(
     entityId: string,
     decision: ReviewDecisionDto,
     actorId: string | null,
     actorRole: string,
     tenantId: string | null,
   ): Promise<SystemDataEntityCatalogModel | null> {
-    const row = await this.dataEntityModel.findByPk(entityId);
-    if (!row) return null;
-    const previousStatus = row.reviewStatus;
-    const previousConfidence = row.confidenceLevel;
-    row.reviewStatus = decision.reviewStatus;
-    if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
-    row.updatedAtValue = new Date();
-    const saved = await row.save();
-    await this.recordReview({
-      targetType: 'data_entity',
-      targetId: entityId,
-      previousStatus,
-      previousConfidence,
-      decision,
-      actorId,
-      actorRole,
-      tenantId,
-    });
-    return saved;
+    return this.decide<SystemDataEntityCatalogModel>(
+      this.dataEntityModel,
+      { targetType: 'data_entity', targetId: entityId, decision, actorId, actorRole, tenantId },
+      (row) => {
+        row.updatedAtValue = new Date();
+      },
+    );
   }
 
-  async updateDataImpactReview(
+  updateDataImpactReview(
     impactId: string,
     decision: ReviewDecisionDto,
     actorId: string | null,
     actorRole: string,
     tenantId: string | null,
   ): Promise<SystemEndpointDataEntityImpactModel | null> {
-    const row = await this.dataImpactModel.findByPk(impactId);
-    if (!row) return null;
-    const previousStatus = row.reviewStatus;
-    const previousConfidence = row.confidenceLevel;
-    row.reviewStatus = decision.reviewStatus;
-    if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
-    if (decision.notes) row.notes = decision.notes;
-    row.updatedAtValue = new Date();
-    const saved = await row.save();
-    await this.recordReview({
-      targetType: 'data_impact',
-      targetId: impactId,
-      previousStatus,
-      previousConfidence,
-      decision,
-      actorId,
-      actorRole,
-      tenantId,
-    });
-    return saved;
+    return this.decide<SystemEndpointDataEntityImpactModel>(
+      this.dataImpactModel,
+      { targetType: 'data_impact', targetId: impactId, decision, actorId, actorRole, tenantId },
+      (row) => {
+        if (decision.notes) row.notes = decision.notes;
+        row.updatedAtValue = new Date();
+      },
+    );
   }
 
-  async updateFieldImpactReview(
+  updateFieldImpactReview(
     impactId: string,
     decision: ReviewDecisionDto,
     actorId: string | null,
     actorRole: string,
     tenantId: string | null,
   ): Promise<SystemEndpointFieldImpactModel | null> {
-    const row = await this.fieldImpactModel.findByPk(impactId);
-    if (!row) return null;
-    const previousStatus = row.reviewStatus;
-    const previousConfidence = row.confidenceLevel;
-    row.reviewStatus = decision.reviewStatus;
-    if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
-    if (decision.notes) row.notes = decision.notes;
-    const saved = await row.save();
-    await this.recordReview({
-      targetType: 'field_impact',
-      targetId: impactId,
-      previousStatus,
-      previousConfidence,
-      decision,
-      actorId,
-      actorRole,
-      tenantId,
-    });
-    return saved;
+    return this.decide<SystemEndpointFieldImpactModel>(
+      this.fieldImpactModel,
+      { targetType: 'field_impact', targetId: impactId, decision, actorId, actorRole, tenantId },
+      (row) => {
+        if (decision.notes) row.notes = decision.notes;
+      },
+    );
   }
 
-  async updateDataColumnReview(
+  updateDataColumnReview(
     columnId: string,
     decision: ReviewDecisionDto,
     actorId: string | null,
     actorRole: string,
     tenantId: string | null,
   ): Promise<SystemDataFieldCatalogModel | null> {
-    const row = await this.dataFieldModel.findByPk(columnId);
-    if (!row) return null;
-    const previousStatus = row.reviewStatus;
-    const previousConfidence = row.confidenceLevel;
-    row.reviewStatus = decision.reviewStatus;
-    if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
-    if (decision.notes) row.operationalNotes = decision.notes;
-    row.detectedFrom = 'manual';
-    row.manuallyEditedAt = new Date();
-    row.updatedAtValue = new Date();
-    const saved = await row.save();
-    await this.recordReview({
-      targetType: 'data_column',
-      targetId: columnId,
-      previousStatus,
-      previousConfidence,
-      decision,
-      actorId,
-      actorRole,
-      tenantId,
-    });
-    return saved;
+    return this.decide<SystemDataFieldCatalogModel>(
+      this.dataFieldModel,
+      { targetType: 'data_column', targetId: columnId, decision, actorId, actorRole, tenantId },
+      (row) => {
+        if (decision.notes) row.operationalNotes = decision.notes;
+        row.detectedFrom = 'manual';
+        row.manuallyEditedAt = new Date();
+        row.updatedAtValue = new Date();
+      },
+    );
   }
 
-  async updateToolRequirementReview(
+  updateToolRequirementReview(
     requirementId: string,
     decision: ReviewDecisionDto,
     actorId: string | null,
     actorRole: string,
     tenantId: string | null,
   ): Promise<SystemEndpointToolRequirementModel | null> {
-    const row = await this.endpointToolModel.findByPk(requirementId);
-    if (!row) return null;
-    const previousStatus = row.reviewStatus;
-    const previousConfidence = row.confidenceLevel;
-    row.reviewStatus = decision.reviewStatus;
-    if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
-    if (decision.notes) row.notes = decision.notes;
-    row.updatedAtValue = new Date();
-    const saved = await row.save();
-    await this.recordReview({
-      targetType: 'tool_requirement',
-      targetId: requirementId,
-      previousStatus,
-      previousConfidence,
-      decision,
-      actorId,
-      actorRole,
-      tenantId,
+    return this.decide<SystemEndpointToolRequirementModel>(
+      this.endpointToolModel,
+      { targetType: 'tool_requirement', targetId: requirementId, decision, actorId, actorRole, tenantId },
+      (row) => {
+        if (decision.notes) row.notes = decision.notes;
+        row.updatedAtValue = new Date();
+      },
+    );
+  }
+
+  /*
+   * La metadata de una tabla incluye su estado de revisión y las banderas de gobierno (PII, financiera…).
+   * Cambiarlas por aquí sin rastro dejaba aprobar una tabla o quitarle la marca de PII sin evento de
+   * revisión: si cambia alguna, queda un evento con el actor y el antes→después de cada bandera.
+   */
+  updateDataEntityMetadata(
+    entityId: string,
+    body: Record<string, unknown>,
+    actorId: string | null,
+    actorRole: string,
+    tenantId: string | null,
+  ): Promise<SystemDataEntityCatalogModel | null> {
+    return this.reviewEventModel.sequelize!.transaction(async (transaction) => {
+      const row = await this.dataEntityModel.findByPk(entityId, { transaction, lock: transaction.LOCK.UPDATE });
+      if (!row) return null;
+      const fields = row as unknown as Record<string, unknown>;
+      const previousStatus = row.reviewStatus;
+      const governanceChanges: string[] = [];
+      for (const field of DATA_ENTITY_METADATA_FIELDS) {
+        if (!(field in body)) continue;
+        if (GOVERNANCE_FIELDS.has(field) && fields[field] !== body[field]) {
+          governanceChanges.push(`${field}: ${String(fields[field])}→${String(body[field])}`);
+        }
+        fields[field] = body[field];
+      }
+      row.updatedAtValue = new Date();
+      const saved = await row.save({ transaction });
+      if (governanceChanges.length > 0 || row.reviewStatus !== previousStatus) {
+        await this.recordReview(
+          {
+            targetType: 'data_entity',
+            targetId: entityId,
+            previousStatus,
+            previousConfidence: row.confidenceLevel,
+            decision: {
+              reviewStatus: row.reviewStatus,
+              notes: `metadata: ${governanceChanges.join('; ') || 'reviewStatus'}`,
+            } as ReviewDecisionDto,
+            actorId,
+            actorRole,
+            tenantId,
+          },
+          transaction,
+        );
+      }
+      return saved;
     });
-    return saved;
+  }
+
+  /*
+   * La decisión y su evento van en la misma transacción y con la fila bloqueada: si el evento no se
+   * escribe, la decisión tampoco queda; y dos revisores a la vez no registran el mismo estado previo
+   * para transiciones que nunca ocurrieron. Igual que `SystemFlowsReviewRepository.decide`.
+   */
+  private decide<T extends Model & { reviewStatus: string; confidenceLevel: string }>(
+    model: { findByPk(id: string, options: FindOptions): Promise<T | null> },
+    entrada: Omit<Parameters<SystemsReviewRepository['recordReview']>[0], 'previousStatus' | 'previousConfidence'>,
+    apply: (row: T) => void,
+  ): Promise<T | null> {
+    const { targetId, decision } = entrada;
+    return this.reviewEventModel.sequelize!.transaction(async (transaction) => {
+      const row = await model.findByPk(targetId, { transaction, lock: transaction.LOCK.UPDATE });
+      if (!row) return null;
+      const previousStatus = row.reviewStatus;
+      const previousConfidence = row.confidenceLevel;
+      row.reviewStatus = decision.reviewStatus;
+      if (decision.confidenceLevel) row.confidenceLevel = decision.confidenceLevel;
+      apply(row);
+      const saved = await row.save({ transaction });
+      await this.recordReview({ ...entrada, previousStatus, previousConfidence }, transaction);
+      return saved;
+    });
   }
 
   /*
@@ -232,29 +263,35 @@ export class SystemsReviewRepository {
    * compilaba sin una queja y dejaba el evento de revisión atribuido a otro actor o a otro
    * tenant, que es exactamente lo que este registro existe para poder demostrar.
    */
-  private async recordReview(entrada: {
-    targetType: string;
-    targetId: string;
-    previousStatus: string | null;
-    previousConfidence: string | null;
-    decision: ReviewDecisionDto;
-    actorId: string | null;
-    actorRole: string;
-    tenantId: string | null;
-  }): Promise<void> {
+  private async recordReview(
+    entrada: {
+      targetType: string;
+      targetId: string;
+      previousStatus: string | null;
+      previousConfidence: string | null;
+      decision: ReviewDecisionDto;
+      actorId: string | null;
+      actorRole: string;
+      tenantId: string | null;
+    },
+    transaction: Transaction,
+  ): Promise<void> {
     const { targetType, targetId, previousStatus, previousConfidence, decision, actorId, actorRole, tenantId } = entrada;
-    await this.reviewEventModel.create({
-      tenantId,
-      targetType,
-      targetId,
-      previousStatus,
-      newStatus: decision.reviewStatus,
-      previousConfidence,
-      newConfidence: decision.confidenceLevel ?? previousConfidence,
-      notes: decision.notes ?? null,
-      actorId,
-      actorRole,
-      createdAtValue: new Date(),
-    } as never);
+    await this.reviewEventModel.create(
+      {
+        tenantId,
+        targetType,
+        targetId,
+        previousStatus,
+        newStatus: decision.reviewStatus,
+        previousConfidence,
+        newConfidence: decision.confidenceLevel ?? previousConfidence,
+        notes: decision.notes ?? null,
+        actorId,
+        actorRole,
+        createdAtValue: new Date(),
+      } as never,
+      { transaction },
+    );
   }
 }

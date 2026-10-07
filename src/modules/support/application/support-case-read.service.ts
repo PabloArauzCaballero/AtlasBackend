@@ -3,7 +3,7 @@
  * @business Un cliente ve su caso en su idioma; el equipo ve además cola, prioridad y SLA.
  * @system separa la LECTURA de la escritura: aquí no hay transiciones, sólo autorización y proyección.
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { SupportCaseModel } from '../../../database/models/index.js';
 import { SupportCaseRepository } from '../support-case.repository.js';
 import { SupportCatalogRepository } from '../support-catalog.repository.js';
@@ -122,13 +122,24 @@ export class SupportCaseReadService {
     };
   }
 
-  /** Los casos propios: el filtro por sujeto lo pone el servidor, nunca la petición. */
+  /**
+   * Los casos propios: el filtro por sujeto lo pone el servidor, nunca la petición.
+   *
+   * Un cliente sin `customerId` no tiene «propios»: sin filtro vería el tenant entero, así que se
+   * rechaza. El personal interno entra por estas rutas sin sujeto; se le aplica la misma visibilidad
+   * de RESTRINGIDOS que en la cola de trabajo, que es la que estas rutas se saltaban.
+   */
   async listOwnCases(input: { tenantId: string; actor: SupportActor; query: ListCasesQueryDto; partnerProfileId?: string | null }) {
+    const { actor } = input;
+    const ownsSubject = actor.actorType === 'CUSTOMER' ? Boolean(actor.customerId) : actor.actorType === 'PARTNER_USER';
+    if (!ownsSubject && !actor.isInternal) throw new ForbiddenException({ code: 'SUPPORT_CASE_FORBIDDEN' });
+
     const rows = await this.cases.listCases({
       tenantId: input.tenantId,
       customerId: input.actor.actorType === 'CUSTOMER' ? input.actor.customerId : null,
       partnerProfileId: input.actor.actorType === 'PARTNER_USER' ? (input.partnerProfileId ?? null) : null,
       openedByActorId: input.actor.actorType === 'PARTNER_USER' ? input.actor.actorId : null,
+      restrictedVisibleTo: ownsSubject ? null : { agentProfileId: actor.agentProfileId, isSupervisor: actor.isSupervisor },
       statuses: input.query.status ? input.query.status.split(',') : undefined,
       limit: input.query.limit,
       cursorOpenedAt: input.query.cursorOpenedAt ? new Date(input.query.cursorOpenedAt) : null,

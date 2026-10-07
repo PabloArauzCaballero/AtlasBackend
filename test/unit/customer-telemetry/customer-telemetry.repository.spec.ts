@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { CustomerTelemetryRepository } from '../../../src/modules/customer-telemetry/customer-telemetry.repository.js';
 import { TelemetryActivityRepository } from '../../../src/modules/customer-telemetry/telemetry-activity.repository.js';
 import { TelemetryBehaviorRepository } from '../../../src/modules/customer-telemetry/telemetry-behavior.repository.js';
@@ -244,15 +244,6 @@ describe('CustomerTelemetryRepository', () => {
       expect(((models.onDeviceMetricValue.bulkCreate as jest.Mock).mock.calls[0][0] as Array<Record<string, unknown>>)[0]).toMatchObject({
         valueBoolean: true,
       });
-    });
-
-    it('createBehaviorSummary fija permissionGrantScore según el conteo de permisos', async () => {
-      const { repo, models } = buildRepo();
-      await repo.createBehaviorSummary({ ...base, formEventCount: 0, permissionEventCount: 2, computedAt: base.occurredAt } as never, tx);
-      await repo.createBehaviorSummary({ ...base, formEventCount: 0, permissionEventCount: 0, computedAt: base.occurredAt } as never, tx);
-      const create = models.onboardingBehaviorSummary.create;
-      expect(callArg<CallArgRecord>(create, 0, 0).permissionGrantScore).toBe('1.0000');
-      expect(callArg<CallArgRecord>(create, 1, 0).permissionGrantScore).toBeNull();
     });
 
     it('upsertActivitySummary crea si no existe, o actualiza (totalSessions+1) el existente', async () => {

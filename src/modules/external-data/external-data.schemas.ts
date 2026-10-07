@@ -6,15 +6,15 @@
 import { z } from 'zod';
 import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 
-const idStringSchema = z.string().trim().regex(/^\d+$/);
+export const idStringSchema = z.string().trim().regex(/^\d+$/);
 const providerCodeSchema = z
   .string()
   .trim()
   .min(2)
   .max(80)
   .transform((value) => (value.toUpperCase() === 'CGIP' ? 'SEGIP' : value.toUpperCase()));
-const scenarioSchema = z.string().trim().max(80).optional();
-const decisionStageSchema = z
+export const scenarioSchema = z.string().trim().max(80).optional();
+export const decisionStageSchema = z
   .string()
   .trim()
   .min(3)

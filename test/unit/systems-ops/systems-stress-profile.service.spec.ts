@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SystemsStressProfileService } from '../../../src/modules/systems-ops/systems-stress-profile.service.js';
 
 /**
@@ -13,6 +13,7 @@ describe('SystemsStressProfileService', () => {
     const stressRepository = {
       listStressProfiles: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], meta: {} })),
       findStressProfileById: jest.fn(async (..._args: unknown[]) => null),
+      findStressProfileByCode: jest.fn(async (..._args: unknown[]) => null as unknown),
       upsertStressProfile: jest.fn(async (..._args: unknown[]) => ({ id: 1, endpointId: 5, code: 'STRESS_EP', isEnabled: true })),
       listStressRequiredEndpoints: jest.fn(async (..._args: unknown[]) => ({ rows: [] as unknown[], meta: {} })),
       findStressProfilesByEndpointIds: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
@@ -61,6 +62,50 @@ describe('SystemsStressProfileService', () => {
     await service.upsertStressProfile({ endpointId: '5', code: 'CUSTOM_CODE' } as never, user);
     const [args] = (stressRepository.upsertStressProfile as jest.Mock).mock.calls[0] as [Record<string, unknown>];
     expect(args.code).toBe('CUSTOM_CODE');
+  });
+
+  describe('quien ejecuta no se quita la aprobación', () => {
+    const runner = (role: string) => ({ role, tenantId: 't1', internalUserId: 'u2', platformUserId: null }) as never;
+    const endpoint = { id: 5, code: 'EP' } as never;
+
+    it.each(['devops', 'qa_engineer'])('%s no puede crear ni dejar un perfil sin aprobación', async (role) => {
+      const { service, catalogRepository, stressRepository } = build();
+      (catalogRepository.findEndpointById as jest.Mock).mockResolvedValue(endpoint);
+      // Perfil nuevo.
+      await expect(service.upsertStressProfile({ endpointId: '5', requiresApproval: false } as never, runner(role))).rejects.toThrow(
+        'SYSTEM_STRESS_APPROVAL_WAIVER_REQUIRES_GOVERNANCE',
+      );
+      // Perfil existente que hoy SÍ pide aprobación: reescribirlo con `false` es bajar el control.
+      (stressRepository.findStressProfileByCode as jest.Mock).mockResolvedValueOnce({ requiresApproval: true } as never);
+      await expect(service.upsertStressProfile({ endpointId: '5', requiresApproval: false } as never, runner(role))).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(stressRepository.findStressProfileByCode).toHaveBeenLastCalledWith('STRESS_EP');
+      expect(stressRepository.upsertStressProfile).not.toHaveBeenCalled();
+    });
+
+    it('un perfil que ya estaba sin aprobación se sigue pudiendo editar', async () => {
+      const { service, catalogRepository, stressRepository } = build();
+      (catalogRepository.findEndpointById as jest.Mock).mockResolvedValue(endpoint);
+      (stressRepository.findStressProfileByCode as jest.Mock).mockResolvedValueOnce({ requiresApproval: false } as never);
+      await service.upsertStressProfile({ endpointId: '5', requiresApproval: false, targetRps: 3 } as never, runner('devops'));
+      expect(stressRepository.upsertStressProfile).toHaveBeenCalledTimes(1);
+    });
+
+    it('con aprobación exigida cualquiera de los roles de estrés guarda, sin consulta previa', async () => {
+      const { service, catalogRepository, stressRepository } = build();
+      (catalogRepository.findEndpointById as jest.Mock).mockResolvedValue(endpoint);
+      await service.upsertStressProfile({ endpointId: '5', requiresApproval: true } as never, runner('qa_engineer'));
+      expect(stressRepository.findStressProfileByCode).not.toHaveBeenCalled();
+      expect(stressRepository.upsertStressProfile).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['system_admin', 'platform_admin'])('%s sí puede dejar un perfil sin aprobación', async (role) => {
+      const { service, catalogRepository, stressRepository } = build();
+      (catalogRepository.findEndpointById as jest.Mock).mockResolvedValue(endpoint);
+      await service.upsertStressProfile({ endpointId: '5', requiresApproval: false } as never, runner(role));
+      expect(stressRepository.upsertStressProfile).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('getStressMatrix agrupa perfiles por endpoint y calcula hasEnabledProfile', async () => {

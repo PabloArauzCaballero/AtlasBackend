@@ -50,15 +50,17 @@ export class AdmissionGate {
         // un sondeo cada 100 ms desperdiciaría vueltas y un cálculo justo se pasaría por redondeo.
         const esperaMs = this.windowMs - (ahora - this.concedidas[0]) + 25;
         await new Promise((resolve) => {
-          const timer = setTimeout(resolve, esperaMs);
-          signal?.addEventListener(
-            'abort',
-            () => {
-              clearTimeout(timer);
-              resolve(undefined);
-            },
-            { once: true },
-          );
+          // La señal de la corrida la comparten todas las personas: el oyente se quita al vencer la
+          // espera, o cada vuelta dejaría uno más colgado hasta el final de la corrida.
+          const onAbort = () => {
+            clearTimeout(timer);
+            resolve(undefined);
+          };
+          const timer = setTimeout(() => {
+            signal?.removeEventListener('abort', onAbort);
+            resolve(undefined);
+          }, esperaMs);
+          signal?.addEventListener('abort', onAbort, { once: true });
         });
       }
     } finally {

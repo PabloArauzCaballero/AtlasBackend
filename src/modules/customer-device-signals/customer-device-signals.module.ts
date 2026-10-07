@@ -18,6 +18,7 @@ import {
   OperationalAuditLogModel,
 } from '../../database/models/index.js';
 import { CustomersModule } from '../customers/customers.module.js';
+import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { CustomerAddressBookService } from './application/customer-address-book.service.js';
 import { CustomerLocationTrackingService } from './application/customer-location-tracking.service.js';
 import { DeviceSignalsAccessService } from './application/device-signals-access.service.js';
@@ -41,6 +42,8 @@ import { DeviceSignalsJournalRepository } from './repositories/device-signals-jo
       OperationalAuditLogModel,
     ]),
     CustomersModule,
+    // Aporta `InternalRbacRepository`: borrar la agenda de un cliente exige `privacy.requests.manage`.
+    InternalUsersModule,
   ],
   controllers: [CustomerDeviceSignalsController],
   providers: [

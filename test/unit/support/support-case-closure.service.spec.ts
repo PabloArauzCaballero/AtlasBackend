@@ -113,6 +113,15 @@ describe('SupportCaseClosureService', () => {
       );
     });
 
+    it('resolver un caso que no se puede abrir es 403 y no escribe nada', async () => {
+      actors.assertCanViewCase.mockRejectedValueOnce(new ForbiddenException({ code: 'SUPPORT_CASE_RESTRICTED' }) as never);
+
+      await expect(service.resolve({ tenantId: 't1', actor: AGENTE, caseId: '7', dto: RESOLUCION })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(timeline.createResolution).not.toHaveBeenCalled();
+    });
+
     it('supera la resolución anterior antes de escribir la nueva, con su número de secuencia', async () => {
       timeline.nextResolutionSequence.mockResolvedValueOnce(3 as never);
 
@@ -187,6 +196,15 @@ describe('SupportCaseClosureService', () => {
   describe('cerrar', () => {
     it('un bloqueo legal lo impide, y se comprueba antes de tocar el caso', async () => {
       cases.requireById.mockResolvedValueOnce(caso({ legalHold: true }) as never);
+
+      await expect(service.close({ tenantId: 't1', actor: AGENTE, caseId: '7', dto: { reason: 'ok' } as never })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(transitions.apply).not.toHaveBeenCalled();
+    });
+
+    it('cerrar a mano un caso que no se puede abrir es 403; el barrido automático no pasa por ahí', async () => {
+      actors.assertCanViewCase.mockRejectedValueOnce(new ForbiddenException({ code: 'SUPPORT_CASE_RESTRICTED' }) as never);
 
       await expect(service.close({ tenantId: 't1', actor: AGENTE, caseId: '7', dto: { reason: 'ok' } as never })).rejects.toBeInstanceOf(
         ForbiddenException,

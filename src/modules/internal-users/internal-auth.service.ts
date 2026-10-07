@@ -52,12 +52,17 @@ export class InternalAuthService {
     ip: string | null;
     userAgent: string | null;
   }): Promise<InternalAuthResponse> {
-    const tokens = await this.authService.verifyLoginPin(input);
+    const tokens = await this.authService.verifyLoginPin({ ...input, expectedActorType: 'internal_user' });
     return this.buildAuthenticatedResponse(tokens);
   }
 
   async refresh(input: { refreshToken: string; ip: string | null; userAgent: string | null }): Promise<InternalAuthResponse> {
-    const tokens = await this.authService.refresh({ refreshToken: input.refreshToken, ip: input.ip, userAgent: input.userAgent });
+    const tokens = await this.authService.refresh({
+      refreshToken: input.refreshToken,
+      ip: input.ip,
+      userAgent: input.userAgent,
+      expectedActorType: 'internal_user',
+    });
     return this.buildAuthenticatedResponse(tokens);
   }
 

@@ -197,9 +197,86 @@ describe('InternalUsersService security boundaries', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  function perfilConRoles(rolesDe: (id: string) => string[]) {
+    return jest.fn(async (user: { id: string }) => ({
+      user: {
+        id: user.id,
+        tenantId: '1',
+        email: 'x@atlas.internal',
+        fullName: 'X',
+        userCode: 'x',
+        status: 'active',
+        department: 'SYSTEMS',
+        jobTitle: null,
+        mustChangePassword: false,
+        mfaEnabled: false,
+        roles: rolesDe(user.id),
+        permissions: [],
+      },
+    }));
+  }
+
+  it.each([{ status: 'suspended' }, { status: 'active' }, { mustChangePassword: true }])(
+    'cambiar estado o mustChangePassword de un SUPER_ADMIN exige ser SUPER_ADMIN (%j)',
+    async (cambio) => {
+      const repository = makeRepository({
+        hasPermissions: jest.fn(async (..._args: unknown[]) => true),
+        updateUser: jest.fn(async (user: { id: string }) => user),
+        buildAccessProfile: perfilConRoles((id) => (id === '11' ? ['SUPER_ADMIN'] : ['INTERNAL_IDENTITY_ADMIN'])),
+      });
+      const service = new InternalUsersService(
+        repository as never,
+        makeTokenRevocationService() as never,
+        makeAuthService() as never,
+        makeMailSender() as never,
+      );
+
+      await expect(
+        service.updateUser(currentUser, '11', { ...cambio, reason: 'motivo suficiente' } as never, { ipAddress: null, userAgent: null }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repository.updateUser).not.toHaveBeenCalled();
+    },
+  );
+
+  it('un SUPER_ADMIN sí puede suspender a otro SUPER_ADMIN, y editar el nombre de uno no exige SUPER_ADMIN', async () => {
+    const repository = makeRepository({
+      hasPermissions: jest.fn(async (..._args: unknown[]) => true),
+      updateUser: jest.fn(async (user: { id: string }) => user),
+      buildAccessProfile: perfilConRoles(() => ['SUPER_ADMIN']),
+    });
+    const service = new InternalUsersService(
+      repository as never,
+      makeTokenRevocationService() as never,
+      makeAuthService() as never,
+      makeMailSender() as never,
+    );
+    await service.updateUser(currentUser, '11', { status: 'suspended', reason: 'motivo suficiente' }, { ipAddress: null, userAgent: null });
+    expect(repository.updateUser).toHaveBeenCalledTimes(1);
+
+    const sinSuper = makeRepository({
+      hasPermissions: jest.fn(async (..._args: unknown[]) => true),
+      updateUser: jest.fn(async (user: { id: string }) => user),
+      buildAccessProfile: perfilConRoles((id) => (id === '11' ? ['SUPER_ADMIN'] : ['INTERNAL_IDENTITY_ADMIN'])),
+    });
+    const servicio2 = new InternalUsersService(
+      sinSuper as never,
+      makeTokenRevocationService() as never,
+      makeAuthService() as never,
+      makeMailSender() as never,
+    );
+    await servicio2.updateUser(
+      currentUser,
+      '11',
+      { fullName: 'Nuevo Nombre', reason: 'motivo suficiente' },
+      { ipAddress: null, userAgent: null },
+    );
+    expect(sinSuper.updateUser).toHaveBeenCalledTimes(1);
+  });
+
   it('invalidates the currently active access token when an internal user is disabled (regression)', async () => {
     const repository = makeRepository({
       hasPermissions: jest.fn(async (..._args: unknown[]) => true),
+      buildAccessProfile: perfilConRoles(() => ['SUPPORT_AGENT']),
       updateUser: jest.fn(async (user: { id: string }) => user),
     });
     const tokenRevocationService = makeTokenRevocationService();

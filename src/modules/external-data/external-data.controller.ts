@@ -14,7 +14,14 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { actorId, assertCustomerAccess, customerScopeForConsentMutation, providerProbeRequest } from './external-data-controller.util.js';
+import {
+  actorId,
+  assertCustomerAccess,
+  customerScopeForConsentMutation,
+  inlineApprovalBy,
+  providerProbeRequest,
+} from './external-data-controller.util.js';
+import { providerProbeSchema, ProviderProbeDto } from './external-data-probe.schemas.js';
 import { ExternalDataService } from './external-data.service.js';
 import {
   approveProviderRequestSchema,
@@ -94,6 +101,9 @@ export class ExternalDataController {
       body,
       ipAddress,
       userAgent,
+      // Personal interno registrando en nombre del cliente: la fila debe poder distinguirse de la del titular.
+      assistedByUserId:
+        currentUser.role === 'customer' ? undefined : (currentUser.internalUserId ?? currentUser.platformUserId ?? currentUser.sub),
     });
   }
 
@@ -141,6 +151,12 @@ export class ExternalDataController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiBody({ schema: zodToApiSchema(externalDataRequestSchema) })
   @ApiResponse({ status: 200, description: 'Resultado del preflight — wouldExecute indica si la ejecución real pasaría.' })
+  /*
+   * Sin `customer`: este endpoint deja elegir proveedor, tipo de consulta e `input` libres, así que un
+   * cliente podía lanzar cualquier consulta (buró incluido) con datos del body. Los flujos del cliente
+   * van por endpoints verticales que arman el `input` desde su expediente.
+   */
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
   @Post('requests/preview')
   @HttpCode(HttpStatus.OK)
   previewRequest(
@@ -153,6 +169,7 @@ export class ExternalDataController {
       tenantId: tenantId,
       body,
       requestedByUserId: actorId(currentUser),
+      approvedByAdminId: inlineApprovalBy(currentUser, body.approvedByAdminId),
     });
   }
 
@@ -170,6 +187,12 @@ export class ExternalDataController {
       'Resultado de la ejecución (COMPLETED, CACHED, BLOCKED_BY_COST_POLICY, RATE_LIMITED, MANUAL_APPROVAL_REQUIRED, CONSENT_REQUIRED, FAILED, etc.).',
   })
   @ApiResponse({ status: 403, description: 'Un customer intentó consultar datos de otro cliente.' })
+  /*
+   * Sin `customer`: este endpoint deja elegir proveedor, tipo de consulta e `input` libres, así que un
+   * cliente podía lanzar cualquier consulta (buró incluido) con datos del body. Los flujos del cliente
+   * van por endpoints verticales que arman el `input` desde su expediente.
+   */
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
   @Post('requests')
   @HttpCode(HttpStatus.OK)
   executeRequest(
@@ -184,6 +207,7 @@ export class ExternalDataController {
       body,
       idempotencyKey,
       requestedByUserId: actorId(currentUser),
+      approvedByAdminId: inlineApprovalBy(currentUser, body.approvedByAdminId),
     });
   }
 
@@ -193,16 +217,25 @@ export class ExternalDataController {
   @ApiResponse({ status: 200, description: 'Detalle de la solicitud.' })
   @ApiResponse({ status: 404, description: 'Solicitud no encontrada.' })
   @Get('requests/:requestId')
-  getRequest(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(requestIdParamsSchema)) params: RequestIdParamsDto) {
+  getRequest(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(requestIdParamsSchema)) params: RequestIdParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
     return this.externalDataService.getProviderRequest({
       tenantId: tenantId,
       requestId: params.requestId,
+      // Un cliente sólo ve SUS solicitudes (404 si es de otro); el personal interno, las del tenant.
+      customerId: customerScopeForConsentMutation(currentUser),
     });
   }
 
+  // Sin `customer`: cada llamada ejecuta los checks de todos los proveedores y escribe un
+  // `provider_health_logs` por cada uno; es un dato operativo, no del cliente.
   @ApiOperation({ summary: 'Estado de salud de proveedores externos' })
   @ApiQuery({ name: 'providerCode', required: false, description: 'Filtra por un proveedor específico; sin filtro devuelve todos.' })
   @ApiResponse({ status: 200, description: 'Estado de salud por proveedor.' })
+  @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
   @Get('providers/health')
   getProviderHealth(@Query('providerCode') providerCode?: string) {
     return this.externalDataService.getProviderHealth(providerCode);
@@ -405,8 +438,11 @@ export class AdminExternalProvidersController {
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(retentionPreviewQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Vista previa de purga.' })
   @Get('retention/preview')
-  retentionPreview(@Query(new ZodValidationPipe(retentionPreviewQuerySchema)) query: RetentionPreviewQueryDto) {
-    return this.externalDataService.getRetentionPreview({ days: query.days, limit: query.limit });
+  retentionPreview(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(retentionPreviewQuerySchema)) query: RetentionPreviewQueryDto,
+  ) {
+    return this.externalDataService.getRetentionPreview({ tenantId, days: query.days, limit: query.limit });
   }
 
   @ApiOperation({
@@ -417,8 +453,11 @@ export class AdminExternalProvidersController {
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(sanitizationAuditQuerySchema).limit })
   @ApiResponse({ status: 200, description: 'Auditoría de sanitización.' })
   @Get('sanitization-audit')
-  sanitizationAudit(@Query(new ZodValidationPipe(sanitizationAuditQuerySchema)) query: SanitizationAuditQueryDto) {
-    return this.externalDataService.auditResponseSanitization({ limit: query.limit });
+  sanitizationAudit(
+    @CurrentTenant() tenantId: string,
+    @Query(new ZodValidationPipe(sanitizationAuditQuerySchema)) query: SanitizationAuditQueryDto,
+  ) {
+    return this.externalDataService.auditResponseSanitization({ tenantId, limit: query.limit });
   }
 
   @ApiOperation({ summary: 'Vista previa de política (alias administrativo de requests/preview)' })
@@ -437,6 +476,7 @@ export class AdminExternalProvidersController {
       tenantId: tenantId,
       body,
       requestedByUserId: actorId(currentUser),
+      approvedByAdminId: inlineApprovalBy(currentUser, body.approvedByAdminId),
     });
   }
 
@@ -475,8 +515,13 @@ export class AdminExternalProvidersController {
   killSwitch(
     @Param(new ZodValidationPipe(providerCodeParamsSchema)) params: ProviderCodeParamsDto,
     @Body(new ZodValidationPipe(providerRuntimePatchSchema)) body: ProviderRuntimePatchDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.externalDataService.activateProviderKillSwitch({ providerCode: params.providerCode, reason: body.reason });
+    return this.externalDataService.activateProviderKillSwitch({
+      providerCode: params.providerCode,
+      reason: body.reason,
+      activatedBy: actorId(currentUser),
+    });
   }
 
   @ApiOperation({ summary: 'Listar políticas de costo de un proveedor (por tipo de consulta)' })
@@ -517,13 +562,14 @@ export class AdminExternalProvidersController {
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'providerCode', schema: zodToApiSchema(providerCodeParamsSchema.shape.providerCode) })
+  @ApiBody({ required: false, schema: zodToApiSchema(providerProbeSchema) })
   @ApiResponse({ status: 200, description: 'Resultado de la ejecución de prueba.' })
   @Post(':providerCode/test')
   @HttpCode(HttpStatus.OK)
   testProvider(
     @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(providerCodeParamsSchema)) params: ProviderCodeParamsDto,
-    @Body() body: Record<string, unknown> = {},
+    @Body(new ZodValidationPipe(providerProbeSchema)) body: ProviderProbeDto = {},
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.externalDataService.executeExternalDataRequest(providerProbeRequest(tenantId, params.providerCode, body, currentUser));
@@ -558,7 +604,8 @@ export class AdminExternalProvidersController {
     return this.externalDataService.approveRequest({
       tenantId: tenantId,
       requestId: params.requestId,
-      approvedByAdminId: body.approvedByAdminId ?? actorId(currentUser),
+      // La aprobación queda a nombre de quien la firma; `body.approvedByAdminId` no atribuye a otro.
+      approvedByAdminId: actorId(currentUser),
       approvalReason: body.approvalReason,
     });
   }
@@ -582,6 +629,7 @@ export class AdminExternalProvidersController {
       requestId: params.requestId,
       body,
       requestedByUserId: actorId(currentUser),
+      approvedByAdminId: inlineApprovalBy(currentUser, body.approvedByAdminId),
     });
   }
 

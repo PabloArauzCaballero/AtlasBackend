@@ -182,6 +182,9 @@ export class AuthPasswordChangeService {
       throw invalidCodeError;
     }
 
+    // El intento se reserva antes de comparar (ver `reserveOneTimeCodeAttempt`): sin intentos, nada que comparar.
+    if (!(await this.oneTimeCodeRepository.reserveOneTimeCodeAttempt(challenge, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS)))
+      throw invalidCodeError;
     if (!verifyOneTimeCode(input.code, challenge.codeHash)) {
       await this.oneTimeCodeRepository.registerOneTimeCodeFailedAttempt(challenge, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
       throw invalidCodeError;
@@ -196,7 +199,7 @@ export class AuthPasswordChangeService {
       throw new BadRequestException('La contraseña nueva debe ser distinta de la actual.');
     }
 
-    await this.oneTimeCodeRepository.consumeOneTimeCode(challenge);
+    if (!(await this.oneTimeCodeRepository.consumeOneTimeCode(challenge))) throw invalidCodeError;
     await this.passwordChangeRepository.applyNewPassword({
       actorType: input.actorType,
       actorId: input.actorId,

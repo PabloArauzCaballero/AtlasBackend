@@ -180,7 +180,7 @@ export class CustomerContactVerificationService {
     assertOwnCustomerResourceOrInternalOperational(input.currentUser, input.customerId);
 
     const now = new Date();
-    return this.sequelize.transaction(async (transaction) => {
+    const outcome = await this.sequelize.transaction(async (transaction) => {
       const customer = await this.customersRepository.findById(input.tenantId, input.customerId, { transaction });
       if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
@@ -222,9 +222,8 @@ export class CustomerContactVerificationService {
         await this.journal.recordFailure(context, {
           failureReasonCode: verification.reason === 'invalid' ? 'invalid_code' : verification.reason,
         });
-        if (verification.reason === 'expired') throw new UnauthorizedException('VERIFICATION_CODE_EXPIRED');
-        if (verification.reason === 'not_found') throw new NotFoundException('VERIFICATION_ATTEMPT_NOT_FOUND');
-        throw new UnauthorizedException('INVALID_VERIFICATION_CODE');
+        // Se devuelve y se lanza DESPUÉS del commit: lanzar aquí deshacía la bitácora del fallo que acaba de escribirse.
+        return { rejected: verification.reason };
       }
 
       await this.onboardingRepository.updateContactVerificationAttempt(
@@ -274,6 +273,9 @@ export class CustomerContactVerificationService {
         nextStep: assessment.nextStep,
       };
     });
+
+    if ('rejected' in outcome) throw rejectionError(outcome.rejected);
+    return outcome;
   }
 
   private contextOf(input: FlowInput & { body: { sessionId?: string } }, now: Date, transaction: Transaction, contactType: string) {
@@ -290,4 +292,10 @@ export class CustomerContactVerificationService {
       transaction,
     };
   }
+}
+
+function rejectionError(reason: string | undefined): Error {
+  if (reason === 'expired') return new UnauthorizedException('VERIFICATION_CODE_EXPIRED');
+  if (reason === 'not_found') return new NotFoundException('VERIFICATION_ATTEMPT_NOT_FOUND');
+  return new UnauthorizedException('INVALID_VERIFICATION_CODE');
 }

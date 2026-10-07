@@ -4,9 +4,10 @@
  * @system centraliza idempotencia y outbox como garantías transversales del runtime HTTP.
  */
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
-import { Observable, catchError, from, mergeMap, of, throwError } from 'rxjs';
+import { Observable, ReplaySubject, catchError, from, mergeMap, of, throwError } from 'rxjs';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { firstHeader } from '../../common/utils/http/headers.util.js';
+import { committedResultOf } from './application/committed-result.js';
 import { RuntimeHardeningService } from './runtime-hardening.service.js';
 
 type RequestLike = {
@@ -67,20 +68,36 @@ export class IdempotencyInterceptor implements NestInterceptor {
           return of(claim.responseBody);
         }
 
-        return next.handle().pipe(
+        const settled = next.handle().pipe(
+          // El `catchError` va ANTES del cierre: sólo un fallo del handler libera la clave. Si fallara
+          // `completeIdempotency` y cayera aquí, la clave quedaba `failed` con la mutación ya hecha, y
+          // el reintento la ejecutaba otra vez. Un error marcado como posterior al commit (el outbox)
+          // tampoco la libera: se guarda el cuerpo que devolvió el handler.
+          catchError((error: unknown) => {
+            const committed = committedResultOf(error);
+            const settle = committed
+              ? this.runtime.completeIdempotency(claim.lease, response.statusCode ?? 200, committed.body)
+              : this.runtime.failIdempotency(claim.lease);
+            return from(settle).pipe(
+              catchError(() => of(undefined)),
+              mergeMap(() => throwError(() => error)),
+            );
+          }),
           // Antes se usaba `void this.runtime.completeIdempotency(...)`: la respuesta podía salir
           // como OK aunque la persistencia de idempotencia fallara. En backend fintech, una
           // mutación con X-Idempotency-Key debe quedar registrada antes de responder.
           mergeMap((body) =>
             from(this.runtime.completeIdempotency(claim.lease, response.statusCode ?? 200, body)).pipe(mergeMap(() => of(body))),
           ),
-          catchError((error: unknown) =>
-            from(this.runtime.failIdempotency(claim.lease)).pipe(
-              catchError(() => of(undefined)),
-              mergeMap(() => throwError(() => error)),
-            ),
-          ),
         );
+        // La ejecución se suscribe aparte y no depende de quien espera la respuesta. El timeout
+        // global (`RequestTimeoutInterceptor`) va por fuera y, al vencer, se desuscribe; el handler
+        // (una promesa) sigue y hace commit, pero el cierre de la clave se perdía con la suscripción:
+        // quedaba `processing` y al vencer el lease el reintento volvía a ejecutar la mutación. Así
+        // el resultado se registra igual aunque el cliente ya recibiera el 408.
+        const result = new ReplaySubject<unknown>();
+        settled.subscribe(result);
+        return result.asObservable();
       }),
     );
   }

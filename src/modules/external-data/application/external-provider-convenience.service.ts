@@ -43,14 +43,17 @@ export class ExternalProviderConvenienceService {
   executeInfocenter(input: {
     tenantId: string;
     customerId: string;
-    body: { documentNumber?: string; decisionStage: string; approvedByAdminId?: string; scenario?: string };
+    body: { documentNumber?: string; decisionStage: string; scenario?: string };
     idempotencyKey?: string;
     requestedByUserId?: string;
+    /** Aprobación en línea ya verificada por el borde (actor admin); el cuerpo no aprueba nada. */
+    approvedByAdminId?: string;
   }) {
     return this.execution.executeExternalDataRequest({
       tenantId: input.tenantId,
       idempotencyKey: input.idempotencyKey,
       requestedByUserId: input.requestedByUserId,
+      approvedByAdminId: input.approvedByAdminId,
       body: {
         customerId: input.customerId,
         providerCode: 'INFOCENTER',
@@ -59,7 +62,6 @@ export class ExternalProviderConvenienceService {
         decisionStage: input.body.decisionStage,
         input: { documentNumber: input.body.documentNumber },
         scenario: input.body.scenario,
-        approvedByAdminId: input.body.approvedByAdminId,
       },
     });
   }
@@ -171,6 +173,7 @@ export class ExternalProviderConvenienceService {
     requestId: string;
     body: Partial<ExternalDataRequestDto> & { input?: Record<string, unknown> };
     requestedByUserId?: string;
+    approvedByAdminId?: string;
   }) {
     const original = await this.repository.findProviderRequestByIdAndTenant(input.tenantId, input.requestId);
     if (!original) throw new NotFoundException('Solicitud de provider externo no encontrada.');
@@ -185,6 +188,7 @@ export class ExternalProviderConvenienceService {
       tenantId: input.tenantId,
       requestedByUserId: input.requestedByUserId,
       retryOfRequestId: input.requestId,
+      approvedByAdminId: input.approvedByAdminId,
       body: {
         customerId: input.body.customerId ?? (original.customerId ? String(original.customerId) : undefined),
         providerCode,
@@ -193,7 +197,6 @@ export class ExternalProviderConvenienceService {
         decisionStage: input.body.decisionStage ?? String(original.decisionStage ?? 'MANUAL_REVIEW'),
         input: input.body.input,
         scenario: input.body.scenario,
-        approvedByAdminId: input.body.approvedByAdminId,
         forceRefresh: true,
       },
     });

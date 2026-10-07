@@ -7,6 +7,7 @@ import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { QueryTypes } from 'sequelize';
 import { ReadQueryService } from '../../common/database/read-query.service.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { recortarPorTamano } from '../data-notebook/data-notebook-size.js';
 import { applyColumnPolicies, describeColumns } from '../data-notebook/data-notebook-masking.js';
 import { guardSqlStatement, SqlViolation } from './sql-statement-guard.js';
 import { SQL_CONSOLE_LIMITS, SQL_CONSOLE_REVEAL_ROLES } from './sql-console.constants.js';
@@ -45,8 +46,8 @@ export class SqlConsoleQueryService {
    * dice cuánto costaría y qué relaciones tocaría. Es lo que permite avisar de un barrido completo
    * ANTES de lanzarlo contra la base, en vez de después.
    */
-  async validate(statement: string): Promise<QueryValidation> {
-    const verdict = guardSqlStatement(statement);
+  async validate(statement: string, user: AuthenticatedUser): Promise<QueryValidation> {
+    const verdict = guardSqlStatement(statement, { baseSchemas: SQL_CONSOLE_REVEAL_ROLES.includes(user.role) });
     if (!verdict.ok) return { valid: false, violations: verdict.violations };
 
     try {
@@ -63,7 +64,8 @@ export class SqlConsoleQueryService {
   }
 
   async execute(statement: string, user: AuthenticatedUser): Promise<QueryResult> {
-    const verdict = guardSqlStatement(statement);
+    const reveal = SQL_CONSOLE_REVEAL_ROLES.includes(user.role);
+    const verdict = guardSqlStatement(statement, { baseSchemas: reveal });
     if (!verdict.ok) {
       /*
        * Se lanza una excepcion de DOMINIO, no un Error pelado.
@@ -83,22 +85,32 @@ export class SqlConsoleQueryService {
     }
 
     const iniciado = Date.now();
-    const estimate = await this.explain(verdict.statement);
-    const filas = await this.selectGuarded(verdict.statement);
+    let estimate: QueryEstimate;
+    let filas: Record<string, unknown>[];
+    try {
+      estimate = await this.explain(verdict.statement);
+      filas = await this.selectGuarded(verdict.statement, reveal);
+    } catch (error) {
+      throw consultaRechazadaPorPostgres(error) ?? error;
+    }
 
-    const truncated = filas.length > SQL_CONSOLE_LIMITS.maxRows;
-    const servidas = truncated ? filas.slice(0, SQL_CONSOLE_LIMITS.maxRows) : filas;
+    const pasaDeFilas = filas.length > SQL_CONSOLE_LIMITS.maxRows;
+    const servidasPorFilas = pasaDeFilas ? filas.slice(0, SQL_CONSOLE_LIMITS.maxRows) : filas;
 
-    const nombres = servidas.length > 0 ? Object.keys(servidas[0]) : [];
-    const reveal = SQL_CONSOLE_REVEAL_ROLES.includes(user.role);
+    const nombres = servidasPorFilas.length > 0 ? Object.keys(servidasPorFilas[0]) : [];
     // MISMAS políticas que el cuaderno: las dos pantallas leen la misma superficie, y que una
     // enmascarara y la otra no convertiría la elección de herramienta en un modo de esquivarlo.
     const politicas = describeColumns(nombres, reveal);
-    const enmascaradas = applyColumnPolicies(servidas, politicas);
+    const enmascaradas = applyColumnPolicies(servidasPorFilas, politicas);
+
+    // El techo de bytes también manda: mil filas de `repeat('x', 1000000)` caben en el de filas.
+    const matriz = enmascaradas.map((fila) => nombres.map((nombre) => normalizar(fila[nombre])));
+    const { rows: servidas, droppedRows } = recortarPorTamano(matriz, SQL_CONSOLE_LIMITS.maxResponseBytes);
+    const truncated = pasaDeFilas || droppedRows > 0;
 
     return {
       columns: politicas.map((politica) => ({ name: politica.name, kind: 'texto' })),
-      rows: enmascaradas.map((fila) => nombres.map((nombre) => normalizar(fila[nombre]))),
+      rows: servidas,
       rowCount: servidas.length,
       durationMs: Date.now() - iniciado,
       truncated,
@@ -114,7 +126,7 @@ export class SqlConsoleQueryService {
    * corta un barrido eterno, y el `search_path` acotado impide que un nombre sin calificar resuelva
    * a una tabla de otro esquema.
    */
-  private async selectGuarded(statement: string): Promise<Record<string, unknown>[]> {
+  private async selectGuarded(statement: string, baseSchemas: boolean): Promise<Record<string, unknown>[]> {
     const sequelize = this.readQuery.getConnection();
     const transaccion = await sequelize.transaction();
 
@@ -133,7 +145,7 @@ export class SqlConsoleQueryService {
        * Se compone del catalogo del servidor y nunca de la entrada del usuario, y los esquemas del
        * sistema siguen fuera: un nombre sin calificar sigue sin poder resolver a `pg_catalog`.
        */
-      const esquemas = await this.esquemasDisponibles();
+      const esquemas = baseSchemas ? await this.esquemasDisponibles() : ['"read_api"'];
       await sequelize.query(`SET LOCAL search_path = ${esquemas.join(', ')}`, {
         transaction: transaccion,
       });
@@ -208,6 +220,22 @@ function normalizar(valor: unknown): string | number | boolean | null {
   } catch {
     return String(valor);
   }
+}
+
+/**
+ * Un error de la CONSULTA (sintaxis, relación inexistente, plazo vencido, dato inválido) es de
+ * quien la escribió: 422 con el motivo de Postgres, no un 500 que cuenta como caída del servidor.
+ * Lo demás (conexión, permisos de la propia consola) sigue siendo un fallo y se relanza tal cual.
+ */
+function consultaRechazadaPorPostgres(error: unknown): UnprocessableEntityException | null {
+  const origen = error as { original?: { code?: unknown }; parent?: { code?: unknown } };
+  const sqlstate = origen?.original?.code ?? origen?.parent?.code;
+  if (typeof sqlstate !== 'string' || !/^(42|22|57014)/.test(sqlstate) || sqlstate === '42501') return null;
+  return new UnprocessableEntityException({
+    code: sqlstate === '57014' ? 'SQL_TIMEOUT' : 'SQL_EXECUTION_FAILED',
+    message: mensajeDe(error),
+    violations: [],
+  });
 }
 
 function mensajeDe(error: unknown): string {

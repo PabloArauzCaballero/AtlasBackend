@@ -18,6 +18,7 @@ import {
   type OperationPolicy,
   type RequestShape,
 } from './application/idempotency-policy.js';
+import { openResponseBody, sealResponseBody } from './application/sealed-response.js';
 import {
   IdempotencyClaimStore,
   LEASE_DURATION_MS,
@@ -73,7 +74,9 @@ export class RuntimeHardeningService {
         // Credenciales/OTP: el resultado no se guardó a propósito; hay que volver a pedirlo.
         throw new ConflictException('IDEMPOTENCY_REPLAY_NOT_AVAILABLE');
       }
-      return { mode: 'replay', responseBody: existing.responseBodyJson, responseStatus: existing.responseStatus };
+      const responseBody = await openResponseBody(existing.responseBodyJson);
+      if (responseBody === undefined) throw new ConflictException('IDEMPOTENCY_REPLAY_NOT_AVAILABLE');
+      return { mode: 'replay', responseBody, responseStatus: existing.responseStatus };
     }
     if (existing.status === 'processing' && existing.lockedUntil && existing.lockedUntil > input.now) {
       throw new ConflictException('IDEMPOTENCY_REQUEST_IN_PROGRESS');
@@ -141,7 +144,8 @@ export class RuntimeHardeningService {
   async completeIdempotency(lease: IdempotencyLease, responseStatus: number, responseBody: unknown): Promise<void> {
     const now = new Date();
     const policy = operationPolicy(lease.record.scope);
-    const responseBodyJson = policy.storeResponse ? (redactSensitiveObject(responseBody) as Record<string, unknown>) : null;
+    // Se guarda el cuerpo REAL (cifrado si lleva campos sensibles): el replay debe ser idéntico.
+    const responseBodyJson = policy.storeResponse ? await sealResponseBody(responseBody) : null;
     const owned = await this.claims.complete(lease, { responseStatus, responseBodyJson, now });
     if (!owned)
       this.logger.warn(`IDEMPOTENCY_LEASE_LOST scope=${lease.record.scope} id=${lease.record.id}: otro proceso recuperó la clave.`);

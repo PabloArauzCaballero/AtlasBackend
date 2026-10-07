@@ -110,8 +110,9 @@ export class ExternalDataRepository {
     return this.dataProviderRequestModel.findAll({ where, order: [['requested_at', 'DESC']], limit: input.limit ?? 5000 });
   }
 
-  listRecentProviderResponses(limit: number): Promise<DataProviderResponseModel[]> {
-    return this.dataProviderResponseModel.findAll({ order: [['_created_at', 'DESC']], limit });
+  /** Sin `tenantId` mira todos los tenants: sólo para la compuerta de producción, que es de plataforma. */
+  listRecentProviderResponses(limit: number, tenantId?: string): Promise<DataProviderResponseModel[]> {
+    return this.dataProviderResponseModel.findAll({ where: tenantId ? { tenantId } : {}, order: [['_created_at', 'DESC']], limit });
   }
 
   listCustomerObservations(tenantId: string, customerId: string, limit = 50): Promise<CustomerObservationModel[]> {

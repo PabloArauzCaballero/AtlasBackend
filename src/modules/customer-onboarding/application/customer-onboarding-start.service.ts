@@ -22,6 +22,7 @@ import { CustomerOnboardingGuardsService } from './customer-onboarding-guards.se
 import { OnboardingDeviceSessionService } from './onboarding-device-session.service.js';
 import { StartOnboardingDto } from '../customer-onboarding.schemas.js';
 import { emailDomain, normalizeFullName } from './customer-onboarding-start.helpers.js';
+import { consentHappenedAt } from '../../consents/consent-time.util.js';
 import { INITIAL_CUSTOMER_LIFECYCLE_STATUS } from '../../customers/customer-lifecycle.constants.js';
 import { isApplicationError, toHttpException } from '../../../platform/contracts/application-error.js';
 import type { RegistrationCommand, RegistrationResult } from './ports/onboarding-registration.port.js';
@@ -471,7 +472,7 @@ export class CustomerOnboardingStartService {
     transaction: Transaction;
   }): Promise<void> {
     for (const consentInput of input.input.consents) {
-      const happenedAt = consentInput.acceptedAt ? new Date(consentInput.acceptedAt) : input.now;
+      const happenedAt = consentHappenedAt(consentInput.acceptedAt, input.now);
 
       const consent = await this.consentsRepository.createCustomerConsent(
         {

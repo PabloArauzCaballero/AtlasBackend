@@ -30,6 +30,12 @@ describe('Bandeja de soporte: búsqueda, visibilidad y resumen', () => {
     ]);
   });
 
+  it('sin perfil de agente no hay «asignado a mí»: no se cuelan los restringidos sin responsable', () => {
+    expect(supportCaseSearchConditions('t1', { restrictedVisibleTo: { agentProfileId: null, isSupervisor: false } }, escape)).toEqual([
+      { [Op.or]: [{ sensitivity: { [Op.ne]: 'RESTRICTED' } }] },
+    ]);
+  });
+
   it('q sólo existe en el listado del equipo, no en el de los casos propios', () => {
     expect(listInternalCasesQuerySchema.parse({ q: 'SUP-1' }).q).toBe('SUP-1');
     expect('q' in listCasesQuerySchema.parse({ q: 'SUP-1' })).toBe(false);

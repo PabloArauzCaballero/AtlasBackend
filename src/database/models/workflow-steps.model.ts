@@ -29,11 +29,21 @@ export class WorkflowStepModel extends Model {
   @Column({ field: 'endpoint_code', type: DataType.STRING(180), allowNull: false })
   declare endpointCode: string;
 
-  @Column({ field: 'http_method', type: DataType.STRING(10), allowNull: false })
-  declare httpMethod: string;
+  // Nulos en los pasos que no son HTTP (job, event, manual, external): el CHECK sólo los exige con step_kind = 'http'.
+  @Column({ field: 'http_method', type: DataType.STRING(10), allowNull: true })
+  declare httpMethod: string | null;
 
-  @Column({ field: 'route_path', type: DataType.TEXT, allowNull: false })
-  declare routePath: string;
+  @Column({ field: 'route_path', type: DataType.TEXT, allowNull: true })
+  declare routePath: string | null;
+
+  @Column({ field: 'system_code', type: DataType.STRING(40), allowNull: false })
+  declare systemCode: string;
+
+  @Column({ field: 'step_kind', type: DataType.STRING(20), allowNull: false })
+  declare stepKind: string;
+
+  @Column({ field: 'job_code', type: DataType.STRING(120), allowNull: true })
+  declare jobCode: string | null;
 
   @Column({ field: 'execution_order', type: DataType.INTEGER, allowNull: false })
   declare executionOrder: number;

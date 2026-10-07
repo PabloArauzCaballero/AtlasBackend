@@ -43,7 +43,8 @@ export class CustomerEligibilityRiskRepository {
   }
 
   countUnclearedWatchlistMatches(tenantId: string, customerId: string, options: EligibilityReadOptions = {}): Promise<number> {
-    return this.watchlistMatchModel.count({ where: { tenantId, customerId }, transaction: options.transaction });
+    // Las descartadas por cumplimiento siguen en la tabla como evidencia, pero ya no bloquean.
+    return this.watchlistMatchModel.count({ where: { tenantId, customerId, clearedAt: null }, transaction: options.transaction });
   }
 
   findLatestRiskResult(

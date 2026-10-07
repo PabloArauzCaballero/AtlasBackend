@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Transaction } from 'sequelize';
+import { Op, Transaction, literal } from 'sequelize';
 import { AuthOneTimeCodeModel } from '../../database/models/index.js';
 import { ActorType, OneTimeCodePurpose } from './auth.repository.js';
 
@@ -82,17 +82,40 @@ export class AuthOneTimeCodeRepository {
     return this.oneTimeCodeModel.findOne({ where: { challengeHash, consumedAt: null } as never });
   }
 
-  async registerOneTimeCodeFailedAttempt(code: AuthOneTimeCodeModel, maxAttempts: number): Promise<void> {
-    code.attempts += 1;
-    if (code.attempts >= maxAttempts) {
-      // Agotó los intentos: se consume para que ni siquiera el código correcto sirva después.
-      code.consumedAt = new Date();
-    }
-    await code.save();
+  /**
+   * Reserva un intento ANTES de comparar el código, en un solo UPDATE (`attempts = attempts + 1`
+   * condicionado a que quede alguno y el código siga vivo).
+   *
+   * Antes el intento se contaba DESPUÉS, sumando sobre la fila leída (`code.attempts += 1; save()`):
+   * N peticiones en paralelo leían 0, escribían 1 y cada una probaba un código distinto, así que el
+   * tope de intentos no frenaba nada bajo concurrencia. `false` = ya no quedan intentos: el llamador
+   * responde como ante un código incorrecto sin llegar a compararlo.
+   */
+  async reserveOneTimeCodeAttempt(code: AuthOneTimeCodeModel, maxAttempts: number): Promise<boolean> {
+    const [reserved] = await this.oneTimeCodeModel.update({ attempts: literal('"attempts" + 1') } as never, {
+      where: { id: code.id, consumedAt: null, attempts: { [Op.lt]: maxAttempts } } as never,
+    });
+    return reserved > 0;
   }
 
-  async consumeOneTimeCode(code: AuthOneTimeCodeModel): Promise<void> {
-    code.consumedAt = new Date();
-    await code.save();
+  /**
+   * El código no casó. El intento ya se contó al reservarlo; aquí sólo se consume si con él se
+   * agotaron, para que ni siquiera el código correcto sirva después.
+   */
+  async registerOneTimeCodeFailedAttempt(code: AuthOneTimeCodeModel, maxAttempts: number): Promise<void> {
+    await this.oneTimeCodeModel.update({ consumedAt: new Date() } as never, {
+      where: { id: code.id, consumedAt: null, attempts: { [Op.gte]: maxAttempts } } as never,
+    });
+  }
+
+  /**
+   * Consume el código sólo si sigue vivo. `false` = otra petición lo consumió antes: dos canjes
+   * concurrentes del mismo código correcto ya no dan dos sesiones ni dos cambios de contraseña.
+   */
+  async consumeOneTimeCode(code: AuthOneTimeCodeModel): Promise<boolean> {
+    const [consumed] = await this.oneTimeCodeModel.update({ consumedAt: new Date() } as never, {
+      where: { id: code.id, consumedAt: null } as never,
+    });
+    return consumed > 0;
   }
 }
