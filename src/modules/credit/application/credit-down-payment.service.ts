@@ -107,16 +107,16 @@ export class CreditDownPaymentService {
         updatedAtValue: now,
       });
       await application.save({ transaction });
-      await this.recordEvent(
+      await this.recordEvent({
         application,
-        'down_payment_submitted',
-        previous,
-        input.currentUser,
-        { amount: input.body.amount },
-        null,
-        now,
+        eventType: 'down_payment_submitted',
+        previousDownPaymentStatus: previous,
+        actor: input.currentUser,
+        payload: { amount: input.body.amount },
+        notes: null,
+        happenedAt: now,
         transaction,
-      );
+      });
 
       this.logger.log(`Pago inicial avisado: solicitud=${application.id} cliente=${input.customerId} importe=${input.body.amount}`);
       return this.describe(application);
@@ -193,16 +193,16 @@ export class CreditDownPaymentService {
         updatedAtValue: now,
       });
       await application.save({ transaction });
-      await this.recordEvent(
+      await this.recordEvent({
         application,
-        verified ? 'down_payment_confirmed' : 'down_payment_rejected',
-        DOWN_PAYMENT_SUBMITTED,
-        input.currentUser,
-        { verified },
-        input.body.reason ?? null,
-        now,
+        eventType: verified ? 'down_payment_confirmed' : 'down_payment_rejected',
+        previousDownPaymentStatus: DOWN_PAYMENT_SUBMITTED,
+        actor: input.currentUser,
+        payload: { verified },
+        notes: input.body.reason ?? null,
+        happenedAt: now,
         transaction,
-      );
+      });
       this.logger.log(`Pago inicial ${verified ? 'confirmado' : 'rechazado'}: solicitud=${application.id} actor=${input.currentUser.sub}`);
       return this.describe(application);
     });
@@ -246,32 +246,33 @@ export class CreditDownPaymentService {
     };
   }
 
-  private recordEvent(
-    application: CreditApplicationModel,
-    eventType: string,
-    previousDownPaymentStatus: string | null,
-    actor: AuthenticatedUser,
-    payload: Record<string, unknown>,
-    notes: string | null,
-    happenedAt: Date,
-    transaction: import('sequelize').Transaction,
-  ) {
+  private recordEvent(input: {
+    application: CreditApplicationModel;
+    eventType: string;
+    previousDownPaymentStatus: string | null;
+    actor: AuthenticatedUser;
+    payload: Record<string, unknown>;
+    notes: string | null;
+    happenedAt: Date;
+    transaction: import('sequelize').Transaction;
+  }) {
+    const { application, actor, happenedAt } = input;
     return this.events.create(
       {
         tenantId: application.tenantId,
         creditApplicationId: String(application.id),
-        eventType,
+        eventType: input.eventType,
         previousStatus: application.status,
         newStatus: application.status,
         actorType: actor.role,
         actorInternalUserId: actor.internalUserId ?? null,
         reasonCode: null,
-        payloadJson: { ...payload, previousDownPaymentStatus },
-        notes,
+        payloadJson: { ...input.payload, previousDownPaymentStatus: input.previousDownPaymentStatus },
+        notes: input.notes,
         happenedAt,
         createdAtValue: happenedAt,
       } as never,
-      { transaction },
+      { transaction: input.transaction },
     );
   }
 }
