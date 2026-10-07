@@ -4,8 +4,9 @@
  *   decide: la línea del cliente nuevo nunca se calculaba. Si la base no llega, la línea no se toca.
  * @system `CreditLineRecalculationService.recalculate` con el cliente del motor y el expediente dobles.
  */
-import { describe, expect, it, jest } from '@jest/globals';
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { CreditLineRecalculationService } from '../../../src/modules/credit/application/credit-line-recalculation.service.js';
+import { env } from '../../../src/config/env.js';
 import { DecisionEngineClient } from '../../../src/modules/decision-engine/decision-engine.client.js';
 
 type Productos = () => Promise<Array<{ annualInterestRate: unknown }>>;
@@ -148,5 +149,37 @@ describe('H1.S1.M2 · el monto de la línea es el del motor', () => {
     client.execute.mockRejectedValueOnce(new Error('motor caído') as never);
     await expect(service.recalculate(input)).resolves.toBeNull();
     expect(escritor.persist).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * Sin calibrar, el Motor propone y una persona concede. El recálculo escribía el límite del Motor
+ * sin pasar por `DECISION_ENGINE_AUTO_APPLY`: el cliente quedaba con una línea aprobada por una
+ * herramienta que nadie ha calibrado, aunque las solicitudes de crédito sí esperaban a una persona.
+ */
+describe('recálculo de línea: el límite del Motor se aplica sólo si el crédito está autorizado', () => {
+  const guardar = env.DECISION_ENGINE_AUTO_APPLY;
+  afterEach(() => {
+    (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY = guardar;
+  });
+
+  it('con el crédito fuera de DECISION_ENGINE_AUTO_APPLY pregunta al Motor pero NO escribe la línea', async () => {
+    (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY = [];
+    const { service, client, escritor } = build({ status: 'ready', marker: '1' });
+
+    const resultado = await service.recalculate(input);
+
+    expect(client.execute).toHaveBeenCalledTimes(1);
+    expect(escritor.persist).not.toHaveBeenCalled();
+    expect(resultado).toBeNull();
+  });
+
+  it('con el crédito autorizado escribe el límite que emitió el Motor', async () => {
+    (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY = ['credit'];
+    const { service, escritor } = build({ status: 'ready', marker: '1' });
+
+    await service.recalculate(input);
+
+    expect(escritor.persist).toHaveBeenCalledTimes(1);
   });
 });

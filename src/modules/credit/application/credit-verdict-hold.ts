@@ -45,3 +45,22 @@ export function awaitsEngineVerdict(
   if (application.status === 'submitted') return true;
   return holdForManualReview && application.status === 'under_review' && !application.decisionExecutionId;
 }
+
+/**
+ * Si el límite que el Motor emitió para la línea del cliente queda como propuesta.
+ *
+ * Sin calibrar, el Motor propone y una persona concede: las solicitudes ya esperaban a una persona
+ * cuando `credit` no está en `DECISION_ENGINE_AUTO_APPLY`, pero el recálculo escribía el límite del
+ * Motor sin ese freno. Retenida, la línea vigente no se toca; la concede una persona con el cambio
+ * manual de la ficha del cliente, y la ejecución del Motor queda como evidencia.
+ */
+export function creditLineHeld(
+  logger: { warn(message: string): void },
+  customerId: string,
+  proposedLimit: number,
+  executionId: string,
+): boolean {
+  if (engineVerdictApplies('credit')) return false;
+  logger.warn(`credit_line_held customer=${customerId} propuesto=${proposedLimit} ejecucion=${executionId}`);
+  return true;
+}
