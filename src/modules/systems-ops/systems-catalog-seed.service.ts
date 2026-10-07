@@ -60,6 +60,10 @@ export class SystemsCatalogSeedService {
     user: AuthenticatedUser,
   ) {
     const lockTransaction = await this.sequelize.transaction();
+    const releaseLock = async (error: unknown): Promise<never> => {
+      await lockTransaction.rollback().catch(() => undefined);
+      throw error;
+    };
     // Dos llaves: la del refresco y la de la pasada automática, que también cataloga las rutas propias.
     const [lock] = await this.sequelize.query<{ acquired: boolean }>(
       `SELECT pg_try_advisory_xact_lock(hashtext('atlas_systems_catalog_refresh'))
@@ -70,13 +74,9 @@ export class SystemsCatalogSeedService {
       await lockTransaction.rollback();
       throw new ConflictException('SYSTEMS_CATALOG_REFRESH_ALREADY_RUNNING');
     }
-    await this.sequelize.query(CATALOG_LOCK_IDLE_TIMEOUT_SQL, { transaction: lockTransaction }).catch(async (error: unknown) => {
-      await lockTransaction.rollback().catch(() => undefined);
-      throw error;
-    });
+    await this.sequelize.query(CATALOG_LOCK_IDLE_TIMEOUT_SQL, { transaction: lockTransaction }).catch(releaseLock);
     const startedAt = new Date();
-    // El INSERT va con el candado ya tomado: si lanza y nadie suelta la transacción, la conexión queda
-    // «idle in transaction» con el candado y cada refresco responde 409 hasta que Postgres la corta.
+    // El INSERT va con el candado tomado: si lanza hay que soltarlo, o cada refresco responde 409.
     const job = await this.jobRunModel
       .create({
         tenantId: systemsTenantScope(user),
@@ -90,10 +90,7 @@ export class SystemsCatalogSeedService {
         triggeredById: actorId(user),
         createdAtValue: startedAt,
       } as never)
-      .catch(async (error: unknown) => {
-        await lockTransaction.rollback().catch(() => undefined);
-        throw error;
-      });
+      .catch(releaseLock);
     const result = {
       tools: 0,
       dataEntities: 0,
