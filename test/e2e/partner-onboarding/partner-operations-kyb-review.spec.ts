@@ -7,6 +7,7 @@ import { PartnerQrReviewService } from '../../../src/modules/partner-onboarding/
 import { PartnerVerificationService } from '../../../src/modules/partner-onboarding/application/partner-verification.service.js';
 import { InternalPermissionsGuard } from '../../../src/modules/internal-users/guards/internal-permissions.guard.js';
 import { InternalRbacRepository } from '../../../src/modules/internal-users/internal-rbac.repository.js';
+import { INTERNAL_PERMISSIONS_CHECKER } from '../../../src/common/guards/internal-permissions.port.js';
 import { authHeader, buildGenericTestApp, TENANT_HEADER } from '../support/generic-test-app.js';
 
 /**
@@ -52,6 +53,7 @@ describe('PartnerOperationsController — kyb-review (e2e/supertest)', () => {
         { provide: PartnerVerificationService, useValue: verification },
         InternalPermissionsGuard,
         { provide: InternalRbacRepository, useValue: rbacRepository },
+        { provide: INTERNAL_PERMISSIONS_CHECKER, useExisting: InternalRbacRepository },
       ],
     );
   });
