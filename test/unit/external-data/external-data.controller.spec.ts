@@ -269,7 +269,7 @@ describe('AdminExternalProvidersController (administración)', () => {
     const svc = service();
     const c = new AdminExternalProvidersController(svc as never);
     const analyst = { role: 'risk_analyst', tenantId: '1', internalUserId: 'r1' } as never;
-    await c.testProvider('1', { providerCode: 'INFOCENTER' } as never, { approvedByAdminId: 'a1' }, analyst);
+    await c.testProvider('1', { providerCode: 'INFOCENTER' } as never, { approvedByAdminId: 'a1' } as never, analyst);
     expect(svc.executeExternalDataRequest).toHaveBeenLastCalledWith(
       expect.objectContaining({ approvedByAdminId: undefined, requestedByUserId: 'r1' }),
     );

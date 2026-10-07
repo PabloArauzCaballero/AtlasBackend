@@ -1,6 +1,6 @@
 import { describe, expect, it, jest, afterEach } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
-import { ExternalDataDecisionService } from '../../../src/modules/external-data/application/external-data-decision.service.js';
+import { ExternalDataDecisionService, boliviaStartOfDay } from '../../../src/modules/external-data/application/external-data-decision.service.js';
 
 /**
  * `ExternalDataDecisionService` (extraído de `ExternalDataExecutionService` en la Fase 2.2 del plan
@@ -392,5 +392,13 @@ describe('ExternalDataDecisionService', () => {
 
       expect(decision).toMatchObject({ blocked: true, status: 'RATE_LIMITED', reasonCode: 'SEGIP_USER_MONTHLY_QUOTA_EXCEEDED' });
     });
+  });
+});
+
+describe('boliviaStartOfDay', () => {
+  it('el día de la cuota empieza a las 04:00 UTC (medianoche de Bolivia)', () => {
+    expect(boliviaStartOfDay(new Date('2026-10-06T02:00:00Z')).toISOString()).toBe('2026-10-05T04:00:00.000Z');
+    expect(boliviaStartOfDay(new Date('2026-10-06T04:00:00Z')).toISOString()).toBe('2026-10-06T04:00:00.000Z');
+    expect(boliviaStartOfDay(new Date('2026-10-06T23:59:00Z')).toISOString()).toBe('2026-10-06T04:00:00.000Z');
   });
 });
