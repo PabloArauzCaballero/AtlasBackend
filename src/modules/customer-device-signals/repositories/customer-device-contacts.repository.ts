@@ -72,14 +72,19 @@ export class CustomerDeviceContactsRepository {
   /**
    * El consentimiento vigente para una finalidad, si lo hay.
    *
-   * Vigente significa concedido y no retirado: `revoked_at` nulo. Un consentimiento retirado sigue
-   * en la tabla —es la prueba de que se concedió alguna vez— pero no ampara una escritura nueva.
+   * Vigente significa que la ÚLTIMA decisión de la finalidad es una concesión no retirada. Retirar
+   * un consentimiento INSERTA una fila nueva (`granted = false`, `revoked_at` con fecha) y no toca la
+   * concesión anterior, que sigue con `granted = true` y `revoked_at` nulo: filtrar por `granted`
+   * en la consulta devolvería esa concesión vieja y la retirada no ampararía nada. Por eso se toma
+   * la decisión más reciente sin filtrar y se comprueba después.
    */
-  findGrantedConsent(tenantId: string, customerId: string, purposeCode: string): Promise<CustomerConsentModel | null> {
-    return this.consentModel.findOne({
-      where: { tenantId, customerId, purposeCode, granted: true, revokedAt: { [Op.is]: null } },
+  async findGrantedConsent(tenantId: string, customerId: string, purposeCode: string): Promise<CustomerConsentModel | null> {
+    const ultima = await this.consentModel.findOne({
+      where: { tenantId, customerId, purposeCode },
       order: [['_id', 'DESC']],
     });
+    if (!ultima || ultima.granted !== true || ultima.revokedAt) return null;
+    return ultima;
   }
 
   /**

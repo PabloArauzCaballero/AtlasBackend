@@ -120,13 +120,26 @@ describe('CustomerDeviceContactsRepository', () => {
       expect(ultima(sessions.findOne).where).toEqual({ tenantId: 't1', customerId: 'c1', id: 's1' });
     });
 
-    it('«vigente» exige concedido y NO retirado, y se toma el más reciente', async () => {
-      await repo.findGrantedConsent('t1', 'c1', 'ADDRESS_BOOK');
+    it('«vigente» es la ÚLTIMA decisión de la finalidad, sin filtrar por concedido', async () => {
+      consents.findOne.mockResolvedValueOnce({ granted: true, revokedAt: null });
 
-      const condicion = ultima(consents.findOne).where;
-      expect(condicion).toMatchObject({ tenantId: 't1', customerId: 'c1', purposeCode: 'ADDRESS_BOOK', granted: true });
-      expect((condicion.revokedAt as Record<symbol, null>)[Op.is]).toBeNull();
+      const vigente = await repo.findGrantedConsent('t1', 'c1', 'ADDRESS_BOOK');
+
+      expect(vigente).toEqual({ granted: true, revokedAt: null });
+      expect(ultima(consents.findOne).where).toEqual({ tenantId: 't1', customerId: 'c1', purposeCode: 'ADDRESS_BOOK' });
       expect(ultima(consents.findOne).order).toEqual([['_id', 'DESC']]);
+    });
+
+    it('concesión → retirada: la decisión más reciente es la retirada y no ampara nada', async () => {
+      consents.findOne.mockResolvedValueOnce({ granted: false, revokedAt: new Date() });
+
+      await expect(repo.findGrantedConsent('t1', 'c1', 'ADDRESS_BOOK')).resolves.toBeNull();
+    });
+
+    it('sin ninguna decisión no hay consentimiento', async () => {
+      consents.findOne.mockResolvedValueOnce(null);
+
+      await expect(repo.findGrantedConsent('t1', 'c1', 'ADDRESS_BOOK')).resolves.toBeNull();
     });
   });
 
