@@ -152,7 +152,7 @@ describe('SystemsCatalogController (e2e/supertest)', () => {
       .set(...authHeader('platform_admin'))
       .send(body)
       .expect(200);
-    expect(service.updateDataEntityMetadata).toHaveBeenCalledWith('3', body);
+    expect(service.updateDataEntityMetadata).toHaveBeenCalledWith('3', body, expect.objectContaining({ role: 'platform_admin' }));
   });
 
   it('PATCH /systems/data-entities/:entityId/metadata rechaza con 403 para readonly_auditor', async () => {

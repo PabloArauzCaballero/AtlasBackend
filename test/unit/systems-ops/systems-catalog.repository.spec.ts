@@ -157,24 +157,6 @@ describe('SystemsCatalogRepository', () => {
     });
   });
 
-  describe('updateDataEntityMetadata', () => {
-    it('devuelve null si no existe; si existe aplica solo los campos presentes en el body y guarda', async () => {
-      const missing = buildRepo();
-      (missing.models[3].findByPk as jest.Mock).mockResolvedValue(null as never);
-      expect(await missing.repo.updateDataEntityMetadata('e1', {})).toBeNull();
-
-      const found = buildRepo();
-      const save = jest.fn(async (..._args: unknown[]) => undefined);
-      const entity = { businessPurpose: 'old', status: 'ACTIVE', save } as Record<string, unknown>;
-      (found.models[3].findByPk as jest.Mock).mockResolvedValue(entity as never);
-      await found.repo.updateDataEntityMetadata('e1', { businessPurpose: 'nuevo', containsPii: true });
-      expect(entity.businessPurpose).toBe('nuevo');
-      expect(entity.containsPii).toBe(true);
-      expect(entity.status).toBe('ACTIVE'); // no venía en el body
-      expect(save).toHaveBeenCalledTimes(1);
-    });
-  });
-
   describe('markDeprecatedCandidates', () => {
     it('devuelve 0 cuando todos los candidatos siguen activos (sin UPDATE)', async () => {
       const { repo, models } = buildRepo();

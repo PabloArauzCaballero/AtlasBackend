@@ -41,6 +41,7 @@ describe('SystemsCatalogQueryService', () => {
     };
     const seedService = { refreshCatalog: jest.fn(async (..._args: unknown[]) => ({ refreshed: true })) };
     const healthService = { getToolsHealth: jest.fn(async (..._args: unknown[]) => [{ code: 'POSTGRES' }]) };
+    const reviewRepository = { updateDataEntityMetadata: jest.fn(async (..._args: unknown[]) => null as unknown) };
     const service = new SystemsCatalogQueryService(
       catalogRepository as never,
       dashboardRepository as never,
@@ -49,8 +50,9 @@ describe('SystemsCatalogQueryService', () => {
       healthService as never,
       // Los metadatos salieron a `SystemsMetadataRepository`; el mismo doble los sigue exponiendo.
       catalogRepository as never,
+      reviewRepository as never,
     );
-    return { service, catalogRepository, dashboardRepository, discovery, seedService, healthService };
+    return { service, catalogRepository, reviewRepository, dashboardRepository, discovery, seedService, healthService };
   }
 
   const user = { role: 'internal_operator', tenantId: 't1' } as never;
@@ -170,19 +172,18 @@ describe('SystemsCatalogQueryService', () => {
     expect(await service.getDomain('DOM')).toMatchObject({ domainCode: 'DOM' });
   });
 
-  it('updateDataEntityMetadata lanza NotFound o devuelve la entidad mapeada', async () => {
-    const { service, catalogRepository } = build();
-    (catalogRepository as unknown as { updateDataEntityMetadata: jest.Mock }).updateDataEntityMetadata = jest.fn(
-      async (..._args: unknown[]) => null,
-    );
-    await expect(service.updateDataEntityMetadata('7', { description: 'x' })).rejects.toBeInstanceOf(NotFoundException);
-    (catalogRepository as unknown as { updateDataEntityMetadata: jest.Mock }).updateDataEntityMetadata.mockResolvedValueOnce({
+  it('updateDataEntityMetadata pasa el actor al repositorio de revisión; NotFound o la entidad mapeada', async () => {
+    const { service, reviewRepository } = build();
+    const admin = { sub: 'u-7', role: 'admin', tenantId: 't1' } as never;
+    await expect(service.updateDataEntityMetadata('7', { dataOwner: 'x' }, admin)).rejects.toBeInstanceOf(NotFoundException);
+    expect(reviewRepository.updateDataEntityMetadata).toHaveBeenCalledWith('7', { dataOwner: 'x' }, expect.anything(), 'admin', 't1');
+    reviewRepository.updateDataEntityMetadata.mockResolvedValueOnce({
       id: 7,
       schemaName: 's',
       tableName: 't',
       entityName: 'E',
     } as never);
-    expect(await service.updateDataEntityMetadata('7', { description: 'x' })).toMatchObject({ entityId: '7' });
+    expect(await service.updateDataEntityMetadata('7', { dataOwner: 'x' }, admin)).toMatchObject({ entityId: '7' });
   });
 
   it('getImpactByEndpoint agrega tools/tables/fields enriquecidos', async () => {

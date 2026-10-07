@@ -28,6 +28,11 @@ export const STRESS_JOB_CODE = 'systems_stress_run';
 const LEASE_MS = 60_000;
 const HEARTBEAT_MS = 15_000;
 const MAX_ATTEMPTS = 3;
+/** Latidos fallidos seguidos que se toleran: 3 × 15 s deja el lease de 60 s a punto de vencer. */
+const MAX_FAILED_HEARTBEATS = 3;
+/** Techos del plan que el cuerpo de la petición no puede subir. */
+const MAX_REQUEST_BUDGET = 50_000;
+const MAX_TIMEOUT_MS = 60_000;
 
 @Injectable()
 export class SystemsStressConsumerService {
@@ -78,12 +83,28 @@ export class SystemsStressConsumerService {
 
     // El heartbeat renueva el lease mientras la corrida dura. Si devuelve `false`, este worker ya no
     // es el dueño: se ABANDONA la corrida en vez de terminarla, porque otro ya la está ejecutando.
+    //
+    // El `.catch` no es cosmético: esto corre en un temporizador, fuera de cualquier try/catch, y
+    // `worker.ts` convierte un rechazo sin capturar en `process.exit(1)`. Un corte breve de la base
+    // justo en un latido tumbaría el worker entero con todos sus demás jobs en vuelo.
+    let failedHeartbeats = 0;
     const heartbeat = setInterval(() => {
-      void this.queue.heartbeat(job).then((stillOwner) => {
-        if (stillOwner) return;
-        this.logger.warn(`Lease perdido en jobRun ${job.jobRunId}: otro worker lo tomó. Se cancela la ejecución local.`);
-        controller.abort();
-      });
+      void this.queue
+        .heartbeat(job)
+        .then((stillOwner) => {
+          failedHeartbeats = 0;
+          if (stillOwner) return;
+          this.logger.warn(`Lease perdido en jobRun ${job.jobRunId}: otro worker lo tomó. Se cancela la ejecución local.`);
+          controller.abort();
+        })
+        .catch((error: unknown) => {
+          failedHeartbeats += 1;
+          const message = error instanceof Error ? error.message : String(error);
+          this.logger.warn(`Heartbeat de jobRun ${job.jobRunId} falló (${failedHeartbeats}/${MAX_FAILED_HEARTBEATS}): ${message}`);
+          // Sin renovar durante tantos latidos el lease ya venció o está por vencer: no se sigue
+          // mandando tráfico por un trabajo que otro worker puede haber retomado.
+          if (failedHeartbeats >= MAX_FAILED_HEARTBEATS) controller.abort();
+        });
     }, HEARTBEAT_MS);
     heartbeat.unref();
 
@@ -147,9 +168,11 @@ export class SystemsStressConsumerService {
       concurrency: this.positiveInt(input.concurrency, 1),
       maxErrorRate: typeof input.maxErrorRate === 'number' ? input.maxErrorRate : 0.05,
       maxP95Ms: this.positiveInt(input.maxP95Ms, 1_000),
-      timeoutMs: this.positiveInt(config.timeoutMs, 10_000),
+      timeoutMs: Math.min(MAX_TIMEOUT_MS, this.positiveInt(config.timeoutMs, 10_000)),
       // Tope duro por encima del plan: protege al objetivo de un perfil mal configurado.
-      requestBudget: this.positiveInt(config.requestBudget, Math.min(50_000, targetRps * durationSeconds)),
+      // El techo se aplica también al valor que llega en `config`: ese objeto viene tal cual del cuerpo
+      // de la petición, y un tope que el propio cliente puede subir no es un tope.
+      requestBudget: Math.min(MAX_REQUEST_BUDGET, this.positiveInt(config.requestBudget, targetRps * durationSeconds)),
       dryRun: input.dryRun !== false,
     };
   }
