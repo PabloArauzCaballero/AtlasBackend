@@ -23,11 +23,13 @@ import { CustomerVerificationRepository } from '../repositories/customer-verific
  * pasaba el flujo sin que nadie lo notara.
  *
  * El cotejo es por HASH del dato, no por su valor en claro: la lista almacena `entity_hash` y aquí
- * se calcula el hash del documento y del nombre normalizado del cliente. Eso permite cotejar contra
+ * se cotejan el hash del documento, del nombre normalizado y de los contactos del cliente. Eso permite cotejar contra
  * una lista externa sin que ninguna de las dos partes exponga los datos personales.
  *
  * Una coincidencia bloquea la habilitación (C13) y lleva al cliente a `under_review`; descartarla es
- * una decisión humana explícita y auditada, no un efecto de reejecutar el screening.
+ * una decisión humana explícita y auditada, no un efecto de reejecutar el screening. Por eso el
+ * descarte MARCA la fila (`cleared_at`) en vez de borrarla: borrada, el siguiente screening la volvía
+ * a crear, y se perdía la evidencia.
  */
 @Injectable()
 export class CustomerComplianceScreeningService {
@@ -48,10 +50,11 @@ export class CustomerComplianceScreeningService {
     const profile = await this.profileDataRepository.findCurrentProfile(input.tenantId, input.customerId);
     const now = new Date();
 
-    // Se cotejan el nombre normalizado y el teléfono/correo primarios, que son los hashes que el
-    // sistema ya calcula. El número de documento no participa: se guarda hasheado con la misma
-    // función, pero su hash vive en `customer_identity_documents` y se agrega aquí.
-    const candidates = new Map<string, string>();
+    // Se cotejan el número de documento (declarado, OCR y verificado, de `customer_identity_documents`),
+    // el nombre normalizado y el teléfono/correo primarios, todos ya hasheados. Sin el
+    // documento, alguien listado por su CI pasaba con otro nombre escrito y otros contactos.
+    const documentHashes = await this.verificationRepository.findIdentityDocumentHashes(input.tenantId, input.customerId);
+    const candidates = new Map<string, string>(documentHashes.map((hash) => [hash, 'document']));
     if (profile?.fullNameNormalized) candidates.set(hashSensitiveText(profile.fullNameNormalized), 'person_name');
     if (customer.primaryPhoneHash) candidates.set(customer.primaryPhoneHash, 'phone');
     if (customer.primaryEmailHash) candidates.set(customer.primaryEmailHash, 'email');
@@ -59,8 +62,10 @@ export class CustomerComplianceScreeningService {
     const entries = await this.verificationRepository.findActiveEntriesByHashes(input.tenantId, [...candidates.keys()], now);
 
     return this.sequelize.transaction(async (transaction) => {
+      // TODAS, también las descartadas: una ya descartada por cumplimiento no se vuelve a abrir.
       const existing = await this.verificationRepository.findMatches(input.tenantId, input.customerId, { transaction });
       const alreadyMatched = new Set(existing.map((match) => String(match.watchlistEntryId)));
+      const openExisting = existing.filter((match) => !match.clearedAt).length;
 
       const created: string[] = [];
       for (const entry of entries) {
@@ -127,7 +132,7 @@ export class CustomerComplianceScreeningService {
         customerId: input.customerId,
         candidatesEvaluated: candidates.size,
         newMatches: created.length,
-        totalMatches: existing.length + created.length,
+        totalMatches: openExisting + created.length,
         lifecycleStatus: evaluation.lifecycleStatus,
         eligible: evaluation.eligible,
         blockers: evaluation.blockers,
@@ -149,9 +154,13 @@ export class CustomerComplianceScreeningService {
 
     const now = new Date();
     return this.sequelize.transaction(async (transaction) => {
-      const matches = await this.verificationRepository.findMatches(input.tenantId, input.customerId, { transaction });
+      const matches = await this.verificationRepository.findMatches(input.tenantId, input.customerId, { transaction, onlyOpen: true });
       for (const match of matches) {
-        await this.verificationRepository.clearMatch(match, { transaction });
+        await this.verificationRepository.clearMatch(
+          match,
+          { clearedAt: now, clearedByInternalUserId: input.currentUser.internalUserId ?? null, clearedReasonCode: input.reasonCode },
+          { transaction },
+        );
       }
 
       await this.onboardingRepository.createOperationalAuditLog(

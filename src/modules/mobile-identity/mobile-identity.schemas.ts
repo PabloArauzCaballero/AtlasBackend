@@ -58,7 +58,11 @@ export const startIdentityVerificationSchema = z.object({
    * exigirlo obligaría a crear el cliente con datos que todavía no se han
    * comprobado, que es justo el orden que este flujo evita.
    */
-  customerId: z.string().trim().max(40).optional(),
+  customerId: z
+    .string()
+    .trim()
+    .regex(/^[1-9][0-9]{0,18}$/, 'customerId debe ser un identificador numérico.')
+    .optional(),
   /**
    * Con qué se capturó el ANVERSO (`camera` | `system_scanner`). Opcional: sin él, cámara.
    *
@@ -82,7 +86,11 @@ export const startIdentityVerificationSchema = z.object({
 export type StartIdentityVerificationDto = z.infer<typeof startIdentityVerificationSchema>;
 
 export const identityVerificationIdParamsSchema = z.object({
-  verificationId: z.string().trim().min(1).max(40),
+  // Es un bigint: sin el patrón, «abc» llega a Postgres y vuelve como 500 en vez de 400.
+  verificationId: z
+    .string()
+    .trim()
+    .regex(/^[1-9][0-9]{0,18}$/, 'verificationId debe ser un identificador numérico.'),
 });
 
 export type IdentityVerificationIdParamsDto = z.infer<typeof identityVerificationIdParamsSchema>;

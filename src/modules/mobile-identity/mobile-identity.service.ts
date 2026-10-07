@@ -3,9 +3,9 @@
  * @business Esta pieza deja que una persona se verifique desde su teléfono con su carnet, sin pasar por una sucursal.
  * @system acepta las fotos, pide la decisión al motor y publica el estado que el móvil consulta.
  */
+import { esAjeno } from './mobile-identity-ownership.js';
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { env } from '../../config/env.js';
 import { DecisionArtifactBindingService } from '../decision-engine/decision-artifact-binding.service.js';
 import { DecisionEngineClient } from '../decision-engine/decision-engine.client.js';
@@ -14,7 +14,6 @@ import { CustomerContactsSnapshotService } from '../customer-onboarding/applicat
 import { IdentityReviewCaseRepository } from '../customer-onboarding/repositories/identity-review-case.repository.js';
 import { abrirCasoDeIdentidad, anexarExpedienteAlCaso, desenlaceDelMotor, type DesenlaceDelMotor } from './mobile-identity.human-review.js';
 import { OnboardingReviewDossierPublisher } from '../customer-onboarding/application/onboarding-review-dossier.publisher.js';
-
 import { StartIdentityVerificationDto, type IdentityVerificationState, type IdentityVerificationView } from './mobile-identity.schemas.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
 
@@ -125,11 +124,12 @@ export class MobileIdentityService {
   }
 
   /** El estado del trámite. Es lo que el móvil consulta en bucle. */
-  async get(tenantId: string, verificationId: string): Promise<IdentityVerificationView> {
+  async get(tenantId: string, verificationId: string, currentUser?: AuthenticatedUser): Promise<IdentityVerificationView> {
     const attempt = await this.repository.findById(tenantId, verificationId);
-    if (!attempt) {
-      // 404 y no 403 cuando la fila es de otro inquilino: un 403 confirmaría que
-      // existe, que es justo lo que no debe poder averiguarse.
+    // Un cliente sólo ve SU intento: los ids son secuenciales y la respuesta lleva lo leído del
+    // carnet. Un intento ajeno, o sin dueño, contesta lo mismo que uno que no existe.
+    if (!attempt || esAjeno(attempt.customerId, currentUser)) {
+      // 404 y no 403: un 403 confirmaría que existe, que es justo lo que no debe poder averiguarse.
       throw new NotFoundException({
         code: 'IDENTITY_VERIFICATION_NOT_FOUND',
         message: 'No hay ninguna verificación con ese identificador.',

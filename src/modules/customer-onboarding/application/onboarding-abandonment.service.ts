@@ -10,6 +10,9 @@ import { FindOptions, Op } from 'sequelize';
 import { OnboardingFlowModel, OnboardingStepEventModel } from '../../../database/models/index.js';
 import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 
+/** Tope de páginas por pasada: el job no puede girar sin fin sobre un tenant enorme. */
+const MAX_ABANDONMENT_PAGES = 20;
+
 /** Días de inactividad tras los cuales un onboarding sin terminar se considera abandonado. */
 export const ONBOARDING_ABANDONMENT_DAYS = 30;
 
@@ -47,19 +50,30 @@ export class OnboardingAbandonmentService {
     // Candidatos por fecha de INICIO. No alcanza como criterio: `startedAt` es cuándo empezó, no
     // cuándo dejó de avanzar. Con el corte anterior, quien seguía cargando datos al día 31 quedaba
     // marcado como abandonado en plena sesión.
-    const candidates = await this.flowModel.findAll({
-      where: {
-        tenantId: input.tenantId,
-        completionStatus: 'in_progress',
-        completedAt: null,
-        abandonedAt: null,
-        startedAt: { [Op.lt]: threshold },
-      },
-      order: [['startedAt', 'ASC']],
-      limit,
-    } as FindOptions);
-
-    const stale = await this.withoutRecentActivity(input.tenantId, candidates, threshold);
+    // Se pagina por id: con un solo LIMIT, los 500 flujos antiguos pero vivos se descartaban en cada pasada
+    // y volvían a ser los primeros, de modo que los abandonados de verdad (más recientes) no se alcanzaban nunca.
+    const candidates: OnboardingFlowModel[] = [];
+    const stale: OnboardingFlowModel[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < MAX_ABANDONMENT_PAGES; page += 1) {
+      const batch: OnboardingFlowModel[] = await this.flowModel.findAll({
+        where: {
+          tenantId: input.tenantId,
+          completionStatus: 'in_progress',
+          completedAt: null,
+          abandonedAt: null,
+          startedAt: { [Op.lt]: threshold },
+          ...(cursor ? { id: { [Op.gt]: cursor } } : {}),
+        },
+        order: [['id', 'ASC']],
+        limit,
+      } as FindOptions);
+      candidates.push(...batch);
+      stale.push(...(await this.withoutRecentActivity(input.tenantId, batch, threshold)));
+      // `stale` ya trae lo cerrable de esta página; sigue mientras la página venga llena.
+      if (batch.length < limit || stale.length >= limit) break;
+      cursor = String(batch[batch.length - 1].id);
+    }
 
     if (stale.length === 0) {
       return { evaluated: candidates.length, abandoned: 0, thresholdDate: threshold.toISOString() };

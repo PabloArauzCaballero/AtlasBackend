@@ -3,7 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../src/common/pipes/zod-validation.pipe.js';
 import { CAPTURE_SOURCES } from '../../../src/common/storage/capture-source.js';
 import { uploadUrlRequestSchema } from '../../../src/modules/customer-onboarding/customer-onboarding-profile.schemas.js';
-import { identityPackageSchema } from '../../../src/modules/customer-onboarding/customer-onboarding.schemas.js';
+import { identityPackageSchema, startOnboardingSchema } from '../../../src/modules/customer-onboarding/customer-onboarding.schemas.js';
 
 /**
  * El origen de la captura (`camera` | `system_scanner`) en el borde del alta.
@@ -134,5 +134,23 @@ describe('selfie en tres poses', () => {
     expect(() => validar(uploadUrlRequestSchema, { documentType: 'selfie_up', contentType: 'image/jpeg', sizeBytes: 1 })).toThrow(
       BadRequestException,
     );
+  });
+});
+
+describe('startOnboardingSchema · consents', () => {
+  const consent = (id: string, granted = true) => ({ consentDocumentId: id, purposeCode: 'terms', granted });
+  const base = (consents: unknown[]) => ({ consents });
+  const soloConsents = (consents: unknown[]) => startOnboardingSchema.shape.consents.safeParse(base(consents).consents);
+
+  it('acepta hasta 20 consentimientos distintos', () => {
+    expect(soloConsents(Array.from({ length: 20 }, (_, i) => consent(String(i + 1)))).success).toBe(true);
+  });
+
+  it('FALLA sin el fix: 21 consentimientos son demasiados (una consulta por elemento en un alta anónima)', () => {
+    expect(soloConsents(Array.from({ length: 21 }, (_, i) => consent(String(i + 1)))).success).toBe(false);
+  });
+
+  it('FALLA sin el fix: el mismo documento granted y declined a la vez es evidencia contradictoria', () => {
+    expect(soloConsents([consent('7', true), consent('7', false)]).success).toBe(false);
   });
 });

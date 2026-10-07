@@ -3,6 +3,7 @@
  * @business Esta pieza convierte un registro inicial en un cliente verificable, conforme y listo para evaluación financiera.
  * @system orquesta perfil, contactos, identidad, documentos, dirección, referencias, screening y estado del flujo.
  */
+import { startConsentsSchema } from './customer-onboarding-consents.schema.js';
 import { z } from 'zod';
 import { birthDateSchema } from './customer-onboarding-profile.schemas.js';
 import { captureSourceSchema, IDENTITY_EVIDENCE_TYPES, sinEscanerEnLaSelfie } from '../../common/storage/capture-source.js';
@@ -43,16 +44,7 @@ export const startOnboardingSchema = z.object({
     .regex(/^\d{4}$/, 'Tu PIN debe ser de 4 digitos.')
     .refine(isCustomerPinValid, 'Ese PIN es demasiado facil de adivinar. Elige otro.'),
 
-  consents: z
-    .array(
-      z.object({
-        consentDocumentId: z.string().regex(/^[1-9][0-9]*$/),
-        purposeCode: z.string().trim().min(1).max(80),
-        granted: z.boolean(),
-        acceptedAt: z.string().datetime().optional(),
-      }),
-    )
-    .min(1, 'Se requiere al menos un consentimiento.'),
+  consents: startConsentsSchema,
 
   device: z.object({
     deviceFingerprintHash: z.string().trim().min(32).max(128),
@@ -289,7 +281,8 @@ export const identityManualReviewSchema = z.object({
   decision: z.enum(['approved', 'rejected']),
   notes: z.string().trim().min(1).max(2_000),
   /**
-   * ID del usuario interno que decidió. Si no viene, se toma del token: nunca queda anónimo.
+   * ID del usuario interno que decidió. Se toma SIEMPRE del token; si viene, tiene que ser ese mismo
+   * (403 si no): antes valía cualquiera y la decisión quedaba a nombre de otro analista.
    * Es el ID y no el correo porque la columna es una clave foránea a `iam.internal_users`.
    */
   reviewedByInternalUserId: z

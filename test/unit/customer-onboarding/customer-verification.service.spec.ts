@@ -248,13 +248,18 @@ describe('CustomerVerificationService · aviso del veredicto (A8)', () => {
 });
 
 describe('CustomerComplianceScreeningService', () => {
-  function build(entries: Array<Record<string, unknown>> = [], existingMatches: Array<Record<string, unknown>> = []) {
+  function build(
+    entries: Array<Record<string, unknown>> = [],
+    existingMatches: Array<Record<string, unknown>> = [],
+    documentHashes: string[] = [],
+  ) {
     const common = commonMocks();
     const profileDataRepository = {
       findCurrentProfile: jest.fn(async (..._args: unknown[]) => ({ id: 'p1', fullNameNormalized: 'ana paz' })),
     };
     const verificationRepository = {
       findActiveEntriesByHashes: jest.fn(async (..._args: unknown[]) => entries),
+      findIdentityDocumentHashes: jest.fn(async (..._args: unknown[]) => documentHashes),
       findMatches: jest.fn(async (..._args: unknown[]) => existingMatches),
       createMatch: jest.fn(async (..._args: unknown[]) => ({ id: 'match-1' })),
       clearMatch: jest.fn(),
@@ -311,6 +316,38 @@ describe('CustomerComplianceScreeningService', () => {
     expect(result).toMatchObject({ newMatches: 0, totalMatches: 1 });
   });
 
+  it('coteja también el número de documento: alguien listado por su CI no pasa con otro nombre y otros contactos', async () => {
+    const { service, verificationRepository, lifecycleService } = build(
+      [{ id: 'wl-ci', entityType: null, entityHash: 'ci-hash' }],
+      [],
+      ['ci-hash'],
+    );
+
+    const result = await service.screen(baseInput);
+
+    const hashes = (verificationRepository.findActiveEntriesByHashes.mock.calls[0] as unknown[])[1] as string[];
+    expect(hashes).toContain('ci-hash');
+    expect(verificationRepository.createMatch).toHaveBeenCalledWith(
+      expect.objectContaining({ watchlistEntryId: 'wl-ci', matchedEntityType: 'document' }),
+      expect.anything(),
+    );
+    expect(lifecycleService.advance).toHaveBeenCalled();
+    expect(result.candidatesEvaluated).toBe(3);
+  });
+
+  it('una coincidencia ya descartada no se recrea ni devuelve al cliente a revisión', async () => {
+    const { service, verificationRepository, lifecycleService } = build(
+      [{ id: 'wl-1', entityType: 'person_name', entityHash: 'hash-1' }],
+      [{ id: 'match-0', watchlistEntryId: 'wl-1', clearedAt: new Date('2026-10-01T00:00:00Z') }],
+    );
+
+    const result = await service.screen(baseInput);
+
+    expect(verificationRepository.createMatch).not.toHaveBeenCalled();
+    expect(lifecycleService.advance).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ newMatches: 0, totalMatches: 0 });
+  });
+
   it('la auditoría registra el conteo, nunca el hash cotejado', async () => {
     const { service, onboardingRepository } = build([{ id: 'wl-1', entityType: 'person_name', entityHash: 'hash-secreto' }]);
     await service.screen(baseInput);
@@ -324,7 +361,17 @@ describe('CustomerComplianceScreeningService', () => {
 
     const result = await service.clearMatches({ ...baseInput, reasonCode: 'false_positive', notes: 'Homónimo verificado.' });
 
+    expect(verificationRepository.findMatches).toHaveBeenCalledWith('t1', 'c1', expect.objectContaining({ onlyOpen: true }));
     expect(verificationRepository.clearMatch).toHaveBeenCalledTimes(2);
+    expect(verificationRepository.clearMatch).toHaveBeenCalledWith(
+      { id: 'm1' },
+      {
+        clearedAt: expect.any(Date),
+        clearedByInternalUserId: (analyst as { internalUserId?: string }).internalUserId ?? null,
+        clearedReasonCode: 'false_positive',
+      },
+      expect.anything(),
+    );
     expect(eligibilityService.evaluateAndRecord).toHaveBeenCalledWith(
       expect.objectContaining({ decisionSource: 'manual_decision', reasonCode: 'false_positive' }),
     );

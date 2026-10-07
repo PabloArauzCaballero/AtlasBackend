@@ -150,6 +150,35 @@ describe('CustomerPrivacyService', () => {
       expect(privacyRepository.createStatusEvent).toHaveBeenCalledTimes(1);
     });
 
+    it('FALLA sin el fix: el personal interno no puede registrar un consentimiento "granted" a nombre del cliente', async () => {
+      const { service, privacyRepository } = buildService();
+      const operador = { role: 'internal_operator', customerId: undefined, internalUserId: 'iu-1', platformUserId: undefined } as never;
+
+      await expect(service.registerConsentDecisions(baseInput({ currentUser: operador }))).rejects.toThrow(ForbiddenException);
+      expect(privacyRepository.createCustomerConsent).not.toHaveBeenCalled();
+    });
+
+    it('FALLA sin el fix: la hora que declara el cliente no puede ser futura ni anterior a la ventana', async () => {
+      const { service, customersRepository, consentsRepository, privacyRepository } = buildService();
+      (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
+      (consentsRepository.findActiveDocumentsByIds as jest.Mock).mockResolvedValue([{ id: 'doc1' }] as never);
+      (privacyRepository.createCustomerConsent as jest.Mock).mockResolvedValue({ id: 'consent-1' } as never);
+      const antes = Date.now();
+
+      await service.registerConsentDecisions(
+        baseInput({
+          body: {
+            decisions: [
+              { consentDocumentId: 'doc1', purposeCode: 'marketing', decision: 'granted', decidedAt: '2020-01-01T00:00:00.000Z' },
+            ],
+          } as never,
+        }),
+      );
+
+      const guardada = (privacyRepository.createCustomerConsent as jest.Mock).mock.calls[0]?.[0] as { happenedAt: Date };
+      expect(guardada.happenedAt.getTime()).toBeGreaterThanOrEqual(antes);
+    });
+
     it('propagates the acting internal user id to the consent event and audit log — not just the role', async () => {
       const { service, customersRepository, consentsRepository, privacyRepository } = buildService();
       (customersRepository.findById as jest.Mock).mockResolvedValueOnce({ id: 'c1', lifecycleStatus: 'registered' } as never);
@@ -162,7 +191,12 @@ describe('CustomerPrivacyService', () => {
         platformUserId: undefined,
       } as never;
 
-      await service.registerConsentDecisions(baseInput({ currentUser: complianceUser }));
+      await service.registerConsentDecisions(
+        baseInput({
+          currentUser: complianceUser,
+          body: { decisions: [{ consentDocumentId: 'doc1', purposeCode: 'marketing', decision: 'revoked' }] } as never,
+        }),
+      );
 
       expect(privacyRepository.createConsentEvent).toHaveBeenCalledWith(
         expect.objectContaining({ actorType: 'compliance_analyst', actorInternalUserId: 'iu-42' }),
