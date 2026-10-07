@@ -17,7 +17,7 @@ describe('upsertByCode', () => {
   });
 
   it('al crear conserva la fecha de creación', async () => {
-    const model = { findOne: jest.fn(async () => null), create: jest.fn(async (v: unknown) => v) };
+    const model = { findOne: jest.fn(async () => null), create: jest.fn(async (v: unknown, _opciones?: unknown) => v) };
 
     const { created } = await upsertByCode(model as never, 'eventCode', 'E1', valores, {});
 

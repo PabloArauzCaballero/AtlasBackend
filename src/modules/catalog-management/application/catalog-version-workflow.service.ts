@@ -19,6 +19,7 @@ import {
   RequestContext,
   requireIdempotency,
 } from './catalog-management.shared.js';
+import { assertDecisionAllowed } from './catalog-version-transitions.js';
 
 @Injectable()
 export class CatalogVersionWorkflowService {
@@ -252,15 +253,7 @@ export class CatalogVersionWorkflowService {
           : input.body.decision === 'retire'
             ? 'retired'
             : 'rejected';
-    if (input.body.decision === 'publish' && !['approved', 'pending_approval'].includes(version.status ?? ''))
-      throw new UnprocessableEntityException('CATALOG_VERSION_NOT_READY_TO_PUBLISH');
-    // Una versión ya publicada no se «rechaza» (quedaría rechazada y vigente a la vez): se retira.
-    if (input.body.decision === 'reject' && ['published', 'retired', 'rejected'].includes(version.status ?? ''))
-      throw new UnprocessableEntityException('CATALOG_VERSION_NOT_REJECTABLE');
-    if (input.body.decision === 'retire' && ['retired', 'rejected'].includes(version.status ?? ''))
-      throw new UnprocessableEntityException('CATALOG_VERSION_NOT_RETIRABLE');
-    if (input.body.decision === 'approve' && version.status !== 'pending_approval')
-      throw new UnprocessableEntityException('CATALOG_VERSION_NOT_PENDING_APPROVAL');
+    assertDecisionAllowed(input.body.decision, version.status);
     return this.sequelize.transaction(async (transaction) => {
       const updated = await this.repository.updateCatalogVersionStatus(
         version,

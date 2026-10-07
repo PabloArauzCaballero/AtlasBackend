@@ -24,7 +24,7 @@ describe('SqlConsoleController — validate (e2e/supertest)', () => {
 
   const catalog = { datasets: jest.fn(async () => []), limits: jest.fn(() => ({})) };
   const queries = {
-    validate: jest.fn((statement: string) => ({ valid: !statement.toLowerCase().includes('drop'), violations: [] })),
+    validate: jest.fn((statement: string, _user?: unknown) => ({ valid: !statement.toLowerCase().includes('drop'), violations: [] })),
     execute: jest.fn(async () => ({ rows: [], columns: [], rowCount: 0, durationMs: 1 })),
   };
   const history = { record: jest.fn(async () => undefined), listOwn: jest.fn(async () => ({ rows: [] })) };

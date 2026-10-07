@@ -8,6 +8,14 @@ import { CreationAttributes, FindOptions, Model, ModelStatic, Transaction } from
 export type RepositoryOptions = { transaction?: Transaction };
 
 /**
+ * Opciones de una lectura que se va a modificar: dentro de una transacción toma FOR UPDATE, de modo
+ * que dos decisiones sobre la misma fila se serializan en vez de pisarse.
+ */
+export function lockedRead(options: RepositoryOptions): { transaction?: Transaction; lock: boolean } {
+  return { transaction: options.transaction, lock: Boolean(options.transaction) };
+}
+
+/**
  * Upsert genérico por un campo-código único (`eventCode`, `purposeCode`, etc.), compartido por los
  * repos por agregado de `catalog-management` (Fase 2.3 del plan 10/10). Es `this`-free: opera solo
  * sobre el modelo que recibe, por lo que no acopla a ningún repositorio concreto.

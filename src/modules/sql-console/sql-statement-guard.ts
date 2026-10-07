@@ -11,7 +11,7 @@ import {
   SQL_FORBIDDEN_KEYWORDS,
   SQL_FORBIDDEN_RELATIONS,
 } from './sql-console.constants.js';
-import { scanSql } from './sql-tokenizer.js';
+import { scanSql, type SqlScan } from './sql-tokenizer.js';
 
 export type SqlViolation = { code: string; message: string };
 
@@ -47,7 +47,6 @@ const DELETE_CHARACTER = 127;
  */
 export function guardSqlStatement(input: string, options: { baseSchemas?: boolean } = {}): SqlGuardVerdict {
   const raw = input.trim();
-  const violations: SqlViolation[] = [];
 
   if (raw.length === 0) {
     return fail([{ code: 'SQL_EMPTY_STATEMENT', message: 'Escribe una consulta.' }]);
@@ -104,6 +103,15 @@ export function guardSqlStatement(input: string, options: { baseSchemas?: boolea
     ]);
   }
 
+  const violations = contentViolations(scan, options);
+  if (violations.length > 0) return fail(violations);
+  return { ok: true, statement: scan.normalized };
+}
+
+/** Lo que la sentencia contiene y no se admite: escapes Unicode, funciones, palabras, relaciones y esquemas. */
+function contentViolations(scan: SqlScan, options: { baseSchemas?: boolean }): SqlViolation[] {
+  const violations: SqlViolation[] = [];
+
   if (scan.unicodeEscapes) {
     violations.push({
       code: 'SQL_UNICODE_ESCAPE',
@@ -113,10 +121,7 @@ export function guardSqlStatement(input: string, options: { baseSchemas?: boolea
 
   for (const word of scan.words) {
     if (word.followedBy === '(' && FORBIDDEN_FUNCTIONS.has(word.value)) {
-      violations.push({
-        code: 'SQL_FORBIDDEN_FUNCTION',
-        message: `La función ${word.value}() no está disponible: lee fuera de las tablas, abre otra conexión o cambia el estado del servidor.`,
-      });
+      violations.push(functionViolation(word.value));
     }
 
     // Un `.` delante lo descarta como calificador (`t.update`), donde la palabra es un nombre de
@@ -137,18 +142,12 @@ export function guardSqlStatement(input: string, options: { baseSchemas?: boolea
 
   for (const identifier of scan.quotedIdentifiers) {
     // Entre comillas Postgres llama a la MISMA función: `"set_config"(…)` es `set_config(…)`.
-    if (FORBIDDEN_FUNCTIONS.has(identifier)) {
-      violations.push({
-        code: 'SQL_FORBIDDEN_FUNCTION',
-        message: `La función ${identifier}() no está disponible: lee fuera de las tablas, abre otra conexión o cambia el estado del servidor.`,
-      });
-    }
+    if (FORBIDDEN_FUNCTIONS.has(identifier)) violations.push(functionViolation(identifier));
     if (!options.baseSchemas && BASE_SCHEMAS.has(identifier)) violations.push(baseSchemaViolation(identifier));
     if (FORBIDDEN_RELATIONS.has(identifier)) violations.push(relationViolation(identifier));
   }
 
-  if (violations.length > 0) return fail(violations);
-  return { ok: true, statement: scan.normalized };
+  return violations;
 }
 
 /**
@@ -171,6 +170,13 @@ function relationViolation(relation: string): SqlViolation {
   return {
     code: 'SQL_FORBIDDEN_RELATION',
     message: `La relación «${relation}» guarda credenciales o valores muestreados de otras tablas: no se sirve ni enmascarada.`,
+  };
+}
+
+function functionViolation(name: string): SqlViolation {
+  return {
+    code: 'SQL_FORBIDDEN_FUNCTION',
+    message: `La función ${name}() no está disponible: lee fuera de las tablas, abre otra conexión o cambia el estado del servidor.`,
   };
 }
 
