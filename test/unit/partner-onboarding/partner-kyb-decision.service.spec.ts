@@ -152,11 +152,24 @@ describe('PartnerKybDecisionService', () => {
       expect(decision.manualReviewCaseCode).toBe('MR-0000000077');
     });
 
-    it('si el Motor ya abrió el caso no pide otro', async () => {
-      const { service, client } = build();
+    it('si el grafo ya abrió el caso le adjunta el anexo del comercio y conserva su código', async () => {
+      // Con la versión del artefacto que abre caso sola, salir aquí dejaba al revisor sin un dato de la empresa.
+      const { service, client } = build({ abierto: { caseCode: 'OTRO', status: 'OPEN' } });
+      const decision = await service.evaluate({ ...entrada, dossier: { version: 1, comercio: { razonSocial: 'Tienda SRL' } } });
+
+      expect(client.manualReviews.putOnboardingDossier).toHaveBeenCalledWith(
+        'exec-77',
+        expect.objectContaining({
+          dossier: { version: 1, comercio: { razonSocial: 'Tienda SRL' }, origen: 'KYB_COMERCIO', expedienteId: '10' },
+        }),
+      );
+      expect(decision.manualReviewCaseCode).toBe('MRC-3');
+    });
+
+    it('si el anexo no llega, el caso que abrió el grafo no se pierde', async () => {
+      const { service } = build({ abierto: null });
       const decision = await service.evaluate(entrada);
 
-      expect(client.manualReviews.putOnboardingDossier).not.toHaveBeenCalled();
       expect(decision.manualReviewCaseCode).toBe('MRC-3');
     });
 

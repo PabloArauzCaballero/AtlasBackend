@@ -30,14 +30,18 @@ const KYB_CASE_SLA_MINUTES = 1_440;
  * Pide al Motor el caso de la ejecución. `null` si no responde o si el caso ya está cerrado.
  *
  * El `requestId` de la ejecución (`kyb-<comercio>-…`) es lo que enlaza el caso con el expediente en
- * el portal del Motor; el anexo no lleva datos del comercio, sólo a quién pertenece y por qué.
+ * el portal del Motor. El anexo lleva además lo que arma `buildKybDossier` (quién es el comercio,
+ * quién lo representa, qué le falta) cuando quien llama lo tiene; sin él viaja sólo a quién pertenece.
+ *
+ * Sirve también cuando el caso YA existe (lo abrió el grafo): el Motor adjunta el anexo sin tocar
+ * estado ni asignación, y repetir el envío lo reemplaza.
  */
 export async function openKybReviewCase(
   client: KybCaseOpener,
-  input: { executionId: string; profileId: string; reason: string | null },
+  input: { executionId: string; profileId: string; reason: string | null; dossier?: Record<string, unknown> },
 ): Promise<{ caseCode: string } | null> {
   const result = await client.manualReviews.putOnboardingDossier(input.executionId, {
-    dossier: { origen: 'KYB_COMERCIO', expedienteId: input.profileId },
+    dossier: { ...input.dossier, origen: 'KYB_COMERCIO', expedienteId: input.profileId },
     openIfMissing: {
       queueCode: KYB_QUEUE_CODE,
       priority: KYB_CASE_PRIORITY,
