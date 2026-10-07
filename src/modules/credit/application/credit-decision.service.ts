@@ -184,7 +184,10 @@ export class CreditDecisionService {
     resolvedByInternalUserId: string | null;
   }) {
     return this.sequelize.transaction(async (transaction) => {
-      const application = await this.creditRepository.findApplicationByExecutionId(input.tenantId, input.executionId, { transaction, lock: true });
+      const application = await this.creditRepository.findApplicationByExecutionId(input.tenantId, input.executionId, {
+        transaction,
+        lock: true,
+      });
       if (!application) throw new NotFoundException(`Ninguna solicitud de crédito nació de la ejecución ${input.executionId}.`);
       if (CLOSED_STATUSES.includes(application.status)) {
         return {

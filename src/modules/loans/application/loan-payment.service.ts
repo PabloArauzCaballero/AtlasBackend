@@ -10,11 +10,11 @@ import { Transaction } from 'sequelize';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { createStableCode, sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { LoanInstallmentModel, LoanModel, LoanPaymentModel } from '../../../database/models/index.js';
-import { civilDateOf } from '../domain/loan-delinquency.js';
 import { allocatePayment, type AllocatableInstallment } from '../domain/loan-allocation.js';
 import { clampToZero, fromCents, toCents } from '../domain/money.util.js';
 import { RegisterPaymentDto, ReversePaymentDto } from '../loans.schemas.js';
 import { LoansRepository } from '../loans.repository.js';
+import { statusAfterReversal } from './loan-installment-status.js';
 
 function outstandingOf(installment: LoanInstallmentModel): AllocatableInstallment {
   return {
@@ -25,18 +25,6 @@ function outstandingOf(installment: LoanInstallmentModel): AllocatableInstallmen
     interestDueCents: clampToZero(toCents(installment.interestAmount) - toCents(installment.paidInterest)),
     lateFeeDueCents: clampToZero(toCents(installment.lateFeeAmount) - toCents(installment.paidLateFee)),
   };
-}
-
-/**
- * Estado de la cuota tras restarle un cobro: se DERIVA de lo que queda pagado. Dejarla siempre en
- * `partially_paid` mostraba como pago parcial una cuota con cero pagado, y una `written_off` no se toca.
- */
-function statusAfterReversal(installment: LoanInstallmentModel, today: string): LoanInstallmentModel['status'] {
-  if (installment.status === 'written_off') return installment.status;
-  if (isFullyPaid(installment)) return 'paid';
-  const paidCents = toCents(installment.paidPrincipal) + toCents(installment.paidInterest) + toCents(installment.paidLateFee);
-  if (paidCents > 0) return 'partially_paid';
-  return installment.dueDate < today ? 'overdue' : 'pending';
 }
 
 function isFullyPaid(installment: LoanInstallmentModel): boolean {
@@ -224,8 +212,7 @@ export class LoanPaymentService {
       const payment = await this.loans.findPaymentForUpdate(input.tenantId, input.paymentId, transaction);
       if (!payment || payment.loanId !== loan.id) throw new NotFoundException('LOAN_PAYMENT_NOT_FOUND');
       if (payment.status === 'reversed') throw new ConflictException('LOAN_PAYMENT_ALREADY_REVERSED');
-      // El castigo cerró el cronograma (cuotas `written_off`): reversar un cobro anterior reabriría
-      // cuotas castigadas y desuadraría `writtenOffAmount`. Un recupero posterior es otra operación.
+      // Con el castigo las cuotas son `written_off`: reversar un cobro anterior las reabriría y desuadraría `writtenOffAmount`.
       if (loan.status === 'written_off') throw new ConflictException('LOAN_WRITTEN_OFF_PAYMENT_NOT_REVERSIBLE');
 
       // ATL-09: se captura ANTES de mutar. `applyTotalsToLoan` reabre un préstamo `paid_off`, y leer
@@ -235,7 +222,6 @@ export class LoanPaymentService {
       const installments = await this.loans.findInstallments(input.tenantId, loan.id, { transaction });
       const byId = new Map(installments.map((installment) => [installment.id, installment]));
       const now = new Date();
-      const today = civilDateOf(now);
 
       for (const allocation of allocations) {
         const installment = byId.get(allocation.loanInstallmentId);
@@ -243,7 +229,7 @@ export class LoanPaymentService {
         installment.paidPrincipal = fromCents(clampToZero(toCents(installment.paidPrincipal) - toCents(allocation.principalApplied)));
         installment.paidInterest = fromCents(clampToZero(toCents(installment.paidInterest) - toCents(allocation.interestApplied)));
         installment.paidLateFee = fromCents(clampToZero(toCents(installment.paidLateFee) - toCents(allocation.lateFeeApplied)));
-        installment.status = statusAfterReversal(installment, today);
+        installment.status = statusAfterReversal(installment, now, isFullyPaid(installment));
         if (installment.status !== 'paid') installment.settledAt = null;
         installment.updatedAtValue = now;
         await installment.save({ transaction });

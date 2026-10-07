@@ -8,9 +8,10 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize';
 import { LoanInstallmentModel, LoanModel } from '../../../database/models/index.js';
-import { bucketForDaysPastDue, civilDateOf, loanDaysPastDue } from '../domain/loan-delinquency.js';
-import { clampToZero, toCents } from '../domain/money.util.js';
+import { bucketForDaysPastDue, loanDaysPastDue } from '../domain/loan-delinquency.js';
+import { toCents } from '../domain/money.util.js';
 import { amountForLabel, labelForLoan, OUTCOME_WINDOW_DAYS, windowIsMature, type InstallmentHistory } from '../domain/loan-outcome.js';
+import { markOverdueInstallments, outstandingCentsOf } from './loan-installment-status.js';
 import { CreditLineService } from '../../credit/application/credit-line.service.js';
 import { LoansRepository } from '../loans.repository.js';
 
@@ -45,17 +46,6 @@ type EvaluationResult = {
   enqueued: number;
   bucketChange: { tenantId: string; customerId: string; worsened: boolean } | null;
 };
-
-function outstandingCentsOf(installment: LoanInstallmentModel): number {
-  return clampToZero(
-    toCents(installment.principalAmount) +
-      toCents(installment.interestAmount) +
-      toCents(installment.lateFeeAmount) -
-      toCents(installment.paidPrincipal) -
-      toCents(installment.paidInterest) -
-      toCents(installment.paidLateFee),
-  );
-}
 
 @Injectable()
 export class LoanDelinquencyService {
@@ -181,26 +171,8 @@ export class LoanDelinquencyService {
     locked.updatedAtValue = now;
     await locked.save({ transaction });
 
-    /*
-     * La cuota vencida e impaga se marca como tal: cobranza pregunta por estado, no por fecha.
-     *
-     * Sólo en préstamos ACTIVOS. El castigo pone en `written_off` las cuotas impagas sin tocar sus
-     * importes, así que siguen con saldo y fecha pasada: sin este corte, el primer barrido las volvía
-     * `overdue` y el castigo desaparecía del calendario y de las cuotas cobrables. Y el atraso de la
-     * cuota se recalcula en cada pasada, no sólo al entrar en mora: si no, se quedaba en 1 día.
-     */
-    const today = civilDateOf(now);
-    for (const installment of locked.status === 'active' ? installments : []) {
-      if (installment.status === 'written_off' || installment.status === 'paid') continue;
-      const outstanding = outstandingCentsOf(installment);
-      if (outstanding <= 0 || installment.dueDate >= today) continue;
-      const installmentDaysPastDue = loanDaysPastDue([{ dueDate: installment.dueDate, outstandingCents: outstanding }], now);
-      if (installment.status === 'overdue' && installment.daysPastDue === installmentDaysPastDue) continue;
-      installment.status = 'overdue';
-      installment.daysPastDue = installmentDaysPastDue;
-      installment.updatedAtValue = now;
-      await installment.save({ transaction });
-    }
+    // La cuota vencida e impaga se marca como tal (sólo en préstamos activos): cobranza pregunta por estado, no por fecha.
+    if (locked.status === 'active') await markOverdueInstallments(installments, now, transaction);
 
     if (previousBucket !== locked.delinquencyBucket) {
       await this.loans.createEvent(

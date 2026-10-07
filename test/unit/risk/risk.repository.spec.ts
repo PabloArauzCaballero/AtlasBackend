@@ -69,7 +69,7 @@ describe('RiskRepository', () => {
     });
     contar(models.deviceLink, 1);
     await expect(repo.findOwnedDeviceReferences('t1', '5', { deviceId: '9' })).resolves.toEqual({ deviceOwned: true, sessionOwned: true });
-    expect((models.deviceLink as { count: jest.Mock }).count).toHaveBeenCalledWith({
+    expect((models.deviceLink as unknown as { count: jest.Mock }).count).toHaveBeenCalledWith({
       where: { tenantId: 't1', customerId: '5', deviceId: '9' },
     });
   });
