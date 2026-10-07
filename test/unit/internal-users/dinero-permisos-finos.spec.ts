@@ -42,11 +42,26 @@ describe('permisos finos de las operaciones de dinero', () => {
     }
   });
 
-  it('PRUEBA EN NEGATIVO — soporte y agentes de cobranza no mueven dinero', () => {
-    for (const rol of ['SUPPORT_AGENT', 'COLLECTIONS_AGENT', 'MERCHANT_OPERATIONS', 'DATA_QUALITY_ANALYST'] as const) {
+  it('PRUEBA EN NEGATIVO — soporte y roles ajenos no mueven dinero', () => {
+    for (const rol of ['SUPPORT_AGENT', 'MERCHANT_OPERATIONS', 'DATA_QUALITY_ANALYST'] as const) {
       expect(ROLE_PERMISSION_CODES[rol]).not.toContain('loans.payment.register');
       expect(ROLE_PERMISSION_CODES[rol]).not.toContain('credit.loan.disburse');
       expect(ROLE_PERMISSION_CODES[rol]).not.toContain('credit.application.decide');
+    }
+  });
+
+  it('mínimo privilegio — cobranza cobra y revierte; riesgo decide; desembolsar y gobernar productos es sólo de SUPER_ADMIN', () => {
+    expect(ROLE_PERMISSION_CODES.COLLECTIONS_AGENT).toEqual(expect.arrayContaining(['loans.payment.register', 'loans.payment.reverse']));
+    expect(ROLE_PERMISSION_CODES.COLLECTIONS_AGENT).not.toContain('credit.application.decide');
+    expect(ROLE_PERMISSION_CODES.COLLECTIONS_AGENT).not.toContain('credit.loan.disburse');
+    for (const rol of ['RISK_MANAGER', 'RISK_ANALYST'] as const) {
+      expect(ROLE_PERMISSION_CODES[rol]).toContain('credit.application.decide');
+    }
+    for (const permiso of ['credit.loan.disburse', 'credit.product.manage']) {
+      const titulares = Object.entries(ROLE_PERMISSION_CODES)
+        .filter(([, codigos]) => codigos.includes(permiso))
+        .map(([rol]) => rol);
+      expect(titulares).toEqual(['SUPER_ADMIN']);
     }
   });
 });
