@@ -43,10 +43,10 @@ describe('CreditApplicationService', () => {
     const creditRepository = {
       findProductById: jest.fn(async (..._args: unknown[]) => ({ ...PRODUCT, ...(options.product ?? {}) })),
       findOpenApplication: jest.fn(async (..._args: unknown[]) => null),
-      createApplication: jest.fn(async (..._args: unknown[]) => ({
+      createApplication: jest.fn(async (...args: unknown[]) => ({
         id: 'app-1',
         applicationCode: 'CRA-1',
-        status: 'submitted',
+        status: (args[0] as { status?: string } | undefined)?.status ?? 'submitted',
         requestedAmount: '5000.00',
         requestedTermMonths: 12,
         currencyCode: 'BOB',
@@ -247,5 +247,17 @@ describe('CreditApplicationService', () => {
     await service.createApplication(baseInput);
     const persisted = (creditRepository.createApplication as jest.Mock).mock.calls[0][0] as { status: string };
     expect(persisted.status).toBe('under_review');
+  });
+
+  it('un producto que exige revisión manual SÍ consulta al motor, reteniendo su veredicto', async () => {
+    const { service, underwriting } = build({ product: { requiresManualReview: true } });
+    await service.createApplication(baseInput);
+    expect(underwriting.underwrite).toHaveBeenCalledWith(expect.objectContaining({ holdForManualReview: true }));
+  });
+
+  it('un producto automático consulta al motor sin retener el veredicto', async () => {
+    const { service, underwriting } = build();
+    await service.createApplication(baseInput);
+    expect(underwriting.underwrite).toHaveBeenCalledWith(expect.objectContaining({ holdForManualReview: false }));
   });
 });

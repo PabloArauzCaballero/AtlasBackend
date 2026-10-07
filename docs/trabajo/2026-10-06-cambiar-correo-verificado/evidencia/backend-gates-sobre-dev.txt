@@ -1,0 +1,7 @@
+type-check exit=0
+type-check:tests exit=0
+lint exit=0
+format:check exit=0
+✅ Gate de tamaño OK: sin archivos runtime nuevos sobre 300 líneas ni crecimiento de la deuda congelada.
+✅ Contrato OpenAPI válido: 554 rutas / 594 operaciones, todas con operationId, seguridad y esquema de respuesta.
+audit mask=4

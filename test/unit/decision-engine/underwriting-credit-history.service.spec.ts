@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Op } from 'sequelize';
 import { UnderwritingCreditHistoryService } from '../../../src/modules/decision-engine/underwriting-credit-history.service.js';
-import type { LoanInstallmentModel, LoanModel } from '../../../src/database/models/index.js';
+import type { CreditApplicationModel, LoanInstallmentModel, LoanModel } from '../../../src/database/models/index.js';
 
 /**
  * El historial de pago del cliente DENTRO de Atlas.
@@ -46,14 +46,17 @@ function cuota(overrides: Record<string, unknown> = {}): LoanInstallmentModel {
 describe('UnderwritingCreditHistoryService', () => {
   let loans: { findAll: jest.Mock };
   let installments: { findAll: jest.Mock };
+  let applications: { count: jest.Mock };
   let service: UnderwritingCreditHistoryService;
 
   beforeEach(() => {
     loans = { findAll: jest.fn(async () => []) };
     installments = { findAll: jest.fn(async () => []) };
+    applications = { count: jest.fn(async () => 0) };
     service = new UnderwritingCreditHistoryService(
       loans as unknown as typeof LoanModel,
       installments as unknown as typeof LoanInstallmentModel,
+      applications as unknown as typeof CreditApplicationModel,
     );
   });
 
@@ -162,16 +165,16 @@ describe('UnderwritingCreditHistoryService', () => {
     });
 
     it('los cortes del calendario caen donde dice la escala', () => {
-      expect(service.worstStatusOf(200, 'current')).toBe('DPD_120_PLUS');
-      expect(service.worstStatusOf(120, 'current')).toBe('DPD_120_PLUS');
-      expect(service.worstStatusOf(90, 'current')).toBe('DPD_90');
-      expect(service.worstStatusOf(60, 'current')).toBe('DPD_60');
-      expect(service.worstStatusOf(1, 'current')).toBe('DPD_30');
-      expect(service.worstStatusOf(0, 'current')).toBe('CURRENT');
+      expect(service.worstStatusOf(200, ['current'])).toBe('DPD_120_PLUS');
+      expect(service.worstStatusOf(120, ['current'])).toBe('DPD_120_PLUS');
+      expect(service.worstStatusOf(90, ['current'])).toBe('DPD_90');
+      expect(service.worstStatusOf(60, ['current'])).toBe('DPD_60');
+      expect(service.worstStatusOf(1, ['current'])).toBe('DPD_30');
+      expect(service.worstStatusOf(0, ['current'])).toBe('CURRENT');
     });
 
     it('sin tramo del barrido tampoco se inventa uno', () => {
-      expect(service.worstStatusOf(0, undefined)).toBe('CURRENT');
+      expect(service.worstStatusOf(0, [undefined])).toBe('CURRENT');
     });
   });
 
@@ -220,17 +223,63 @@ describe('UnderwritingCreditHistoryService', () => {
       expect(historial.monthlyCommitted).toBe(110);
     });
 
-    it('un desembolso de las últimas 24 horas se cuenta aparte: es la señal de ráfaga', async () => {
+    it('consultas y velocidad salen de las SOLICITUDES, no de los préstamos: el cliente que vuelve no suma riesgo', async () => {
       loans.findAll.mockResolvedValueOnce([
         prestamo({ id: 1, disbursedAt: new Date(AHORA.getTime() - 3 * 3_600_000) }),
         prestamo({ id: 2, disbursedAt: new Date(AHORA.getTime() - 5 * 86_400_000) }),
         prestamo({ id: 3, disbursedAt: null }),
       ] as never);
+      applications.count.mockResolvedValueOnce(2 as never).mockResolvedValueOnce(4 as never);
 
       const historial = await service.creditHistory('t1', 'c1', AHORA);
 
-      expect(historial.applications24h).toBe(1);
+      expect(historial.applications6m).toBe(2);
+      expect(historial.applications24h).toBe(4);
+      const [rechazadas, delDia] = applications.count.mock.calls.map((call) => (call[0] as { where: Record<string, unknown> }).where);
+      expect(rechazadas).toMatchObject({ status: 'rejected', deleted: false });
+      expect(delDia).not.toHaveProperty('status');
+    });
+
+    it('sin préstamos las solicitudes siguen contando: quien insiste tras un rechazo no es «sin historial»', async () => {
+      applications.count.mockResolvedValueOnce(3 as never).mockResolvedValueOnce(1 as never);
+
+      const historial = await service.creditHistory('t1', 'c1', AHORA);
+
       expect(historial.applications6m).toBe(3);
+      expect(historial.applications24h).toBe(1);
+    });
+
+    it('el compromiso mensual es la PRÓXIMA cuota impaga de cada préstamo, aunque haya muchos ya pagados', async () => {
+      loans.findAll.mockResolvedValueOnce([
+        prestamo({ id: 'L1' }),
+        ...Array.from({ length: 8 }, (_, i) => prestamo({ id: `P${String(i)}`, status: 'paid_off' })),
+      ] as never);
+      installments.findAll.mockResolvedValueOnce([
+        cuota({ loanId: 'L1', dueDate: '2026-10-20', principalAmount: '300', interestAmount: '20' }),
+        cuota({ loanId: 'L1', dueDate: '2026-09-20', principalAmount: '300', interestAmount: '30' }),
+        cuota({ loanId: 'P0', status: 'paid', principalAmount: '999', interestAmount: '0' }),
+      ] as never);
+
+      const historial = await service.creditHistory('t1', 'c1', AHORA);
+
+      expect(historial.monthlyCommitted).toBe(330);
+    });
+  });
+
+  describe('los tramos que la base escribe de verdad', () => {
+    it('`dpd_90_plus` y `written_off` (los de `ck_loans`) ya no caen a CURRENT', () => {
+      expect(service.worstStatusOf(0, ['dpd_90_plus'])).toBe('DPD_90');
+      expect(service.worstStatusOf(0, ['written_off'])).toBe('CHARGE_OFF');
+    });
+
+    it('el peor tramo es el más GRAVE, no el último por orden alfabético', () => {
+      expect(service.worstStatusOf(0, ['dpd_60_89', 'written_off', 'current'])).toBe('CHARGE_OFF');
+      expect(service.worstStatusOf(0, ['dpd_1_29', 'dpd_90_plus'])).toBe('DPD_90');
+    });
+
+    it('un castigo gana a los días del calendario', () => {
+      expect(service.worstStatusOf(40, ['written_off'])).toBe('CHARGE_OFF');
+      expect(service.worstStatusOf(100, ['dpd_1_29'])).toBe('DPD_90');
     });
   });
 });

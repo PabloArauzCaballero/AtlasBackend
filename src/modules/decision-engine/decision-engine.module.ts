@@ -20,6 +20,7 @@ import {
   DeviceSnapshotModel,
   CustomerDeviceLinkModel,
   OnboardingBehaviorSummaryModel,
+  CustomerConsentModel,
   CustomerDeviceContactModel,
   WatchlistEntryModel,
   IdentityVerificationAttemptModel,
@@ -27,6 +28,8 @@ import {
   LoanModel,
   LoanOutcomeReportModel,
   WatchlistMatchModel,
+  BankStatementReviewModel,
+  CreditApplicationModel,
 } from '../../database/models/index.js';
 import { CreditDecisionEngineService } from './credit-decision-engine.service.js';
 import { DecisionArtifactBindingController } from './decision-artifact-binding.controller.js';
@@ -46,6 +49,7 @@ import { UnderwritingFeaturesService } from './underwriting-features.service.js'
 import { UnderwritingSignalsService } from './underwriting-signals.service.js';
 import { UnderwritingCreditHistoryService } from './underwriting-credit-history.service.js';
 import { UnderwritingDeviceSignalsService } from './underwriting-device-signals.service.js';
+import { UnderwritingStatementService } from './underwriting-statement.service.js';
 
 /**
  * Integración con el ATLAS Decision Engine.
@@ -91,6 +95,12 @@ import { UnderwritingDeviceSignalsService } from './underwriting-device-signals.
       OnboardingBehaviorSummaryModel,
       CustomerDeviceContactModel,
       WatchlistEntryModel,
+      // El consentimiento vigente de agenda y ubicación: sin él, las señales no leen lo ya guardado.
+      CustomerConsentModel,
+      // Artefacto de crédito 2.2.0: el extracto VERIFICADO (`UnderwritingStatementService`) y las solicitudes
+      // rechazadas y del día (`UnderwritingCreditHistoryService.applicationCounts`).
+      BankStatementReviewModel,
+      CreditApplicationModel,
     ]),
   ],
   controllers: [DecisionArtifactBindingController],
@@ -103,6 +113,7 @@ import { UnderwritingDeviceSignalsService } from './underwriting-device-signals.
     UnderwritingSignalsService,
     UnderwritingCreditHistoryService,
     UnderwritingDeviceSignalsService,
+    UnderwritingStatementService,
     SubjectReferenceService,
     CreditDecisionEngineService,
     RiskDecisionEngineService,

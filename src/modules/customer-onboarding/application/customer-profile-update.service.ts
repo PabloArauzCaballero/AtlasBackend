@@ -91,6 +91,9 @@ export class CustomerProfileUpdateService {
       const firstName = input.body.firstName ?? current?.firstName ?? null;
       const lastName = input.body.lastName ?? current?.lastName ?? null;
       const birthDate = input.body.birthDate ?? current?.birthDate ?? null;
+      const gender = input.body.genderDeclared ?? current?.genderDeclared ?? null;
+      // Cambiar de género borra el «¿cuál?» anterior: no se arrastra una descripción que ya no corresponde.
+      const genderChanged = input.body.genderDeclared !== undefined && input.body.genderDeclared !== current?.genderDeclared;
 
       if (current) {
         await this.profileDataRepository.closeProfileVersion(current, now, { transaction });
@@ -105,7 +108,9 @@ export class CustomerProfileUpdateService {
           fullNameNormalized: normalizeFullName(firstName, lastName),
           birthDate,
           ageAtCapture: birthDate ? calculateAgeInYears(birthDate, now) : null,
-          genderDeclared: input.body.genderDeclared ?? current?.genderDeclared ?? null,
+          genderDeclared: gender,
+          genderSelfDescribed:
+            gender === 'other' ? (input.body.genderSelfDescribed ?? (genderChanged ? null : (current?.genderSelfDescribed ?? null))) : null,
           preferredLanguage: input.body.preferredLanguage ?? current?.preferredLanguage ?? 'es',
           marketingOptIn: input.body.marketingOptIn ?? current?.marketingOptIn ?? false,
           sourceType: 'customer_self_service',
@@ -175,6 +180,7 @@ export class CustomerProfileUpdateService {
         lastName: profile.lastName,
         birthDate: profile.birthDate,
         genderDeclared: profile.genderDeclared,
+        genderSelfDescribed: profile.genderSelfDescribed,
         preferredLanguage: profile.preferredLanguage,
         marketingOptIn: profile.marketingOptIn,
         supersedesVersionId: profile.supersedesVersionId,
