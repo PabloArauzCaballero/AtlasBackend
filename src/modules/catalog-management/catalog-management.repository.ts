@@ -423,7 +423,12 @@ export class CatalogManagementRepository {
   }
 
   findStagingItemById(stagingItemId: string, options: RepositoryOptions = {}): Promise<ContextStagingItemModel | null> {
-    return this.contextStagingItemModel.findOne({ where: { id: stagingItemId }, transaction: options.transaction } as FindOptions);
+    // Dentro de una transacción se toma FOR UPDATE: dos lotes que decidan el mismo ítem se serializan.
+    return this.contextStagingItemModel.findOne({
+      where: { id: stagingItemId },
+      transaction: options.transaction,
+      lock: Boolean(options.transaction),
+    } as FindOptions);
   }
 
   async updateStagingItemDecision(
