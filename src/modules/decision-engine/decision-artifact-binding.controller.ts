@@ -71,7 +71,11 @@ export class DecisionArtifactBindingController {
   @ApiOperation({ summary: 'Elegir el artefacto que decide un tipo' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Asignación guardada.' })
-  @ApiResponse({ status: 422, description: 'DECISION_ARTIFACT_NOT_PUBLISHED — el motor no publica ese código; DECISION_PINNED_VERSION_NOT_SUPPORTED — pinnedVersion aún no se aplica.' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'DECISION_ARTIFACT_NOT_PUBLISHED — el motor no publica ese código; DECISION_PINNED_VERSION_NOT_SUPPORTED — pinnedVersion aún no se aplica.',
+  })
   @Post()
   @HttpCode(HttpStatus.OK)
   async assign(
@@ -90,7 +94,8 @@ export class DecisionArtifactBindingController {
       });
     } catch (error) {
       const message = (error as Error).message;
-      if (message.startsWith('DECISION_ARTIFACT_NOT_PUBLISHED') || message.startsWith('DECISION_PINNED_VERSION_NOT_SUPPORTED')) throw new UnprocessableEntityException(message);
+      if (message.startsWith('DECISION_ARTIFACT_NOT_PUBLISHED') || message.startsWith('DECISION_PINNED_VERSION_NOT_SUPPORTED'))
+        throw new UnprocessableEntityException(message);
       throw error;
     }
   }

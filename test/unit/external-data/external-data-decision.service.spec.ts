@@ -1,6 +1,9 @@
 import { describe, expect, it, jest, afterEach } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
-import { ExternalDataDecisionService, boliviaStartOfDay } from '../../../src/modules/external-data/application/external-data-decision.service.js';
+import {
+  ExternalDataDecisionService,
+  boliviaStartOfDay,
+} from '../../../src/modules/external-data/application/external-data-decision.service.js';
 
 /**
  * `ExternalDataDecisionService` (extraído de `ExternalDataExecutionService` en la Fase 2.2 del plan

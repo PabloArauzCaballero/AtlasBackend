@@ -20,6 +20,14 @@ import { consentPurposeCodes, productionIntegrationBlockers, providerModeFromEnv
  * costaría y si el consentimiento alcanza. Mezclada con la ejecución real, costaba distinguir en
  * qué rama se estaba leyendo — y era la mitad del archivo.
  */
+interface PreviewInput {
+  tenantId: string;
+  body: ExternalDataRequestDto;
+  requestedByUserId?: string;
+  /** Aprobación en línea ya verificada por el borde; igual que en la ejecución, nunca sale del cuerpo. */
+  approvedByAdminId?: string;
+}
+
 @Injectable()
 export class ExternalDataPreviewService {
   constructor(
@@ -30,13 +38,7 @@ export class ExternalDataPreviewService {
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
-  async previewExternalDataRequest(input: {
-    tenantId: string;
-    body: ExternalDataRequestDto;
-    requestedByUserId?: string;
-    /** Aprobación en línea ya verificada por el borde; igual que en la ejecución, nunca sale del cuerpo. */
-    approvedByAdminId?: string;
-  }) {
+  async previewExternalDataRequest(input: PreviewInput) {
     const providerCode = toProviderCode(input.body.providerCode);
     const provider = await this.registry.requireProvider(providerCode);
     const policy = await this.repository.findCostPolicy(String(provider.id), input.body.queryType);

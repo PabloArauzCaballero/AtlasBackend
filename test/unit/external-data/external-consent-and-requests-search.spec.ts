@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { Op } from 'sequelize';
-import { externalConsentSchema, providerProbeSchema } from '../../../src/modules/external-data/external-data.schemas.js';
+import { externalConsentSchema } from '../../../src/modules/external-data/external-data.schemas.js';
+import { providerProbeSchema } from '../../../src/modules/external-data/external-data-probe.schemas.js';
 import { ExternalProviderDashboardRepository } from '../../../src/modules/external-data/infrastructure/external-provider-dashboard.repository.js';
 
 describe('Consentimiento externo: sólo se registra lo otorgado', () => {

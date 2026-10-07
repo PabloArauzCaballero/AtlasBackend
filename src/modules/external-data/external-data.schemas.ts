@@ -6,15 +6,15 @@
 import { z } from 'zod';
 import { queryBooleanSchema } from '../../common/pipes/query-boolean.schema.js';
 
-const idStringSchema = z.string().trim().regex(/^\d+$/);
+export const idStringSchema = z.string().trim().regex(/^\d+$/);
 const providerCodeSchema = z
   .string()
   .trim()
   .min(2)
   .max(80)
   .transform((value) => (value.toUpperCase() === 'CGIP' ? 'SEGIP' : value.toUpperCase()));
-const scenarioSchema = z.string().trim().max(80).optional();
-const decisionStageSchema = z
+export const scenarioSchema = z.string().trim().max(80).optional();
+export const decisionStageSchema = z
   .string()
   .trim()
   .min(3)
@@ -289,28 +289,3 @@ export const retryRequestSchema = z.object({
   approvedByAdminId: idStringSchema.optional(),
 });
 export type RetryRequestDto = z.infer<typeof retryRequestSchema>;
-
-/**
- * Cuerpo de «Probar proveedor» (`POST /admin/external-providers/:code/test`). Antes era un
- * `Record<string, unknown>` sin validar: `queryType` en minúsculas no casaba con ninguna política de
- * costo (`findCostPolicy` compara exacto) y caía en NO_POLICY_CONFIGURED_ALLOWING_DEFAULT, y un
- * `customerId` no numérico llegaba a una columna BIGINT. Todo opcional: los valores por defecto los
- * pone `providerProbeRequest`.
- */
-export const providerProbeSchema = z
-  .object({
-    customerId: idStringSchema.optional(),
-    queryType: z
-      .string()
-      .trim()
-      .min(3)
-      .max(80)
-      .transform((value) => value.toUpperCase())
-      .optional(),
-    purpose: z.string().trim().min(3).max(100).optional(),
-    decisionStage: decisionStageSchema.optional(),
-    input: z.record(z.string(), z.unknown()).optional(),
-    scenario: scenarioSchema,
-  })
-  .default({});
-export type ProviderProbeDto = z.infer<typeof providerProbeSchema>;

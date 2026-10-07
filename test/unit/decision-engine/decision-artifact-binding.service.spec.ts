@@ -189,12 +189,23 @@ describe('DecisionArtifactBindingService', () => {
       });
       const [sql, opciones] = query.mock.calls.at(-1) as [string, { replacements: Record<string, unknown> }];
       expect(sql).toContain('ON CONFLICT');
-      expect(opciones.replacements).toMatchObject({ tenantId: 't1', decisionType: 'credit', pinnedVersion: null, notes: 'lo pidió riesgo' });
+      expect(opciones.replacements).toMatchObject({
+        tenantId: 't1',
+        decisionType: 'credit',
+        pinnedVersion: null,
+        notes: 'lo pidió riesgo',
+      });
     });
 
     it('rechaza una versión fijada: el motor aún no ejecuta por versión y no se guarda una fijación falsa', async () => {
       await expect(
-        service.assign({ tenantId: 't1', decisionType: 'credit', artifactCode: 'ATLAS_BNPL_UNDERWRITING', pinnedVersion: '3', internalUserId: '7' }),
+        service.assign({
+          tenantId: 't1',
+          decisionType: 'credit',
+          artifactCode: 'ATLAS_BNPL_UNDERWRITING',
+          pinnedVersion: '3',
+          internalUserId: '7',
+        }),
       ).rejects.toThrow('DECISION_PINNED_VERSION_NOT_SUPPORTED');
       expect(query).not.toHaveBeenCalled();
     });

@@ -9,7 +9,7 @@
   "src/modules/customer-onboarding/customer-onboarding.repository.ts": 388,
   "src/modules/external-data/application/external-data-execution.service.ts": 477,
   "src/modules/external-data/application/external-data-governance.service.ts": 525,
-  "src/modules/external-data/external-data.controller.ts": 611,
+  "src/modules/external-data/external-data.controller.ts": 650,
   "src/modules/external-data/external-data.repository.ts": 490,
   "src/modules/internal-portal/application/admin-read.service.ts": 379,
   "src/modules/internal-users/internal-rbac.repository.ts": 407,

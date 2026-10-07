@@ -21,6 +21,7 @@ import {
   inlineApprovalBy,
   providerProbeRequest,
 } from './external-data-controller.util.js';
+import { providerProbeSchema, ProviderProbeDto } from './external-data-probe.schemas.js';
 import { ExternalDataService } from './external-data.service.js';
 import {
   approveProviderRequestSchema,
@@ -49,8 +50,6 @@ import {
   ProviderUsageQueryDto,
   providerCostPolicyPatchSchema,
   ProviderCostPolicyPatchDto,
-  providerProbeSchema,
-  ProviderProbeDto,
   requestIdParamsSchema,
   RequestIdParamsDto,
   retentionPreviewQuerySchema,
