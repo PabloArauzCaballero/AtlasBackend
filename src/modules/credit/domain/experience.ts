@@ -19,6 +19,10 @@
  * pago siguen saliendo de las cuotas pagadas a tiempo.
  */
 
+import { buildBadges, type Badge } from './experience-badges.js';
+
+export type { Badge, BadgeCategory, BadgeRank } from './experience-badges.js';
+
 export type InstallmentFact = {
   /** `YYYY-MM-DD`. */
   dueDate: string;
@@ -26,18 +30,8 @@ export type InstallmentFact = {
   daysPastDue: number;
   /** Capital + intereses efectivamente pagados. */
   paidAmount: number;
-};
-
-export type Badge = {
-  code: string;
-  label: string;
-  detail: string;
-  /** Nombre de icono del set de la app. */
-  icon: string;
-  earned: boolean;
-  /** Avance hacia la insignia (`current` de `target`); en las que no son numéricas, 0/1 o 1/1. */
-  current: number;
-  target: number;
+  /** `YYYY-MM-DD` (hora de Bolivia) en que se saldó la cuota; sin dato, las insignias de estilo de pago no cuentan. */
+  paidOn?: string | null;
 };
 
 export type Experience = {
@@ -70,103 +64,79 @@ const isOnTime = (cuota: InstallmentFact) => cuota.status === 'paid' && cuota.da
 /**
  * Racha: cuotas SEGUIDAS a tiempo, de la más antigua a la más reciente. Una cuota pagada tarde o vencida sin pagar la
  * rompe; las que aún no vencen no cuentan ni a favor ni en contra.
+ *
+ * `rebound` es la remontada: tras romper la racha, volver a juntar tres a tiempo. Existe para que fallar una vez no
+ * sea el final del juego: quien tropieza y se levanta también gana algo.
  */
-function streaks(installments: readonly InstallmentFact[], today: string): { current: number; best: number } {
+function streaks(installments: readonly InstallmentFact[], today: string): { current: number; best: number; rebound: boolean } {
   const vencidas = installments.filter((c) => c.dueDate <= today || c.status === 'paid').sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   let current = 0;
   let best = 0;
+  let roto = false;
+  let rebound = false;
   for (const cuota of vencidas) {
     if (isOnTime(cuota)) {
       current += 1;
       best = Math.max(best, current);
+      if (roto && current >= 3) rebound = true;
     } else if (cuota.status === 'paid' || cuota.dueDate <= today) {
       current = 0;
+      roto = true;
     }
   }
-  return { current, best };
+  return { current, best, rebound };
 }
 
-/** Una insignia a partir de su definición y su avance; el avance nunca pasa de la meta. */
-function badge(def: { code: string; label: string; detail: string; icon: string; current: number; target: number }): Badge {
-  return { ...def, earned: def.current >= def.target, current: Math.min(def.current, def.target) };
+const MS_DIA = 86_400_000;
+const diaUtc = (fecha: string) => Date.parse(`${fecha}T00:00:00Z`);
+
+/** Días de adelanto con que se pagó una cuota a tiempo (0 si el mismo día; negativo no ocurre en una a tiempo). */
+function diasDeAdelanto(cuota: InstallmentFact): number | null {
+  if (!cuota.paidOn) return null;
+  const venc = diaUtc(cuota.dueDate);
+  const pago = diaUtc(cuota.paidOn);
+  if (!Number.isFinite(venc) || !Number.isFinite(pago)) return null;
+  return Math.round((venc - pago) / MS_DIA);
 }
+
+const esDomingo = (fecha: string) => new Date(diaUtc(fecha)).getUTCDay() === 0;
 
 export function buildExperience(input: ExperienceInput): Experience {
   const aTiempo = input.installments.filter(isOnTime);
   // Un importe negativo o no numérico (nunca debería llegar) no resta ni rompe la cuenta.
   const positivo = (valor: number) => (Number.isFinite(valor) && valor > 0 ? valor : 0);
-  const xp = Math.floor(input.purchaseAmounts.reduce((suma, monto) => suma + positivo(monto), 0));
+  const compras = input.purchaseAmounts.map(positivo);
+  const xp = Math.floor(compras.reduce((suma, monto) => suma + monto, 0));
   const pagadoATiempo = Math.floor(aTiempo.reduce((suma, c) => suma + positivo(c.paidAmount), 0));
-  const { current, best } = streaks(input.installments, input.today);
+  const { current, best, rebound } = streaks(input.installments, input.today);
+  const mayorCompra = compras.reduce((mayor, monto) => Math.max(mayor, monto), 0);
+  const adelantos = aTiempo.map(diasDeAdelanto).filter((d): d is number => d !== null);
+  const madrugadas = adelantos.filter((d) => d >= 3).length;
+  const alFilo = adelantos.filter((d) => d === 0).length;
+  const enDomingo = aTiempo.filter((c) => c.paidOn && esDomingo(c.paidOn)).length;
 
-  const badges: Badge[] = [
-    badge({
-      code: 'primera_compra',
-      label: 'Primera compra',
-      detail: 'Hiciste tu primera compra con Atlas.',
-      icon: 'comercio',
-      current: input.loansEver,
-      target: 1,
-    }),
-    badge({
-      code: 'primer_pago',
-      label: 'Primer pago a tiempo',
-      detail: 'Pagaste una cuota sin atraso.',
-      icon: 'check',
-      current: aTiempo.length,
-      target: 1,
-    }),
-    badge({ code: 'racha_3', label: 'Racha de 3', detail: 'Tres cuotas seguidas a tiempo.', icon: 'tendencia', current: best, target: 3 }),
-    badge({ code: 'racha_6', label: 'Racha de 6', detail: 'Seis cuotas seguidas a tiempo.', icon: 'tendencia', current: best, target: 6 }),
-    badge({
-      code: 'compra_cerrada',
-      label: 'Compra cerrada',
-      detail: 'Terminaste de pagar una compra completa.',
-      icon: 'escudo',
-      current: input.loansSettled,
-      target: 1,
-    }),
-    badge({
-      code: 'cien_bs',
-      label: '100 Bs a tiempo',
-      detail: 'Pagaste 100 Bs sin atrasos.',
-      icon: 'billetera',
-      current: pagadoATiempo,
-      target: 100,
-    }),
-    badge({
-      code: 'mil_bs',
-      label: '1.000 Bs a tiempo',
-      detail: 'Pagaste 1.000 Bs sin atrasos.',
-      icon: 'billetera',
-      current: pagadoATiempo,
-      target: 1000,
-    }),
-    badge({
-      code: 'cinco_mil_bs',
-      label: '5.000 Bs a tiempo',
-      detail: 'Pagaste 5.000 Bs sin atrasos.',
-      icon: 'estrella',
-      current: pagadoATiempo,
-      target: 5000,
-    }),
-    badge({
-      code: 'identidad',
-      label: 'Identidad verificada',
-      detail: 'Confirmaste tu identidad, domicilio y contacto.',
-      icon: 'perfil',
-      current: input.kycComplete ? 1 : 0,
-      target: 1,
-    }),
-    badge({
-      code: 'un_ano',
-      label: 'Un año con Atlas',
-      detail: 'Llevas doce meses con nosotros.',
-      icon: 'reloj',
-      current: input.tenureMonths,
-      target: 12,
-    }),
-  ];
+  const badges = buildBadges({
+    comprasHechas: input.loansEver,
+    comprasCerradas: input.loansSettled,
+    compras: compras.length,
+    mayorCompra,
+    cuotasATiempo: aTiempo.length,
+    pagadoATiempo,
+    mejorRacha: best,
+    remontada: rebound ? 1 : 0,
+    madrugadas,
+    alFilo,
+    enDomingo,
+    identidad: input.kycComplete ? 1 : 0,
+    meses: input.tenureMonths,
+  });
 
-  return { xp, paidOnTime: pagadoATiempo, onTimeInstallments: aTiempo.length, currentStreak: current, bestStreak: best, badges };
+  return {
+    xp,
+    paidOnTime: pagadoATiempo,
+    onTimeInstallments: aTiempo.length,
+    currentStreak: current,
+    bestStreak: best,
+    badges,
+  };
 }

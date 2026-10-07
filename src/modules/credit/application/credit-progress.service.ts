@@ -22,6 +22,13 @@ const HISTORY_LIMIT = 12;
 /** Los créditos cuya compra suma experiencia: concretada (`active`) o ya pagada (`paid_off`). */
 const COMPRAS_CON_EXPERIENCIA = new Set(['active', 'paid_off']);
 
+/** Bolivia es UTC-4 todo el año: una cuota saldada a las 23:00 locales ya es «mañana» en UTC y no debe contar como adelantada. */
+const diaEnBolivia = (fecha: Date | string | null | undefined): string | null => {
+  if (!fecha) return null;
+  const t = new Date(fecha).getTime();
+  return Number.isFinite(t) ? new Date(t - 4 * 3_600_000).toISOString().slice(0, 10) : null;
+};
+
 @Injectable()
 export class CreditProgressService {
   constructor(
@@ -56,6 +63,7 @@ export class CreditProgressService {
         status: String(cuota.status),
         daysPastDue: Number(cuota.daysPastDue ?? 0),
         paidAmount: Number(cuota.paidPrincipal ?? 0) + Number(cuota.paidInterest ?? 0),
+        paidOn: diaEnBolivia(cuota.settledAt),
       })),
     };
   }

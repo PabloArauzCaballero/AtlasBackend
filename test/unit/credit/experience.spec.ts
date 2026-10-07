@@ -107,4 +107,89 @@ describe('insignias', () => {
     const codigos = buildExperience(base([])).badges.map((b) => b.code);
     expect(new Set(codigos).size).toBe(codigos.length);
   });
+
+  it('hay más de treinta, repartidas en siete colecciones y cinco rangos', () => {
+    const { badges } = buildExperience(base([]));
+    expect(badges.length).toBeGreaterThanOrEqual(30);
+    expect(new Set(badges.map((b) => b.category)).size).toBe(7);
+    expect(new Set(badges.map((b) => b.rank))).toEqual(new Set(['bronce', 'plata', 'oro', 'platino', 'diamante']));
+  });
+
+  it('las secretas llevan pista y las demás no', () => {
+    const { badges } = buildExperience(base([]));
+    const secretas = badges.filter((b) => b.secret).map((b) => b.code);
+    expect(secretas.sort()).toEqual(['al_filo', 'domingo', 'remontada']);
+    expect(badges.filter((b) => b.secret).every((b) => !!b.hint)).toBe(true);
+    expect(badges.filter((b) => !b.secret).every((b) => b.hint === null)).toBe(true);
+  });
+});
+
+describe('insignias de compras', () => {
+  it('cuentan compras concretadas y la mayor de una sola vez', () => {
+    const r = buildExperience(base([], { purchaseAmounts: [100, 600, 2_500], loansEver: 3 }));
+    expect(insignia(r, 'compras_3').earned).toBe(true);
+    expect(insignia(r, 'compras_10')).toMatchObject({ earned: false, current: 3, target: 10 });
+    expect(insignia(r, 'compra_grande').earned).toBe(true);
+    expect(insignia(r, 'compra_gigante').earned).toBe(true);
+  });
+
+  it('muchas compras chicas no hacen una compra grande', () => {
+    const r = buildExperience(base([], { purchaseAmounts: [400, 400, 400] }));
+    expect(insignia(r, 'compra_grande')).toMatchObject({ earned: false, current: 400 });
+  });
+});
+
+describe('insignias de estilo de pago', () => {
+  const pagada = (dueDate: string, paidOn: string) => cuota(dueDate, { paidOn });
+
+  it('madrugador: 3 días o más de adelanto; 2 no alcanza', () => {
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-07')])), 'madrugador').earned).toBe(true);
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-08')])), 'madrugador').earned).toBe(false);
+  });
+
+  it('al filo: el mismo día del vencimiento', () => {
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-10')])), 'al_filo').earned).toBe(true);
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-09')])), 'al_filo').earned).toBe(false);
+  });
+
+  it('domingo: 2026-09-06 fue domingo', () => {
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-06')])), 'domingo').earned).toBe(true);
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-07')])), 'domingo').earned).toBe(false);
+  });
+
+  it('sin fecha de pago no se gana ninguna de estilo', () => {
+    const r = buildExperience(base([cuota('2026-09-10')]));
+    for (const c of ['madrugador', 'al_filo', 'domingo']) expect(insignia(r, c).earned).toBe(false);
+  });
+
+  it('una cuota pagada TARDE no cuenta como madrugada ni al filo, aunque traiga fecha', () => {
+    const r = buildExperience(base([cuota('2026-09-10', { paidOn: '2026-09-10', daysPastDue: 2 })]));
+    expect(insignia(r, 'al_filo').earned).toBe(false);
+  });
+
+  it('la remontada: tras un atraso, tres a tiempo; sin atraso previo no hay remontada', () => {
+    const conAtraso = base([cuota('2026-04-01', { daysPastDue: 5 }), cuota('2026-05-01'), cuota('2026-06-01'), cuota('2026-07-01')]);
+    expect(insignia(buildExperience(conAtraso), 'remontada').earned).toBe(true);
+    const sinAtraso = base([cuota('2026-05-01'), cuota('2026-06-01'), cuota('2026-07-01')]);
+    expect(insignia(buildExperience(sinAtraso), 'remontada').earned).toBe(false);
+    const dosNada = base([cuota('2026-04-01', { daysPastDue: 5 }), cuota('2026-05-01'), cuota('2026-06-01')]);
+    expect(insignia(buildExperience(dosNada), 'remontada').earned).toBe(false);
+  });
+});
+
+describe('la colección', () => {
+  it('ganar insignias es otra insignia, y no se cuenta a sí misma', () => {
+    const vacio = buildExperience(base([], { loansEver: 0 }));
+    expect(insignia(vacio, 'coleccionista_10').current).toBe(0);
+    const lleno = buildExperience(
+      base(
+        Array.from({ length: 12 }, (_, i) =>
+          cuota(`2026-${String(i + 1).padStart(2, '0')}-01`, { paidOn: `2026-${String(i + 1).padStart(2, '0')}-01` }),
+        ),
+        { purchaseAmounts: [3_000], loansSettled: 1, kycComplete: true, tenureMonths: 12 },
+      ),
+    );
+    expect(insignia(lleno, 'coleccionista_10').earned).toBe(true);
+    expect(insignia(lleno, 'coleccionista_total').earned).toBe(false);
+  });
 });

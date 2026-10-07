@@ -179,8 +179,8 @@ describe('CreditProgressService', () => {
     const r = await service.get('1', '42');
 
     expect(r.level).toMatchObject({ code: 'NUEVO', points: 0 });
-    expect(r.nextLevel).toMatchObject({ code: 'EN_CONSTRUCCION', pointsMissing: 500 });
-    expect(r.levelLadder).toHaveLength(5);
+    expect(r.nextLevel).toMatchObject({ id: 'EXPLORADOR', pointsMissing: 100 });
+    expect(r.levelLadder).toHaveLength(12);
   });
 
   it('sin compras, la experiencia es 0 y ni siquiera consulta las cuotas', async () => {
