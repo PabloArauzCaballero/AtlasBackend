@@ -274,11 +274,7 @@ export class CustomerContactVerificationService {
       };
     });
 
-    if ('rejected' in outcome) {
-      if (outcome.rejected === 'expired') throw new UnauthorizedException('VERIFICATION_CODE_EXPIRED');
-      if (outcome.rejected === 'not_found') throw new NotFoundException('VERIFICATION_ATTEMPT_NOT_FOUND');
-      throw new UnauthorizedException('INVALID_VERIFICATION_CODE');
-    }
+    if ('rejected' in outcome) throw rejectionError(outcome.rejected);
     return outcome;
   }
 
@@ -296,4 +292,10 @@ export class CustomerContactVerificationService {
       transaction,
     };
   }
+}
+
+function rejectionError(reason: string | undefined): Error {
+  if (reason === 'expired') return new UnauthorizedException('VERIFICATION_CODE_EXPIRED');
+  if (reason === 'not_found') return new NotFoundException('VERIFICATION_ATTEMPT_NOT_FOUND');
+  return new UnauthorizedException('INVALID_VERIFICATION_CODE');
 }

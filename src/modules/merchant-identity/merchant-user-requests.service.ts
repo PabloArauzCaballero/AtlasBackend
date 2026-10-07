@@ -246,10 +246,9 @@ export class MerchantUserRequestsService {
       this.assertPending(request);
 
       const decision = { status: 'rejected', rejectionReason: dto.reason, decidedAt: new Date() };
-      await request.update(
-        { ...decision, decidedByInternalUserId: actor.internalUserId, updatedAtValue: new Date() } as never,
-        { transaction },
-      );
+      await request.update({ ...decision, decidedByInternalUserId: actor.internalUserId, updatedAtValue: new Date() } as never, {
+        transaction,
+      });
 
       return toProvisioningRequest(request);
     });

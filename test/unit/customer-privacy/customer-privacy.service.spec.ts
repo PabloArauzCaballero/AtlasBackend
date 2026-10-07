@@ -168,7 +168,9 @@ describe('CustomerPrivacyService', () => {
       await service.registerConsentDecisions(
         baseInput({
           body: {
-            decisions: [{ consentDocumentId: 'doc1', purposeCode: 'marketing', decision: 'granted', decidedAt: '2020-01-01T00:00:00.000Z' }],
+            decisions: [
+              { consentDocumentId: 'doc1', purposeCode: 'marketing', decision: 'granted', decidedAt: '2020-01-01T00:00:00.000Z' },
+            ],
           } as never,
         }),
       );

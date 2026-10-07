@@ -80,7 +80,7 @@ export class IdentityEngineReconciler implements OnApplicationBootstrap, OnModul
             verificationChannel: CANAL_PAQUETE,
             finalResult: 'pending_review',
             requestedAt: { [Op.between]: [new Date(ahora.getTime() - VIGENCIA_MS), new Date(ahora.getTime() - ESPERA_MS)] },
-            ...(cursor ? { id: { [Op.lt]: cursor } } : {}),
+            ...condicionCursor(cursor),
           },
           order: [['id', 'DESC']],
           limit: POR_PASADA,
@@ -194,4 +194,8 @@ export class IdentityEngineReconciler implements OnApplicationBootstrap, OnModul
 
 function describir(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function condicionCursor(cursor: string | null): { id?: { [Op.lt]: string } } {
+  return cursor ? { id: { [Op.lt]: cursor } } : {};
 }

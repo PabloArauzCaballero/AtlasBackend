@@ -3,6 +3,7 @@
  * @business Esta pieza deja que una persona se verifique desde su teléfono con su carnet, sin pasar por una sucursal.
  * @system acepta las fotos, pide la decisión al motor y publica el estado que el móvil consulta.
  */
+import { esAjeno } from './mobile-identity-ownership.js';
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { env } from '../../config/env.js';
@@ -126,8 +127,7 @@ export class MobileIdentityService {
     const attempt = await this.repository.findById(tenantId, verificationId);
     // Un cliente sólo ve SU intento: los ids son secuenciales y la respuesta lleva lo leído del
     // carnet. Un intento ajeno, o sin dueño, contesta lo mismo que uno que no existe.
-    const ajeno = currentUser?.role === 'customer' && String(attempt?.customerId ?? '') !== String(currentUser.customerId ?? '-');
-    if (!attempt || ajeno) {
+    if (!attempt || esAjeno(attempt.customerId, currentUser)) {
       // 404 y no 403: un 403 confirmaría que existe, que es justo lo que no debe poder averiguarse.
       throw new NotFoundException({
         code: 'IDENTITY_VERIFICATION_NOT_FOUND',

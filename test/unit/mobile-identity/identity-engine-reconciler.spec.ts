@@ -91,7 +91,9 @@ describe('IdentityEngineReconciler', () => {
     expect(await reconciliador.pasada()).toBe(1);
 
     expect(identidad.start.mock.calls[0]?.[1]).toMatchObject({ customerId: '999' });
-    expect((attempts.findAll.mock.calls[1]?.[0] as { where: { id: Record<symbol, unknown> } }).where.id[Op.lt as unknown as symbol]).toBe('481');
+    expect((attempts.findAll.mock.calls[1]?.[0] as { where: { id: Record<symbol, unknown> } }).where.id[Op.lt as unknown as symbol]).toBe(
+      '481',
+    );
   });
 
   it('un mismo cliente con dos paquetes pendientes se manda una sola vez', async () => {

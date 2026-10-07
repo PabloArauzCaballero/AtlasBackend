@@ -53,10 +53,8 @@ export class CustomerComplianceScreeningService {
     // Se cotejan el número de documento (declarado, OCR y verificado, de `customer_identity_documents`),
     // el nombre normalizado y el teléfono/correo primarios, todos ya hasheados. Sin el
     // documento, alguien listado por su CI pasaba con otro nombre escrito y otros contactos.
-    const candidates = new Map<string, string>();
-    for (const hash of await this.verificationRepository.findIdentityDocumentHashes(input.tenantId, input.customerId)) {
-      candidates.set(hash, 'document');
-    }
+    const documentHashes = await this.verificationRepository.findIdentityDocumentHashes(input.tenantId, input.customerId);
+    const candidates = new Map<string, string>(documentHashes.map((hash) => [hash, 'document']));
     if (profile?.fullNameNormalized) candidates.set(hashSensitiveText(profile.fullNameNormalized), 'person_name');
     if (customer.primaryPhoneHash) candidates.set(customer.primaryPhoneHash, 'phone');
     if (customer.primaryEmailHash) candidates.set(customer.primaryEmailHash, 'email');
