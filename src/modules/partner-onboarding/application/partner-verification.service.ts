@@ -10,6 +10,7 @@ import { toPartnerProfileDto } from '../partner-onboarding.mapper.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
 import { PartnerContractTemplateService } from './partner-contract-template.service.js';
+import { buildKybDossier } from './partner-kyb-dossier.js';
 import { PartnerKybDecisionService, type KybDecision } from './partner-kyb-decision.service.js';
 
 /** Un requisito que le falta al expediente para poder verificarse. */
@@ -88,6 +89,26 @@ export class PartnerVerificationService {
   }
 
   /**
+   * El anexo que acompaña al caso de revisión: quién es el comercio, quién lo representa, dónde
+   * opera y qué le falta. Lo usan el envío y la sincronización, para que el caso lleve lo mismo
+   * lo abra quien lo abra.
+   */
+  async construirAnexo(tenantId: string, profile: PartnerProfileModel, gaps?: SubmissionGap[]): Promise<Record<string, unknown>> {
+    const [representatives, branches, qrCodes] = await Promise.all([
+      this.network.listRepresentatives(tenantId, profile.id),
+      this.network.listBranches(tenantId, profile.id),
+      this.network.listQrCodes(tenantId, profile.id),
+    ]);
+    return buildKybDossier({
+      profile,
+      representatives,
+      branches,
+      qrCodes,
+      gaps: gaps ?? (await this.findSubmissionGaps(tenantId, profile)),
+    });
+  }
+
+  /**
    * Pide al Motor que verifique el expediente y aplica su veredicto.
    *
    * Es UNA sola función y la llaman los dos orígenes —el autoservicio del comercio al enviar, y
@@ -113,6 +134,7 @@ export class PartnerVerificationService {
       sucursales: branches.length,
       contratoVigente: await this.contracts.hasActiveDefault(tenantId),
       idempotencyKey: options.idempotencyKey,
+      dossier: await this.construirAnexo(tenantId, profile, gaps),
     });
 
     const comun = {

@@ -15,6 +15,7 @@ import { DATA_NOTEBOOK_ROLES } from '../../../../src/modules/data-notebook/data-
 import { InternalPermissions } from '../../../../src/modules/internal-users/internal-permissions.decorator.js';
 import { InternalPermissionsGuard } from '../../../../src/modules/internal-users/guards/internal-permissions.guard.js';
 import { InternalRbacRepository } from '../../../../src/modules/internal-users/internal-rbac.repository.js';
+import { INTERNAL_PERMISSIONS_CHECKER } from '../../../../src/common/guards/internal-permissions.port.js';
 import { ROLE_PERMISSION_CODES, type InternalRoleCode } from '../../../../src/modules/internal-users/internal-rbac.seed-data.js';
 import { CustomerNotificationsController } from '../../../../src/modules/notifications/customer-notifications.controller.js';
 import { NotificationsController } from '../../../../src/modules/notifications/notifications.controller.js';
@@ -164,6 +165,7 @@ export async function buildUserTypesTestApp(): Promise<INestApplication> {
       InternalPermissionsGuard,
       { provide: TokenRevocationService, useValue: { getCurrentTokenVersion: jest.fn() } },
       { provide: InternalRbacRepository, useValue: fakeRbacRepository() },
+      { provide: INTERNAL_PERMISSIONS_CHECKER, useExisting: InternalRbacRepository },
     ],
   }).compile();
 

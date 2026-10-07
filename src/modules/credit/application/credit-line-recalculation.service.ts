@@ -9,6 +9,7 @@ import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { randomUUID } from 'node:crypto';
 import { Sequelize } from 'sequelize-typescript';
 import { env } from '../../../config/env.js';
+import { creditLineHeld } from './credit-verdict-hold.js';
 import { CreditLineModel } from '../../../database/models/index.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
 import { SubjectReferenceService } from '../../decision-engine/subject-reference.service.js';
@@ -262,7 +263,7 @@ export class CreditLineRecalculationService {
       return null;
     }
     const approvedLimit = usable.approvedLimit;
-
+    if (creditLineHeld(this.logger, input.customerId, approvedLimit, response.executionId)) return null;
     return this.escritor.persist({
       tenantId: input.tenantId,
       customerId: input.customerId,

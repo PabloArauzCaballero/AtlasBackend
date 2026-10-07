@@ -92,6 +92,20 @@ export class PartnerKybSyncService {
       const destino = RESUELTOS[caso.status.toUpperCase()];
       if (!destino) {
         resultado.pending += 1;
+        /*
+         * Mientras el caso espera, su anexo se vuelve a mandar: el comercio puede haber subido el
+         * poder o corregido el NIT después de enviarlo, y un caso abierto antes de que el anexo
+         * llevara datos seguiría mostrando sólo un número. El Motor lo reemplaza sin tocar estado
+         * ni asignación; si no responde, la pasada siguiente lo repite.
+         */
+        if (profile.decisionExecutionId) {
+          await openKybReviewCase(this.client, {
+            executionId: profile.decisionExecutionId,
+            profileId: String(profile.id),
+            reason: profile.decisionReason,
+            dossier: await this.anexoDe(input.tenantId, profile),
+          });
+        }
         continue;
       }
       if (destino === 'cancelled') {
@@ -125,6 +139,16 @@ export class PartnerKybSyncService {
 
     return resultado;
   }
+  /** El anexo del comercio; si no se puede armar, el caso se abre igual con lo mínimo. */
+  private async anexoDe(tenantId: string, profile: PartnerProfileModel): Promise<Record<string, unknown> | undefined> {
+    try {
+      return await this.verification.construirAnexo(tenantId, profile);
+    } catch (error) {
+      this.logger.warn(`partner_kyb_dossier_failed profile=${profile.id}: ${(error as Error).message}`);
+      return undefined;
+    }
+  }
+
   /**
    * Lo que se envió y el Motor nunca llegó a evaluar.
    *
@@ -182,6 +206,7 @@ export class PartnerKybSyncService {
         executionId: profile.decisionExecutionId!,
         profileId: String(profile.id),
         reason: profile.decisionReason,
+        dossier: await this.anexoDe(input.tenantId, profile),
       });
       // Sin caso (el Motor no respondió) o con el caso ya cerrado —una persona lo canceló o lo
       // resolvió—: no se reabre. Cancelar devuelve el expediente a la decisión local a propósito.
