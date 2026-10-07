@@ -3,6 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { InternalPermissionsGuard } from '../../../src/modules/internal-users/guards/internal-permissions.guard.js';
 import { InternalRbacRepository } from '../../../src/modules/internal-users/internal-rbac.repository.js';
+import { INTERNAL_PERMISSIONS_CHECKER } from '../../../src/common/guards/internal-permissions.port.js';
 import { CustomerEligibilityController } from '../../../src/modules/customers/customer-eligibility.controller.js';
 import { CustomerEligibilityService } from '../../../src/modules/customers/application/customer-eligibility.service.js';
 import { CustomerEligibilityDecisionService } from '../../../src/modules/customers/application/customer-eligibility-decision.service.js';
@@ -41,6 +42,7 @@ describe('CustomerEligibilityController — decisión de operaciones (e2e/supert
         { provide: CustomerEligibilityDecisionService, useValue: decisionService },
         InternalPermissionsGuard,
         { provide: InternalRbacRepository, useValue: rbacRepository },
+        { provide: INTERNAL_PERMISSIONS_CHECKER, useExisting: InternalRbacRepository },
       ],
     );
   });
