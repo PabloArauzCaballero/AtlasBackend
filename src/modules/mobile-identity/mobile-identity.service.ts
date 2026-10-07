@@ -50,6 +50,7 @@ import { MobileIdentitySignalsService } from './mobile-identity-signals.service.
 import { lecturaUtilizable } from './mobile-identity.lectura.js';
 import { contextoDeLaEjecucion, origenDelDocumento } from './mobile-identity.contexto.js';
 import { describir } from './mobile-identity.errors.js';
+import { identityRequiresHumanReview } from '../../config/decision-engine-auto-apply.js';
 @Injectable()
 export class MobileIdentityService {
   private readonly logger = new Logger(MobileIdentityService.name);
@@ -108,7 +109,7 @@ export class MobileIdentityService {
     void this.resolver(tenantId, verificationId, body, idempotencyKey, customerId).catch(async (error: unknown) => {
       this.logger.error(`La verificación ${verificationId} no pudo resolverse: ${describir(error)}`);
       // Sin Motor tampoco hay veredicto: con la revisión humana obligatoria, lo decide una persona.
-      await this.caso(tenantId, customerId, 'El Motor no respondió; decide una persona.', env.IDENTITY_REQUIRE_HUMAN_REVIEW);
+      await this.caso(tenantId, customerId, 'El Motor no respondió; decide una persona.', identityRequiresHumanReview());
     });
 
     return {

@@ -60,8 +60,11 @@ export class CreditApplicationService {
 
     // El motor se consulta DESPUÉS de confirmar la transacción: es E/S de red, y sostenerla dentro
     // dejaría una transacción abierta durante la respuesta de un sistema ajeno. Un producto marcado
-    // para revisión manual no se automatiza — esa marca es una decisión de negocio, no un defecto.
-    if (created.status !== 'submitted') return created;
+    // para revisión manual no se automatiza — esa marca es una decisión de negocio, no un defecto —
+    // pero SÍ llega al motor: antes no se le consultaba, la ejecución con las variables del
+    // solicitante no existía y la solicitud tampoco abría caso en la bandeja. Ahora el veredicto
+    // queda como propuesta y la solicitud, en la bandeja de Atlas.
+    if (created.status !== 'submitted' && created.status !== 'under_review') return created;
 
     const decided = await this.underwriting.underwrite({
       tenantId: input.tenantId,
@@ -73,6 +76,7 @@ export class CreditApplicationService {
       currencyCode: created.currencyCode,
       productCode: created.productCode,
       purposeCode: created.purposeCode,
+      holdForManualReview: created.status === 'under_review',
     });
 
     return { ...created, status: decided.status, decisionMode: decided.decisionMode, executionId: decided.executionId };

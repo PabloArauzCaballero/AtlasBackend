@@ -7,7 +7,10 @@ import {
   operationsPrivacyRequestsQuerySchema,
   privacyRequestTransitionSchema,
 } from '../../../src/modules/customer-privacy/operations-privacy-requests.schemas.js';
-import { OperationsPrivacyRequestsService } from '../../../src/modules/customer-privacy/operations-privacy-requests.service.js';
+import {
+  OperationsPrivacyRequestsService,
+  resumenDeSombra,
+} from '../../../src/modules/customer-privacy/operations-privacy-requests.service.js';
 
 /**
  * La cola interna de solicitudes del titular (hallazgo A5). Se fija lo que se equivoca en silencio:
@@ -80,7 +83,12 @@ describe('OperationsPrivacyRequestsService.list', () => {
     const { service } = montar();
     const result = await service.list('1', consulta(), AHORA);
     expect(result.meta).toEqual({ page: 1, pageSize: 25, total: 1, totalPages: 1 });
-    expect(result.summary).toEqual({ open: 3, overdue: 2, dueDays: 15 });
+    expect(result.summary).toEqual({
+      open: 3,
+      overdue: 2,
+      dueDays: 15,
+      shadow: { compared: 0, agreed: 0, agreement: null, falseAccept: 0, handedToPerson: 0, gaveUp: 0, stale: 0 },
+    });
     expect(result.items[0]).toMatchObject({
       requestId: '5',
       receivedAt: '2026-09-01T12:00:00.000Z',
@@ -359,5 +367,21 @@ describe('OperationsPrivacyRequestsController', () => {
       currentUser: interno,
       ipAddress: '10.0.0.1',
     });
+  });
+});
+
+describe('resumenDeSombra', () => {
+  it('el acuerdo es sobre lo comparado; sin nada comparado es null y no 100 %', () => {
+    expect(resumenDeSombra(undefined).agreement).toBeNull();
+    expect(resumenDeSombra({ open: '0', overdue: '0', shadowCompared: '40', shadowAgreed: '38', shadowFalseAccept: '1' })).toMatchObject({
+      compared: 40,
+      agreed: 38,
+      agreement: 0.95,
+      falseAccept: 1,
+    });
+  });
+
+  it('las que el Motor no llegó a opinar salen aparte: rendidas y atrasadas', () => {
+    expect(resumenDeSombra({ open: '5', overdue: '0', shadowGaveUp: '2', shadowStale: '3' })).toMatchObject({ gaveUp: 2, stale: 3 });
   });
 });

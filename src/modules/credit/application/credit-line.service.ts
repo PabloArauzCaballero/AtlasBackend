@@ -4,12 +4,12 @@
  * @system pide la línea al motor con el expediente real y la persiste versionada con su traza.
  */
 
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 
 import { FindOptions, Transaction } from 'sequelize';
 
-import { CreditLineModel } from '../../../database/models/index.js';
+import { CreditLineModel, CustomerModel } from '../../../database/models/index.js';
 
 import type { PaymentCapacityAssessment } from '../domain/payment-capacity.js';
 
@@ -39,6 +39,9 @@ export type CalculationTrigger = 'onboarding' | 'bank_statement' | 'delinquency'
  * La línea vigente NO se toca. Un motor caído no es una política que rebaja: dejar el límite en cero
  * porque no hubo respuesta le corta el crédito a quien cumplía por una avería de infraestructura.
  */
+/** Tras un fallo del motor, cuánto se espera antes de volver a pedirle la línea de ese cliente. */
+export const REINTENTO_TRAS_FALLO_MS = 60_000;
+
 @Injectable()
 export class CreditLineService {
   private readonly logger = new Logger(CreditLineService.name);
@@ -46,7 +49,13 @@ export class CreditLineService {
   constructor(
     @InjectModel(CreditLineModel) private readonly creditLines: typeof CreditLineModel,
     private readonly recalculo: CreditLineRecalculationService,
+    @InjectModel(CustomerModel) private readonly customers: typeof CustomerModel,
   ) {}
+
+  /** Pedidos al motor en vuelo, por cliente: dos aperturas de la app a la vez no piden dos líneas. */
+  private readonly enVuelo = new Map<string, Promise<CreditLineModel | null>>();
+  /** Cuándo falló el último pedido de cada cliente: tras un fallo no se insiste en cada apertura. */
+  private readonly ultimoFallo = new Map<string, number>();
 
   /** La vigente, o `null` si el cliente todavía no tiene ninguna calculada. */
   current(tenantId: string, customerId: string, options: { transaction?: Transaction } = {}): Promise<CreditLineModel | null> {
@@ -63,6 +72,56 @@ export class CreditLineService {
       order: [['valid_from', 'DESC']],
       limit,
     } as FindOptions);
+  }
+
+  /**
+   * La vigente; si un cliente ACTIVO todavía no tiene ninguna, se la pide al motor AHORA.
+   *
+   * Antes sólo la calculaba una tarea programada (cada hora, de a 50, y sólo con un worker con el
+   * planificador encendido). Quien terminaba el alta abría la app y leía «Todavía estamos calculando
+   * tu línea» durante horas —o para siempre, si el entorno no tenía worker—. Ahora la primera vez que
+   * la persona la mira, se decide.
+   *
+   * - Un cliente que no está activo no tiene línea que calcular: 404 `CREDIT_LINE_NOT_CALCULATED`.
+   * - Si el motor no responde: 503 `CREDIT_LINE_ENGINE_UNAVAILABLE`, para que la app diga que falló y
+   *   deje reintentar, en vez de prometer un cálculo que no está ocurriendo. Durante
+   *   `REINTENTO_TRAS_FALLO_MS` no se vuelve a llamar al motor por ese cliente.
+   * - Dos pedidos simultáneos del mismo cliente comparten la misma llamada.
+   */
+  async currentOrRequest(tenantId: string, customerId: string): Promise<CreditLineModel> {
+    const line = await this.current(tenantId, customerId);
+    if (line) return line;
+
+    const customer = await this.customers.findOne({
+      where: { id: customerId, tenantId, deleted: false },
+      attributes: ['id', 'lifecycleStatus'],
+    } as FindOptions);
+    if (!customer || customer.lifecycleStatus !== 'active') throw new NotFoundException('CREDIT_LINE_NOT_CALCULATED');
+
+    const clave = `${tenantId}:${customerId}`;
+    const fallo = this.ultimoFallo.get(clave);
+    if (fallo !== undefined && Date.now() - fallo < REINTENTO_TRAS_FALLO_MS) {
+      throw new ServiceUnavailableException('CREDIT_LINE_ENGINE_UNAVAILABLE');
+    }
+
+    let pedido = this.enVuelo.get(clave);
+    if (!pedido) {
+      pedido = this.recalculo
+        .recalculate({ tenantId, customerId, trigger: 'onboarding' })
+        .catch((error: unknown) => {
+          this.logger.error(`El motor no pudo calcular la línea del cliente ${customerId}: ${(error as Error).message}`);
+          return null;
+        })
+        .finally(() => this.enVuelo.delete(clave));
+      this.enVuelo.set(clave, pedido);
+    }
+    const calculada = await pedido;
+    if (!calculada) {
+      this.ultimoFallo.set(clave, Date.now());
+      throw new ServiceUnavailableException('CREDIT_LINE_ENGINE_UNAVAILABLE');
+    }
+    this.ultimoFallo.delete(clave);
+    return calculada;
   }
 
   async requireCurrent(tenantId: string, customerId: string): Promise<CreditLineModel> {

@@ -234,3 +234,93 @@ describe('SmsNotificationAdapter — guardas y camino Twilio (executor mockeado)
     }
   });
 });
+
+/**
+ * Twilio contesta `201 queued` incluso al SMS que fallará en el mismo segundo (TEST, 2026-10-06:
+ * `failed 21704` a Bolivia). Para el código del alta se confirma el estado final; si no, la reserva
+ * por correo nunca se entera de que el SMS no salió.
+ */
+describe('SmsNotificationAdapter — Twilio: confirmar el estado final del código del alta', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  const config = {
+    getSmsProvider: () => 'twilio' as const,
+    getTwilioSmsConfig: () => ({
+      ok: true,
+      value: {
+        accountSid: 'AC1',
+        authToken: 'tok',
+        defaultCountryCode: '591',
+        sender: { MessagingServiceSid: 'MG1' },
+        statusCallbackUrl: null,
+      },
+    }),
+  };
+
+  function build() {
+    const adapter = new SmsNotificationAdapter(config as never, new ResilientAdapterExecutorService());
+    (adapter as unknown as { confirmDelayMs: number }).confirmDelayMs = 0;
+    return adapter;
+  }
+
+  const otp = {
+    id: 'm1',
+    channel: 'sms',
+    body: 'codigo',
+    payload: { confirmDelivery: true },
+    deliveryTargets: [{ address: '70000000', kind: 'phone' }],
+  } as never;
+  const plain = {
+    id: 'm2',
+    channel: 'sms',
+    body: 'aviso',
+    payload: {},
+    deliveryTargets: [{ address: '70000000', kind: 'phone' }],
+  } as never;
+
+  function twilioFetch(finalStatus: Record<string, unknown>) {
+    const calls: string[] = [];
+    global.fetch = jest.fn(async (url: unknown, init?: { method?: string }) => {
+      calls.push(`${init?.method ?? 'GET'} ${String(url).split('/').slice(-1)[0]}`);
+      if (init?.method === 'POST') return new Response(JSON.stringify({ sid: 'SM1', status: 'queued' }), { status: 201 });
+      return new Response(JSON.stringify({ sid: 'SM1', ...finalStatus }), { status: 200 });
+    }) as unknown as typeof fetch;
+    return calls;
+  }
+
+  it('marca como fallido el código que Twilio aceptó y luego rechazó', async () => {
+    const calls = twilioFetch({ status: 'failed', error_code: 21704 });
+    const result = await build().send(otp);
+    expect(result.status).toBe('failed');
+    expect(result.errorCode).toBe('TWILIO_21704');
+    expect(calls).toEqual(['POST Messages.json', 'GET SM1.json']);
+  });
+
+  it('da por enviado el código si Twilio no lo marca como fallido', async () => {
+    twilioFetch({ status: 'sent', error_code: null });
+    const result = await build().send(otp);
+    expect(result.status).toBe('sent');
+    expect(result.providerMessageId).toBe('SM1');
+  });
+
+  it('no espera ni pregunta nada para los mensajes que no lo piden', async () => {
+    const calls = twilioFetch({ status: 'failed', error_code: 21704 });
+    const result = await build().send(plain);
+    expect(result.status).toBe('sent');
+    expect(calls).toEqual(['POST Messages.json']);
+  });
+
+  it('si la consulta de estado falla, no condena el envío', async () => {
+    global.fetch = jest.fn(async (_url: unknown, init?: { method?: string }) =>
+      init?.method === 'POST'
+        ? new Response(JSON.stringify({ sid: 'SM1', status: 'queued' }), { status: 201 })
+        : new Response('{}', { status: 400 }),
+    ) as unknown as typeof fetch;
+    const result = await build().send(otp);
+    expect(result.status).toBe('sent');
+  });
+});

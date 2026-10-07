@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Op } from 'sequelize';
-import { PaymentCapacityService } from '../../../src/modules/credit/application/payment-capacity.service.js';
+import {
+  businessDate,
+  isStatementTooOld,
+  PaymentCapacityService,
+} from '../../../src/modules/credit/application/payment-capacity.service.js';
 import type {
   BankStatementReviewModel,
   CustomerActivitySummaryModel,
   CustomerModel,
+  FraudCaseModel,
   IdentityVerificationAttemptModel,
   LoanInstallmentModel,
   LoanModel,
@@ -46,6 +51,7 @@ describe('PaymentCapacityService', () => {
   let reviews: Doble;
   let activity: Doble;
   let identity: Doble;
+  let fraud: { count: jest.Mock<(...args: unknown[]) => Promise<number>> };
   let service: PaymentCapacityService;
 
   beforeEach(() => {
@@ -55,6 +61,7 @@ describe('PaymentCapacityService', () => {
     reviews = doble();
     activity = doble();
     identity = doble();
+    fraud = { count: jest.fn(async (..._args: unknown[]) => 0) };
     service = new PaymentCapacityService(
       customers as unknown as typeof CustomerModel,
       loans as unknown as typeof LoanModel,
@@ -62,6 +69,7 @@ describe('PaymentCapacityService', () => {
       reviews as unknown as typeof BankStatementReviewModel,
       activity as unknown as typeof CustomerActivitySummaryModel,
       identity as unknown as typeof IdentityVerificationAttemptModel,
+      fraud as unknown as typeof FraudCaseModel,
     );
   });
 
@@ -75,7 +83,7 @@ describe('PaymentCapacityService', () => {
    * aquí es lo que este servicio LEE, que es lo único suyo.
    */
   type Interno = {
-    statementCapacity(tenantId: string, customerId: string): Promise<Record<string, unknown>>;
+    statementCapacity(tenantId: string, customerId: string, now: Date): Promise<Record<string, unknown>>;
     relationship(tenantId: string, customerId: string, now: Date): Promise<Record<string, unknown>>;
   };
 
@@ -84,7 +92,7 @@ describe('PaymentCapacityService', () => {
   }
 
   function extracto() {
-    return interno().statementCapacity('t1', 'c1');
+    return interno().statementCapacity('t1', 'c1', AHORA);
   }
 
   function relacion() {
@@ -99,6 +107,37 @@ describe('PaymentCapacityService', () => {
       expect(condicion.where).toMatchObject({ tenantId: 't1', customerId: 'c1', deleted: false });
       expect((condicion.where.affordabilityScore as Record<symbol, null>)[Op.ne]).toBeNull();
       expect(condicion.order).toEqual([['_created_at', 'DESC']]);
+    });
+
+    it('un extracto de más de 180 días ya no es evidencia: se trata como si no existiera', async () => {
+      reviews.findOne.mockResolvedValueOnce({
+        affordabilityEligible: true,
+        maxAffordableInstallment: '900.00',
+        affordabilityScore: 70,
+        periodTo: '2026-02-28',
+      } as never);
+
+      const medida = await extracto();
+
+      expect(medida.eligible).toBe(false);
+      expect(medida.maxAffordableInstallment).toBeNull();
+    });
+
+    it('un extracto reciente, o sin fecha de período, se conserva', async () => {
+      reviews.findOne.mockResolvedValueOnce({
+        affordabilityEligible: true,
+        maxAffordableInstallment: '900',
+        affordabilityScore: 70,
+        periodTo: '2026-08-31',
+      } as never);
+      expect((await extracto()).eligible).toBe(true);
+      reviews.findOne.mockResolvedValueOnce({
+        affordabilityEligible: true,
+        maxAffordableInstallment: '900',
+        affordabilityScore: 70,
+        periodTo: null,
+      } as never);
+      expect((await extracto()).eligible).toBe(true);
     });
 
     it('sin extracto analizado se declara no elegible y sin cifras, en vez de asumir ceros', async () => {
@@ -224,15 +263,25 @@ describe('PaymentCapacityService', () => {
 
       const condicion = (installments.findAll.mock.calls.at(-1)?.[0] as { where: Record<string, unknown> }).where;
       expect(condicion.tenantId).toBe('t1');
+      expect(condicion.deleted).toBe(false);
       expect((condicion.loanId as Record<symbol, string[]>)[Op.in]).toEqual(['1', '2']);
+    });
+
+    it('los préstamos borrados no entran al historial', async () => {
+      await relacion();
+      const condicion = (loans.findAll.mock.calls.at(-1)?.[0] as { where: Record<string, unknown> }).where;
+      expect(condicion).toMatchObject({ tenantId: 't1', customerId: 'c1', deleted: false });
     });
 
     it('separa los saldados de los activos y de los castigados', async () => {
       loans.findAll.mockResolvedValueOnce([
-        { id: 1, status: 'closed' },
-        { id: 2, status: 'settled' },
+        // Los estados reales de `ck_loans_status`. Antes la prueba usaba `closed`/`settled`, que la tabla no admite,
+        // y por eso un crédito pagado nunca contó como saldado.
+        { id: 1, status: 'paid_off' },
+        { id: 2, status: 'paid_off' },
         { id: 3, status: 'active' },
         { id: 4, status: 'written_off' },
+        { id: 5, status: 'cancelled' },
       ] as never);
 
       const evaluacion = await relacion();
@@ -244,7 +293,7 @@ describe('PaymentCapacityService', () => {
 
     it('la peor mora es la máxima de todos sus créditos', async () => {
       loans.findAll.mockResolvedValueOnce([
-        { id: 1, status: 'closed', worstDaysPastDue: 12 },
+        { id: 1, status: 'paid_off', worstDaysPastDue: 12 },
         { id: 2, status: 'active', worstDaysPastDue: 45 },
         { id: 3, status: 'active', worstDaysPastDue: null },
       ] as never);
@@ -292,11 +341,26 @@ describe('PaymentCapacityService', () => {
       await expect(relacion()).resolves.toHaveProperty('kycComplete', true);
     });
 
-    it('las señales de fraude suman los casos de por vida y las revisiones manuales abiertas', async () => {
-      activity.findOne.mockResolvedValueOnce({ fraudCaseCountLifetime: 1, openManualReviewCount: 2 } as never);
+    it('las señales de fraude suman los casos VIVOS y las revisiones manuales abiertas; el contador de por vida ya no pesa', async () => {
+      // 1 caso vivo + 2 revisiones abiertas. `fraudCaseCountLifetime: 9` incluye falsos positivos cerrados y NO debe sumar.
+      fraud.count.mockResolvedValueOnce(1);
+      activity.findOne.mockResolvedValueOnce({ fraudCaseCountLifetime: 9, openManualReviewCount: 2 } as never);
 
       const evaluacion = await relacion();
       expect(evaluacion.fraudFlags).toBe(3);
+    });
+
+    it('un caso cerrado como falso positivo no cuenta; uno abierto, uno «más investigación» o uno confirmado sí', async () => {
+      await relacion();
+
+      const { where } = fraud.count.mock.calls.at(-1)?.[0] as { where: Record<string | symbol, unknown> };
+      expect(where).toMatchObject({ tenantId: 't1', customerId: 'c1' });
+      const ramas = where[Op.or] as Array<Record<string, unknown>>;
+      // Abierto o sin estado: se mira case_status y no closed_at, que «más investigación» deja puesto.
+      expect(ramas[0]).toEqual({ caseStatus: null });
+      expect((ramas[1]!.caseStatus as Record<symbol, string>)[Op.ne]).toBe('closed');
+      // Cerrado pero que sigue pesando.
+      expect((ramas[2]!.resolution as Record<symbol, string[]>)[Op.in]).toEqual(['confirmed_fraud', 'blocked', 'escalated']);
     });
 
     it('sin resumen de actividad no se inventan señales', async () => {
@@ -391,5 +455,20 @@ describe('PaymentCapacityService', () => {
 
       expect(Number(largo.ceilings.byCapacity)).toBeGreaterThan(Number(corto.ceilings.byCapacity));
     });
+  });
+});
+
+describe('fechas de negocio y estados del libro', () => {
+  it('«hoy» es la fecha de La Paz: a las 22:00 hora boliviana (02:00 UTC del día siguiente) sigue siendo el mismo día', () => {
+    expect(businessDate(new Date('2026-09-11T02:00:00Z'))).toBe('2026-09-10');
+    expect(businessDate(new Date('2026-09-11T04:00:00Z'))).toBe('2026-09-11');
+  });
+
+  it('el tope del extracto es exacto: 180 días justos todavía valen, 181 no', () => {
+    const ahora = new Date('2026-09-10T12:00:00Z');
+    expect(isStatementTooOld(new Date(ahora.getTime() - 180 * 86_400_000), ahora)).toBe(false);
+    expect(isStatementTooOld(new Date(ahora.getTime() - 181 * 86_400_000), ahora)).toBe(true);
+    expect(isStatementTooOld(null, ahora)).toBe(false);
+    expect(isStatementTooOld('no-es-fecha', ahora)).toBe(false);
   });
 });
