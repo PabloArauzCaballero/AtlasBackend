@@ -17,11 +17,11 @@ export const WORKFLOW_SOURCES = ['seed', 'manual', 'discovery'] as const;
 export type WorkflowSource = (typeof WORKFLOW_SOURCES)[number];
 
 /** Familia del proceso. Permite filtrar el catálogo sin abrir cada definición. */
-export const WORKFLOW_PROCESS_TYPES = ['customer_journey', 'back_office', 'system_job', 'integration'] as const;
+export const WORKFLOW_PROCESS_TYPES = ['customer_journey', 'partner_journey', 'back_office', 'system_job', 'integration'] as const;
 export type WorkflowProcessType = (typeof WORKFLOW_PROCESS_TYPES)[number];
 
 /** Quién ejecuta la etapa. Es lo que decide si una etapa aparece en la app o en el portal interno. */
-export const WORKFLOW_ACTOR_TYPES = ['customer', 'internal_user', 'system', 'external_provider'] as const;
+export const WORKFLOW_ACTOR_TYPES = ['customer', 'internal_user', 'merchant_user', 'platform_user', 'system', 'external_provider'] as const;
 export type WorkflowActorType = (typeof WORKFLOW_ACTOR_TYPES)[number];
 
 /** Naturaleza de la dependencia entre dos pasos. */
