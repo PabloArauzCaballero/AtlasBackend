@@ -262,7 +262,7 @@ describe('P-14 · entrega de payment.* de Core al ERP', () => {
         amount: '333.33',
         payerReference: 'TRX-IT-P14',
         contentType: 'image/jpeg',
-        storageKey: `files/${h.tenantId}/${loan.customerId}/payment_proof/${randomUUID()}.jpg`,
+        storageKey: `${h.tenantId}/customer-${loan.customerId}/PAYMENT_PROOF/${randomUUID()}.jpg`,
         sizeBytes: 1024,
       } as never,
       currentUser: customerUser(loan.customerId),

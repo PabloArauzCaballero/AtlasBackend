@@ -61,7 +61,13 @@ function construir() {
 const entrada = {
   tenantId: '1',
   customerId: '24',
-  body: { installmentId: '11', amount: '150.00', contentType: 'image/jpeg', storageKey: 'files/1/24/payment_proof/x.jpg', sizeBytes: 4096 },
+  body: {
+    installmentId: '11',
+    amount: '150.00',
+    contentType: 'image/jpeg',
+    storageKey: '1/customer-24/PAYMENT_PROOF/x.jpg',
+    sizeBytes: 4096,
+  },
   currentUser: { role: 'customer', customerId: '24' },
 } as never;
 
@@ -77,7 +83,7 @@ describe('El comprobante de pago entra en el expediente', () => {
         tenantId: '1',
         customerId: '24',
         documentType: 'payment_proof',
-        storageKey: 'files/1/24/payment_proof/x.jpg',
+        storageKey: '1/customer-24/PAYMENT_PROOF/x.jpg',
         sha256: 'abc123',
         mimeType: 'image/jpeg',
         sizeBytes: '4096',
@@ -120,6 +126,25 @@ describe('El comprobante de pago entra en el expediente', () => {
     );
     expect(fallo).toBeInstanceOf(UnprocessableEntityException);
     expect((fallo as Error).message).toMatch(/LOAN_WITHOUT_PARTNER/);
+    expect(expedienteHooks.alRegistrarEvidencia).not.toHaveBeenCalled();
+    expect(eventos).toHaveLength(0);
+  });
+
+  it('rechaza una clave de almacén que no es del cliente, sin tocar el almacén', async () => {
+    const { service, expedienteHooks, eventos } = construir();
+    const storage = (service as unknown as { storage: { readObjectMetadata: jest.Mock } }).storage;
+    const ajena = {
+      ...(entrada as object),
+      body: { ...(entrada as { body: object }).body, storageKey: '1/customer-99/PAYMENT_PROOF/x.jpg' },
+    } as never;
+
+    const fallo = await service.submit(ajena).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(fallo).toBeInstanceOf(UnprocessableEntityException);
+    expect((fallo as Error).message).toBe('PAYMENT_PROOF_STORAGE_KEY_NOT_OWNED');
+    expect(storage.readObjectMetadata).not.toHaveBeenCalled();
     expect(expedienteHooks.alRegistrarEvidencia).not.toHaveBeenCalled();
     expect(eventos).toHaveLength(0);
   });

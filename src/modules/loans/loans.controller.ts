@@ -12,6 +12,8 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
+import { InternalPermissions } from '../../common/decorators/internal-permissions.decorator.js';
+import { InternalPermissionsGuard } from '../../common/guards/internal-permissions.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
@@ -46,7 +48,7 @@ import {
 @ApiTags('loans')
 @ApiBearerAuth('access-token')
 @Controller()
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, InternalPermissionsGuard)
 export class LoansController {
   constructor(
     private readonly disbursement: LoanDisbursementService,
@@ -60,6 +62,7 @@ export class LoansController {
   ) {}
 
   @Roles('internal_operator', 'admin', 'platform_admin')
+  @InternalPermissions('credit.loan.disburse')
   @ApiOperation({
     summary: 'Desembolsar una solicitud aprobada',
     description:

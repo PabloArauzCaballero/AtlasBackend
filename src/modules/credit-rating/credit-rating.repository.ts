@@ -5,7 +5,8 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { fn, col, FindOptions, Op, Transaction } from 'sequelize';
+import { fn, col, FindOptions, literal, Op, Transaction } from 'sequelize';
+import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import {
   CustomerRiskRatingModel,
   LoanModel,
@@ -18,6 +19,13 @@ type RepositoryOptions = { transaction?: Transaction };
 
 /** Estados de préstamo que la calificación mira: los que todavía representan exposición. */
 export const RATEABLE_LOAN_STATUSES = ['active', 'written_off'] as const;
+
+/** Fecha de la calificación vigente del cliente de cada fila agrupada; NULL si nunca se calificó. */
+function currentRatingAgeSql(): string {
+  const ratings = `${atlasSchemaFor('customer_risk_ratings')}.customer_risk_ratings`;
+  const loans = `"${LoanModel.name}"`;
+  return `(SELECT r.rated_at FROM ${ratings} r WHERE r._tenant_id = ${loans}._tenant_id AND r.customer_id = ${loans}.customer_id AND r.is_current = true LIMIT 1)`;
+}
 
 @Injectable()
 export class CreditRatingRepository {
@@ -72,13 +80,23 @@ export class CreditRatingRepository {
     } as FindOptions);
   }
 
-  /** Lote del barrido: los clientes con deuda viva, en orden estable para poder paginar. */
+  /**
+   * Lote del barrido: los clientes con deuda viva, primero los nunca calificados y luego los de
+   * calificación vigente más vieja.
+   *
+   * Antes el orden era sólo `customer_id`, sin cursor: cada pasada tomaba los mismos N primeros y el
+   * resto de la cartera no se recalificaba nunca. Con este orden, el lote de hoy queda al final de la
+   * cola y la siguiente pasada sigue por donde ésta no llegó.
+   */
   async findCustomerIdsWithExposure(tenantId: string | null, limit: number): Promise<string[]> {
     const loans = await this.loanModel.findAll({
       attributes: ['customerId'],
       where: { deleted: false, status: { [Op.in]: [...RATEABLE_LOAN_STATUSES] }, ...(tenantId ? { tenantId } : {}) },
-      group: ['customer_id'],
-      order: [['customer_id', 'ASC']],
+      group: ['_tenant_id', 'customer_id'],
+      order: [
+        [literal(currentRatingAgeSql()), 'ASC NULLS FIRST'],
+        ['customer_id', 'ASC'],
+      ],
       limit,
       raw: true,
     } as FindOptions);

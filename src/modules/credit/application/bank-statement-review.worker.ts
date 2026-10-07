@@ -77,9 +77,11 @@ export class BankStatementReviewWorker {
 
     const pending = await this.reviews.findAll({
       where: { tenantId: input.tenantId, status: 'received', deleted: false },
-      // El más antiguo primero: es el que tiene menos plazo restante, y atender por orden de llegada
-      // es lo único que evita que un pico de subidas deje a los primeros esperando indefinidamente.
-      order: [['_created_at', 'ASC']],
+      // El que lleva más tiempo sin tocarse primero. Una fila nueva nace con `_updated_at` igual a su
+      // llegada, así que se atiende por orden de llegada; una que falla se marca (`deferFailed`) y
+      // pasa al final. Ordenar sólo por llegada dejaba a los que fallan siempre —un PDF de más de
+      // 15 MB, un objeto borrado— ocupando el lote para siempre y a los demás sin turno.
+      order: [['_updated_at', 'ASC']],
       limit: input.limit,
     } as FindOptions);
 
@@ -94,10 +96,14 @@ export class BankStatementReviewWorker {
         if (outcome === 'applied') applied += 1;
         else if (outcome === 'unreadable') unreadable += 1;
         else if (outcome === 'review') inReview += 1;
-        else failed += 1;
+        else {
+          failed += 1;
+          await this.deferFailed(review, now);
+        }
       } catch (error) {
         failed += 1;
         this.logger.error(`No se pudo procesar el extracto ${review.id}: ${(error as Error).message}`);
+        await this.deferFailed(review, now);
       }
     }
 
@@ -106,6 +112,16 @@ export class BankStatementReviewWorker {
     const humanReviews = await this.humanReviews.syncParked({ tenantId: input.tenantId, limit: input.limit, now });
     const breachingSoon = await this.warnAboutImminentBreaches(input.tenantId, now);
     return { picked: pending.length, applied, unreadable, inReview, failed, breachingSoon, humanReviews };
+  }
+
+  /** Marca el intento: la fila sigue `received` pero cede el turno a las que aún no se probaron. */
+  private async deferFailed(review: BankStatementReviewModel, now: Date): Promise<void> {
+    try {
+      review.updatedAtValue = now;
+      await review.save();
+    } catch (error) {
+      this.logger.warn(`Extracto ${review.id}: no se pudo marcar el intento: ${(error as Error).message}`);
+    }
   }
 
   private async processOne(review: BankStatementReviewModel, now: Date): Promise<'applied' | 'unreadable' | 'review' | 'failed'> {

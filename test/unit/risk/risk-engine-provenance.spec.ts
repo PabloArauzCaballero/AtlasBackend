@@ -34,6 +34,7 @@ function build(engineResponse: Record<string, unknown> | Error) {
   const policy = new RiskPolicyDecisionService(policyRepository as never, engine);
 
   const riskRepository = {
+    findOwnedDeviceReferences: jest.fn(async (..._args: unknown[]) => ({ deviceOwned: true, sessionOwned: true })),
     findCustomerConsents: jest.fn(async (..._args: unknown[]) => [{ granted: true, revokedAt: null }]),
     findCustomerContacts: jest.fn(async (..._args: unknown[]) => [{ status: 'verified' }]),
     findIdentityDocuments: jest.fn(async (..._args: unknown[]) => [{ id: 'doc-1' }]),

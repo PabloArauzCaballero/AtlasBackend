@@ -153,4 +153,29 @@ describe('CreditRepository', () => {
       expect(application.decisionMode).toBe('decision_engine');
     });
   });
+
+  describe('cerrojo de la solicitud', () => {
+    const armar = () => {
+      const applicationModel = { findOne: jest.fn(async (..._args: unknown[]) => ({ id: '31' })) };
+      const repository = new CreditRepository({} as never, applicationModel as never, {} as never);
+      const transaction = { LOCK: { UPDATE: 'UPDATE' } } as never;
+      return { applicationModel, repository, transaction };
+    };
+
+    it('con lock lee la fila FOR UPDATE: dos decisiones simultáneas no validan contra el mismo estado', async () => {
+      const { applicationModel, repository, transaction } = armar();
+      await repository.findApplicationById('7', '31', { transaction, lock: true });
+      await repository.findApplicationByExecutionId('7', 'exec-1', { transaction, lock: true });
+      expect(applicationModel.findOne.mock.calls[0]?.[0]).toMatchObject({ lock: 'UPDATE' });
+      expect(applicationModel.findOne.mock.calls[1]?.[0]).toMatchObject({ lock: 'UPDATE' });
+    });
+
+    it('sin lock, o sin transacción, no pide cerrojo', async () => {
+      const { applicationModel, repository, transaction } = armar();
+      await repository.findApplicationById('7', '31', { transaction });
+      await repository.findApplicationById('7', '31', { lock: true });
+      expect(applicationModel.findOne.mock.calls[0]?.[0]).not.toHaveProperty('lock');
+      expect(applicationModel.findOne.mock.calls[1]?.[0]).not.toHaveProperty('lock');
+    });
+  });
 });

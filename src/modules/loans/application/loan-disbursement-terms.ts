@@ -13,6 +13,12 @@ import { DisburseLoanDto } from '../loans.schemas.js';
 
 export { toDateOnly };
 
+/** Reloj del servidor con holgura: el desembolso no se fecha en el futuro. */
+const DISBURSEMENT_CLOCK_SKEW_MS = 5 * 60 * 1000;
+/** Primer vencimiento: un mes de calendario es lo normal; 93 días deja holgura sin permitir años. */
+const MAX_FIRST_DUE_DAYS = 93;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export type DisbursementTerms = {
   principalCents: number;
   termMonths: number;
@@ -32,7 +38,7 @@ export type DisbursementTerms = {
  * verificable: es una función de datos a datos, sin base ni usuario de por medio.
  */
 export async function resolveDisbursementTerms(params: {
-  application: { requestedAmount: string; requestedTermMonths: number; decisionPricedRate: string | null };
+  application: { requestedAmount: string; requestedTermMonths: number; decisionPricedRate: string | null; decidedAt?: Date | null };
   product: {
     annualInterestRate: string | null;
     minAnnualInterestRate: string | null;
@@ -49,8 +55,25 @@ export async function resolveDisbursementTerms(params: {
   const annualRate = await resolveAnnualRate({ application, product, body, currentUser, tenantId, rbac });
 
   const disbursedAt = body.disbursedAt ? new Date(body.disbursedAt) : new Date();
+  /*
+   * Las fechas del cuerpo definen la mora: fechar un préstamo años atrás nacía vencido (y con
+   * cosechas falsas), y adelante lo dejaba sin cobrar. El desembolso no precede a la decisión que
+   * lo autoriza ni cae en el futuro, y la primera cuota vence después del desembolso y dentro de un
+   * plazo razonable.
+   */
+  if (body.disbursedAt) {
+    if (disbursedAt.getTime() > Date.now() + DISBURSEMENT_CLOCK_SKEW_MS) throw new BadRequestException('DISBURSED_AT_IN_THE_FUTURE');
+    if (application.decidedAt && disbursedAt.getTime() < application.decidedAt.getTime()) {
+      throw new BadRequestException('DISBURSED_AT_BEFORE_DECISION');
+    }
+  }
   // Sin primera fecha explícita, el primer vencimiento cae un mes después del desembolso.
   const firstDueDate = body.firstDueDate ? new Date(`${body.firstDueDate}T00:00:00.000Z`) : addMonthsClamped(disbursedAt, 1);
+  if (body.firstDueDate) {
+    const disbursedDay = Date.parse(`${toDateOnly(disbursedAt)}T00:00:00.000Z`);
+    if (firstDueDate.getTime() <= disbursedDay) throw new BadRequestException('FIRST_DUE_DATE_NOT_AFTER_DISBURSEMENT');
+    if (firstDueDate.getTime() - disbursedDay > MAX_FIRST_DUE_DAYS * DAY_MS) throw new BadRequestException('FIRST_DUE_DATE_TOO_FAR');
+  }
 
   const schedule = buildSchedule({ principalCents, annualInterestRatePercent: annualRate, termMonths, firstDueDate });
   const lastEntry = schedule[schedule.length - 1];

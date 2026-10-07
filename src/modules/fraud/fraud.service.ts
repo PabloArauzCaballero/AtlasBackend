@@ -46,13 +46,27 @@ export class FraudService {
     const auditReasonCode = input.body.reasonCode ?? input.body.decision;
     const now = new Date();
     return this.sequelize.transaction(async (transaction) => {
-      const fraudCase = await this.fraudRepository.findFraudCaseById(input.tenantId, input.params.caseId);
+      // La fila se lee dentro de la transacción y con cerrojo: sin él dos analistas que deciden a la
+      // vez pasaban los dos la guarda y quedaban dos decisiones, dos entradas de watchlist y una
+      // resolución final que dependía del orden del commit.
+      const fraudCase = await this.fraudRepository.findFraudCaseById(input.tenantId, input.params.caseId, { transaction, lock: true });
       if (!fraudCase) throw new NotFoundException('FRAUD_CASE_NOT_FOUND');
-      if (fraudCase.closedAt || fraudCase.caseStatus === 'closed') throw new ConflictException('CASE_ALREADY_CLOSED');
-      const caseStatus = input.body.decision === 'needs_more_investigation' ? 'in_progress' : 'closed';
+      if (isClosedCase(fraudCase)) throw new ConflictException('CASE_ALREADY_CLOSED');
+      // «Hace falta investigar más» NO cierra el caso: antes se le ponía `closed_at` igualmente y
+      // la guarda de arriba rechazaba para siempre la decisión final (409), además de sacarlo de
+      // las consultas de «fraude abierto» de elegibilidad y underwriting, que filtran por
+      // `closed_at IS NULL`.
+      const keepsCaseOpen = input.body.decision === 'needs_more_investigation';
+      const caseStatus = keepsCaseOpen ? 'in_progress' : 'closed';
       await this.fraudRepository.closeFraudCase(
         fraudCase,
-        { resolution: input.body.decision, notes: input.body.notes ?? null, closedAt: now, nextStatus: caseStatus },
+        {
+          resolution: input.body.decision,
+          notes: input.body.notes ?? null,
+          closedAt: keepsCaseOpen ? null : now,
+          decidedAt: now,
+          nextStatus: caseStatus,
+        },
         { transaction },
       );
       await this.fraudRepository.createFraudCaseEvent(
@@ -169,4 +183,15 @@ export class FraudService {
       };
     });
   }
+}
+
+/**
+ * Un caso está cerrado si su estado lo dice o si tiene fecha de cierre. La excepción son los casos
+ * que quedaron «en investigación» ANTES de este arreglo: tienen `closed_at` relleno sin estar
+ * cerrados, y negarles la decisión final los dejaría atascados para siempre.
+ */
+function isClosedCase(fraudCase: { closedAt?: Date | null; caseStatus?: string | null; resolution?: string | null }): boolean {
+  if (fraudCase.caseStatus === 'closed') return true;
+  if (!fraudCase.closedAt) return false;
+  return !(fraudCase.caseStatus === 'in_progress' && fraudCase.resolution === 'needs_more_investigation');
 }

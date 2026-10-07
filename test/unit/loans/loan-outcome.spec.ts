@@ -6,7 +6,13 @@ describe('daysBetween', () => {
     // Vencía ayer a las 00:00; son las 08:00 de hoy. Es 1 día de atraso, no 0.
     expect(daysBetween('2026-08-10', new Date('2026-08-11T08:00:00Z'))).toBe(1);
     expect(daysBetween('2026-08-11', new Date('2026-08-11T23:59:00Z'))).toBe(0);
-    expect(daysBetween('2026-08-12', new Date('2026-08-11T00:00:00Z'))).toBe(-1);
+    expect(daysBetween('2026-08-12', new Date('2026-08-11T12:00:00Z'))).toBe(-1);
+  });
+
+  /** El día es el de Bolivia (UTC-4): a las 20:00 de La Paz todavía no es mañana. */
+  it('cuenta el día civil de Bolivia, no el de UTC', () => {
+    expect(daysBetween('2026-10-05', new Date('2026-10-06T03:59:00Z'))).toBe(0);
+    expect(daysBetween('2026-10-05', new Date('2026-10-06T04:00:00Z'))).toBe(1);
   });
 
   it('rechaza una fecha ilegible en vez de devolver NaN', () => {
@@ -15,7 +21,8 @@ describe('daysBetween', () => {
 });
 
 describe('loanDaysPastDue', () => {
-  const asOf = new Date('2026-08-11T00:00:00Z');
+  // Mediodía: el mismo día civil en UTC y en Bolivia, para que el corte no mueva lo que se mide aquí.
+  const asOf = new Date('2026-08-11T12:00:00Z');
 
   it('toma la cuota impaga MÁS ANTIGUA, no la última', () => {
     const days = loanDaysPastDue(
@@ -52,12 +59,12 @@ describe('bucketForDaysPastDue', () => {
 });
 
 describe('worstDaysPastDue', () => {
-  const asOf = new Date('2026-08-11T00:00:00Z');
+  const asOf = new Date('2026-08-11T12:00:00Z');
 
   it('recuerda el atraso con el que se pagó una cuota ya saldada', () => {
     // Pagó todo, pero con 120 días de retraso. Mirar sólo el estado presente lo blanquearía.
     const worst = worstDaysPastDue({
-      installments: [{ dueDate: '2026-01-01', settledAt: new Date('2026-05-01T00:00:00Z'), outstandingCents: 0 }],
+      installments: [{ dueDate: '2026-01-01', settledAt: new Date('2026-05-01T12:00:00Z'), outstandingCents: 0 }],
       writtenOffAt: null,
       asOf,
     });
@@ -76,7 +83,7 @@ describe('worstDaysPastDue', () => {
   it('ignora un pago posterior al corte de la ventana', () => {
     // Se pagó después de que la ventana cerrara: dentro de la ventana seguía impaga.
     const worst = worstDaysPastDue({
-      installments: [{ dueDate: '2026-07-12', settledAt: new Date('2026-10-01T00:00:00Z'), outstandingCents: 0 }],
+      installments: [{ dueDate: '2026-07-12', settledAt: new Date('2026-10-01T12:00:00Z'), outstandingCents: 0 }],
       writtenOffAt: null,
       asOf,
     });
@@ -85,14 +92,14 @@ describe('worstDaysPastDue', () => {
 });
 
 describe('labelForLoan', () => {
-  const asOf = new Date('2026-08-11T00:00:00Z');
+  const asOf = new Date('2026-08-11T12:00:00Z');
   const base = { writtenOffAt: null, asOf };
 
   it('marca BAD el préstamo castigado', () => {
     expect(
       labelForLoan({
         ...base,
-        writtenOffAt: new Date('2026-08-01T00:00:00Z'),
+        writtenOffAt: new Date('2026-08-01T12:00:00Z'),
         installments: [{ dueDate: '2026-08-10', settledAt: null, outstandingCents: 100 }],
       }),
     ).toBe('BAD');
@@ -120,7 +127,7 @@ describe('labelForLoan', () => {
     expect(
       labelForLoan({
         ...base,
-        installments: [{ dueDate: '2026-01-01', settledAt: new Date('2026-06-01T00:00:00Z'), outstandingCents: 0 }],
+        installments: [{ dueDate: '2026-01-01', settledAt: new Date('2026-06-01T12:00:00Z'), outstandingCents: 0 }],
       }),
     ).toBe('BAD');
   });
@@ -130,7 +137,7 @@ describe('amountForLabel', () => {
   const input = {
     installments: [{ dueDate: '2026-05-13', settledAt: null, outstandingCents: 100 }],
     writtenOffAt: null,
-    asOf: new Date('2026-08-11T00:00:00Z'),
+    asOf: new Date('2026-08-11T12:00:00Z'),
   };
 
   it('en un malo manda el capital expuesto, en unidades de moneda', () => {

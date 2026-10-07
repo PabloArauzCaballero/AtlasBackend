@@ -5,7 +5,9 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, Sequelize, Transaction } from 'sequelize';
+import { FindOptions, Op, Sequelize, Transaction, literal } from 'sequelize';
+import { atlasSchemaFor } from '../../database/domain-schemas.js';
+import { OUTCOME_WINDOW_DAYS } from './domain/loan-outcome.js';
 import { customerCodesFor, loanSearchConditions } from './loan-staff-search.js';
 import {
   LoanEventModel,
@@ -17,6 +19,10 @@ import {
 } from '../../database/models/index.js';
 
 type RepositoryOptions = { transaction?: Transaction };
+
+const OUTCOME_REPORTS = `${atlasSchemaFor('loan_outcome_reports')}.loan_outcome_reports`;
+/** Con esta ventana encolada, un préstamo cerrado ya entregó todas sus cosechas. */
+const LAST_OUTCOME_WINDOW_DAYS = Math.max(...OUTCOME_WINDOW_DAYS);
 
 /** Cuotas que todavía pueden recibir un cobro. Una castigada ya no: su saldo salió del libro. */
 const COLLECTABLE_STATUSES = ['pending', 'partially_paid', 'overdue'];
@@ -228,17 +234,36 @@ export class LoansRepository {
     } as FindOptions);
   }
 
-  /** Préstamos vivos con decisión asociada: la población de la que salen las cosechas. */
+  /**
+   * Población del barrido de mora y de cosechas: los préstamos ACTIVOS, más los cerrados que aún le
+   * deben una cosecha al Motor.
+   *
+   * Un cerrado sin ejecución de decisión, o con su última ventana ya encolada, no tiene nada que
+   * aportar: antes entraba igual, para siempre, y se repartía el lote con los activos —con miles de
+   * cancelados, un activo tardaba más de un día en volver a evaluarse—.
+   */
   findActiveLoansForSweep(tenantId: string | null, limit: number): Promise<LoanModel[]> {
     return this.loanModel.findAll({
       where: {
         deleted: false,
-        status: { [Op.in]: ['active', 'paid_off', 'written_off'] },
         ...(tenantId ? { tenantId } : {}),
+        [Op.or]: [
+          { status: 'active' },
+          {
+            status: { [Op.in]: ['paid_off', 'written_off'] },
+            decisionExecutionId: { [Op.ne]: null },
+            id: { [Op.notIn]: literal(`(SELECT r.loan_id FROM ${OUTCOME_REPORTS} r WHERE r.window_days = ${LAST_OUTCOME_WINDOW_DAYS})`) },
+          },
+        ],
       },
       order: [['delinquencyEvaluatedAt', 'ASC NULLS FIRST']] as unknown as FindOptions['order'],
       limit,
     } as FindOptions);
+  }
+
+  /** Sólo la marca del barrido, sin tocar nada más del préstamo: la usa el barrido cuando la evaluación falló. */
+  async markDelinquencyEvaluated(tenantId: string, loanId: string, evaluatedAt: Date): Promise<void> {
+    await this.loanModel.update({ delinquencyEvaluatedAt: evaluatedAt }, { where: { id: loanId, tenantId } });
   }
 
   findOutcomeReport(

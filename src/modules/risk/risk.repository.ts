@@ -9,7 +9,9 @@ import { FindOptions, Transaction } from 'sequelize';
 import {
   CustomerConsentModel,
   CustomerContactMethodModel,
+  CustomerDeviceLinkModel,
   CustomerIdentityDocumentModel,
+  CustomerSessionModel,
   DataChangeLogModel,
   FeatureComputationRunModel,
   FeatureLineageLinkModel,
@@ -51,7 +53,28 @@ export class RiskRepository {
     @InjectModel(CustomerContactMethodModel) private readonly contactMethodModel: typeof CustomerContactMethodModel,
     @InjectModel(CustomerIdentityDocumentModel)
     private readonly identityDocumentModel: typeof CustomerIdentityDocumentModel,
+    @InjectModel(CustomerSessionModel) private readonly sessionModel: typeof CustomerSessionModel,
+    @InjectModel(CustomerDeviceLinkModel) private readonly deviceLinkModel: typeof CustomerDeviceLinkModel,
   ) {}
+
+  /**
+   * Cuáles de las referencias que mandó quien pide la evaluación son DEL cliente evaluado. Un
+   * dispositivo es suyo si tiene vínculo con él o si una sesión suya lo usó; una sesión, si es suya.
+   */
+  async findOwnedDeviceReferences(
+    tenantId: string,
+    customerId: string,
+    refs: { deviceId?: string | null; sessionId?: string | null },
+  ): Promise<{ deviceOwned: boolean; sessionOwned: boolean }> {
+    const deviceOwned = refs.deviceId
+      ? (await this.deviceLinkModel.count({ where: { tenantId, customerId, deviceId: refs.deviceId } } as FindOptions)) > 0 ||
+        (await this.sessionModel.count({ where: { tenantId, customerId, deviceId: refs.deviceId } } as FindOptions)) > 0
+      : true;
+    const sessionOwned = refs.sessionId
+      ? (await this.sessionModel.count({ where: { tenantId, customerId, id: refs.sessionId } } as FindOptions)) > 0
+      : true;
+    return { deviceOwned, sessionOwned };
+  }
 
   findLatestCustomerRiskResult(tenantId: string, customerId: string): Promise<RiskAssessmentResultModel | null> {
     return this.riskAssessmentResultModel.findOne({

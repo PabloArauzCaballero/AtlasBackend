@@ -29,7 +29,7 @@
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
 | Con `@Roles` | 550 |
-| Con permiso fino `@InternalPermissions` (además del rol) | 77 |
+| Con permiso fino `@InternalPermissions` (además del rol) | 83 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
 ## `app-content`
@@ -132,13 +132,13 @@
 | `GET` | `/merchant/partners/:partnerId/down-payments` | `merchant`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `MerchantDownPaymentController.list` | guards: `TenantGuard` |
 | `GET` | `/merchant/partners/:partnerId/down-payments/:applicationId/proof` | `merchant`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `MerchantDownPaymentController.proof` | guards: `TenantGuard` |
 | `POST` | `/merchant/partners/:partnerId/down-payments/:applicationId/verification` | `merchant`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `MerchantDownPaymentController.decide` | guards: `TenantGuard` |
-| `GET` | `/operations/credit/applications/:applicationId` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.getApplicationDetail` | guards: `TenantGuard` |
-| `POST` | `/operations/credit/applications/:applicationId/business-acceptance` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.decideBusinessAcceptance` | guards: `TenantGuard` |
-| `POST` | `/operations/credit/applications/:applicationId/decision` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.decideApplication` | guards: `TenantGuard` |
-| `POST` | `/operations/credit/customers/:customerId/credit-line/recalculate` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.recalculateCreditLine` | guards: `TenantGuard` |
-| `GET` | `/operations/credit/products` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.listProducts` | guards: `TenantGuard` |
-| `POST` | `/operations/credit/products` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.createProduct` | guards: `TenantGuard` |
-| `PATCH` | `/operations/credit/products/:productId/status` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.changeProductStatus` | guards: `TenantGuard` |
+| `GET` | `/operations/credit/applications/:applicationId` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.getApplicationDetail` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `POST` | `/operations/credit/applications/:applicationId/business-acceptance` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.decideBusinessAcceptance` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `POST` | `/operations/credit/applications/:applicationId/decision` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | `credit.application.decide` | `CreditOperationsController.decideApplication` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `POST` | `/operations/credit/customers/:customerId/credit-line/recalculate` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.recalculateCreditLine` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `GET` | `/operations/credit/products` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditOperationsController.listProducts` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `POST` | `/operations/credit/products` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | `credit.product.manage` | `CreditOperationsController.createProduct` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `PATCH` | `/operations/credit/products/:productId/status` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | `credit.product.manage` | `CreditOperationsController.changeProductStatus` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `GET` | `/operations/customers/:customerId/card-tier` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CardTierOperationsController.get` | guards: `TenantGuard` |
 | `POST` | `/operations/customers/:customerId/card-tier` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CardTierOperationsController.set` | guards: `TenantGuard` |
 | `POST` | `/operations/customers/:customerId/card-tier/revoke` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CardTierOperationsController.revoke` | guards: `TenantGuard` |
@@ -436,20 +436,20 @@
 
 | Método | Ruta | Acceso | Permiso fino | Handler | Notas |
 |---|---|---|---|---|---|
-| `POST` | `/credit-applications/:applicationId/disbursement` | `internal_operator`, `admin`, `platform_admin` | — | `LoansController.disburse` | guards: `TenantGuard` |
-| `GET` | `/customers/:customerId/loans` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.listByCustomer` | guards: `TenantGuard` |
-| `GET` | `/customers/:customerId/payment-calendar` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.paymentCalendar` | guards: `TenantGuard` |
-| `GET` | `/customers/:customerId/spending-by-category` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.spendingByCategory` | guards: `TenantGuard` |
-| `GET` | `/customers/:customerId/spending-report.pdf` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.spendingReport` | guards: `TenantGuard` |
-| `GET` | `/loans/:loanId` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.detail` | guards: `TenantGuard` |
-| `POST` | `/loans/:loanId/payments` | `internal_operator`, `admin`, `platform_admin` | — | `LoanPaymentsController.registerPayment` | guards: `TenantGuard` |
-| `POST` | `/loans/:loanId/payments/:paymentId/reversal` | `internal_operator`, `admin`, `platform_admin` | — | `LoanPaymentsController.reversePayment` | guards: `TenantGuard` |
-| `POST` | `/loans/:loanId/write-off` | `admin`, `platform_admin` | — | `LoanPaymentsController.writeOffLoan` | guards: `TenantGuard` |
+| `POST` | `/credit-applications/:applicationId/disbursement` | `internal_operator`, `admin`, `platform_admin` | `credit.loan.disburse` | `LoansController.disburse` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `GET` | `/customers/:customerId/loans` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.listByCustomer` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `GET` | `/customers/:customerId/payment-calendar` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.paymentCalendar` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `GET` | `/customers/:customerId/spending-by-category` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.spendingByCategory` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `GET` | `/customers/:customerId/spending-report.pdf` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.spendingReport` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `GET` | `/loans/:loanId` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.detail` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `POST` | `/loans/:loanId/payments` | `internal_operator`, `admin`, `platform_admin` | `loans.payment.register` | `LoanPaymentsController.registerPayment` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `POST` | `/loans/:loanId/payments/:paymentId/reversal` | `internal_operator`, `admin`, `platform_admin` | `loans.payment.reverse` | `LoanPaymentsController.reversePayment` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `POST` | `/loans/:loanId/write-off` | `admin`, `platform_admin` | — | `LoanPaymentsController.writeOffLoan` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `GET` | `/operations/loans` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `LoansOperationsController.list` | guards: `TenantGuard` |
 | `POST` | `/operations/loans/delinquency-sweep` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansOperationsController.sweep` | guards: `TenantGuard` |
 | `GET` | `/operations/loans/outcome-backlog` | `risk_analyst`, `admin`, `platform_admin` | — | `LoansOperationsController.backlog` | guards: `TenantGuard` |
 | `GET` | `/operations/loans/outcome-status` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `LoansOperationsController.outcomeStatus` | guards: `TenantGuard` |
-| `GET` | `/policies/delinquency` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.delinquencyPolicy` | guards: `TenantGuard` |
+| `GET` | `/policies/delinquency` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.delinquencyPolicy` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 
 ## `log-sync`
 

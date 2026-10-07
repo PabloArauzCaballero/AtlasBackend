@@ -5,7 +5,18 @@
  */
 import { z } from 'zod';
 
-const amount = z.number().finite().positive().max(99_999_999);
+/**
+ * Importe en moneda: a lo sumo dos decimales y al menos un centavo. Se guarda con `toFixed(2)`, así que un
+ * `1000.005` o un `0.001` se redondeaban en silencio a algo distinto de lo pedido; se rechazan en el borde.
+ */
+const amount = z
+  .number()
+  .finite()
+  .positive()
+  .max(99_999_999)
+  .refine((valor) => Math.abs(valor * 100 - Math.round(valor * 100)) < 1e-6 && Math.round(valor * 100) >= 1, {
+    message: 'El importe admite hasta dos decimales y debe ser de al menos 0.01.',
+  });
 const currency = z.string().trim().length(3).toUpperCase();
 
 /**
@@ -52,6 +63,9 @@ export const creditProductStatusSchema = z
   .strict();
 
 export type CreditProductStatusDto = z.infer<typeof creditProductStatusSchema>;
+
+/** Id numérico de una ruta (`:applicationId`, `:customerId`): si no lo es, 400 y no un 22P02 de PostgreSQL. */
+export const numericIdParamSchema = z.string().regex(/^[1-9][0-9]*$/u);
 
 export const creditProductIdParamsSchema = z.object({ productId: z.string().regex(/^[1-9][0-9]*$/) });
 export type CreditProductIdParamsDto = z.infer<typeof creditProductIdParamsSchema>;

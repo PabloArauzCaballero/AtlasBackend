@@ -34,20 +34,38 @@ export class FraudRepository {
     @InjectModel(DataChangeLogModel) private readonly dataChangeLogModel: typeof DataChangeLogModel,
   ) {}
 
-  findFraudCaseById(tenantId: string, caseId: string): Promise<FraudCaseModel | null> {
-    return this.fraudCaseModel.findOne({ where: { tenantId, id: caseId, deleted: { [Op.ne]: true } } } as FindOptions);
+  /**
+   * Con `lock` la fila se lee `FOR UPDATE` dentro de la transacción: quien decide el caso lo
+   * lee así para que dos decisiones simultáneas se pongan en fila y la segunda vea ya el cierre
+   * de la primera, en vez de pasar las dos la guarda sobre la misma lectura vieja.
+   */
+  findFraudCaseById(
+    tenantId: string,
+    caseId: string,
+    options: { transaction?: Transaction; lock?: boolean } = {},
+  ): Promise<FraudCaseModel | null> {
+    return this.fraudCaseModel.findOne({
+      where: { tenantId, id: caseId, deleted: { [Op.ne]: true } },
+      ...(options.transaction ? { transaction: options.transaction } : {}),
+      ...(options.lock && options.transaction ? { lock: options.transaction.LOCK.UPDATE } : {}),
+    } as FindOptions);
   }
 
+  /**
+   * Escribe el desenlace de una decisión. `closedAt` va en `null` cuando la decisión NO cierra el
+   * caso (`needs_more_investigation`): un `closed_at` relleno es lo que el resto del sistema lee
+   * como «caso cerrado» (elegibilidad, señales de underwriting y la guarda de la propia decisión).
+   */
   async closeFraudCase(
     caseModel: FraudCaseModel,
-    values: { resolution: string; notes: string | null; closedAt: Date; nextStatus: string },
+    values: { resolution: string; notes: string | null; closedAt: Date | null; decidedAt: Date; nextStatus: string },
     options: { transaction?: Transaction },
   ): Promise<FraudCaseModel> {
     caseModel.caseStatus = values.nextStatus;
     caseModel.resolution = values.resolution;
     caseModel.notes = values.notes;
     caseModel.closedAt = values.closedAt;
-    caseModel.updatedAtValue = values.closedAt;
+    caseModel.updatedAtValue = values.decidedAt;
     return caseModel.save({ transaction: options.transaction });
   }
 

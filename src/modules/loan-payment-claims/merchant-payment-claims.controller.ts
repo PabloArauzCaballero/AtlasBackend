@@ -18,6 +18,7 @@ import {
   claimsQuerySchema,
   type DecidePaymentClaimDto,
   decidePaymentClaimSchema,
+  numericIdParamSchema,
 } from './loan-payment-claims.schemas.js';
 import { PartnerPaymentClaimsService } from './partner-payment-claims.service.js';
 import { PartnerPortfolioService } from './partner-portfolio.service.js';
@@ -50,7 +51,7 @@ export class MerchantPaymentClaimsController {
   @Get()
   list(
     @CurrentTenant() tenantId: string,
-    @Param('partnerId') partnerId: string,
+    @Param('partnerId', new ZodValidationPipe(numericIdParamSchema)) partnerId: string,
     @Query(new ZodValidationPipe(claimsQuerySchema)) query: ClaimsQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
@@ -66,7 +67,11 @@ export class MerchantPaymentClaimsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Resumen, créditos con su detalle y calendario de cobros.' })
   @Get('portfolio')
-  portfolio(@CurrentTenant() tenantId: string, @Param('partnerId') partnerId: string, @CurrentUser() currentUser: AuthenticatedUser) {
+  portfolio(
+    @CurrentTenant() tenantId: string,
+    @Param('partnerId', new ZodValidationPipe(numericIdParamSchema)) partnerId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
     return this.cartera.portfolioForPartner({
       tenantId,
       partnerProfileId: partnerId,
@@ -89,8 +94,8 @@ export class MerchantPaymentClaimsController {
   @Header('Cache-Control', 'private, max-age=60')
   async proof(
     @CurrentTenant() tenantId: string,
-    @Param('partnerId') partnerId: string,
-    @Param('claimId') claimId: string,
+    @Param('partnerId', new ZodValidationPipe(numericIdParamSchema)) partnerId: string,
+    @Param('claimId', new ZodValidationPipe(numericIdParamSchema)) claimId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
@@ -112,8 +117,8 @@ export class MerchantPaymentClaimsController {
   @HttpCode(HttpStatus.OK)
   decide(
     @CurrentTenant() tenantId: string,
-    @Param('partnerId') partnerId: string,
-    @Param('claimId') claimId: string,
+    @Param('partnerId', new ZodValidationPipe(numericIdParamSchema)) partnerId: string,
+    @Param('claimId', new ZodValidationPipe(numericIdParamSchema)) claimId: string,
     @Body(new ZodValidationPipe(decidePaymentClaimSchema)) body: DecidePaymentClaimDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {

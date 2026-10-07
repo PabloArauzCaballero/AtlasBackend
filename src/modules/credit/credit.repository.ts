@@ -85,10 +85,16 @@ export class CreditRepository {
     } as FindOptions);
   }
 
-  findApplicationById(tenantId: string, applicationId: string, options: RepositoryOptions = {}): Promise<CreditApplicationModel | null> {
+  findApplicationById(
+    tenantId: string,
+    applicationId: string,
+    options: RepositoryOptions & { lock?: boolean } = {},
+  ): Promise<CreditApplicationModel | null> {
     return this.applicationModel.findOne({
       where: { id: applicationId, tenantId, deleted: false },
       transaction: options.transaction,
+      // Con `lock`, dos decisiones simultáneas no validan contra el mismo estado y se aplican las dos.
+      ...(options.lock && options.transaction ? { lock: options.transaction.LOCK.UPDATE } : {}),
     } as FindOptions);
   }
 
@@ -99,12 +105,13 @@ export class CreditRepository {
   findApplicationByExecutionId(
     tenantId: string,
     decisionExecutionId: string,
-    options: RepositoryOptions = {},
+    options: RepositoryOptions & { lock?: boolean } = {},
   ): Promise<CreditApplicationModel | null> {
     return this.applicationModel.findOne({
       where: { tenantId, decisionExecutionId, deleted: false },
       order: [['id', 'DESC']],
       transaction: options.transaction,
+      ...(options.lock && options.transaction ? { lock: options.transaction.LOCK.UPDATE } : {}),
     } as FindOptions);
   }
 
