@@ -23,6 +23,10 @@ function montar(relojes: Reloj[] = [], umbrales: number[] = [50, 75, 90], versio
     findClock: jest.fn(async (_caseId: string, metricType: string) => relojes.find((r) => r.metricType === metricType) ?? null),
     listClocks: jest.fn(async () => relojes),
     updateClock: jest.fn(async (id: string, valores: Record<string, unknown>) => void actualizaciones.push([id, valores])),
+    markClockBreached: jest.fn(async (id: string, breachedAt: Date) => {
+      actualizaciones.push([id, { state: 'BREACHED', breachedAt }]);
+      return true;
+    }),
     findBreachedClocks: jest.fn(async () => relojes),
     findWarningClocks: jest.fn(async () => relojes),
     findRunningClocks: jest.fn(async () => relojes),
@@ -239,6 +243,19 @@ describe('SupportSlaService · cancelación y barrido', () => {
    * El evento de integración va por outbox y su fallo no puede tumbar el barrido: si el motor de
    * notificaciones está caído, el incumplimiento igual tiene que quedar marcado.
    */
+  it('un reloj que otro barrido o el agente ya cerró no se repite ni se sobrescribe', async () => {
+    const { service, timeline, eventosDeCaso, publicados } = montar([
+      { id: '9', caseId: '10', metricType: 'RESOLUTION', targetAt: '2026-09-09T16:00:00.000Z' },
+    ]);
+    timeline.markClockBreached.mockResolvedValueOnce(false as never);
+
+    const resultado = await service.sweepBreaches('1', new Date('2026-09-09T16:45:00.000Z'));
+
+    expect(resultado.breached).toBe(0);
+    expect(eventosDeCaso).toHaveLength(0);
+    expect(publicados).toHaveLength(0);
+  });
+
   it('si el evento de integración falla, el incumplimiento igual queda marcado', async () => {
     const { service, events, actualizaciones } = montar([
       { id: '9', caseId: '10', metricType: 'RESOLUTION', targetAt: '2026-09-09T16:00:00.000Z' },

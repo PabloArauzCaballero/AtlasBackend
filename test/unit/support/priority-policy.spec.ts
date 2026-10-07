@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { derivePriority, mostUrgent, raiseTo } from '../../../src/modules/support/domain/priority-policy.js';
+import { derivePriority, mostUrgent, raiseTo, requesterClassification } from '../../../src/modules/support/domain/priority-policy.js';
 
 /** La prioridad la calcula la regla, no el ánimo del turno ni quién grita más fuerte. */
 describe('matriz de prioridad', () => {
@@ -56,5 +56,31 @@ describe('utilidades de prioridad', () => {
   it('mostUrgent devuelve la más exigente de las dos', () => {
     expect(mostUrgent('P3', 'P1')).toBe('P1');
     expect(mostUrgent('P2', 'P4')).toBe('P2');
+  });
+});
+
+describe('lo que declara quien pide ayuda', () => {
+  const motivo = { impact: 'INDIVIDUAL', urgency: 'NORMAL' } as const;
+
+  it('sin declarar nada manda el motivo', () => {
+    expect(requesterClassification({}, motivo)).toEqual(motivo);
+  });
+
+  it('el apremio sube como mucho UN escalón sobre el del motivo', () => {
+    expect(requesterClassification({ urgency: 'CRITICAL' }, motivo)).toEqual({ impact: 'INDIVIDUAL', urgency: 'HIGH' });
+    expect(requesterClassification({ urgency: 'HIGH' }, motivo)).toEqual({ impact: 'INDIVIDUAL', urgency: 'HIGH' });
+  });
+
+  it('bajarlo sí se respeta', () => {
+    expect(requesterClassification({ urgency: 'LOW' }, motivo).urgency).toBe('LOW');
+  });
+
+  it('con el máximo de gritos una consulta individual no llega a P1', () => {
+    const { impact, urgency } = requesterClassification({ urgency: 'CRITICAL' }, motivo);
+    expect(derivePriority({ impact, urgency, caseType: 'QUESTION' })).not.toBe('P1');
+  });
+
+  it('un motivo ya crítico no se sale de la escala', () => {
+    expect(requesterClassification({ urgency: 'CRITICAL' }, { impact: 'PARTNER', urgency: 'CRITICAL' }).urgency).toBe('CRITICAL');
   });
 });

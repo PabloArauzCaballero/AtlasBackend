@@ -10,7 +10,7 @@ import { parseFacilityOutcomes, parseFacilityRegistrations } from './engine-verd
 import { classifyDecision, type DecisionVerdict } from './decision-verdict.js';
 import { ConsentReplicationStore } from './consent-replication.store.js';
 import { EngineConsentGateway, type ConsentBasis, type ConsentReplicationInput } from './engine-consent.gateway.js';
-import { EngineTransportService, type OpcionesDeLlamada } from './engine-transport.service.js';
+import { EngineTransportService, problemaDelMotor, type OpcionesDeLlamada } from './engine-transport.service.js';
 import { EngineManualReviewGateway } from './engine-manual-review.gateway.js';
 import { basisBlocker, ensureUnderwritingBasis } from './underwriting-basis.js';
 import {
@@ -108,6 +108,16 @@ export class DecisionEngineClient {
 
     const parsed = decisionResponseSchema.safeParse(raw.json);
     if (!parsed.success) {
+      // Un 422 con cuerpo de error no es una decisión: es el motivo por el que el motor no pudo decidir.
+      const problema = problemaDelMotor(raw.json);
+      if (problema) {
+        throw toAdapterError({
+          provider: PROVIDER,
+          httpStatus: raw.status,
+          message: `El motor no pudo decidir «${artifactCode}» (HTTP ${raw.status}): ${problema}`,
+          error: raw.json,
+        });
+      }
       throw toAdapterError({
         provider: PROVIDER,
         httpStatus: raw.status,

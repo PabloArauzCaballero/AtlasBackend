@@ -143,6 +143,31 @@ describe('DecisionEngineClient', () => {
       await expect(cliente().execute('credit_underwriting', { subjectReference: 's1' } as never)).rejects.toBeDefined();
     });
 
+    /*
+     * Un 422 con cuerpo de error (ProblemDetails) no es una decisión: es el motor diciendo POR QUÉ no pudo decidir.
+     * Se reportaba como «forma que el core no reconoce: executionId… status…» y escondía, p. ej., que no había
+     * despliegue activo del artefacto (2026-10-07: un comercio no podía enviarse a revisión y nadie sabía por qué).
+     */
+    it('un 422 con ProblemDetails dice el motivo del motor, no el ruido de la validación', async () => {
+      conFetch({
+        status: 422,
+        body: {
+          type: 'about:blank',
+          title: 'Unprocessable Entity',
+          status: 422,
+          error: { code: 'ACTIVE_DEPLOYMENT_NOT_FOUND', message: 'No hay despliegue activo de PARTNER_KYB_REVIEW en STAGING' },
+        },
+      });
+
+      const error = await cliente()
+        .execute('PARTNER_KYB_REVIEW', { subjectReference: 's1' } as never)
+        .catch((e: Error) => e);
+
+      expect((error as Error).message).toContain('PARTNER_KYB_REVIEW');
+      expect((error as Error).message).toContain('ACTIVE_DEPLOYMENT_NOT_FOUND');
+      expect((error as Error).message).not.toContain('executionId');
+    });
+
     it('sin URL configurada falla antes de salir a la red', async () => {
       configurar({ base: '' as never });
       const { llamadas } = conFetch({ status: 200, body: decisionValida });

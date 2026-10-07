@@ -4,6 +4,7 @@
  * @system Subject en proceso + puente opcional por Redis; nada de esto es la fuente de verdad.
  */
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import type Redis from 'ioredis';
 import { Observable, Subject, filter, map } from 'rxjs';
 import { REDIS_CLIENT } from '../../../common/redis/redis.module.js';
@@ -52,6 +53,8 @@ export class SupportRealtimeService implements OnModuleDestroy {
   private readonly logger = new Logger(SupportRealtimeService.name);
   private readonly events = new Subject<SupportRealtimeEvent>();
   private subscriber: Redis | null = null;
+  /** Quién publicó: la instancia que emite ya entregó el evento en proceso y no lo recibe de vuelta. */
+  private readonly instanceId = randomUUID();
 
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis | null) {
     this.connectBridge();
@@ -81,7 +84,8 @@ export class SupportRealtimeService implements OnModuleDestroy {
 
   private receiveFromBridge(raw: string): void {
     try {
-      const event = JSON.parse(raw) as SupportRealtimeEvent;
+      const event = JSON.parse(raw) as SupportRealtimeEvent & { origin?: string };
+      if (event?.origin === this.instanceId) return;
       if (event?.channelId) this.events.next(event);
     } catch {
       // Un mensaje ilegible en el bus no puede tumbar la entrega del resto.
@@ -99,7 +103,7 @@ export class SupportRealtimeService implements OnModuleDestroy {
     this.events.next(full);
 
     if (!this.redis) return;
-    void this.redis.publish(BRIDGE_CHANNEL, JSON.stringify(full)).catch(() => undefined);
+    void this.redis.publish(BRIDGE_CHANNEL, JSON.stringify({ ...full, origin: this.instanceId })).catch(() => undefined);
   }
 
   /** El hilo de una conversación concreta, ya filtrado. */

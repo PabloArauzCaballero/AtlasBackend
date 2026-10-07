@@ -54,11 +54,9 @@ export class WorkflowCatalogRepository {
     } as FindOptions);
   }
 
-  findVersions(workflowCode: string): Promise<WorkflowDefinitionModel[]> {
-    return this.definitionModel.findAll({
-      where: { workflowCode, deleted: false },
-      order: [['version', 'DESC']],
-    } as FindOptions);
+  async findVersions(workflowCode: string): Promise<WorkflowDefinitionModel[]> {
+    const versions = await this.definitionModel.findAll({ where: { workflowCode, deleted: false } } as FindOptions);
+    return versions.sort(compareVersionsDesc);
   }
 
   /**
@@ -67,17 +65,15 @@ export class WorkflowCatalogRepository {
    * `latest` NO significa "la última fila insertada": significa la versión marcada como
    * predeterminada y, si ninguna lo está, la activa más reciente. Devolver un borrador solo porque
    * es el más nuevo haría que publicar un flujo a medio revisar cambiara el comportamiento de todos
-   * los consumidores sin que nadie lo decidiera.
+   * los consumidores sin que nadie lo decidiera; por eso, sin predeterminada ni activa, no hay
+   * versión `latest` (404) en vez de caer en un borrador o una versión deprecada.
    */
   async findDefinition(workflowCode: string, version: string): Promise<WorkflowDefinitionModel | null> {
     if (version !== 'latest') {
       return this.definitionModel.findOne({ where: { workflowCode, version, deleted: false } } as FindOptions);
     }
-    const candidates = await this.definitionModel.findAll({
-      where: { workflowCode, deleted: false },
-      order: [['version', 'DESC']],
-    } as FindOptions);
-    return candidates.find((row) => row.isDefault) ?? candidates.find((row) => row.status === 'active') ?? candidates[0] ?? null;
+    const candidates = await this.findVersions(workflowCode);
+    return candidates.find((row) => row.isDefault) ?? candidates.find((row) => row.status === 'active') ?? null;
   }
 
   async loadBundle(definition: WorkflowDefinitionModel): Promise<WorkflowBundle> {
@@ -142,4 +138,16 @@ export class WorkflowCatalogRepository {
     }
     return facets;
   }
+}
+
+/** Orden numérico descendente de `v9` < `v10` < `v10.1`: como texto, 'v9' quedaría por delante de 'v10'. */
+function compareVersionsDesc(a: { version: string }, b: { version: string }): number {
+  const parts = (version: string) => (/\d+(?:\.\d+)*/.exec(version)?.[0] ?? '').split('.').map(Number);
+  const left = parts(a.version);
+  const right = parts(b.version);
+  for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
+    const diff = (right[i] ?? 0) - (left[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return b.version.localeCompare(a.version);
 }

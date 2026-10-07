@@ -6589,11 +6589,12 @@ paths:
         0-100 y POR QUÉ se le asigna a esta persona (cada parte con su peso, los
         puntos que aporta y la razón, más los topes que de verdad la
         recortaron), los puntos que faltan para el siguiente nivel, las misiones
-        para subir, la experiencia (1 punto por cada boliviano pagado a tiempo,
-        rachas e insignias) y la evolución de la línea. Se calcula con datos de
-        la base —antigüedad, pagos, compras cerradas, identidad—, NO con el
-        motor, así que existe aunque la línea de crédito todavía no se haya
-        calculado. Comprar no suma puntos: sólo pagar a tiempo.
+        para subir, la experiencia (1 punto por cada boliviano comprado con
+        Atlas, rachas e insignias de pago) y la evolución de la línea. Se
+        calcula con datos de la base —antigüedad, pagos, compras cerradas,
+        identidad—, NO con el motor, así que existe aunque la línea de crédito
+        todavía no se haya calculado. La experiencia da el nivel; la
+        calificación 1-100 mide qué tan buen pagador es la persona.
       operationId: CreditProgressController_progressOf
       parameters:
         - name: x-tenant-id
@@ -6616,9 +6617,13 @@ paths:
             Calificación de pagador de 1 a 100; `points` = Puntaje, los puntos
             ganados pagando a tiempo (1 por boliviano). Ninguno de los dos es el
             score 0-1000 del motor. `level`/`nextLevel`/`levelLadder` = Nivel
-            Atlas medido en PUNTOS (Nuevo 0 · En construcción 500 · Establecido
-            2.000 · Consolidado 5.000 · Preferente 10.000); la tarjeta sigue a
-            ese nivel. `tier` sigue siendo el escalón de la relación que usa la
+            Atlas medido en PUNTOS: doce niveles (Nuevo 0 · Explorador 100 · En
+            crecimiento 500 · Constante 1.000 · Establecido 2.000 · Confiable
+            3.500 · Consolidado 5.000 · Destacado 7.500 · Preferente 10.000 ·
+            Élite 15.000 · Leyenda 25.000 · Titán Atlas 50.000); `code` es el
+            escalón de cinco que sigue la tarjeta e `id` es único por nivel.
+            `experience.badges` trae las insignias con `rank`, `category` y
+            `secret`. `tier` sigue siendo el escalón de la relación que usa la
             capacidad de pago.
           content:
             application/json:
