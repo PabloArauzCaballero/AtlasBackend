@@ -77,6 +77,19 @@ export class SupportCaseTimelineRepository {
     });
   }
 
+  /**
+   * Marca vencido un reloj que SIGUE corriendo: el cambio de estado es el cierre del turno.
+   * Devuelve false si otro barrido o una respuesta del agente (`satisfied`) se adelantó, y entonces
+   * no se escribe nada más: sobrescribir un reloj cumplido o repetir el evento en la historia.
+   */
+  async markClockBreached(clockId: string, breachedAt: Date): Promise<boolean> {
+    const [count] = await this.clocks.update(
+      { state: 'BREACHED', breachedAt, updatedAtValue: new Date() } as Partial<SupportSlaClockModel>,
+      { where: { id: clockId, state: 'RUNNING' } },
+    );
+    return count > 0;
+  }
+
   /** Relojes vencidos que todavía figuran corriendo: lo que el vigilante de SLA tiene que marcar. */
   findBreachedClocks(tenantId: string, now: Date, limit = 200): Promise<SupportSlaClockModel[]> {
     return this.clocks.findAll({

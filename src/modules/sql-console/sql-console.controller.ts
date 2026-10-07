@@ -68,8 +68,8 @@ export class SqlConsoleController {
   @ApiBody({ schema: zodToApiSchema(statementSchema) })
   @ApiResponse({ status: 200, description: 'Validación, con sus violaciones o su estimación.' })
   @Post('validate')
-  validar(@Body(new ZodValidationPipe(statementSchema)) body: StatementDto) {
-    return this.queries.validate(body.statement);
+  validar(@Body(new ZodValidationPipe(statementSchema)) body: StatementDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.queries.validate(body.statement, user);
   }
 
   @ApiOperation({ summary: 'Ejecutar una consulta de solo lectura sobre read_api' })
@@ -111,24 +111,21 @@ export class SqlConsoleController {
   @ApiResponse({ status: 200, description: 'Últimas consultas de quien pregunta.' })
   @Get('history')
   async historial(@Query(new ZodValidationPipe(historyQuerySchema)) query: HistoryQueryDto, @CurrentUser() user: AuthenticatedUser) {
-    // `listOwn` devuelve ahora la página y su total, porque el cuaderno pagina su historial. Aquí
-    // sólo interesan las filas: esta consola filtra por lenguaje DESPUÉS de leerlas, así que su
-    // total tampoco coincidiría con lo que acaba enseñando.
-    const { rows: filas } = await this.history.listOwn(user, query.limit);
+    // `listOwn` devuelve la página y su total, porque el cuaderno pagina su historial. Aquí sólo
+    // interesan las filas, ya filtradas por lenguaje en la consulta.
+    const { rows: filas } = await this.history.listOwn(user, query.limit, 0, 'sql');
     return {
-      entries: filas
-        .filter((fila) => fila.language === 'sql')
-        .map((fila) => ({
-          id: fila.id,
-          statement: fila.source,
-          outcome: fila.status === 'ok' ? 'SUCCEEDED' : 'FAILED',
-          errorCode: fila.errorMessage,
-          rowCount: fila.rowCount,
-          durationMs: fila.durationMs,
-          truncated: false,
-          relations: [],
-          executedAt: fila.createdAt,
-        })),
+      entries: filas.map((fila) => ({
+        id: fila.id,
+        statement: fila.source,
+        outcome: fila.status === 'ok' ? 'SUCCEEDED' : 'FAILED',
+        errorCode: fila.errorMessage,
+        rowCount: fila.rowCount,
+        durationMs: fila.durationMs,
+        truncated: false,
+        relations: [],
+        executedAt: fila.createdAt,
+      })),
     };
   }
 }

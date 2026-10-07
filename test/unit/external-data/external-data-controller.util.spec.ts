@@ -4,6 +4,7 @@ import {
   actorId,
   assertCustomerAccess,
   customerScopeForConsentMutation,
+  inlineApprovalBy,
 } from '../../../src/modules/external-data/external-data-controller.util.js';
 
 /** Helpers de los controllers de external-data: resolución de actor y guardas de acceso del cliente. */
@@ -24,5 +25,14 @@ describe('external-data-controller.util', () => {
     expect(customerScopeForConsentMutation({ role: 'internal_operator' } as never)).toBeUndefined();
     expect(customerScopeForConsentMutation({ role: 'customer', customerId: '9' } as never)).toBe('9');
     expect(() => customerScopeForConsentMutation({ role: 'customer' } as never)).toThrow(ForbiddenException);
+  });
+
+  it('inlineApprovalBy: sólo un admin aprueba en línea, siempre a su nombre; sin señal no hay aprobación', () => {
+    const admin = { role: 'admin', internalUserId: 'a1' } as never;
+    expect(inlineApprovalBy(admin, '999')).toBe('a1');
+    expect(inlineApprovalBy(admin, undefined)).toBeUndefined();
+    expect(inlineApprovalBy({ role: 'platform_admin', platformUserId: 'p1' } as never, true)).toBe('p1');
+    expect(inlineApprovalBy({ role: 'customer', customerId: '9' } as never, '1')).toBeUndefined();
+    expect(inlineApprovalBy({ role: 'risk_analyst', internalUserId: 'r1' } as never, '1')).toBeUndefined();
   });
 });

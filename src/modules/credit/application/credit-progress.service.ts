@@ -19,6 +19,15 @@ import { PaymentCapacityService } from './payment-capacity.service.js';
 
 /** Cuántas versiones de la línea se enseñan en la evolución. */
 const HISTORY_LIMIT = 12;
+/** Los créditos cuya compra suma experiencia: concretada (`active`) o ya pagada (`paid_off`). */
+const COMPRAS_CON_EXPERIENCIA = new Set(['active', 'paid_off']);
+
+/** Bolivia es UTC-4 todo el año: una cuota saldada a las 23:00 locales ya es «mañana» en UTC y no debe contar como adelantada. */
+const diaEnBolivia = (fecha: Date | string | null | undefined): string | null => {
+  if (!fecha) return null;
+  const t = new Date(fecha).getTime();
+  return Number.isFinite(t) ? new Date(t - 4 * 3_600_000).toISOString().slice(0, 10) : null;
+};
 
 @Injectable()
 export class CreditProgressService {
@@ -35,18 +44,26 @@ export class CreditProgressService {
    * (capital + intereses; el recargo por mora NO cuenta, porque pagar tarde no debe sumar).
    */
   private async installmentFacts(tenantId: string, customerId: string) {
-    const loans = await this.loans.findAll({ where: { tenantId, customerId }, attributes: ['id'] } as FindOptions);
-    if (loans.length === 0) return { facts: [], loansEver: 0 };
+    const loans = await this.loans.findAll({
+      where: { tenantId, customerId },
+      attributes: ['id', 'status', 'principalAmount'],
+    } as FindOptions);
+    if (loans.length === 0) return { facts: [], loansEver: 0, purchaseAmounts: [] };
     const schedule = await this.installments.findAll({
       where: { tenantId, loanId: { [Op.in]: loans.map((loan) => String(loan.id)) }, deleted: false },
     } as FindOptions);
     return {
       loansEver: loans.length,
+      // La experiencia: 1 punto por boliviano comprado. Sólo compras concretadas y no castigadas (`domain/experience.ts`).
+      purchaseAmounts: loans
+        .filter((loan) => COMPRAS_CON_EXPERIENCIA.has(String(loan.status)))
+        .map((loan) => Number(loan.principalAmount ?? 0)),
       facts: schedule.map((cuota) => ({
         dueDate: String(cuota.dueDate),
         status: String(cuota.status),
         daysPastDue: Number(cuota.daysPastDue ?? 0),
         paidAmount: Number(cuota.paidPrincipal ?? 0) + Number(cuota.paidInterest ?? 0),
+        paidOn: diaEnBolivia(cuota.settledAt),
       })),
     };
   }
@@ -61,7 +78,7 @@ export class CreditProgressService {
   /**
    * Sólo el nivel, sin historial: lo que necesita quien únicamente quiere saber en qué escalón está (la tarjeta
    * automática sale de aquí). Misma cuenta que `get`; no es otra regla. Lee las cuotas porque el nivel se mide en
-   * PUNTOS, y los puntos salen de lo pagado a tiempo.
+   * PUNTOS, y los puntos salen de lo comprado.
    */
   async levelOf(tenantId: string, customerId: string) {
     const current = await this.lines.current(tenantId, customerId);
@@ -84,6 +101,7 @@ export class CreditProgressService {
   ) {
     return buildExperience({
       installments: cuotas.facts,
+      purchaseAmounts: cuotas.purchaseAmounts,
       loansEver: cuotas.loansEver,
       loansSettled: relationship.loansSettled,
       kycComplete: relationship.kycComplete,
@@ -107,7 +125,7 @@ export class CreditProgressService {
 
     const progreso = buildRelationshipProgress(assessment, relationship);
     const experiencia = this.experienceOf(cuotas, relationship);
-    // El NIVEL se mide en puntos (lo pagado a tiempo), no en la calificación: ver `domain/points-level.ts`.
+    // El NIVEL se mide en puntos (lo comprado), no en la calificación: ver `domain/points-level.ts`.
     const nivel = buildPointsLevel(experiencia.xp);
     // La tarjeta: la que gana por su nivel o la que el personal le puso. Es presentación y estatus; no toca el límite.
     const [tarjeta, catalogo] = await Promise.all([
@@ -120,11 +138,11 @@ export class CreditProgressService {
       hasCreditLine: current !== null,
       ...progreso,
       card: toCustomerCardResponse(tarjeta, catalogo),
-      // Calificación 1-100 (qué tan buen pagador) y Puntaje (puntos por pagar), con sus nombres de negocio.
+      // Calificación 1-100 (qué tan buen pagador) y Puntaje (puntos de experiencia por comprar), con sus nombres de negocio.
       ...nivel,
       rating: toPayerRating(progreso.score),
       points: toPaymentPoints(experiencia),
-      // Puntos por boliviano PAGADO a tiempo (no por comprar), rachas e insignias.
+      // Puntos por boliviano COMPRADO, rachas e insignias de pago.
       experience: experiencia,
 
       signals: {

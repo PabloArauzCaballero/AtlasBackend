@@ -87,14 +87,17 @@ export class BucketAdmission implements AdmissionPort {
  * cancelada la corrida, no sale ni una petición más; las que ya salieron se reconcilian.
  */
 export class RunBudget implements BudgetPort {
-  private issued = 0;
+  private issued: number;
   private inFlight = 0;
   private readonly waiters: Array<() => void> = [];
 
   constructor(
     private readonly limits: { maxRequests: number; maxInFlightRequests: number; deadlineAt: number },
     private readonly signal: AbortSignal,
-  ) {}
+    alreadyIssued = 0,
+  ) {
+    this.issued = alreadyIssued;
+  }
 
   get requestsIssued(): number {
     return this.issued;

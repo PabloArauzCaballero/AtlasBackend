@@ -101,6 +101,22 @@ describe('SystemsTestSuiteAdminService', () => {
     await expect(service.updateStep('1', '10', {} as never)).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('updateStep conserva la llave guardada cuando la cabecera vuelve como [REDACTED]', async () => {
+    const { service, repository } = build();
+    const stored = { id: 10, suiteId: 1, method: 'GET', pathTemplate: '/x', defaultHeaders: { 'x-api-key': 'llave-real', accept: 'a/b' } };
+    (repository.findSuiteById as jest.Mock).mockResolvedValue({ id: 1, isSafeForProduction: false } as never);
+    (repository.findStepById as jest.Mock).mockResolvedValue(stored as never);
+
+    await service.updateStep('1', '10', { defaultHeaders: { 'x-api-key': '[REDACTED]', accept: 'text/plain' } } as never);
+    expect((repository.updateStep as jest.Mock).mock.calls[0][1]).toEqual({
+      defaultHeaders: { 'x-api-key': 'llave-real', accept: 'text/plain' },
+    });
+
+    // Sin `defaultHeaders` en el cuerpo, el parche pasa tal cual.
+    await service.updateStep('1', '10', { name: 'otro' } as never);
+    expect((repository.updateStep as jest.Mock).mock.calls[1][1]).toEqual({ name: 'otro' });
+  });
+
   it('reorderSteps: NotFound sin suite y BadRequest si el repo reporta orden duplicado', async () => {
     const { service, repository } = build();
     await expect(service.reorderSteps('1', {} as never)).rejects.toBeInstanceOf(NotFoundException);

@@ -82,8 +82,15 @@ export class DataNotebookHistoryService {
    * (`findAndCountAll`), porque contar con otro criterio produciría una paginación que se pasa de
    * largo o se queda corta.
    */
-  async listOwn(user: AuthenticatedUser, limit: number, offset = 0): Promise<{ rows: NotebookHistoryRow[]; total: number }> {
-    const where = { tenantId: user.tenantId ?? null, actorUserId: user.sub };
+  async listOwn(
+    user: AuthenticatedUser,
+    limit: number,
+    offset = 0,
+    language?: string,
+  ): Promise<{ rows: NotebookHistoryRow[]; total: number }> {
+    // El lenguaje se filtra en la consulta: hacerlo después de paginar deja la página vacía para
+    // quien corrió más celdas de otro lenguaje que `limit` desde su última consulta.
+    const where = { tenantId: user.tenantId ?? null, actorUserId: user.sub, ...(language ? { language } : {}) };
     const { rows: filas, count } = await this.model.findAndCountAll({
       where,
       // El desempate por `id` es lo que hace estable la paginación. Ordenando sólo por fecha, dos

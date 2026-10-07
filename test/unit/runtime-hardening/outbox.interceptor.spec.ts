@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { firstValueFrom, of } from 'rxjs';
 import { ApiCommandOutboxInterceptor } from '../../../src/modules/runtime-hardening/outbox.interceptor.js';
+import { committedResultOf } from '../../../src/modules/runtime-hardening/application/committed-result.js';
 
 /**
  * `ApiCommandOutboxInterceptor` (Fase 1.2 — branch coverage): registra en el outbox toda mutación
@@ -46,6 +47,21 @@ describe('ApiCommandOutboxInterceptor', () => {
     expect(arg.payload).toMatchObject({ method: 'POST', actorRole: 'internal_operator', resultType: 'object' });
   });
 
+  it('el eventCode usa la plantilla de la ruta y el path no guarda la query', async () => {
+    const { interceptor, runtime } = build();
+    const request = {
+      method: 'POST',
+      originalUrl: '/api/v1/customers/9/sessions/55/heartbeat?email=a@b.com',
+      route: { path: '/api/v1/customers/:customerId/sessions/:sessionId/heartbeat' },
+      params: { customerId: '9' },
+      headers: {},
+    };
+    await firstValueFrom(interceptor.intercept(contextOf(request), handlerOf({ ok: true })));
+    const arg = (runtime.emitApiCommandCompleted as jest.Mock).mock.calls[0][0] as { eventCode: string; payload: { path: string } };
+    expect(arg.eventCode).toBe('post_api_v1_customers_customerId_sessions_sessionId_heartbeat_completed');
+    expect(arg.payload.path).toBe('/api/v1/customers/9/sessions/55/heartbeat');
+  });
+
   it('mutación pública: tenant del header, rol public_or_unknown, agregado nulo, path de respaldo y correlation null', async () => {
     const { interceptor, runtime } = build();
     const request = {
@@ -81,5 +97,14 @@ describe('ApiCommandOutboxInterceptor', () => {
     const arg = (runtime.emitApiCommandCompleted as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
     expect(arg.eventCode).toBe('put_unknown_completed');
     expect((arg.payload as Record<string, unknown>).resultType).toBe('undefined');
+  });
+
+  it('si falla el outbox, propaga el MISMO error marcado con el cuerpo ya comprometido del handler', async () => {
+    const { interceptor, runtime } = build();
+    const caida = new Error('pool agotado');
+    (runtime.emitApiCommandCompleted as jest.Mock).mockRejectedValueOnce(caida as never);
+    const request = { method: 'POST', originalUrl: '/x', headers: {} };
+    await expect(firstValueFrom(interceptor.intercept(contextOf(request), handlerOf({ id: 'r1' })))).rejects.toBe(caida);
+    expect(committedResultOf(caida)).toEqual({ body: { id: 'r1' } });
   });
 });

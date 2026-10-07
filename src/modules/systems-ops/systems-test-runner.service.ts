@@ -11,6 +11,7 @@ import { mapTestRun, mapTestStepRun } from './systems-ops.mapper.js';
 import { RunTestSuiteDto } from './systems-ops.schemas.js';
 import { SystemsTestExecutionRepository } from './systems-test-execution.repository.js';
 import { sanitizeForSystemsOps } from './systems-sanitizer.js';
+import { redactSecretHeaders } from './systems-header-redaction.util.js';
 import { SystemTestStepModel } from '../../database/models/index.js';
 import { SystemsTestAssertionService } from './systems-test-assertion.service.js';
 import { SystemsTestHttpClientService } from './systems-test-http-client.service.js';
@@ -196,7 +197,7 @@ export class SystemsTestRunnerService {
       status: httpResponse.errorMessage === null && assertionResult.passed ? 'PASSED' : 'FAILED',
       statusCode: httpResponse.statusCode,
       responseBody: { body: httpResponse.responseBody, assertions: assertionResult.results },
-      requestSummary: { method: step.method, path: resolvedPath, payload: resolvedPayload, headers: resolvedHeaders },
+      requestSummary: { method: step.method, path: resolvedPath, payload: resolvedPayload, headers: redactSecretHeaders(resolvedHeaders) },
       errorMessage: httpResponse.errorMessage ?? this.firstFailedAssertion(assertionResult.results),
       durationMs,
     };
@@ -213,7 +214,13 @@ export class SystemsTestRunnerService {
       status: 'PASSED',
       statusCode: null,
       responseBody: { dryRun: true, message: 'Step resolved without external HTTP execution.', assertions: step.assertions },
-      requestSummary: { method: step.method, path: resolvedPath, payload: resolvedPayload, headers: resolvedHeaders, dryRun: true },
+      requestSummary: {
+        method: step.method,
+        path: resolvedPath,
+        payload: resolvedPayload,
+        headers: redactSecretHeaders(resolvedHeaders),
+        dryRun: true,
+      },
       errorMessage: null,
       durationMs,
     };

@@ -30,7 +30,7 @@ import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { CatalogDataGovernanceRepository } from './catalog-data-governance.repository.js';
 import { CatalogDefinitionsRepository } from './catalog-definitions.repository.js';
 import { CatalogRiskPolicyRepository } from './catalog-risk-policy.repository.js';
-import { RepositoryOptions } from './catalog-repository.helpers.js';
+import { lockedRead, RepositoryOptions } from './catalog-repository.helpers.js';
 import { DefinitionsQueryDto, ListCatalogsQueryDto } from './catalog-management.schemas.js';
 
 export type { RepositoryOptions };
@@ -423,7 +423,7 @@ export class CatalogManagementRepository {
   }
 
   findStagingItemById(stagingItemId: string, options: RepositoryOptions = {}): Promise<ContextStagingItemModel | null> {
-    return this.contextStagingItemModel.findOne({ where: { id: stagingItemId }, transaction: options.transaction } as FindOptions);
+    return this.contextStagingItemModel.findOne({ where: { id: stagingItemId }, ...lockedRead(options) } as FindOptions);
   }
 
   async updateStagingItemDecision(

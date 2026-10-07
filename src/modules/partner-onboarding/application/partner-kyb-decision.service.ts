@@ -7,6 +7,7 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { randomUUID } from 'node:crypto';
 import { DecisionArtifactBindingService } from '../../decision-engine/decision-artifact-binding.service.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
+import { openKybReviewCase } from './partner-kyb-review-case.js';
 import { ENGINE_VERDICT_HELD_FOR_MANUAL_REVIEW, engineVerdictApplies } from '../../../config/decision-engine-auto-apply.js';
 import type { DecisionResponse } from '../../decision-engine/decision-engine.types.js';
 import { env } from '../../../config/env.js';
@@ -54,6 +55,20 @@ export class PartnerKybDecisionService {
 
   get isEnabled(): boolean {
     return this.client.isConfigured;
+  }
+
+  /**
+   * Garantiza que un expediente que espera a una persona tenga caso en la cola del Motor.
+   *
+   * Sin esto, un veredicto retenido (el grafo dijo APROBADO) o un `REVISION_MANUAL` de una versión
+   * sin nodo MANUAL_REVIEW dejaba `manualReviewCaseCode` en null: el comercio esperaba a alguien
+   * y la bandeja del Motor salía vacía. Si el Motor no atiende la petición, el caso queda sin
+   * código y `PartnerKybSyncService` lo reintenta; la decisión nunca se pierde ni se aprueba sola.
+   */
+  private async ensureReviewCase(decision: KybDecision, profileId: string): Promise<KybDecision> {
+    if (decision.outcome !== 'REVISION_MANUAL' || decision.manualReviewCaseCode || !decision.executionId) return decision;
+    const caso = await openKybReviewCase(this.client, { executionId: decision.executionId, profileId, reason: decision.reason });
+    return caso ? { ...decision, manualReviewCaseCode: caso.caseCode } : decision;
   }
 
   /**
@@ -145,7 +160,7 @@ export class PartnerKybDecisionService {
         throw new ServiceUnavailableException(`DECISION_ENGINE_UNAVAILABLE: el Motor respondió ${response.status} y no un veredicto.`);
       }
 
-      return holdForManualReview(toKybDecision(response));
+      return await this.ensureReviewCase(holdForManualReview(toKybDecision(response)), String(input.profile.id));
     } catch (error) {
       if (error instanceof ServiceUnavailableException) throw error;
       this.logger.error(`El Motor no pudo verificar el expediente ${input.profile.id}: ${(error as Error).message}`);

@@ -82,6 +82,7 @@ describe('UnderwritingFeaturesService.build · lo que llega al Motor de un clien
       history,
       { signalsFor: async () => null } as never,
       { signalsFor: async () => NO_STATEMENT } as never,
+      { signalsFor: async () => null } as never,
     );
   }
 

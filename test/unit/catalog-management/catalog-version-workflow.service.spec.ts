@@ -129,6 +129,37 @@ describe('CatalogVersionWorkflowService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    it('rejects "reject" on a published version: it would stay rejected and live at once', async () => {
+      const { service, repository } = buildService();
+      (repository.findCatalogByCode as jest.Mock).mockResolvedValueOnce({ id: 1 } as never);
+      (repository.findCatalogVersion as jest.Mock).mockResolvedValueOnce({ id: 10, status: 'published' } as never);
+      await expect(
+        service.decideCatalogVersion({
+          catalogCode: 'c1',
+          versionId: '10',
+          body: { decision: 'reject' } as never,
+          currentUser: adminUser,
+          context,
+        }),
+      ).rejects.toThrow(/CATALOG_VERSION_NOT_REJECTABLE/);
+      expect(repository.updateCatalogVersionStatus).not.toHaveBeenCalled();
+    });
+
+    it('rejects "retire" on a version that is already retired or rejected', async () => {
+      const { service, repository } = buildService();
+      (repository.findCatalogByCode as jest.Mock).mockResolvedValueOnce({ id: 1 } as never);
+      (repository.findCatalogVersion as jest.Mock).mockResolvedValueOnce({ id: 10, status: 'rejected' } as never);
+      await expect(
+        service.decideCatalogVersion({
+          catalogCode: 'c1',
+          versionId: '10',
+          body: { decision: 'retire' } as never,
+          currentUser: adminUser,
+          context,
+        }),
+      ).rejects.toThrow(/CATALOG_VERSION_NOT_RETIRABLE/);
+    });
+
     it('throws NotFoundException when the version does not exist', async () => {
       const { service, repository } = buildService();
       (repository.findCatalogByCode as jest.Mock).mockResolvedValueOnce({ id: 1 } as never);

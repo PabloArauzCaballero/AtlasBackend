@@ -22,6 +22,15 @@ export type SystemsTestHttpResponse = {
   errorMessage: string | null;
 };
 
+/** Tope del cuerpo que se lee de un objetivo: lo que pase de aquí no se carga en memoria de la API. */
+export const SYSTEM_TEST_MAX_RESPONSE_BYTES = 1024 * 1024;
+
+class ResponseTooLargeError extends Error {
+  constructor() {
+    super('SYSTEM_TEST_RESPONSE_TOO_LARGE');
+  }
+}
+
 @Injectable()
 export class SystemsTestHttpClientService {
   async execute(request: SystemsTestHttpRequest): Promise<SystemsTestHttpResponse> {
@@ -40,7 +49,7 @@ export class SystemsTestHttpClientService {
       if (response.status >= 300 && response.status < 400) {
         return { statusCode: response.status, responseBody: {}, errorMessage: 'SYSTEM_TEST_REDIRECT_BLOCKED' };
       }
-      const text = await response.text();
+      const text = await this.readCapped(response);
       return { statusCode: response.status, responseBody: this.parseBody(text), errorMessage: null };
     } catch (error) {
       return {
@@ -59,6 +68,30 @@ export class SystemsTestHttpClientService {
     } catch {
       throw new BadRequestException('SYSTEM_TEST_INVALID_URL');
     }
+  }
+
+  /** Lee el cuerpo en streaming y corta al pasar el tope, en vez de `response.text()` sin límite. */
+  private async readCapped(response: Response): Promise<string> {
+    if (Number(response.headers?.get('content-length') ?? 0) > SYSTEM_TEST_MAX_RESPONSE_BYTES) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new ResponseTooLargeError();
+    }
+    if (!response.body) return response.text();
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let received = 0;
+    let text = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > SYSTEM_TEST_MAX_RESPONSE_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        throw new ResponseTooLargeError();
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
   }
 
   private parseBody(text: string): unknown {

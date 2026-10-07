@@ -8,6 +8,7 @@ import { NOT_ASSESSED, UnderwritingFeaturesService } from '../../../src/modules/
 import { NO_STATEMENT } from '../../../src/modules/decision-engine/underwriting-statement.service.js';
 import { UnderwritingSignalsService } from '../../../src/modules/decision-engine/underwriting-signals.service.js';
 import { calcularSeñalesDelTelefono } from '../../../src/modules/decision-engine/device-risk-features.js';
+import { calcularSeñalesDeConfianza } from '../../../src/modules/decision-engine/trust-signals.js';
 
 type ComplianceSignals = { activeWatchlistMatch: boolean; openFraudCase: boolean };
 
@@ -23,6 +24,7 @@ const telefonoSospechoso = calcularSeñalesDelTelefono({
 function build(
   compliance: ComplianceSignals = { activeWatchlistMatch: false, openFraudCase: false },
   telefono: (ReturnType<typeof calcularSeñalesDelTelefono> & { mode: 'shadow' | 'live' }) | null = null,
+  confianza: ReturnType<typeof calcularSeñalesDeConfianza> | null = null,
 ) {
   const deviceSignals = { signalsFor: jest.fn(async (..._args: unknown[]) => telefono) };
   const signals = {
@@ -58,6 +60,7 @@ function build(
     historial as never,
     deviceSignals as never,
     { signalsFor: async () => NO_STATEMENT } as never,
+    { signalsFor: async () => confianza } as never,
   );
   return { service, signals };
 }
@@ -242,5 +245,75 @@ describe('UnderwritingFeaturesService.build · señales del teléfono (plan F3/F
     const result = await service.build(input);
     expect(result.provenance.device_risk_score).toBe('ausente');
     expect(result.deviceSignals).toBeNull();
+  });
+});
+
+describe('UnderwritingFeaturesService.build · fraude de los registros propios', () => {
+  const sinNada = {
+    phone: { checkable: true, listed: false },
+    email: { checkable: true, listed: false },
+    previousFraudCases: 0,
+    devices: [],
+    ipObservations: [],
+  };
+
+  it('un cotejo hecho y sin coincidencia viaja como derivado; lo que no se pudo cotejar sigue ausente', async () => {
+    const { service } = build(undefined, null, calcularSeñalesDeConfianza(sinNada));
+    const { variables, provenance } = await service.build(input);
+    expect(variables.known_fraud_phone_flag).toBe(false);
+    expect(provenance.known_fraud_phone_flag).toBe('derivado');
+    expect(provenance.previous_fraud_case_flag).toBe('derivado');
+    // Sin dispositivos vinculados ni observaciones de IP no se cotejó nada: no se afirma «limpio».
+    expect(provenance.known_fraud_device_flag).toBe('ausente');
+    expect(provenance.ip_address_risk_score).toBe('ausente');
+  });
+
+  it('un teléfono en la lista negra llega como hecho, aunque las señales del teléfono estén en sombra', async () => {
+    const señales = calcularSeñalesDeConfianza({ ...sinNada, phone: { checkable: true, listed: true }, previousFraudCases: 1 });
+    const { service } = build(undefined, { ...telefonoSospechoso, mode: 'shadow' }, señales);
+    const { variables } = await service.build(input);
+    expect(variables.known_fraud_phone_flag).toBe(true);
+    expect(variables.previous_fraud_case_flag).toBe(true);
+  });
+
+  it('un cliente sin teléfono registrado no se afirma limpio', () => {
+    const señales = calcularSeñalesDeConfianza({ ...sinNada, phone: { checkable: false, listed: false } });
+    expect(señales.variables.known_fraud_phone_flag!.available).toBe(false);
+  });
+
+  it('un dispositivo bloqueado, o compartido con un fraude confirmado, es fraude conocido y reputación peor', () => {
+    const bloqueado = calcularSeñalesDeConfianza({
+      ...sinNada,
+      devices: [{ riskStatus: 'blocked', globalRiskStatus: null, sharedWithFraudster: false }],
+    });
+    expect(bloqueado.variables.known_fraud_device_flag!.value).toBe(true);
+    expect(bloqueado.variables.device_reputation!.value).toBe('BLOCKLISTED');
+    const compartido = calcularSeñalesDeConfianza({
+      ...sinNada,
+      devices: [{ riskStatus: 'unknown', globalRiskStatus: null, sharedWithFraudster: true }],
+    });
+    expect(compartido.variables.known_fraud_device_flag!.value).toBe(true);
+    expect(compartido.variables.device_reputation!.value).toBe('SUSPICIOUS');
+    const normal = calcularSeñalesDeConfianza({
+      ...sinNada,
+      devices: [{ riskStatus: 'unknown', globalRiskStatus: null, sharedWithFraudster: false }],
+    });
+    expect(normal.variables.device_reputation!.value).toBe('NEUTRAL');
+  });
+
+  it('IP: Tor pesa 90, VPN 40 y el puntaje del proveedor manda si es peor; las heurísticas sólo deciden en live', async () => {
+    const señales = calcularSeñalesDeConfianza({
+      ...sinNada,
+      ipObservations: [
+        { isVpn: true, isProxy: false, isTor: false, reputationScore: 0.2 },
+        { isVpn: false, isProxy: false, isTor: true, reputationScore: null },
+      ],
+    });
+    expect(señales.variables.ip_address_risk_score!.value).toBe(90);
+    expect(señales.variables.ip_tor_detected!.value).toBe(true);
+
+    const sombra = await build(undefined, null, señales).service.build(input);
+    expect(sombra.provenance.ip_address_risk_score).toBe('ausente');
+    expect(sombra.variables.ip_tor_detected).toBe(false);
   });
 });

@@ -160,8 +160,9 @@ export class ExternalDataDecisionService {
     if (!policy) return { blocked: false, status: 'PENDING', reasonCode: 'NO_POLICY_CONFIGURED_ALLOWING_DEFAULT' };
     const countableStatuses = ['COMPLETED', 'MOCKED', 'PENDING', 'MANUAL_APPROVAL_REQUIRED'];
     const now = new Date();
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
+    // El día de la cuota es el de Bolivia (UTC-4, sin horario de verano), no el de la zona del
+    // proceso: en UTC la cuota diaria se reiniciaba a las 20:00 hora local.
+    const startOfDay = boliviaStartOfDay(now);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     // Secuencial e intencional: si la cuota global ya bloquea, ni siquiera se consultan las
     // cuotas por usuario (ver test "without even checking per-user quotas") — paralelizar los 3
@@ -235,4 +236,12 @@ export class ExternalDataDecisionService {
     }
     return { blocked: false, status: 'PENDING', reasonCode: 'POLICY_ALLOW' };
   }
+}
+
+const BOLIVIA_OFFSET_MS = 4 * 60 * 60 * 1000;
+
+/** Medianoche de Bolivia (UTC-4) del día de `now`, como instante UTC. */
+export function boliviaStartOfDay(now: Date): Date {
+  const local = new Date(now.getTime() - BOLIVIA_OFFSET_MS);
+  return new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) + BOLIVIA_OFFSET_MS);
 }

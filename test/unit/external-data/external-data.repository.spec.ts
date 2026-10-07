@@ -337,7 +337,9 @@ describe('ExternalDataRepository', () => {
       where: { tenantId: 't1', providerRequestId: 'r1' },
     });
     await repo.listRecentProviderResponses(7);
-    expect((models.dataProviderResponse.findAll as jest.Mock).mock.calls[2][0]).toMatchObject({ limit: 7 });
+    expect((models.dataProviderResponse.findAll as jest.Mock).mock.calls[2][0]).toMatchObject({ where: {}, limit: 7 });
+    await repo.listRecentProviderResponses(7, 't1');
+    expect((models.dataProviderResponse.findAll as jest.Mock).mock.calls[3][0]).toMatchObject({ where: { tenantId: 't1' }, limit: 7 });
     await repo.listCustomerFeatureSnapshots('t1', 'c1');
     expect((models.featureSnapshot.findAll as jest.Mock).mock.calls[0][0]).toMatchObject({
       where: { tenantId: 't1', customerId: 'c1', triggeringEntityType: 'data_provider_request' },

@@ -130,6 +130,15 @@ describe('DataQualityService', () => {
   });
 
   describe('resolveIssue', () => {
+    it('lee la incidencia DENTRO de la transacción para poder bloquearla', async () => {
+      const { service, repository } = buildService();
+      (repository.findIssueById as jest.Mock).mockResolvedValue(null as never);
+      await expect(
+        service.resolveIssue({ tenantId: 't1', params: { issueId: '7' }, body: {}, currentUser: {}, idempotencyKey: 'k' } as never),
+      ).rejects.toThrow();
+      expect(repository.findIssueById).toHaveBeenCalledWith('t1', '7', { transaction: 'tx' });
+    });
+
     it('lanza NotFound si el issue no existe', async () => {
       const { service, repository } = buildService();
       (repository.findIssueById as jest.Mock).mockResolvedValue(null as never);

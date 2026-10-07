@@ -1,7 +1,10 @@
 import { describe, expect, it, jest, beforeEach, afterEach } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
 import { env } from '../../../src/config/env.js';
-import { SystemsTestHttpClientService } from '../../../src/modules/systems-ops/systems-test-http-client.service.js';
+import {
+  SYSTEM_TEST_MAX_RESPONSE_BYTES,
+  SystemsTestHttpClientService,
+} from '../../../src/modules/systems-ops/systems-test-http-client.service.js';
 
 /**
  * Cobertura de `SystemsTestHttpClientService` (Fase 1.2): el cliente HTTP del runner de pruebas de
@@ -74,5 +77,39 @@ describe('SystemsTestHttpClientService', () => {
     }) as never;
     const res = await service.execute(req());
     expect(res).toMatchObject({ statusCode: null, errorMessage: 'ECONNREFUSED' });
+  });
+
+  it('execute lee el cuerpo en streaming hasta el final cuando cabe en el tope', async () => {
+    global.fetch = jest.fn(async (..._args: unknown[]) => new Response('{"ok":true,"n":"ñ"}', { status: 200 })) as never;
+    const res = await service.execute(req());
+    expect(res).toEqual({ statusCode: 200, responseBody: { ok: true, n: 'ñ' }, errorMessage: null });
+  });
+
+  it('execute corta y no carga un cuerpo que pasa del tope, aunque no declare content-length', async () => {
+    const chunk = new Uint8Array(256 * 1024).fill(97);
+    let pulled = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(chunk);
+      },
+    });
+    global.fetch = jest.fn(async (..._args: unknown[]) => new Response(stream, { status: 200 })) as never;
+    const res = await service.execute(req());
+    expect(res).toEqual({ statusCode: null, responseBody: {}, errorMessage: 'SYSTEM_TEST_RESPONSE_TOO_LARGE' });
+    expect(pulled * chunk.byteLength).toBeLessThanOrEqual(SYSTEM_TEST_MAX_RESPONSE_BYTES + 3 * chunk.byteLength);
+  });
+
+  it('execute rechaza sin leer un cuerpo cuyo content-length ya pasa del tope', async () => {
+    const text = jest.fn(async () => '');
+    global.fetch = jest.fn(async (..._args: unknown[]) => ({
+      status: 200,
+      headers: new Headers({ 'content-length': String(SYSTEM_TEST_MAX_RESPONSE_BYTES + 1) }),
+      body: null,
+      text,
+    })) as never;
+    const res = await service.execute(req());
+    expect(res.errorMessage).toBe('SYSTEM_TEST_RESPONSE_TOO_LARGE');
+    expect(text).not.toHaveBeenCalled();
   });
 });
