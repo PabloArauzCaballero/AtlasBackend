@@ -154,6 +154,18 @@ describe('SqlConsoleQueryService · ejecutar', () => {
     expect(deAnalista.rows[0]).not.toEqual(deAdmin.rows[0]);
   });
 
+  /* El techo de filas no basta: mil filas gordas caben en él y revientan la memoria al serializar. */
+  it('recorta por bytes aunque las filas quepan en el techo de filas', async () => {
+    const gorda = 'x'.repeat(2 * 1024 * 1024);
+    const { service } = montar({ filas: Array.from({ length: 10 }, () => ({ blob: gorda })) });
+
+    const resultado = await service.execute('SELECT blob FROM customer.x', admin);
+
+    expect(resultado.rowCount).toBeLessThan(10);
+    expect(resultado.rowCount).toBeGreaterThan(0);
+    expect(resultado.truncated).toBe(true);
+  });
+
   /* La consola pinta valores planos: una fecha o un objeto viajan como texto, no `[object Object]`. */
   it('normaliza fechas y objetos a texto, y conserva los nulos', async () => {
     const { service } = montar({
@@ -187,6 +199,35 @@ describe('SqlConsoleQueryService · ejecutar', () => {
     await expect(service.execute('SELECT id FROM customer.customers', admin)).rejects.toThrow('timeout');
     expect(transaccion.rollback).toHaveBeenCalled();
     expect(transaccion.commit).not.toHaveBeenCalled();
+  });
+
+  /* Un error de la consulta es de quien la escribió: 422 con el motivo, no un 500 de servidor. */
+  it('un error de sintaxis o de relación inexistente es 422, y un fallo de conexión sigue siendo 500', async () => {
+    const mala = montar();
+    mala.sequelize.query.mockImplementation(async (sql: string) => {
+      if (sql.startsWith('EXPLAIN')) throw Object.assign(new Error('relation "x" does not exist'), { original: { code: '42P01' } });
+      return [];
+    });
+    await expect(mala.service.execute('SELECT 1 FROM customer.x', admin)).rejects.toMatchObject({
+      status: 422,
+      response: { code: 'SQL_EXECUTION_FAILED', message: 'relation "x" does not exist' },
+    });
+
+    const plazo = montar();
+    plazo.sequelize.query.mockImplementation(async (sql: string) => {
+      if (sql.startsWith('SELECT * FROM (')) throw Object.assign(new Error('canceling statement'), { parent: { code: '57014' } });
+      return sql.startsWith('EXPLAIN') ? [{ 'QUERY PLAN': [{ Plan: {} }] }] : [];
+    });
+    await expect(plazo.service.execute('SELECT 1 FROM customer.x', admin)).rejects.toMatchObject({
+      status: 422,
+      response: { code: 'SQL_TIMEOUT' },
+    });
+
+    const caida = montar();
+    caida.sequelize.query.mockImplementation(async () => {
+      throw Object.assign(new Error('connection refused'), { original: { code: 'ECONNREFUSED' } });
+    });
+    await expect(caida.service.execute('SELECT 1 FROM customer.x', admin)).rejects.toThrow('connection refused');
   });
 
   /* El catálogo de esquemas se pregunta una vez por proceso: es estable y la consola se usa a ráfagas. */
