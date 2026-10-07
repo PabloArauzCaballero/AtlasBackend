@@ -9,6 +9,7 @@ import { Op } from 'sequelize';
 import { PartnerProfileModel } from '../../../database/models/index.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
 import { openKybReviewCase } from './partner-kyb-review-case.js';
+import { PartnerVerificationService } from './partner-verification.service.js';
 
 /** Los estados del caso que YA son un veredicto. El resto sigue esperando a una persona. */
 const RESUELTOS: Record<string, 'approved' | 'rejected' | 'cancelled'> = {
@@ -26,6 +27,8 @@ export type PartnerKybSyncResult = {
   unreachable: number;
   /** Expedientes que esperaban a una persona SIN caso en el Motor y a los que se les abrió uno. */
   opened: number;
+  /** Expedientes enviados que el Motor nunca llegó a evaluar y que se volvieron a evaluar. */
+  reevaluated: number;
 };
 
 /**
@@ -49,12 +52,23 @@ export class PartnerKybSyncService {
   constructor(
     @InjectModel(PartnerProfileModel) private readonly profileModel: typeof PartnerProfileModel,
     private readonly client: DecisionEngineClient,
+    private readonly verification: PartnerVerificationService,
   ) {}
 
   async syncPendingReviews(input: { tenantId: string; limit: number }): Promise<PartnerKybSyncResult> {
-    const resultado: PartnerKybSyncResult = { checked: 0, approved: 0, rejected: 0, cancelled: 0, pending: 0, unreachable: 0, opened: 0 };
+    const resultado: PartnerKybSyncResult = {
+      checked: 0,
+      approved: 0,
+      rejected: 0,
+      cancelled: 0,
+      pending: 0,
+      unreachable: 0,
+      opened: 0,
+      reevaluated: 0,
+    };
     if (!this.client.isConfigured) return resultado;
 
+    await this.reevaluateUnsent(input, resultado);
     await this.openMissingCases(input, resultado);
 
     const pendientes = await this.profileModel.findAll({
@@ -111,6 +125,38 @@ export class PartnerKybSyncService {
 
     return resultado;
   }
+  /**
+   * Lo que se envió y el Motor nunca llegó a evaluar.
+   *
+   * `submit` deja el expediente en `under_review` ANTES de consultar al Motor. Si esa consulta falla
+   * (el Motor caído, el artefacto sin desplegar, un 422), la petición responde 503 pero el
+   * expediente ya está «en revisión»: sin ejecución, sin caso y sin nadie a quien le toque. Desde
+   * fuera parece enviado, y en la cola del Motor no existe. Aquí se vuelve a evaluar con la MISMA
+   * clave de idempotencia del envío (`submit-<id>`), así que si la primera llamada sí llegó no se
+   * duplica nada. Un fallo se registra y se reintenta en la pasada siguiente: nunca se aprueba solo.
+   */
+  private async reevaluateUnsent(input: { tenantId: string; limit: number }, resultado: PartnerKybSyncResult): Promise<void> {
+    const sinEvaluar = await this.profileModel.findAll({
+      where: {
+        tenantId: input.tenantId,
+        onboardingStatus: 'under_review',
+        decisionExecutionId: null,
+        deleted: false,
+      },
+      order: [['submitted_at', 'ASC']],
+      limit: input.limit,
+    });
+    for (const profile of sinEvaluar) {
+      try {
+        await this.verification.evaluarConMotor(input.tenantId, profile, { idempotencyKey: `submit-${profile.id}` });
+        resultado.reevaluated += 1;
+        this.logger.log(`partner_kyb_reevaluated profile=${profile.id}`);
+      } catch (error) {
+        this.logger.warn(`partner_kyb_reevaluation_failed profile=${profile.id}: ${(error as Error).message}`);
+      }
+    }
+  }
+
   /**
    * La garantía: un expediente en revisión SIEMPRE tiene su caso en la cola del Motor.
    *
