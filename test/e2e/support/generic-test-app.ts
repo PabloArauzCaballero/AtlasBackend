@@ -42,7 +42,12 @@ export async function buildGenericTestApp(controllers: Type<unknown>[], serviceP
 
 export function signGenericToken(role: AtlasUserRole, overrides: Record<string, unknown> = {}): string {
   return jwt.sign(
-    { sub: 'e2e-generic-user', role, ...(role === 'customer' || role === 'merchant' ? {} : { internalUserId: 'e2e-internal-1', tenantId: '1' }), ...overrides },
+    {
+      sub: 'e2e-generic-user',
+      role,
+      ...(role === 'customer' || role === 'merchant' ? {} : { internalUserId: 'e2e-internal-1', tenantId: '1' }),
+      ...overrides,
+    },
     env.JWT_ACCESS_TOKEN_SECRET,
     accessTokenSignOptions({ algorithm: 'HS256', expiresIn: '5m' }),
   );
