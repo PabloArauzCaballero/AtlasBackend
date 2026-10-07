@@ -96,7 +96,10 @@ describe('AuditRepository', () => {
         { changedAt: new Date('2026-01-03'), changedByType: 'system', tableName: 'customers', changeType: 'update', changeReason: 'x' },
       ] as never);
       const [event] = await repo.findCustomerAuditEvents('t1', 'c1', baseQuery({ eventType: 'data_change' }));
-      expect(callArg<CallArgRecord>(models.dataChangeLog.findAll, 0, 0).where).toMatchObject({ recordId: 'c1' });
+      expect(callArg<CallArgRecord>(models.dataChangeLog.findAll, 0, 0).where).toMatchObject({
+        recordId: 'c1',
+        tableName: ['customers', 'customer'],
+      });
       expect(event.summary).toBe('customers:update');
     });
 
@@ -154,6 +157,15 @@ describe('AuditRepository', () => {
       expect(sql).not.toContain('< (:cursorOccurredAt');
       expect(opts.replacements.limitPlusOne).toBe(11);
       expect(result).toEqual({ items: [], nextCursor: null });
+    });
+
+    it('los cambios de datos sólo cuentan si la tabla es la del cliente: el record_id de otras tablas no es su id', async () => {
+      const { repo, sequelize } = buildRepo();
+      (sequelize.query as jest.Mock).mockResolvedValue([] as never);
+      await repo.findCustomerAuditEventsWithCursor('t1', 'c1', { limit: 10 });
+      const [sql, opts] = (sequelize.query as jest.Mock).mock.calls[0] as [string, { replacements: Record<string, unknown> }];
+      expect(sql).toContain('target_type IN (:customerTables) AND target_id = :customerId');
+      expect(opts.replacements.customerTables).toEqual(['customers', 'customer']);
     });
 
     it('con más filas que el límite recorta y emite nextCursor', async () => {

@@ -17,11 +17,11 @@ export const WORKFLOW_SOURCES = ['seed', 'manual', 'discovery'] as const;
 export type WorkflowSource = (typeof WORKFLOW_SOURCES)[number];
 
 /** Familia del proceso. Permite filtrar el catálogo sin abrir cada definición. */
-export const WORKFLOW_PROCESS_TYPES = ['customer_journey', 'back_office', 'system_job', 'integration'] as const;
+export const WORKFLOW_PROCESS_TYPES = ['customer_journey', 'partner_journey', 'back_office', 'system_job', 'integration'] as const;
 export type WorkflowProcessType = (typeof WORKFLOW_PROCESS_TYPES)[number];
 
 /** Quién ejecuta la etapa. Es lo que decide si una etapa aparece en la app o en el portal interno. */
-export const WORKFLOW_ACTOR_TYPES = ['customer', 'internal_user', 'system', 'external_provider'] as const;
+export const WORKFLOW_ACTOR_TYPES = ['customer', 'internal_user', 'merchant_user', 'platform_user', 'system', 'external_provider'] as const;
 export type WorkflowActorType = (typeof WORKFLOW_ACTOR_TYPES)[number];
 
 /** Naturaleza de la dependencia entre dos pasos. */
@@ -73,6 +73,16 @@ export const WORKFLOW_CATALOG_READ_ROLES = [
   'admin',
   'platform_admin',
 ] as const;
+
+/**
+ * Procesos que el rol `customer` puede leer. El resto (back_office, system_job, integration) describe
+ * la superficie interna —rutas de administración, roles, errores y ficheros del repositorio— y no es
+ * asunto de la app del cliente.
+ */
+export const WORKFLOW_CUSTOMER_VISIBLE_PROCESS_TYPES: readonly string[] = ['customer_journey', 'partner_journey'];
+
+/** Quién pregunta: decide qué procesos se le muestran. Cualquier rol distinto de `customer` es interno. */
+export type WorkflowAudience = 'customer' | 'internal';
 
 /** Roles que pueden pedir el informe de consistencia (expone rutas internas no publicadas). */
 export const WORKFLOW_CATALOG_GOVERNANCE_ROLES = ['system_admin', 'qa_engineer', 'devops', 'admin', 'platform_admin'] as const;

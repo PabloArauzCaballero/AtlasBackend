@@ -12,9 +12,12 @@ import { buildEndpointCode } from '../../systems-ops/endpoint-code.util.js';
 import { WorkflowConsistencyDto } from '../workflow-catalog.dtos.js';
 import { WorkflowBundle } from '../workflow-catalog.repository.js';
 import { WorkflowCatalogService } from '../workflow-catalog.service.js';
+import { isBackendHttpStep } from '../workflow-step-kind.util.js';
 import { ExposedRoute, ExposedRouteScannerService } from './exposed-route-scanner.service.js';
 
 type Issue = WorkflowConsistencyDto['issues'][number];
+
+type BackendStep = WorkflowBundle['steps'][number] & { httpMethod: string; routePath: string };
 
 const LIFECYCLE_STATUSES = new Set<string>(CUSTOMER_LIFECYCLE_STATUSES);
 
@@ -44,11 +47,16 @@ export class WorkflowConsistencyService {
     const exposed = this.routeScanner.scan();
     const exposedByKey = new Map(exposed.map((route) => [routeKey(route.method, route.routePath), route]));
 
-    const catalogued = await this.findCataloguedEndpointCodes(bundle);
+    // Sólo los pasos HTTP de ESTE backend se contrastan con las rutas montadas: los jobs, eventos,
+    // pasos manuales y las llamadas al ERP o al Motor no tienen ruta aquí y darían deriva falsa.
+    const checkable = bundle.steps.filter(isBackendHttpStep);
+    // La máquina de estados es la del cliente: en un proceso de otra entidad sus estados no aplican.
+    const checkStates = bundle.definition.processType === 'customer_journey';
+    const catalogued = await this.findCataloguedEndpointCodes(checkable);
 
     const issues: Issue[] = [
-      ...bundle.steps.flatMap((step) => this.checkStep(step, exposedByKey, catalogued)),
-      ...this.checkUnmappedRoutes(bundle, exposed),
+      ...checkable.flatMap((step) => this.checkStep(step, exposedByKey, catalogued, checkStates)),
+      ...this.checkUnmappedRoutes(checkable, exposed),
     ];
 
     return {
@@ -62,8 +70,8 @@ export class WorkflowConsistencyService {
     };
   }
 
-  private async findCataloguedEndpointCodes(bundle: WorkflowBundle): Promise<Set<string>> {
-    const codes = [...new Set(bundle.steps.map((step) => step.endpointCode))];
+  private async findCataloguedEndpointCodes(steps: BackendStep[]): Promise<Set<string>> {
+    const codes = [...new Set(steps.map((step) => step.endpointCode))];
     if (codes.length === 0) return new Set();
     const rows = await this.endpointCatalogModel.findAll({
       where: { code: { [Op.in]: codes } },
@@ -72,7 +80,7 @@ export class WorkflowConsistencyService {
     return new Set(rows.map((row) => row.code));
   }
 
-  private checkStep(step: WorkflowBundle['steps'][number], exposedByKey: Map<string, ExposedRoute>, catalogued: Set<string>): Issue[] {
+  private checkStep(step: BackendStep, exposedByKey: Map<string, ExposedRoute>, catalogued: Set<string>, checkStates: boolean): Issue[] {
     const issues: Issue[] = [];
     const route = exposedByKey.get(routeKey(step.httpMethod, step.routePath));
 
@@ -115,9 +123,9 @@ export class WorkflowConsistencyService {
       });
     }
 
-    const unknownStates = [...(step.requiredStates ?? []), ...(step.resultingStates ?? [])].filter(
-      (state) => !LIFECYCLE_STATUSES.has(state),
-    );
+    const unknownStates = checkStates
+      ? [...(step.requiredStates ?? []), ...(step.resultingStates ?? [])].filter((state) => !LIFECYCLE_STATUSES.has(state))
+      : [];
     if (unknownStates.length > 0) {
       issues.push({
         severity: 'error',
@@ -139,9 +147,9 @@ export class WorkflowConsistencyService {
    * negocio. Dentro de un dominio que el flujo SÍ cubre, en cambio, una ruta sin mapear suele
    * significar que se agregó un paso al proceso y nadie actualizó el árbol.
    */
-  private checkUnmappedRoutes(bundle: WorkflowBundle, exposed: ExposedRoute[]): Issue[] {
-    const mapped = new Set(bundle.steps.map((step) => routeKey(step.httpMethod, step.routePath)));
-    const coveredPrefixes = new Set(bundle.steps.map((step) => firstSegment(step.routePath)));
+  private checkUnmappedRoutes(steps: BackendStep[], exposed: ExposedRoute[]): Issue[] {
+    const mapped = new Set(steps.map((step) => routeKey(step.httpMethod, step.routePath)));
+    const coveredPrefixes = new Set(steps.map((step) => firstSegment(step.routePath)));
 
     return exposed
       .filter((route) => coveredPrefixes.has(firstSegment(route.routePath)) && !mapped.has(routeKey(route.method, route.routePath)))

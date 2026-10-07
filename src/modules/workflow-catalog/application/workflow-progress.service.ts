@@ -12,6 +12,7 @@ import { STANDARD_CUSTOMER_CREDIT_WORKFLOW_CODE, WorkflowProgressStatus } from '
 import { WorkflowProgressQueryDto } from '../workflow-catalog.schemas.js';
 import { WorkflowCatalogService } from '../workflow-catalog.service.js';
 import { isLeafStage, stagesInTreeOrder } from '../workflow-stage-order.util.js';
+import { isBackendHttpStep } from '../workflow-step-kind.util.js';
 import { resolveStageProgress } from './workflow-completion-rule.util.js';
 
 /**
@@ -86,8 +87,8 @@ export class WorkflowProgressService {
         reason: resolved.reason,
         steps: (stepsByStage.get(String(stage.id)) ?? []).map((step) => ({
           stepCode: step.stepCode,
-          httpMethod: step.httpMethod,
-          routePath: step.routePath,
+          httpMethod: step.httpMethod ?? null,
+          routePath: step.routePath ?? null,
           isMandatory: step.isMandatory,
           // El estado de un paso hereda el de su etapa: el backend registra el resultado del proceso
           // (sección completa, estado alcanzado), no cada llamada HTTP individual. Inventar un
@@ -127,10 +128,14 @@ export class WorkflowProgressService {
     if (!currentStageCode) return null;
     const stage = bundle.stages.find((candidate) => candidate.stageCode === currentStageCode);
     if (!stage) return null;
+    // Sólo un paso HTTP de este backend es una llamada que el cliente pueda hacer: un job o una
+    // llamada del ERP no tienen método ni ruta aquí.
     const step = bundle.steps
-      .filter((candidate) => String(candidate.workflowStageId) === String(stage.id) && candidate.isMandatory)
+      .filter(
+        (candidate) => String(candidate.workflowStageId) === String(stage.id) && candidate.isMandatory && isBackendHttpStep(candidate),
+      )
       .sort((a, b) => a.executionOrder - b.executionOrder)[0];
-    if (!step) return null;
+    if (!step || !isBackendHttpStep(step)) return null;
     return {
       stageCode: stage.stageCode,
       stepCode: step.stepCode,

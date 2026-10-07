@@ -382,9 +382,17 @@ describe('SupportMessageService', () => {
     });
 
     it('la verificación de integridad delega en la cadena del canal', async () => {
-      await expect(service.verifyIntegrity('ch-1')).resolves.toEqual({ valid: true });
+      await expect(service.verifyIntegrity('t1', 'ch-1')).resolves.toEqual({ valid: true });
 
+      expect(channels.requireById).toHaveBeenCalledWith('t1', 'ch-1');
       expect(messages.verifyChannelChain).toHaveBeenCalledWith('ch-1');
+    });
+
+    it('un canal de otro tenant no se verifica: requireById falla antes de leer la cadena', async () => {
+      channels.requireById.mockRejectedValueOnce(new Error('SUPPORT_CHANNEL_NOT_FOUND') as never);
+
+      await expect(service.verifyIntegrity('t2', 'ch-1')).rejects.toThrow('SUPPORT_CHANNEL_NOT_FOUND');
+      expect(messages.verifyChannelChain).not.toHaveBeenCalled();
     });
   });
 });

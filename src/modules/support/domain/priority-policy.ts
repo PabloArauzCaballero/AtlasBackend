@@ -5,6 +5,7 @@
  */
 import {
   SECURITY_SENSITIVE_CASE_TYPES,
+  SUPPORT_URGENCIES,
   type SupportCaseType,
   type SupportImpact,
   type SupportPriority,
@@ -69,4 +70,23 @@ export function raiseTo(current: SupportPriority, floor: SupportPriority): Suppo
 /** Cuál de las dos prioridades es más exigente. Útil al fusionar caso y categoría. */
 export function mostUrgent(a: SupportPriority, b: SupportPriority): SupportPriority {
   return ORDER.indexOf(a) <= ORDER.indexOf(b) ? a : b;
+}
+
+/**
+ * Lo que DECLARA quien pide ayuda es una pista, no la clasificación.
+ *
+ * El impacto —a cuánta gente afecta— no lo sabe quien abre el caso: lo pone el catálogo y, después,
+ * el triage. El apremio sí lo conoce, así que puede subirlo UN escalón sobre el del motivo (o
+ * bajarlo); más que eso es justo «la prioridad la pone quien grita más fuerte»: con
+ * `PLATFORM_WIDE` + `CRITICAL` en el cuerpo, una consulta de cuotas salía P1 y se ponía delante de
+ * los incidentes reales.
+ */
+export function requesterClassification(
+  declared: { urgency?: SupportUrgency },
+  category: { impact: SupportImpact; urgency: SupportUrgency },
+): { impact: SupportImpact; urgency: SupportUrgency } {
+  if (!declared.urgency) return { impact: category.impact, urgency: category.urgency };
+  const ceiling = Math.min(SUPPORT_URGENCIES.indexOf(category.urgency) + 1, SUPPORT_URGENCIES.length - 1);
+  const urgency = SUPPORT_URGENCIES[Math.min(SUPPORT_URGENCIES.indexOf(declared.urgency), ceiling)] as SupportUrgency;
+  return { impact: category.impact, urgency };
 }

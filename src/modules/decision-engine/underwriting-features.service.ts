@@ -9,6 +9,8 @@ import { env } from '../../config/env.js';
 import { UnderwritingSignalsService } from './underwriting-signals.service.js';
 import { UnderwritingCreditHistoryService } from './underwriting-credit-history.service.js';
 import { UnderwritingDeviceSignalsService, variablesEnVivo } from './underwriting-device-signals.service.js';
+import { UnderwritingTrustSignalsService } from './underwriting-trust-signals.service.js';
+import { fraudDefaults, variablesDeConfianza } from './trust-signals.js';
 import { UnderwritingStatementService, statementObservedAt, statementVariables } from './underwriting-statement.service.js';
 import { clamp, EMPLOYMENT_MAP, incomeBasis } from './underwriting-income-basis.js';
 import type { VariableMetadata } from './decision-engine.types.js';
@@ -89,6 +91,7 @@ export class UnderwritingFeaturesService {
     private readonly historial: UnderwritingCreditHistoryService,
     private readonly deviceSignals: UnderwritingDeviceSignalsService,
     private readonly statement: UnderwritingStatementService,
+    private readonly trust: UnderwritingTrustSignalsService,
   ) {}
 
   async build(input: {
@@ -107,7 +110,7 @@ export class UnderwritingFeaturesService {
       return value;
     };
 
-    const [economy, contactState, hasAddress, identity, history, complianceSignals, extracto] = await Promise.all([
+    const [economy, contactState, hasAddress, identity, history, complianceSignals, extracto, telefono, confianza] = await Promise.all([
       this.signals.economicAttributes(input.tenantId, input.customerId),
       this.signals.contactVerification(input.tenantId, input.customerId),
       this.signals.hasVerifiedAddress(input.tenantId, input.customerId),
@@ -115,8 +118,9 @@ export class UnderwritingFeaturesService {
       this.historial.creditHistory(input.tenantId, input.customerId, now),
       this.signals.complianceSignals(input.tenantId, input.customerId),
       this.statement.signalsFor(input.tenantId, input.customerId, now),
+      this.deviceSignals.signalsFor(input.tenantId, input.customerId, now),
+      this.trust.signalsFor(input.tenantId, input.customerId, now),
     ]);
-    const telefono = await this.deviceSignals.signalsFor(input.tenantId, input.customerId, now);
     const income = economy[INCOME] ?? 0;
     const otherIncome = economy[OTHER_INCOME] ?? 0;
     // Sin gastos (el alta ya no los pide, eligibility-v2) disponible y deuda-ingreso viajan `ausente`: nada de «gasta 0».
@@ -249,28 +253,7 @@ export class UnderwritingFeaturesService {
       high_risk_jurisdiction_flag: put('high_risk_jurisdiction_flag', false, MISSING),
 
       // ---------------------------------------------------------------- fraude y dispositivo
-      /*
-       * `NEUTRAL` y no `UNKNOWN`: el artefacto solo admite TRUSTED, NEUTRAL, SUSPICIOUS o
-       * BLOCKLISTED, y un valor fuera del enum aborta la ejecución entera —el motor devolvió
-       * `VARIABLE_MISSING_OR_INVALID` y la línea se quedó sin calcular—. Neutral es exactamente lo
-       * que Atlas sabe hoy del dispositivo: nada ni a favor ni en contra.
-       */
-      device_reputation: put('device_reputation', 'NEUTRAL', MISSING),
-      device_risk_score: put('device_risk_score', 0, MISSING),
-      ip_address_risk_score: put('ip_address_risk_score', 0, MISSING),
-      ip_tor_detected: put('ip_tor_detected', false, MISSING),
-      geolocation_mismatch_flag: put('geolocation_mismatch_flag', false, MISSING),
-      sim_swap_detected: put('sim_swap_detected', false, MISSING),
-      browser_automation_detected: put('browser_automation_detected', false, MISSING),
-      known_fraud_device_flag: put('known_fraud_device_flag', false, MISSING),
-      known_fraud_email_flag: put('known_fraud_email_flag', false, MISSING),
-      known_fraud_phone_flag: put('known_fraud_phone_flag', false, MISSING),
-      previous_fraud_case_flag: put('previous_fraud_case_flag', false, MISSING),
-      // Un caso de fraude ABIERTO es un hecho; su ausencia sólo dice que nadie abrió caso, no que no
-      // haya señal (C-6), así que sin caso la variable viaja ausente y no `false`.
-      fraud_signal: put('fraud_signal', complianceSignals.openFraudCase ? true : null, complianceSignals.openFraudCase ? FILE : MISSING),
-      account_takeover_risk_score: put('account_takeover_risk_score', 0, MISSING),
-      velocity_applications_24h: put('velocity_applications_24h', history.applications24h, FILE),
+      ...fraudDefaults(put, complianceSignals.openFraudCase, history.applications24h),
 
       // ---------------------------------------------------------------- normativa
       /**
@@ -286,7 +269,9 @@ export class UnderwritingFeaturesService {
       ...statementVariables(extracto, put),
     };
 
-    for (const [codigo, valor] of variablesEnVivo(telefono)) variables[codigo] = put(codigo, valor, DERIVED);
+    // Teléfono y cotejos contra los registros propios (lista negra, casos, dispositivos, IP) pisan a los ausentes que ya viajaban.
+    const enVivo = [...variablesEnVivo(telefono), ...variablesDeConfianza(confianza, env.UNDERWRITING_DEVICE_SIGNALS_MODE)];
+    for (const [codigo, valor] of enVivo) variables[codigo] = put(codigo, valor, DERIVED);
     const observedAt = {
       economy: (economy.__observedAt as unknown as Date | null | undefined) ?? null,
       identity: identity.observedAt ?? null,

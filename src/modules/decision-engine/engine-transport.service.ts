@@ -131,3 +131,10 @@ export function engineErrorStatus(error: unknown): number | null {
   const status = (error as { httpStatus?: unknown } | null)?.httpStatus;
   return typeof status === 'number' ? status : null;
 }
+
+/** El motivo que trae un cuerpo de error del motor (`error.code`, `title`, `detail`), o `null` si no es uno. */
+export function problemaDelMotor(json: Record<string, unknown>): string | null {
+  const error = (json.error ?? null) as { code?: unknown; message?: unknown } | null;
+  const piezas = [error?.code, json.title, json.detail ?? error?.message].filter((p): p is string => typeof p === 'string' && p.length > 0);
+  return piezas.length > 0 ? [...new Set(piezas)].join(' — ') : null;
+}

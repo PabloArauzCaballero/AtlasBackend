@@ -292,6 +292,34 @@ describe('SupportActorService', () => {
     });
   });
 
+  describe('abrir a nombre de un comercio', () => {
+    const empleado = (overrides: Partial<SupportActor> = {}) =>
+      actor({ actorType: 'PARTNER_USER', merchantUserId: 'u-1', actorId: 'u-1', isInternal: false, agentProfileId: null, ...overrides });
+
+    it('el dueño abre a nombre de su comercio', async () => {
+      await expect(service.assertOwnsPartnerProfile(empleado(), 'pp-1', 't1')).resolves.toBeUndefined();
+      expect(partners.requireProfile).toHaveBeenCalledWith('t1', 'pp-1');
+    });
+
+    it('el `partnerProfileId` de otro comercio es 403: la apertura ya no confía en el cuerpo', async () => {
+      partners.requireProfile.mockResolvedValueOnce({ ownerMerchantUserId: 'u-ajeno' } as never);
+
+      await expect(service.assertOwnsPartnerProfile(empleado(), 'pp-2', 't1')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('un usuario de comercio sin identificador no es dueño de nada', async () => {
+      await expect(service.assertOwnsPartnerProfile(empleado({ merchantUserId: null }), 'pp-1', 't1')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(partners.requireProfile).not.toHaveBeenCalled();
+    });
+
+    it('al personal interno no se le aplica: abre a nombre de cualquier comercio', async () => {
+      await expect(service.assertOwnsPartnerProfile(actor(), 'pp-9', 't1')).resolves.toBeUndefined();
+      expect(partners.requireProfile).not.toHaveBeenCalled();
+    });
+  });
+
   describe('audiencias del catálogo', () => {
     it('cada familia ve sus motivos, y `ANY` está en todas', () => {
       expect(service.caseCategoryAudiences(actor())).toEqual(['CONSUMER', 'PARTNER_USER', 'PARTNER_ORGANIZATION', 'INTERNAL', 'ANY']);
