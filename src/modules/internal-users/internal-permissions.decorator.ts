@@ -1,10 +1,6 @@
 /**
- * @file Decorador: expresa metadatos o extrae contexto HTTP de forma uniforme.
+ * @file Re-export: el decorador vive en `common/decorators`; esta ruta se conserva para los importadores actuales.
  * @business Esta pieza controla quién puede operar Atlas y deja evidencia de cada asignación de privilegios.
- * @system implementa identidad interna, RBAC, catálogo de permisos y guards de autorización granular.
+ * @system compatibilidad hacia atrás; el código nuevo importa desde `common/decorators`.
  */
-import { SetMetadata } from '@nestjs/common';
-
-export const INTERNAL_PERMISSIONS_KEY = 'internal_permissions';
-export const InternalPermissions = (...permissions: string[]): ReturnType<typeof SetMetadata> =>
-  SetMetadata(INTERNAL_PERMISSIONS_KEY, permissions);
+export { INTERNAL_PERMISSIONS_KEY, InternalPermissions } from '../../common/decorators/internal-permissions.decorator.js';
