@@ -263,6 +263,17 @@ describe('DecisionEngineClient', () => {
       await expect(cliente().listArtifacts()).resolves.toEqual([]);
     });
 
+    /* Un motor que acepta la conexión y no contesta no puede colgar la pantalla ni el job. */
+    it('las lecturas llevan señal de timeout', async () => {
+      const catalogo = conFetch({ status: 200, body: [] });
+      await cliente().listArtifacts();
+      expect(catalogo.llamadas[0].init?.signal).toBeInstanceOf(AbortSignal);
+
+      const caso = conFetch({ status: 200, body: {} });
+      await cliente().getManualReviewCase('MRC-1');
+      expect(caso.llamadas[0].init?.signal).toBeInstanceOf(AbortSignal);
+    });
+
     it('el catálogo acepta el sobre `data`, el sobre `items` y la lista desnuda', async () => {
       conFetch({ status: 200, body: { data: [{ code: 'a' }] } });
       expect(await cliente().listArtifacts()).toEqual([{ code: 'a' }]);

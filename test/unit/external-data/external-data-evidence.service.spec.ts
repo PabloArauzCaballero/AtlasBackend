@@ -311,6 +311,24 @@ describe('ExternalDataEvidenceService', () => {
       expect(result).toMatchObject({ providerId: null, customerId: null, responses: [] });
     });
 
+    it('getProviderRequest con alcance de cliente: la suya sí; la de otro cliente o sin cliente da 404 sin leer respuestas', async () => {
+      const { service, repository } = buildService();
+      repository.findProviderRequestByIdAndTenant.mockResolvedValue({ id: 7, providerId: 3, customerId: 9 } as never);
+      repository.findProviderResponsesByRequestIdAndTenant.mockResolvedValue([] as never);
+      await expect(service.getProviderRequest({ tenantId: 't1', requestId: '7', customerId: '9' })).resolves.toMatchObject({
+        customerId: '9',
+      });
+      repository.findProviderResponsesByRequestIdAndTenant.mockClear();
+      await expect(service.getProviderRequest({ tenantId: 't1', requestId: '7', customerId: '99' })).rejects.toThrow(
+        'Solicitud de provider externo no encontrada.',
+      );
+      repository.findProviderRequestByIdAndTenant.mockResolvedValue({ id: 8, customerId: null } as never);
+      await expect(service.getProviderRequest({ tenantId: 't1', requestId: '8', customerId: '9' })).rejects.toThrow(
+        'Solicitud de provider externo no encontrada.',
+      );
+      expect(repository.findProviderResponsesByRequestIdAndTenant).not.toHaveBeenCalled();
+    });
+
     it('getCustomerObservations mapea ids opcionales y usa el límite por defecto (50) o el explícito', async () => {
       const { service, repository } = buildService();
       repository.listCustomerObservations.mockResolvedValue([

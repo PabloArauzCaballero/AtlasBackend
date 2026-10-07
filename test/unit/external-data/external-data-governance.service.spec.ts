@@ -483,6 +483,23 @@ describe('ExternalDataGovernanceService', () => {
 
       expect(result.reason).toBe('Kill switch activado manualmente.');
     });
+
+    it('deja en el motivo quién lo activó, porque data_providers es global y no guarda actor', async () => {
+      const { service, registry, repository } = buildService();
+      (registry.requireProviderAllowDisabled as jest.Mock).mockResolvedValueOnce({
+        id: 'p1',
+        providerCode: 'INFOCENTER',
+        description: null,
+      } as never);
+      (repository.updateProviderRuntime as jest.Mock).mockImplementationOnce(async (_id, patch) => ({
+        providerCode: 'INFOCENTER',
+        ...(patch as object),
+      }));
+
+      const result = await service.activateProviderKillSwitch({ providerCode: 'INFOCENTER', reason: 'fuga', activatedBy: '7' });
+
+      expect(result.reason).toBe('fuga (activado por usuario 7)');
+    });
   });
 
   describe('getRetentionPreview — nunca borra nada', () => {
@@ -492,7 +509,9 @@ describe('ExternalDataGovernanceService', () => {
         { id: 'r1', providerId: 'p1', customerId: 'c1', requestedAt: new Date(), responseStatus: 'COMPLETED' },
       ] as never);
 
-      const result = await service.getRetentionPreview({ days: 365, limit: 100 });
+      const result = await service.getRetentionPreview({ tenantId: 't1', days: 365, limit: 100 });
+
+      expect((repository.listProviderRequests as jest.Mock).mock.calls[0][0]).toMatchObject({ tenantId: 't1' });
 
       expect(result.candidates[0].action).toBe('REVIEW_BEFORE_PURGE_OR_ARCHIVE');
       expect(result.note).toMatch(/no borra datos/i);

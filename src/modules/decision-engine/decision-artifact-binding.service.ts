@@ -163,6 +163,17 @@ export class DecisionArtifactBindingService {
     internalUserId: string | null;
     notes?: string;
   }): Promise<ResolvedArtifact & { validatedAgainstEngine: boolean }> {
+    /*
+     * El transporte del motor no lleva versión (`/v1/decisions/{código}`), así que una versión fijada
+     * se guardaba y se mostraba pero nunca se aplicaba: la pantalla decía «fijada» y publicar otra
+     * en el motor seguía cambiando lo que decide. Hasta que el motor admita ejecutar por versión, se
+     * rechaza en vez de aceptarla en silencio.
+     */
+    if (input.pinnedVersion) {
+      throw new Error(
+        'DECISION_PINNED_VERSION_NOT_SUPPORTED: el motor aún no ejecuta una versión fijada; se sigue la vigente del despliegue. Envía pinnedVersion vacío.',
+      );
+    }
     const catalog = await this.availableArtifacts();
     const known = catalog.some((item) => item.code === input.artifactCode);
     if (catalog.length > 0 && !known) {

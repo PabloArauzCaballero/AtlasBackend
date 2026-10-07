@@ -28,7 +28,13 @@ export class ExternalDataService {
     private readonly previsualizacion: ExternalDataPreviewService,
   ) {}
 
-  async createConsent(input: { tenantId: string; body: ExternalConsentDto; ipAddress?: string; userAgent?: string }) {
+  async createConsent(input: {
+    tenantId: string;
+    body: ExternalConsentDto;
+    ipAddress?: string;
+    userAgent?: string;
+    assistedByUserId?: string;
+  }) {
     const providerCode = input.body.providerCode ? toProviderCode(input.body.providerCode) : 'GENERAL';
     const purposeCode =
       providerCode === 'GENERAL' ? input.body.purpose : `${providerCode.toLowerCase()}_${input.body.purpose.toLowerCase()}`;
@@ -36,10 +42,11 @@ export class ExternalDataService {
       tenantId: input.tenantId,
       customerId: input.body.customerId,
       purposeCode,
-      channel: input.body.channel,
+      // Alta asistida: el canal del cuerpo se ignora y el actor queda en user_agent (no hay columna propia).
+      channel: input.assistedByUserId ? 'staff_assisted' : input.body.channel,
       sessionId: input.body.sessionId,
       ipAddress: input.ipAddress,
-      userAgent: input.userAgent,
+      userAgent: input.assistedByUserId ? `staff:${input.assistedByUserId} ${input.userAgent ?? ''}`.trim() : input.userAgent,
       deviceFingerprintSnapshot: input.body.deviceFingerprintSnapshot,
       now: new Date(),
     });
@@ -71,12 +78,18 @@ export class ExternalDataService {
     idempotencyKey?: string;
     requestedByUserId?: string;
     retryOfRequestId?: string;
+    approvedByAdminId?: string;
     syntheticProbe?: boolean;
   }) {
     return this.execution.executeExternalDataRequest(input);
   }
 
-  previewExternalDataRequest(input: { tenantId: string; body: ExternalDataRequestDto; requestedByUserId?: string }) {
+  previewExternalDataRequest(input: {
+    tenantId: string;
+    body: ExternalDataRequestDto;
+    requestedByUserId?: string;
+    approvedByAdminId?: string;
+  }) {
     return this.previsualizacion.previewExternalDataRequest(input);
   }
 
@@ -101,9 +114,10 @@ export class ExternalDataService {
   executeInfocenter(input: {
     tenantId: string;
     customerId: string;
-    body: { documentNumber?: string; decisionStage: string; approvedByAdminId?: string; scenario?: string };
+    body: { documentNumber?: string; decisionStage: string; scenario?: string };
     idempotencyKey?: string;
     requestedByUserId?: string;
+    approvedByAdminId?: string;
   }) {
     return this.convenience.executeInfocenter(input);
   }
@@ -116,7 +130,7 @@ export class ExternalDataService {
     return this.evidence.revokeConsent(input);
   }
 
-  getProviderRequest(input: { tenantId: string; requestId: string }) {
+  getProviderRequest(input: { tenantId: string; requestId: string; customerId?: string }) {
     return this.evidence.getProviderRequest(input);
   }
 
@@ -221,6 +235,7 @@ export class ExternalDataService {
     requestId: string;
     body: Partial<ExternalDataRequestDto> & { input?: Record<string, unknown> };
     requestedByUserId?: string;
+    approvedByAdminId?: string;
   }) {
     return this.convenience.retryProviderRequest(input);
   }
@@ -244,15 +259,15 @@ export class ExternalDataService {
     return this.governance.updateProviderRuntimePolicy(input);
   }
 
-  activateProviderKillSwitch(input: { providerCode: string; reason?: string }) {
+  activateProviderKillSwitch(input: { providerCode: string; reason?: string; activatedBy?: string }) {
     return this.governance.activateProviderKillSwitch(input);
   }
 
-  getRetentionPreview(input: { days: number; limit: number }) {
+  getRetentionPreview(input: { tenantId: string; days: number; limit: number }) {
     return this.governance.getRetentionPreview(input);
   }
 
-  auditResponseSanitization(input: { limit: number }) {
+  auditResponseSanitization(input: { limit: number; tenantId?: string }) {
     return this.governance.auditResponseSanitization(input);
   }
 
