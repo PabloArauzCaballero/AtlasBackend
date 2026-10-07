@@ -208,6 +208,7 @@ x-atlas-env: &atlas-env
   # existía en el motor: el riesgo lo decidía la heurística local en todos los entornos. Vacío a
   # propósito ('') = el motor no participa y cada alta va a revisión humana (la heurística ya no aprueba).
   DECISION_ENGINE_RISK_ARTIFACT: ${DECISION_ENGINE_RISK_ARTIFACT:-RIESGO_ONBOARDING_CLIENTE}
+  DECISION_ENGINE_AUTO_APPLY: ${DECISION_ENGINE_AUTO_APPLY:-credit}
   DECISION_ENGINE_ENVIRONMENT_CODE: ${DECISION_ENGINE_ENVIRONMENT_CODE:-DEV}
   ERP_BACKEND_BASE_URL: ${ERP_BACKEND_BASE_URL:-http://host.docker.internal:3007}
   ERP_BACKEND_CATALOG_API_KEY: ${ERP_BACKEND_CATALOG_API_KEY:-}
