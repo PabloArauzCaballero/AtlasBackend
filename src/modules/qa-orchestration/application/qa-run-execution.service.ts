@@ -87,18 +87,6 @@ export class QaRunExecutionService {
     };
   }
 
-  /**
-   * `markRunning` sólo acepta QUEUED/RUNNING, así que una corrida que se canceló (CANCELLING) mientras
-   * su worker moría llega aquí sin lease perdido: nadie más la va a cerrar. Se cierra como CANCELLED;
-   * cualquier otro motivo sí es un lease perdido y no se toca nada.
-   */
-  private async closeIfCancelling(ctx: RunContext, fence: Fence): Promise<ExecutionOutcome> {
-    const run = await this.runs.loadRun(ctx.runId);
-    if (run?.status !== 'CANCELLING') return { kind: 'ABANDONED', reason: 'LOST_LEASE' };
-    await this.runs.closePendingPersonas(ctx.runId, 'CANCELLED', 'corrida cancelada', fence);
-    return this.closing.finish(ctx, { status: 'CANCELLED', verdict: null, evidence: {} });
-  }
-
   async execute(runId: string, fence: Fence, signal: AbortSignal): Promise<ExecutionOutcome> {
     const loaded = await this.load(runId, fence);
     if ('kind' in loaded) return loaded;
@@ -110,7 +98,7 @@ export class QaRunExecutionService {
     // Un apagado o un lease perdido ANTES de empezar: `addEventListener` no avisa de una señal ya
     // abortada, así que sin esta comprobación la corrida entera se ejecutaría ignorando el apagado.
     if (signal.aborted) return { kind: 'ABANDONED', reason: String(signal.reason ?? 'SHUTDOWN') };
-    if (!(await this.runs.markRunning(runId, fence))) return this.closeIfCancelling(ctx, fence);
+    if (!(await this.runs.markRunning(runId, fence))) return this.closing.closeIfCancelling(ctx);
     await this.runs.appendEvent(runId, 'RUN_STARTED', { persons: ctx.plan.persons, concurrency: ctx.plan.concurrency });
 
     // Una sola señal para cancelar, vencer el plazo o apagar; el motivo decide cómo se cierra.
@@ -119,7 +107,6 @@ export class QaRunExecutionService {
     const onAbort = () => stop(String(signal.reason ?? 'SHUTDOWN'));
     if (signal.aborted) onAbort();
     else signal.addEventListener('abort', onAbort, { once: true });
-    // El plazo corre desde el primer arranque: reanudar en otro worker no lo reinicia.
     const deadlineAt = (ctx.startedAtMs ?? Date.now()) + ctx.plan.limits.maxDurationMs;
     const watcher = setInterval(() => {
       if (Date.now() >= deadlineAt) stop('TIMED_OUT');
@@ -166,8 +153,8 @@ export class QaRunExecutionService {
       onFallback: (input) => this.runs.appendEvent(ctx.runId, 'IDENTITY_IMAGES_FALLBACK', input),
     });
     const { maxRequests, maxInFlightRequests } = ctx.plan.limits;
-    // Lo ya emitido por workers anteriores cuenta contra el tope de la corrida.
-    const budget = new RunBudget({ maxRequests, maxInFlightRequests, deadlineAt }, controller.signal, await this.runs.requestsIssued(ctx.runId));
+    const issued = await this.runs.requestsIssued(ctx.runId);
+    const budget = new RunBudget({ maxRequests, maxInFlightRequests, deadlineAt }, controller.signal, issued);
     controller.signal.addEventListener('abort', () => budget.wakeAll(), { once: true });
     // Fixture «faltante» porque la corrida se abortó mientras se resolvía: no es un bloqueo, se
     // cierra (o se abandona) por el motivo del aborto.

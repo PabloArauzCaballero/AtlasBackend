@@ -159,7 +159,10 @@ describe('repositorio de admisión de corridas QA', () => {
       if (sql.includes('system_job_runs')) return [{ _id: 7001 }];
       return [];
     });
-    expect(await new QaRunAdmissionRepository(db.asSequelize).admit({ ...admission(), maxActiveRuns: 1 })).toMatchObject({ runId: '42', replayed: false });
+    expect(await new QaRunAdmissionRepository(db.asSequelize).admit({ ...admission(), maxActiveRuns: 1 })).toMatchObject({
+      runId: '42',
+      replayed: false,
+    });
   });
 
   it('dos lanzamientos simultáneos: el perdedor relee al ganador en vez de propagar la unicidad (A29)', async () => {
@@ -330,7 +333,7 @@ describe('repositorio del worker QA: escrituras cercadas por fencing', () => {
 
   it('listAbandonedRuns une la corrida con su job vencido y sin intentos, y devuelve el cerco del último dueño', async () => {
     const db = fakeSequelize(() => [{ run_id: 42, job_run_id: 7001, fencing_token: 9 }]);
-    const repo = new QaRunWorkerRepository(db.asSequelize);
+    const repo = new QaRunSupportRepository(db.asSequelize);
     const ahora = new Date();
     expect(await repo.listAbandonedRuns(3, ahora)).toEqual([{ runId: '42', fence: { jobRunId: '7001', fencingToken: '9' } }]);
     expect(db.calls[0].sql).toContain(`r.status IN ('QUEUED','PREFLIGHT','RUNNING','CANCELLING')`);

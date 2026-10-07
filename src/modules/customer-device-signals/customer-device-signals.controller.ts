@@ -96,7 +96,10 @@ export class CustomerDeviceSignalsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(deviceSignalsCustomerParamsSchema.shape.customerId) })
   @ApiResponse({ status: 200, description: 'Agenda borrada — cuántas fichas se eliminaron.' })
-  @ApiResponse({ status: 403, description: 'El token no permite operar sobre este cliente, o el operador interno no tiene `privacy.requests.manage`.' })
+  @ApiResponse({
+    status: 403,
+    description: 'El token no permite operar sobre este cliente, o el operador interno no tiene `privacy.requests.manage`.',
+  })
   @ApiResponse({ status: 404, description: 'Cliente no encontrado.' })
   @Delete('address-book')
   @HttpCode(HttpStatus.OK)

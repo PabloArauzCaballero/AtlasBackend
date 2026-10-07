@@ -5,7 +5,7 @@
  * @system bindings tipados → admisión y presupuesto → transporte con reintentos seguros → oráculo
  *   → extracción; la evidencia se sanea al guardarla, nunca antes de extraer.
  */
-import { redactSensitiveObject } from '../../../common/utils/privacy/redaction.util.js';
+import { scrubSignedUrls, summarize } from './step-evidence.js';
 import type { Expectation, RecipeStep } from '../domain/journey-recipe.types.js';
 import { errorCodeOf, evaluateQaStep, selectExpectation, type StepVerdict } from '../domain/journey-assertions.js';
 import { idempotencyKeyFor } from '../domain/run-accounting.js';
@@ -27,24 +27,6 @@ type Prepared = {
   headers: Record<string, string>;
   expected: Expectation & { label: string };
 };
-
-const SIGNED_URL = /[?&](x-amz-signature|signature|sig|token)=/i;
-
-/** La URL firmada de subida es una credencial de escritura: no viaja a la evidencia. */
-function scrubSignedUrls(value: unknown, depth = 0): unknown {
-  if (typeof value === 'string') return SIGNED_URL.test(value) ? '[REDACTED]' : value;
-  if (depth > 8 || value === null || typeof value !== 'object') return value;
-  if (Array.isArray(value)) return value.map((item) => scrubSignedUrls(item, depth + 1));
-  return Object.fromEntries(
-    Object.entries(value).map(([key, nested]) => [key, key === 'uploadUrl' ? '[REDACTED]' : scrubSignedUrls(nested, depth + 1)]),
-  );
-}
-
-export function summarize(body: unknown): unknown {
-  const redacted = scrubSignedUrls(redactSensitiveObject(body));
-  const text = JSON.stringify(redacted) ?? '';
-  return text.length > 4_000 ? { truncated: true, preview: text.slice(0, 4_000) } : redacted;
-}
 
 function setPath(target: Record<string, unknown>, path: string, value: unknown): void {
   const segments = path.split('.');

@@ -25,7 +25,10 @@ const MAX_PINGS_POR_LOTE = 200;
 const textoCorto = z.string().trim().min(1).max(200);
 
 /** Identificador numérico (BIGINT) del dispositivo o la sesión: uno no numérico llegaba a la base y daba 500. */
-const idNumerico = z.string().trim().regex(/^[1-9][0-9]{0,18}$/);
+const idNumerico = z
+  .string()
+  .trim()
+  .regex(/^[1-9][0-9]{0,18}$/);
 
 const telefonoDeContacto = z.object({
   /** «casa», «móvil», «trabajo». Lo etiqueta el sistema operativo; se guarda tal cual. */

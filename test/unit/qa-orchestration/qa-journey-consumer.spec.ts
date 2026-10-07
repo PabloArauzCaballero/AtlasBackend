@@ -4,7 +4,7 @@ import type { ClaimedJob } from '../../../src/platform/jobs/durable-job-queue';
 import { QaJourneyConsumerService } from '../../../src/modules/qa-orchestration/application/qa-journey-consumer.service';
 import type { ExecutionOutcome, QaRunExecutionService } from '../../../src/modules/qa-orchestration/application/qa-run-execution.service';
 import type { QaRunSupportRepository } from '../../../src/modules/qa-orchestration/infrastructure/qa-run-support.repository';
-import type { QaRunWorkerRepository, Fence } from '../../../src/modules/qa-orchestration/infrastructure/qa-run-worker.repository';
+import type { Fence } from '../../../src/modules/qa-orchestration/infrastructure/qa-run-worker.repository';
 
 const job: ClaimedJob = {
   jobRunId: '7001',
@@ -23,8 +23,10 @@ const untilAborted: Execute = (_runId, _fence, signal) =>
   new Promise((resolve) => signal.addEventListener('abort', () => resolve({ kind: 'ABANDONED', reason: String(signal.reason) })));
 
 function build(execute: Execute, claimed: ClaimedJob | null = job) {
-  const support = { workerHeartbeat: jest.fn(async () => undefined) };
-  const workerRuns = { listAbandonedRuns: jest.fn(async (): Promise<Array<{ runId: string; fence: Fence }>> => []) };
+  const support = {
+    workerHeartbeat: jest.fn(async () => undefined),
+    listAbandonedRuns: jest.fn(async (): Promise<Array<{ runId: string; fence: Fence }>> => []),
+  };
   const execution = { execute: jest.fn(execute), failInfrastructure: jest.fn(async () => undefined) };
   const queue = {
     claim: jest.fn(async () => claimed),
@@ -35,13 +37,12 @@ function build(execute: Execute, claimed: ClaimedJob | null = job) {
   const service = new QaJourneyConsumerService(
     {} as Sequelize,
     support as unknown as QaRunSupportRepository,
-    workerRuns as unknown as QaRunWorkerRepository,
     execution as unknown as QaRunExecutionService,
   );
   // La cola durable se sustituye por un doble: aquí se prueba el ciclo de vida, no el SQL del claim.
   Object.assign(service, { queue });
   const active = () => (service as unknown as { active: Promise<string> | null }).active;
-  return { service, support, execution, queue, active, workerRuns };
+  return { service, support, execution, queue, active };
 }
 
 beforeEach(() => {
@@ -160,9 +161,9 @@ describe('consumidor de corridas QA', () => {
   });
 
   it('sin trabajo que reclamar cierra las corridas abandonadas (intentos agotados) y completa su job como failed', async () => {
-    const { service, queue, execution, workerRuns } = build(untilAborted, null);
+    const { service, queue, execution, support } = build(untilAborted, null);
     const fence = { jobRunId: '7002', fencingToken: '8' };
-    workerRuns.listAbandonedRuns.mockResolvedValueOnce([{ runId: '43', fence }]);
+    support.listAbandonedRuns.mockResolvedValueOnce([{ runId: '43', fence }]);
     await service.drain();
     expect(execution.failInfrastructure).toHaveBeenCalledWith('43', fence, expect.stringContaining('JOB_ABANDONED'));
     expect(queue.complete).toHaveBeenCalledWith(expect.objectContaining(fence), {
@@ -172,8 +173,8 @@ describe('consumidor de corridas QA', () => {
   });
 
   it('si el barrido falla no rompe el drain', async () => {
-    const { service, workerRuns } = build(untilAborted, null);
-    workerRuns.listAbandonedRuns.mockRejectedValueOnce(new Error('sin base'));
+    const { service, support } = build(untilAborted, null);
+    support.listAbandonedRuns.mockRejectedValueOnce(new Error('sin base'));
     await expect(service.drain()).resolves.toEqual({ claimed: 0, busy: false });
   });
 

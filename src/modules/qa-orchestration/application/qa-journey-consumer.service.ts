@@ -14,7 +14,6 @@ import { atlasSchemaFor } from '../../../database/domain-schemas.js';
 import { DurableJobQueue, type ClaimedJob } from '../../../platform/jobs/durable-job-queue.js';
 import { QA_JOURNEY_JOB_CODE } from '../infrastructure/qa-run-admission.repository.js';
 import { QaRunSupportRepository } from '../infrastructure/qa-run-support.repository.js';
-import { QaRunWorkerRepository } from '../infrastructure/qa-run-worker.repository.js';
 import { QaRunExecutionService } from './qa-run-execution.service.js';
 
 const LEASE_MS = 60_000;
@@ -33,7 +32,6 @@ export class QaJourneyConsumerService implements OnModuleDestroy {
   constructor(
     @InjectConnection() sequelize: Sequelize,
     private readonly runs: QaRunSupportRepository,
-    private readonly workerRuns: QaRunWorkerRepository,
     private readonly execution: QaRunExecutionService,
   ) {
     this.queue = new DurableJobQueue(sequelize, {
@@ -70,11 +68,14 @@ export class QaJourneyConsumerService implements OnModuleDestroy {
    */
   private async sweepAbandoned(): Promise<void> {
     try {
-      for (const { runId, fence } of await this.workerRuns.listAbandonedRuns(MAX_ATTEMPTS)) {
+      for (const { runId, fence } of await this.runs.listAbandonedRuns(MAX_ATTEMPTS)) {
         const message = 'JOB_ABANDONED: la corrida agotó sus intentos sin que ningún worker la terminara.';
         this.logger.error(`Corrida QA ${runId} abandonada (job ${fence.jobRunId}): se cierra por infraestructura.`);
         await this.execution.failInfrastructure(runId, fence, message);
-        await this.queue.complete({ ...fence, jobCode: QA_JOURNEY_JOB_CODE } as unknown as ClaimedJob, { status: 'failed', errorMessage: message });
+        await this.queue.complete({ ...fence, jobCode: QA_JOURNEY_JOB_CODE } as unknown as ClaimedJob, {
+          status: 'failed',
+          errorMessage: message,
+        });
       }
     } catch (error) {
       this.logger.warn(`Barrido de corridas QA abandonadas falló: ${error instanceof Error ? error.message : String(error)}`);
@@ -101,7 +102,8 @@ export class QaJourneyConsumerService implements OnModuleDestroy {
         },
         // Un fallo transitorio de base no puede tumbar el proceso con un rechazo sin capturar: el
         // siguiente latido reintenta, y si el lease llega a vencer lo detecta el fencing.
-        (error: unknown) => this.logger.warn(`Latido del lease QA falló (job ${job.jobRunId}): ${error instanceof Error ? error.message : String(error)}`),
+        (error: unknown) =>
+          this.logger.warn(`Latido del lease QA falló (job ${job.jobRunId}): ${error instanceof Error ? error.message : String(error)}`),
       );
     }, HEARTBEAT_MS);
     heartbeat.unref();

@@ -5,7 +5,6 @@ import type { DeviceSignalsAccessService } from '../../../src/modules/customer-d
 import type { CustomerDeviceContactsRepository } from '../../../src/modules/customer-device-signals/repositories/customer-device-contacts.repository';
 import type { DeviceSignalsJournalRepository } from '../../../src/modules/customer-device-signals/repositories/device-signals-journal.repository';
 import type { CustomersRepository } from '../../../src/modules/customers/customers.repository';
-import type { InternalRbacRepository } from '../../../src/modules/internal-users/internal-rbac.repository';
 import type { AuthenticatedUser } from '../../../src/common/types/auth.types';
 
 jest.mock('../../../src/modules/customer-device-signals/application/device-contact-row', () => ({
@@ -21,7 +20,7 @@ const tx = { id: 'tx' };
 const contacto = (externalId: string, numero?: string) => ({ externalId, phones: numero ? [{ number: numero }] : [] });
 
 function build() {
-  const access = { resolve: jest.fn(async () => ({ deviceId: 'dev-1', consentId: '9' })) };
+  const access = { resolve: jest.fn(async () => ({ deviceId: 'dev-1', consentId: '9' })), assertMayPurge: jest.fn(async () => undefined) };
   const journal = {
     findLatestOnboardingFlow: jest.fn(async () => null),
     recordAddressBookSync: jest.fn(async () => undefined),
@@ -38,17 +37,15 @@ function build() {
     deleteAllFor: jest.fn(async () => 5),
   };
   const customers = { findById: jest.fn(async (): Promise<unknown> => ({ id: 'c1' })) };
-  const rbac = { hasPermissions: jest.fn(async () => true) };
   const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb(tx)) };
   const service = new CustomerAddressBookService(
     customers as unknown as CustomersRepository,
     access as unknown as DeviceSignalsAccessService,
     journal as unknown as DeviceSignalsJournalRepository,
     contacts as unknown as CustomerDeviceContactsRepository,
-    rbac as unknown as InternalRbacRepository,
     sequelize as unknown as Sequelize,
   );
-  return { service, journal, contacts, customers, sequelize, rbac };
+  return { service, journal, contacts, customers, sequelize, access };
 }
 
 const body = (overrides: Record<string, unknown> = {}) =>
@@ -83,7 +80,9 @@ describe('CustomerAddressBookService', () => {
       { tenantId: 't1', customerId: 'c1', phoneHashes: ['ph-1', 'ph-2', 'ph-3'] },
       { transaction: tx },
     );
-    expect(journal.recordAddressBookSync).toHaveBeenCalledWith(expect.objectContaining({ customersSharingContacts: 2 }), { transaction: tx });
+    expect(journal.recordAddressBookSync).toHaveBeenCalledWith(expect.objectContaining({ customersSharingContacts: 2 }), {
+      transaction: tx,
+    });
   });
 
   it('un lote intermedio no calcula el cruce', async () => {
@@ -92,7 +91,9 @@ describe('CustomerAddressBookService', () => {
     await sync(service, { isFinalBatch: false });
 
     expect(contacts.countPhoneOverlapWithOtherCustomers).not.toHaveBeenCalled();
-    expect(journal.recordAddressBookSync).toHaveBeenCalledWith(expect.objectContaining({ customersSharingContacts: null }), { transaction: tx });
+    expect(journal.recordAddressBookSync).toHaveBeenCalledWith(expect.objectContaining({ customersSharingContacts: null }), {
+      transaction: tx,
+    });
   });
 
   it('crea lo nuevo y actualiza lo conocido por su identificador de origen', async () => {
@@ -143,31 +144,24 @@ describe('CustomerAddressBookService', () => {
     );
   });
 
-  it('un operador interno sin privacy.requests.manage no puede borrar la agenda de un cliente', async () => {
-    const { service, rbac, contacts } = build();
-    rbac.hasPermissions.mockResolvedValueOnce(false);
-    const operador = { role: 'internal_operator', internalUserId: '5' } as unknown as AuthenticatedUser;
+  it('purge consulta el permiso antes de borrar: si se deniega no se borra nada', async () => {
+    const { service, access, contacts } = build();
+    access.assertMayPurge.mockRejectedValueOnce(new ForbiddenException('sin permiso'));
 
-    await expect(service.purge({ tenantId: 't1', customerId: 'c1', currentUser: operador, ipAddress: null })).rejects.toThrow(ForbiddenException);
-    expect(rbac.hasPermissions).toHaveBeenCalledWith('t1', '5', ['privacy.requests.manage']);
+    await expect(service.purge({ tenantId: 't1', customerId: 'c1', currentUser: usuario, ipAddress: null })).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(access.assertMayPurge).toHaveBeenCalledWith('t1', usuario);
     expect(contacts.deleteAllFor).not.toHaveBeenCalled();
-  });
-
-  it('un operador interno con el permiso sí puede; uno sin sesión interna no', async () => {
-    const { service, contacts } = build();
-    const operador = { role: 'internal_operator', internalUserId: '5' } as unknown as AuthenticatedUser;
-    await expect(service.purge({ tenantId: 't1', customerId: 'c1', currentUser: operador, ipAddress: null })).resolves.toMatchObject({ deleted: 5 });
-
-    const sinSesion = { role: 'admin' } as unknown as AuthenticatedUser;
-    await expect(service.purge({ tenantId: 't1', customerId: 'c1', currentUser: sinSesion, ipAddress: null })).rejects.toThrow(ForbiddenException);
-    expect(contacts.deleteAllFor).toHaveBeenCalledTimes(1);
   });
 
   it('purge de un cliente inexistente es 404 y no borra nada', async () => {
     const { service, customers, contacts } = build();
     customers.findById.mockResolvedValueOnce(null);
 
-    await expect(service.purge({ tenantId: 't1', customerId: 'c1', currentUser: usuario, ipAddress: null })).rejects.toThrow(NotFoundException);
+    await expect(service.purge({ tenantId: 't1', customerId: 'c1', currentUser: usuario, ipAddress: null })).rejects.toThrow(
+      NotFoundException,
+    );
     expect(contacts.deleteAllFor).not.toHaveBeenCalled();
   });
 });

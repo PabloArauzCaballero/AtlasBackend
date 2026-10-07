@@ -121,7 +121,7 @@ describe('CustomerDeviceContactsRepository', () => {
     });
 
     it('«vigente» es la ÚLTIMA decisión de la finalidad, sin filtrar por concedido', async () => {
-      consents.findOne.mockResolvedValueOnce({ granted: true, revokedAt: null });
+      consents.findOne.mockResolvedValueOnce({ granted: true, revokedAt: null } as never);
 
       const vigente = await repo.findGrantedConsent('t1', 'c1', 'ADDRESS_BOOK');
 
@@ -131,13 +131,13 @@ describe('CustomerDeviceContactsRepository', () => {
     });
 
     it('concesión → retirada: la decisión más reciente es la retirada y no ampara nada', async () => {
-      consents.findOne.mockResolvedValueOnce({ granted: false, revokedAt: new Date() });
+      consents.findOne.mockResolvedValueOnce({ granted: false, revokedAt: new Date() } as never);
 
       await expect(repo.findGrantedConsent('t1', 'c1', 'ADDRESS_BOOK')).resolves.toBeNull();
     });
 
     it('sin ninguna decisión no hay consentimiento', async () => {
-      consents.findOne.mockResolvedValueOnce(null);
+      consents.findOne.mockResolvedValueOnce(null as never);
 
       await expect(repo.findGrantedConsent('t1', 'c1', 'ADDRESS_BOOK')).resolves.toBeNull();
     });
@@ -281,7 +281,11 @@ describe('CustomerDeviceContactsRepository', () => {
     });
 
     it('los hashes guardados del cliente se juntan sin repetir y sólo de fichas no borradas', async () => {
-      contacts.findAll.mockResolvedValueOnce([{ phoneHashes: ['h1', 'h2'] }, { phoneHashes: ['h2', 'h3'] }, { phoneHashes: null }]);
+      contacts.findAll.mockResolvedValueOnce([
+        { phoneHashes: ['h1', 'h2'] },
+        { phoneHashes: ['h2', 'h3'] },
+        { phoneHashes: null },
+      ] as never);
 
       await expect(repo.findStoredPhoneHashes('t1', 'c1')).resolves.toEqual(['h1', 'h2', 'h3']);
       expect(ultima(contacts.findAll).where).toMatchObject({ tenantId: 't1', customerId: 'c1' });

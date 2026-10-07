@@ -1,4 +1,7 @@
-import { addressBookSyncSchema, locationPingBatchSchema } from '../../../src/modules/customer-device-signals/customer-device-signals.schemas';
+import {
+  addressBookSyncSchema,
+  locationPingBatchSchema,
+} from '../../../src/modules/customer-device-signals/customer-device-signals.schemas';
 
 const agenda = (extra: Record<string, unknown>) => ({
   algorithmVersion: 'v1',

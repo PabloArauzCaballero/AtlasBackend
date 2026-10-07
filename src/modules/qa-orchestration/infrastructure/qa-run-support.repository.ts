@@ -10,11 +10,38 @@ import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { atlasSchemaFor } from '../../../database/domain-schemas.js';
 
+import type { Fence } from './qa-run-worker.repository.js';
+
 const S = atlasSchemaFor('qa_runs');
+const JOBS = `${atlasSchemaFor('system_job_runs')}.system_job_runs`;
 
 @Injectable()
 export class QaRunSupportRepository {
   constructor(@InjectConnection() private readonly sequelize: Sequelize) {}
+
+  /**
+   * Corridas activas cuyo job ya nadie va a tomar: lease vencido y sin intentos disponibles. Sin este
+   * barrido quedarían QUEUED/RUNNING/CANCELLING para siempre y el tope por tenant las contaría.
+   */
+  async listAbandonedRuns(maxAttempts: number, now: Date = new Date()): Promise<Array<{ runId: string; fence: Fence }>> {
+    const rows = await this.sequelize.query<{ run_id: string; job_run_id: string; fencing_token: string }>(
+      `SELECT r._id AS run_id, j._id AS job_run_id, j.fencing_token
+         FROM ${S}.qa_runs r
+         JOIN ${JOBS} j ON j._id = r.job_run_id
+        WHERE r.status IN ('QUEUED','PREFLIGHT','RUNNING','CANCELLING')
+          AND j.status = 'running'
+          AND j.lease_expires_at IS NOT NULL
+          AND j.lease_expires_at < $now
+          AND j.attempts >= $maxAttempts
+        ORDER BY r._id
+        LIMIT 20;`,
+      { type: QueryTypes.SELECT, bind: { now, maxAttempts } },
+    );
+    return rows.map((row) => ({
+      runId: String(row.run_id),
+      fence: { jobRunId: String(row.job_run_id), fencingToken: String(row.fencing_token) },
+    }));
+  }
 
   async saveSecret(runId: string, encryptedToken: string, epoch: string | null, expiresAt: Date): Promise<void> {
     await this.sequelize.query(

@@ -1,10 +1,15 @@
 import { AdmissionGate } from '../../../src/modules/qa-orchestration/infrastructure/admission-gate';
-import { summarize } from '../../../src/modules/qa-orchestration/application/step-runner';
+import { summarize } from '../../../src/modules/qa-orchestration/application/step-evidence';
 
 describe('evidencia QA: la URL firmada de subida no se guarda', () => {
   it('uploadUrl y cualquier valor con firma se redactan en el resumen de la respuesta', () => {
     const resumen = summarize({
-      data: { uploadUrl: 'https://s3.local/bucket/x?X-Amz-Signature=abc', path: 'a/b', otra: 'https://s3.local/x?token=zzz', ok: 'https://qa.local/ok' },
+      data: {
+        uploadUrl: 'https://s3.local/bucket/x?X-Amz-Signature=abc',
+        path: 'a/b',
+        otra: 'https://s3.local/x?token=zzz',
+        ok: 'https://qa.local/ok',
+      },
     });
     expect(resumen).toEqual({ data: { uploadUrl: '[REDACTED]', path: 'a/b', otra: '[REDACTED]', ok: 'https://qa.local/ok' } });
   });

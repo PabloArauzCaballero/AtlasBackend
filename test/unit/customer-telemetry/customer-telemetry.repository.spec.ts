@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
+import { asyncMock } from '../../support/jest-mocks.js';
 import { CustomerTelemetryRepository } from '../../../src/modules/customer-telemetry/customer-telemetry.repository.js';
 import { TelemetryActivityRepository } from '../../../src/modules/customer-telemetry/telemetry-activity.repository.js';
 import { TelemetryBehaviorRepository } from '../../../src/modules/customer-telemetry/telemetry-behavior.repository.js';

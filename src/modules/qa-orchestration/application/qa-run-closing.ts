@@ -113,6 +113,18 @@ export class QaRunClosing {
     };
   }
 
+  /**
+   * `markRunning` sólo acepta QUEUED/RUNNING, así que una corrida que se canceló (CANCELLING) mientras
+   * su worker moría llega aquí sin lease perdido: nadie más la va a cerrar. Se cierra como CANCELLED;
+   * cualquier otro motivo sí es un lease perdido y no se toca nada.
+   */
+  async closeIfCancelling(ctx: RunContext): Promise<ExecutionOutcome> {
+    const run = await this.runs.loadRun(ctx.runId);
+    if (run?.status !== 'CANCELLING') return { kind: 'ABANDONED', reason: 'LOST_LEASE' };
+    await this.runs.closePendingPersonas(ctx.runId, 'CANCELLED', 'corrida cancelada', ctx.fence);
+    return this.finish(ctx, { status: 'CANCELLED', verdict: null, evidence: {} });
+  }
+
   async finish(ctx: Pick<RunContext, 'runId' | 'fence' | 'plan'>, closing: Closing): Promise<ExecutionOutcome> {
     const counters = await this.counters(ctx.runId, ctx.plan.persons, closing.requestsIssued ?? 0);
     const evidence = { ...closing.evidence, backendVersion: process.env.APP_VERSION ?? process.env.GIT_SHA ?? 'dev' };

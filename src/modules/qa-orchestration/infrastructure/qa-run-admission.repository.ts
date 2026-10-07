@@ -32,7 +32,8 @@ export type AdmissionInput = {
   maxActiveRuns?: number;
 };
 
-export type AdmissionResult = { runId: string; status: string; replayed: boolean } | { conflict: 'IDEMPOTENCY_KEY_REUSED' | 'QA_RUN_ALREADY_ACTIVE' };
+export type AdmissionResult =
+  { runId: string; status: string; replayed: boolean } | { conflict: 'IDEMPOTENCY_KEY_REUSED' | 'QA_RUN_ALREADY_ACTIVE' };
 
 @Injectable()
 export class QaRunAdmissionRepository {
@@ -97,7 +98,10 @@ export class QaRunAdmissionRepository {
    * claves distintas que pasaron la lectura previa a la vez se serializan aquí y el segundo lo ve.
    */
   private async hasRoomForRun(tenantId: string, maxActive: number, transaction: Transaction): Promise<boolean> {
-    await this.sequelize.query(`SELECT pg_advisory_xact_lock(hashtext('qa_runs:' || $tenantId::text));`, { transaction, bind: { tenantId } });
+    await this.sequelize.query(`SELECT pg_advisory_xact_lock(hashtext('qa_runs:' || $tenantId::text));`, {
+      transaction,
+      bind: { tenantId },
+    });
     const rows = await this.sequelize.query<{ count: string }>(
       `SELECT COUNT(*)::text AS count FROM ${S}.qa_runs WHERE _tenant_id = $tenantId AND status IN ('QUEUED','PREFLIGHT','RUNNING','CANCELLING');`,
       { type: QueryTypes.SELECT, transaction, bind: { tenantId } },
