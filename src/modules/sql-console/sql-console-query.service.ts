@@ -45,8 +45,8 @@ export class SqlConsoleQueryService {
    * dice cuánto costaría y qué relaciones tocaría. Es lo que permite avisar de un barrido completo
    * ANTES de lanzarlo contra la base, en vez de después.
    */
-  async validate(statement: string): Promise<QueryValidation> {
-    const verdict = guardSqlStatement(statement);
+  async validate(statement: string, user: AuthenticatedUser): Promise<QueryValidation> {
+    const verdict = guardSqlStatement(statement, { baseSchemas: SQL_CONSOLE_REVEAL_ROLES.includes(user.role) });
     if (!verdict.ok) return { valid: false, violations: verdict.violations };
 
     try {
@@ -63,7 +63,8 @@ export class SqlConsoleQueryService {
   }
 
   async execute(statement: string, user: AuthenticatedUser): Promise<QueryResult> {
-    const verdict = guardSqlStatement(statement);
+    const reveal = SQL_CONSOLE_REVEAL_ROLES.includes(user.role);
+    const verdict = guardSqlStatement(statement, { baseSchemas: reveal });
     if (!verdict.ok) {
       /*
        * Se lanza una excepcion de DOMINIO, no un Error pelado.
@@ -84,13 +85,12 @@ export class SqlConsoleQueryService {
 
     const iniciado = Date.now();
     const estimate = await this.explain(verdict.statement);
-    const filas = await this.selectGuarded(verdict.statement);
+    const filas = await this.selectGuarded(verdict.statement, reveal);
 
     const truncated = filas.length > SQL_CONSOLE_LIMITS.maxRows;
     const servidas = truncated ? filas.slice(0, SQL_CONSOLE_LIMITS.maxRows) : filas;
 
     const nombres = servidas.length > 0 ? Object.keys(servidas[0]) : [];
-    const reveal = SQL_CONSOLE_REVEAL_ROLES.includes(user.role);
     // MISMAS políticas que el cuaderno: las dos pantallas leen la misma superficie, y que una
     // enmascarara y la otra no convertiría la elección de herramienta en un modo de esquivarlo.
     const politicas = describeColumns(nombres, reveal);
@@ -114,7 +114,7 @@ export class SqlConsoleQueryService {
    * corta un barrido eterno, y el `search_path` acotado impide que un nombre sin calificar resuelva
    * a una tabla de otro esquema.
    */
-  private async selectGuarded(statement: string): Promise<Record<string, unknown>[]> {
+  private async selectGuarded(statement: string, baseSchemas: boolean): Promise<Record<string, unknown>[]> {
     const sequelize = this.readQuery.getConnection();
     const transaccion = await sequelize.transaction();
 
@@ -133,7 +133,7 @@ export class SqlConsoleQueryService {
        * Se compone del catalogo del servidor y nunca de la entrada del usuario, y los esquemas del
        * sistema siguen fuera: un nombre sin calificar sigue sin poder resolver a `pg_catalog`.
        */
-      const esquemas = await this.esquemasDisponibles();
+      const esquemas = baseSchemas ? await this.esquemasDisponibles() : ['"read_api"'];
       await sequelize.query(`SET LOCAL search_path = ${esquemas.join(', ')}`, {
         transaction: transaccion,
       });

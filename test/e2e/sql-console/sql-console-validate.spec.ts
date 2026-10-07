@@ -87,7 +87,7 @@ describe('SqlConsoleController — validate (e2e/supertest)', () => {
 
     expect(response.body).toMatchObject({ valid: true });
     expect(queries.validate).toHaveBeenCalledTimes(1);
-    expect(queries.validate).toHaveBeenCalledWith('select 1 from read_api.customers limit 1');
+    expect(queries.validate).toHaveBeenCalledWith('select 1 from read_api.customers limit 1', expect.anything());
     // `validate` no es `query`: no deja rastro en el historial de consultas.
     expect(history.record).not.toHaveBeenCalled();
   });

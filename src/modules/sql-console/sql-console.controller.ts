@@ -68,8 +68,8 @@ export class SqlConsoleController {
   @ApiBody({ schema: zodToApiSchema(statementSchema) })
   @ApiResponse({ status: 200, description: 'Validación, con sus violaciones o su estimación.' })
   @Post('validate')
-  validar(@Body(new ZodValidationPipe(statementSchema)) body: StatementDto) {
-    return this.queries.validate(body.statement);
+  validar(@Body(new ZodValidationPipe(statementSchema)) body: StatementDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.queries.validate(body.statement, user);
   }
 
   @ApiOperation({ summary: 'Ejecutar una consulta de solo lectura sobre read_api' })
