@@ -133,7 +133,10 @@ describe('El comprobante de pago entra en el expediente', () => {
   it('rechaza una clave de almacén que no es del cliente, sin tocar el almacén', async () => {
     const { service, expedienteHooks, eventos } = construir();
     const storage = (service as unknown as { storage: { readObjectMetadata: jest.Mock } }).storage;
-    const ajena = { ...(entrada as object), body: { ...(entrada as { body: object }).body, storageKey: '1/customer-99/PAYMENT_PROOF/x.jpg' } } as never;
+    const ajena = {
+      ...(entrada as object),
+      body: { ...(entrada as { body: object }).body, storageKey: '1/customer-99/PAYMENT_PROOF/x.jpg' },
+    } as never;
 
     const fallo = await service.submit(ajena).then(
       () => null,
