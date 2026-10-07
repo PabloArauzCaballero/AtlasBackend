@@ -30,6 +30,7 @@ import {
   WatchlistMatchModel,
   BankStatementReviewModel,
   CreditApplicationModel,
+  CustomerModel,
 } from '../../database/models/index.js';
 import { CreditDecisionEngineService } from './credit-decision-engine.service.js';
 import { DecisionArtifactBindingController } from './decision-artifact-binding.controller.js';
@@ -50,6 +51,7 @@ import { UnderwritingSignalsService } from './underwriting-signals.service.js';
 import { UnderwritingCreditHistoryService } from './underwriting-credit-history.service.js';
 import { UnderwritingDeviceSignalsService } from './underwriting-device-signals.service.js';
 import { UnderwritingStatementService } from './underwriting-statement.service.js';
+import { UnderwritingTrustSignalsService } from './underwriting-trust-signals.service.js';
 
 /**
  * Integración con el ATLAS Decision Engine.
@@ -101,6 +103,8 @@ import { UnderwritingStatementService } from './underwriting-statement.service.j
       // rechazadas y del día (`UnderwritingCreditHistoryService.applicationCounts`).
       BankStatementReviewModel,
       CreditApplicationModel,
+      // Fraude de los registros propios (`UnderwritingTrustSignalsService`): lista negra, casos y vínculos de dispositivo; el resto se lee por SQL.
+      CustomerModel,
     ]),
   ],
   controllers: [DecisionArtifactBindingController],
@@ -114,6 +118,7 @@ import { UnderwritingStatementService } from './underwriting-statement.service.j
     UnderwritingCreditHistoryService,
     UnderwritingDeviceSignalsService,
     UnderwritingStatementService,
+    UnderwritingTrustSignalsService,
     SubjectReferenceService,
     CreditDecisionEngineService,
     RiskDecisionEngineService,

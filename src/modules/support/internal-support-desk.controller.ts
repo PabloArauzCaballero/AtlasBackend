@@ -147,7 +147,7 @@ export class InternalSupportDeskController {
   async integrity(@CurrentTenant() tenantId: string, @Param('channelId') channelId: string, @CurrentUser() currentUser: AuthenticatedUser) {
     const actor = await this.actors.resolve(currentUser, tenantId);
     this.actors.assertIsAgent(actor);
-    return this.messages.verifyIntegrity(channelId);
+    return this.messages.verifyIntegrity(tenantId, channelId);
   }
 
   /**

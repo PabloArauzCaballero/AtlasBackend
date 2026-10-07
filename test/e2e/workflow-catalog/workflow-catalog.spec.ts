@@ -56,6 +56,8 @@ describe('WorkflowCatalogController (e2e/supertest)', () => {
         .get('/workflows')
         .set(...authHeader('customer'))
         .expect(200);
+      // El controlador marca la audiencia: el servicio recorta los procesos internos.
+      expect(catalogService.listWorkflows).toHaveBeenLastCalledWith(expect.anything(), 'customer');
     });
 
     it('permite a roles de auditoría de solo lectura', async () => {
@@ -73,7 +75,7 @@ describe('WorkflowCatalogController (e2e/supertest)', () => {
         .set(...authHeader('platform_admin'))
         .expect(200);
 
-      expect(catalogService.listWorkflows).toHaveBeenCalledWith(expect.objectContaining({ includeDeprecated: false }));
+      expect(catalogService.listWorkflows).toHaveBeenCalledWith(expect.objectContaining({ includeDeprecated: false }), expect.any(String));
     });
 
     it('rechaza con 400 un status fuera del vocabulario cerrado', async () => {
@@ -94,6 +96,7 @@ describe('WorkflowCatalogController (e2e/supertest)', () => {
 
       expect(catalogService.listWorkflows).toHaveBeenCalledWith(
         expect.objectContaining({ moduleCode: 'credit', role: 'risk_analyst', includeDeprecated: true }),
+        expect.any(String),
       );
     });
   });
@@ -120,7 +123,11 @@ describe('WorkflowCatalogController (e2e/supertest)', () => {
         .set(...authHeader('platform_admin'))
         .expect(200);
 
-      expect(catalogService.getTree).toHaveBeenCalledWith('customer_credit_journey', expect.objectContaining({ version: 'latest' }));
+      expect(catalogService.getTree).toHaveBeenCalledWith(
+        'customer_credit_journey',
+        expect.objectContaining({ version: 'latest' }),
+        expect.any(String),
+      );
     });
 
     it('acepta una versión concreta', async () => {
@@ -129,7 +136,11 @@ describe('WorkflowCatalogController (e2e/supertest)', () => {
         .set(...authHeader('platform_admin'))
         .expect(200);
 
-      expect(catalogService.getTree).toHaveBeenCalledWith('customer_credit_journey', expect.objectContaining({ version: 'v2' }));
+      expect(catalogService.getTree).toHaveBeenCalledWith(
+        'customer_credit_journey',
+        expect.objectContaining({ version: 'v2' }),
+        expect.any(String),
+      );
     });
 
     it('traduce el flujo inexistente a 404', async () => {
@@ -147,7 +158,7 @@ describe('WorkflowCatalogController (e2e/supertest)', () => {
         .set(...authHeader('platform_admin'))
         .expect(200);
 
-      expect(catalogService.listVersions).toHaveBeenCalledWith('customer_credit_journey');
+      expect(catalogService.listVersions).toHaveBeenCalledWith('customer_credit_journey', expect.any(String));
     });
   });
 
@@ -165,6 +176,7 @@ describe('WorkflowCatalogController (e2e/supertest)', () => {
       expect(catalogService[method as keyof typeof catalogService]).toHaveBeenCalledWith(
         'customer_credit_journey',
         expect.objectContaining({ version: 'latest' }),
+        expect.any(String),
       );
     });
   });
@@ -199,6 +211,7 @@ describe('WorkflowCatalogController (e2e/supertest)', () => {
       expect(transitionService.validate).toHaveBeenCalledWith(
         'customer_credit_journey',
         expect.objectContaining({ version: 'latest', completedStepCodes: [] }),
+        expect.any(String),
       );
     });
 

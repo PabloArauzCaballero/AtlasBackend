@@ -110,6 +110,14 @@ describe('OperationsRepository', () => {
     });
   });
 
+  it('findManualReviewCaseById con transacción bloquea la fila: dos decisiones no leen «abierto» a la vez', async () => {
+    const { repo, models } = buildRepo();
+    (models.manualReviewCase.findOne as jest.Mock).mockResolvedValue({ id: 'mr1' } as never);
+    const transaction = { id: 'tx' } as never;
+    await repo.findManualReviewCaseById('t1', 'mr1', { transaction });
+    expect((models.manualReviewCase.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ transaction, lock: 'UPDATE' });
+  });
+
   it('closeManualReviewCase pone el caso en closed y lo guarda en la transacción', async () => {
     const { repo } = buildRepo();
     const save = jest.fn(async (..._args: unknown[]) => ({ saved: true }));

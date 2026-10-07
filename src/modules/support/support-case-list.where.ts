@@ -24,7 +24,7 @@ export type SupportCaseSearch = {
    * asignado los ve. Antes se aplicaba después de traer la página, así que una página podía llegar
    * con menos filas de las pedidas y ningún contador podía contar lo que de verdad se ve.
    */
-  restrictedVisibleTo?: { agentProfileId: string; isSupervisor: boolean } | null;
+  restrictedVisibleTo?: { agentProfileId: string | null; isSupervisor: boolean } | null;
 };
 
 /**
@@ -51,9 +51,9 @@ export function supportCaseSearchConditions(
   }
   const visibility = search.restrictedVisibleTo;
   if (visibility && !visibility.isSupervisor) {
-    conditions.push({
-      [Op.or]: [{ sensitivity: { [Op.ne]: 'RESTRICTED' } }, { currentAssigneeAgentId: visibility.agentProfileId }],
-    });
+    // Sin perfil de agente no hay «asignado a mí»: comparar con null traería los restringidos SIN responsable.
+    const own = visibility.agentProfileId ? [{ currentAssigneeAgentId: visibility.agentProfileId }] : [];
+    conditions.push({ [Op.or]: [{ sensitivity: { [Op.ne]: 'RESTRICTED' } }, ...own] });
   }
   return conditions;
 }

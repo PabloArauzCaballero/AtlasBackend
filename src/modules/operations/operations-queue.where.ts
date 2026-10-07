@@ -14,6 +14,8 @@ export type QueueFilter = { status?: string; priority?: string; customerId?: str
 export type SqlEscape = (value: string) => string;
 
 const NUMERIC_ID = /^[1-9][0-9]{0,18}$/;
+/** Máximo de un bigint de Postgres: más allá, la comparación lanza 22003 (500) en vez de dar lista vacía. */
+const MAX_BIGINT = 9223372036854775807n;
 
 /**
  * El buscador: código del caso (ILIKE), código del cliente (ILIKE, por subconsulta a `customers`) y,
@@ -36,7 +38,7 @@ function searchConditions(tenantId: string, q: string, escape: SqlEscape): Recor
       },
     },
   ];
-  if (NUMERIC_ID.test(term)) conditions.push({ id: term }, { customerId: term });
+  if (NUMERIC_ID.test(term) && BigInt(term) <= MAX_BIGINT) conditions.push({ id: term }, { customerId: term });
   return conditions;
 }
 
