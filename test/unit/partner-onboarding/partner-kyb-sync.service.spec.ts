@@ -23,14 +23,17 @@ describe('PartnerKybSyncService', () => {
     profiles?: ReturnType<typeof expediente>[];
     caso?: unknown;
     sinCaso?: Record<string, unknown>[];
+    sinEvaluar?: Record<string, unknown>[];
+    evaluarFalla?: boolean;
     abierto?: unknown;
   }) {
     const profiles = options.profiles ?? [expediente()];
     // Dos consultas: los que tienen caso (se sincronizan) y los que NO lo tienen (se les abre uno).
     const profileModel = {
-      findAll: jest.fn(async (args: { where: { manualReviewCaseCode: unknown } }) =>
-        args.where.manualReviewCaseCode === null ? (options.sinCaso ?? []) : profiles,
-      ),
+      findAll: jest.fn(async (args: { where: { manualReviewCaseCode?: unknown; decisionExecutionId?: unknown } }) => {
+        if (args.where.decisionExecutionId === null) return options.sinEvaluar ?? [];
+        return args.where.manualReviewCaseCode === null ? (options.sinCaso ?? []) : profiles;
+      }),
     };
     const client = {
       isConfigured: options.configured ?? true,
@@ -43,7 +46,19 @@ describe('PartnerKybSyncService', () => {
         ),
       },
     };
-    return { service: new PartnerKybSyncService(profileModel as never, client as never), profiles, client, profileModel };
+    const verification = {
+      evaluarConMotor: jest.fn(async (..._args: unknown[]) => {
+        if (options.evaluarFalla) throw new Error('503');
+        return {};
+      }),
+    };
+    return {
+      service: new PartnerKybSyncService(profileModel as never, client as never, verification as never),
+      profiles,
+      client,
+      profileModel,
+      verification,
+    };
   }
 
   it('un caso aprobado en el Motor habilita el expediente, sin atribuírselo a nadie de este lado', async () => {
@@ -190,6 +205,29 @@ describe('PartnerKybSyncService', () => {
 
       expect(resultado.opened).toBe(0);
       expect(perfil.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('lo que se envió y el Motor nunca evaluó', () => {
+    const sinEvaluar = () => ({ id: '30', manualReviewCaseCode: null, decisionExecutionId: null });
+
+    it('vuelve a evaluarlo con la clave del envío, para no duplicar si la primera llamada sí llegó', async () => {
+      const { service, verification } = build({ profiles: [], sinEvaluar: [sinEvaluar()] });
+
+      const resultado = await service.syncPendingReviews({ tenantId: '1', limit: 10 });
+
+      expect(resultado.reevaluated).toBe(1);
+      expect(verification.evaluarConMotor).toHaveBeenCalledWith('1', expect.objectContaining({ id: '30' }), {
+        idempotencyKey: 'submit-30',
+      });
+    });
+
+    it('si el Motor sigue fallando lo deja para la pasada siguiente y no tumba el job', async () => {
+      const { service } = build({ profiles: [], sinEvaluar: [sinEvaluar()], evaluarFalla: true });
+
+      const resultado = await service.syncPendingReviews({ tenantId: '1', limit: 10 });
+
+      expect(resultado.reevaluated).toBe(0);
     });
   });
 });
