@@ -30,10 +30,10 @@ export class CreditProgressController {
     description:
       'El nivel Atlas (de «Nuevo» a «Preferente»), la puntuación de relación 0-100 y POR QUÉ se le asigna a esta persona ' +
       '(cada parte con su peso, los puntos que aporta y la razón, más los topes que de verdad la recortaron), los puntos ' +
-      'que faltan para el siguiente nivel, las misiones para subir, la experiencia (1 punto por cada boliviano pagado a ' +
-      'tiempo, rachas e insignias) y la evolución de la línea. Se calcula con datos de la base —antigüedad, pagos, compras ' +
+      'que faltan para el siguiente nivel, las misiones para subir, la experiencia (1 punto por cada boliviano comprado ' +
+      'con Atlas, rachas e insignias de pago) y la evolución de la línea. Se calcula con datos de la base —antigüedad, pagos, compras ' +
       'cerradas, identidad—, NO con el motor, así que existe aunque la línea de crédito todavía no se haya calculado. ' +
-      'Comprar no suma puntos: sólo pagar a tiempo.',
+      'La experiencia da el nivel; la calificación 1-100 mide qué tan buen pagador es la persona.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional para `customer` (se toma del token).' })
   @ApiResponse({
