@@ -6,7 +6,6 @@
 import { createHash } from 'node:crypto';
 import type { QueryInterface, Transaction } from 'sequelize';
 import {
-  DEFINITIONS,
   DEFINITION_UPSERT_SQL,
   DEPENDENCIES,
   STAGES,
