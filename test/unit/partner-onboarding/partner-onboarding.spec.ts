@@ -847,6 +847,11 @@ describe('PartnerCommerceService', () => {
       createBranch: jest.fn(async () => ({ id: '5', branchCode: 'SC-01' })),
       findBranchById: jest.fn(async (..._a: unknown[]) => ({ id: '5', branchCode: 'SC-01' }) as AnyRecord | null),
       findPosBySerial: jest.fn(async (..._a: unknown[]) => null as AnyRecord | null),
+      findPosByManualCode: jest.fn(async (..._a: unknown[]) => null as AnyRecord | null),
+      findProfileById: jest.fn(
+        async (..._a: unknown[]) =>
+          ({ id: '10', onboardingStatus: 'approved', tradeName: 'Tienda Sol', legalName: 'Sol SRL' }) as AnyRecord | null,
+      ),
       createPosTerminal: jest.fn(async () => ({ id: '7' })),
       findPosById: jest.fn(async () => ({ id: '7', status: 'registered', activatedAt: null })),
       updatePosStatus: jest.fn(async () => ({ id: '7', status: 'suspended' })),
@@ -876,6 +881,44 @@ describe('PartnerCommerceService', () => {
 
     await expect(service.registerPosTerminal('1', '10', '5', { terminalSerial: 'SN-0001' })).rejects.toBeInstanceOf(ConflictException);
     expect(repository.createPosTerminal).not.toHaveBeenCalled();
+  });
+
+  describe('resolveMerchantQr: el QR trae el serial, la persona teclea el código manual', () => {
+    const activa = { id: '7', branchId: '5', partnerProfileId: '10', status: 'active' };
+
+    it('un serial sigue resolviendo como siempre y no consulta el código manual', async () => {
+      const { service, repository } = build({ findPosBySerial: jest.fn(async (..._a: unknown[]) => activa as AnyRecord | null) });
+
+      await expect(service.resolveMerchantQr('1', 'SN-0001')).resolves.toMatchObject({ posTerminalId: '7', displayName: 'Tienda Sol' });
+      expect(repository.findPosByManualCode).not.toHaveBeenCalled();
+    });
+
+    it('si no es un serial, lo interpreta como código manual aunque lo escriban en minúsculas y con guion', async () => {
+      const { service, repository } = build({ findPosByManualCode: jest.fn(async (..._a: unknown[]) => activa as AnyRecord | null) });
+
+      await expect(service.resolveMerchantQr('1', 'k7m2-9qxd')).resolves.toMatchObject({ posTerminalId: '7', verified: true });
+      expect(repository.findPosByManualCode).toHaveBeenCalledWith('1', 'K7M29QXD');
+    });
+
+    it('un texto que no puede ser código de caja no llega a la base y se rechaza como no reconocido', async () => {
+      const { service, repository } = build();
+
+      await expect(service.resolveMerchantQr('1', 'hola')).rejects.toBeInstanceOf(NotFoundException);
+      expect(repository.findPosByManualCode).not.toHaveBeenCalled();
+    });
+
+    it('por código manual también exige caja activa y expediente aprobado', async () => {
+      const registrada = build({
+        findPosByManualCode: jest.fn(async (..._a: unknown[]) => ({ ...activa, status: 'registered' }) as AnyRecord | null),
+      });
+      await expect(registrada.service.resolveMerchantQr('1', 'K7M29QXD')).rejects.toBeInstanceOf(UnprocessableEntityException);
+
+      const sinAprobar = build({
+        findPosByManualCode: jest.fn(async (..._a: unknown[]) => activa as AnyRecord | null),
+        findProfileById: jest.fn(async (..._a: unknown[]) => ({ id: '10', onboardingStatus: 'draft' }) as AnyRecord | null),
+      });
+      await expect(sinAprobar.service.resolveMerchantQr('1', 'K7M29QXD')).rejects.toBeInstanceOf(NotFoundException);
+    });
   });
 
   it('no registra un terminal en la sucursal de otro comercio', async () => {

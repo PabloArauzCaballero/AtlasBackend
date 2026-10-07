@@ -10,6 +10,7 @@ import { PartnerCommercialNetworkRepository } from '../partner-commercial-networ
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
 import { LinkBranchDto, PosTerminalStatusDto, RegisterBranchDto, RegisterPosTerminalDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
+import { normalizePosManualCode } from './pos-manual-code.js';
 import { assertCommercialNetworkEditable } from './partner-profile.guards.js';
 
 /**
@@ -180,6 +181,18 @@ export class PartnerCommerceService {
   }
 
   /**
+   * El QR trae el serial; quien lo teclea trae el código manual. Se prueba primero el serial
+   * (coincidencia exacta, como siempre) y sólo si no existe se interpreta como código manual, así que
+   * lo ya impreso sigue funcionando y un código manual nunca le gana a un serial.
+   */
+  private async findTerminalByToken(tenantId: string, token: string) {
+    const bySerial = await this.network.findPosBySerial(tenantId, token);
+    if (bySerial) return bySerial;
+    const manualCode = normalizePosManualCode(token);
+    return manualCode ? this.network.findPosByManualCode(tenantId, manualCode) : null;
+  }
+
+  /**
    * Resuelve el QR de Atlas que el cliente escanea en la caja.
    *
    * Es la contraparte servidor de una pantalla que hasta ahora resolvía sola: la app leía el token y
@@ -222,7 +235,7 @@ export class PartnerCommerceService {
     businessCategory: string | null;
     verified: true;
   }> {
-    const terminal = await this.network.findPosBySerial(tenantId, token);
+    const terminal = await this.findTerminalByToken(tenantId, token);
     if (!terminal) throw new NotFoundException('QR_NOT_RECOGNIZED');
     if (terminal.status === 'retired') throw new UnprocessableEntityException('QR_REVOKED');
     if (terminal.status !== 'active') throw new UnprocessableEntityException('QR_EXPIRED');
