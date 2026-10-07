@@ -21,9 +21,16 @@ describe('PartnerKybDecisionService', () => {
       ...overrides,
     }) as never;
 
-  function build(options: { configured?: boolean; response?: Record<string, unknown>; fails?: boolean } = {}) {
+  function build(options: { configured?: boolean; response?: Record<string, unknown>; fails?: boolean; abierto?: unknown } = {}) {
     const client = {
       isConfigured: options.configured ?? true,
+      manualReviews: {
+        putOnboardingDossier: jest.fn(async (..._args: unknown[]) =>
+          options.abierto
+            ? { ok: true, status: 200, caseCode: (options.abierto as { caseCode: string }).caseCode, created: true }
+            : { ok: false, status: null, reason: 'x', final: false },
+        ),
+      },
       execute: jest.fn(async (..._args: unknown[]) => {
         if (options.fails) throw new Error('ECONNREFUSED');
         return {
@@ -120,6 +127,45 @@ describe('PartnerKybDecisionService', () => {
       expect(client.execute).toHaveBeenCalledTimes(1);
       expect(decision.outcome).toBe('REVISION_MANUAL');
       expect(decision.reason).toBe('ENGINE_VERDICT_HELD_FOR_MANUAL_REVIEW:APROBADO:KYB_COMPLETO');
+    });
+  });
+
+  /*
+   * El caso que faltaba: el grafo dijo APROBADO (o la versión dice «revisión» sin nodo que abra
+   * caso), Atlas retiene el veredicto, y el Motor NO tenía nada en su cola. El expediente esperaba
+   * a una persona que no podía verlo.
+   */
+  describe('el caso del Motor existe siempre que el expediente espera a una persona', () => {
+    const entrada = { tenantId: '1', profile: perfil(), gaps: [], sucursales: 1, contratoVigente: true, idempotencyKey: 'k' };
+
+    it('un veredicto retenido sin caso lo abre en la cola MERCHANT_KYB y guarda su código', async () => {
+      const { service, client } = build({
+        response: { output: { kyb_decision: 'aprobado', kyb_motivo: 'KYB_COMPLETO' }, manualReview: null },
+        abierto: { caseCode: 'MR-0000000077', status: 'OPEN' },
+      });
+      const decision = await service.evaluate(entrada);
+
+      expect(client.manualReviews.putOnboardingDossier).toHaveBeenCalledWith(
+        'exec-77',
+        expect.objectContaining({ openIfMissing: expect.objectContaining({ queueCode: 'MERCHANT_KYB' }) }),
+      );
+      expect(decision.manualReviewCaseCode).toBe('MR-0000000077');
+    });
+
+    it('si el Motor ya abrió el caso no pide otro', async () => {
+      const { service, client } = build();
+      const decision = await service.evaluate(entrada);
+
+      expect(client.manualReviews.putOnboardingDossier).not.toHaveBeenCalled();
+      expect(decision.manualReviewCaseCode).toBe('MRC-3');
+    });
+
+    it('si el Motor no atiende la petición el código queda nulo —lo reintenta la sincronización— y nunca se aprueba solo', async () => {
+      const { service } = build({ response: { manualReview: null }, abierto: null });
+      const decision = await service.evaluate(entrada);
+
+      expect(decision.manualReviewCaseCode).toBeNull();
+      expect(decision.outcome).toBe('REVISION_MANUAL');
     });
   });
 

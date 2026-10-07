@@ -18,12 +18,30 @@ describe('PartnerKybSyncService', () => {
     };
   }
 
-  function build(options: { configured?: boolean; profiles?: ReturnType<typeof expediente>[]; caso?: unknown }) {
+  function build(options: {
+    configured?: boolean;
+    profiles?: ReturnType<typeof expediente>[];
+    caso?: unknown;
+    sinCaso?: Record<string, unknown>[];
+    abierto?: unknown;
+  }) {
     const profiles = options.profiles ?? [expediente()];
-    const profileModel = { findAll: jest.fn(async () => profiles) };
+    // Dos consultas: los que tienen caso (se sincronizan) y los que NO lo tienen (se les abre uno).
+    const profileModel = {
+      findAll: jest.fn(async (args: { where: { manualReviewCaseCode: unknown } }) =>
+        args.where.manualReviewCaseCode === null ? (options.sinCaso ?? []) : profiles,
+      ),
+    };
     const client = {
       isConfigured: options.configured ?? true,
       getManualReviewCase: jest.fn(async () => options.caso ?? null),
+      manualReviews: {
+        putOnboardingDossier: jest.fn(async (..._args: unknown[]) =>
+          options.abierto
+            ? { ok: true, status: 200, caseCode: (options.abierto as { caseCode: string }).caseCode, created: true }
+            : { ok: false, status: null, reason: 'x', final: false },
+        ),
+      },
     };
     return { service: new PartnerKybSyncService(profileModel as never, client as never), profiles, client, profileModel };
   }
@@ -129,5 +147,49 @@ describe('PartnerKybSyncService', () => {
     const [[options]] = profileModel.findAll.mock.calls as unknown as [[{ where: Record<string, unknown>; limit: number }]];
     expect(options.where).toMatchObject({ tenantId: '7', onboardingStatus: 'under_review', deleted: false });
     expect(options.limit).toBe(25);
+  });
+
+  describe('un expediente en revisión siempre tiene caso en la cola del Motor', () => {
+    const sinCaso = () => ({
+      id: '20',
+      manualReviewCaseCode: null,
+      decisionExecutionId: '88001',
+      decisionReason: 'ENGINE_VERDICT_HELD_FOR_MANUAL_REVIEW:APROBADO',
+      update: jest.fn(async (values: Record<string, unknown>) => values),
+    });
+
+    it('abre el caso que faltaba y guarda su código para que la sincronización lo siga', async () => {
+      const perfil = sinCaso();
+      const { service, client } = build({ profiles: [], sinCaso: [perfil], abierto: { caseCode: 'MR-0000088001', status: 'OPEN' } });
+
+      const resultado = await service.syncPendingReviews({ tenantId: '1', limit: 10 });
+
+      expect(resultado.opened).toBe(1);
+      expect(client.manualReviews.putOnboardingDossier).toHaveBeenCalledWith(
+        '88001',
+        expect.objectContaining({ openIfMissing: expect.objectContaining({ queueCode: 'MERCHANT_KYB' }) }),
+      );
+      expect((perfil.update.mock.calls[0] as [Record<string, unknown>])[0].manualReviewCaseCode).toBe('MR-0000088001');
+    });
+
+    it('si el Motor no responde no inventa un caso: el expediente se reintenta en la pasada siguiente', async () => {
+      const perfil = sinCaso();
+      const { service } = build({ profiles: [], sinCaso: [perfil], abierto: null });
+
+      const resultado = await service.syncPendingReviews({ tenantId: '1', limit: 10 });
+
+      expect(resultado.opened).toBe(0);
+      expect(perfil.update).not.toHaveBeenCalled();
+    });
+
+    it('un caso ya cerrado (409 del Motor) no se reabre: devolvió el expediente a la decisión local', async () => {
+      const perfil = sinCaso();
+      const { service } = build({ profiles: [], sinCaso: [perfil], abierto: null });
+
+      const resultado = await service.syncPendingReviews({ tenantId: '1', limit: 10 });
+
+      expect(resultado.opened).toBe(0);
+      expect(perfil.update).not.toHaveBeenCalled();
+    });
   });
 });
