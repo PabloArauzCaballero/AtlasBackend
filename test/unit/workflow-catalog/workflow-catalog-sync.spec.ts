@@ -110,4 +110,29 @@ describe('syncWorkflowCatalog', () => {
     const broken = { ...FIXTURE, dependencies: [{ step: 'a', dependsOn: 'fantasma', type: 'soft' }] };
     await expect(syncWorkflowCatalog(qi, [broken], 'test')).rejects.toThrow('WORKFLOW_SYNC_UNKNOWN_STEP');
   });
+  it('desmarca la versión predeterminada anterior ANTES de insertar la nueva y el upsert la vuelve a marcar', async () => {
+    const { qi, calls } = fakeQueryInterface();
+    await syncWorkflowCatalog(qi, [{ ...FIXTURE, version: 'v2' }], 'test');
+    const unset = calls.findIndex((c) => /SET is_default = false/.test(c.sql) && /version <> :version/.test(c.sql));
+    const upsert = calls.findIndex((c) => /INSERT INTO .*workflow_definitions\b/s.test(c.sql));
+    expect(unset).toBeGreaterThanOrEqual(0);
+    expect(unset).toBeLessThan(upsert);
+    expect(calls[unset]!.replacements).toMatchObject({ code: 'prueba_volcado', version: 'v2' });
+    expect(calls[upsert]!.sql).toMatch(/DO UPDATE SET[\s\S]*is_default = true/);
+  });
+
+  it('depreca los procesos que el registro ya no declara y borra su huella', async () => {
+    const { qi, calls } = fakeQueryInterface();
+    await syncWorkflowCatalog(qi, [FIXTURE], 'test');
+    const retire = calls.find((c) => /SET status = 'deprecated'/.test(c.sql))!;
+    expect(retire.sql).toMatch(/source = 'code'/);
+    expect(retire.replacements).toEqual({ codes: ['prueba_volcado'] });
+    expect(calls.some((c) => /DELETE FROM .*workflow_definitions_sync/s.test(c.sql))).toBe(true);
+  });
+
+  it('con un registro vacío no retira nada', async () => {
+    const { qi, calls } = fakeQueryInterface();
+    await syncWorkflowCatalog(qi, [], 'test');
+    expect(calls).toHaveLength(0);
+  });
 });
