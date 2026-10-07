@@ -351,6 +351,17 @@ describe('ejecución de una corrida QA: personas y cierre', () => {
     expect(world.closedPending).toEqual([{ status: 'BLOCKED', reason: 'se agotó el presupuesto de solicitudes' }]);
   });
 
+  it('al reanudar, lo ya emitido por otro worker cuenta contra el tope y el plazo corre desde started_at', async () => {
+    const plan = frozenPlan({ limits: { maxRequests: 3, maxDurationMs: 600_000, maxInFlightRequests: 10 } });
+    const { service, world } = fakeWorld(plan, { status: 'RUNNING', started_at: new Date(Date.now() - 3_600_000) });
+    world.requests = 3;
+    const http = fakeBackend();
+    await service.execute('42', fence, signal());
+    // Presupuesto ya agotado y plazo vencido: ninguna persona emite una petición.
+    expect(http.mock.calls.some(([url]) => String(url).includes('/auth/'))).toBe(false);
+    expect(world.finished?.errorMessage).toBe('BUDGET_EXHAUSTED');
+  });
+
   it.each(['LOST_LEASE', 'SHUTDOWN'])('un %s en mitad de la corrida la abandona sin cerrarla', async (reason) => {
     const { service, world } = fakeWorld(frozenPlan());
     const external = new AbortController();

@@ -24,6 +24,8 @@ export type RunContext = {
   namespace: string;
   seed: string;
   referenceDate: string;
+  /** Inicio de la corrida (ms) si ya había empezado: el plazo cuenta desde aquí, no desde cada reanudación. */
+  startedAtMs?: number | null;
 };
 
 export type ExecutionOutcome =

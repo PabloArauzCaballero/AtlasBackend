@@ -83,6 +83,7 @@ export class QaRunExecutionService {
       namespace: run.namespace,
       seed: run.seed,
       referenceDate: run.reference_date,
+      startedAtMs: run.started_at ? new Date(run.started_at).getTime() : null,
     };
   }
 
@@ -118,7 +119,8 @@ export class QaRunExecutionService {
     const onAbort = () => stop(String(signal.reason ?? 'SHUTDOWN'));
     if (signal.aborted) onAbort();
     else signal.addEventListener('abort', onAbort, { once: true });
-    const deadlineAt = Date.now() + ctx.plan.limits.maxDurationMs;
+    // El plazo corre desde el primer arranque: reanudar en otro worker no lo reinicia.
+    const deadlineAt = (ctx.startedAtMs ?? Date.now()) + ctx.plan.limits.maxDurationMs;
     const watcher = setInterval(() => {
       if (Date.now() >= deadlineAt) stop('TIMED_OUT');
       void this.runs.isCancelRequested(runId).then(
@@ -164,7 +166,8 @@ export class QaRunExecutionService {
       onFallback: (input) => this.runs.appendEvent(ctx.runId, 'IDENTITY_IMAGES_FALLBACK', input),
     });
     const { maxRequests, maxInFlightRequests } = ctx.plan.limits;
-    const budget = new RunBudget({ maxRequests, maxInFlightRequests, deadlineAt }, controller.signal);
+    // Lo ya emitido por workers anteriores cuenta contra el tope de la corrida.
+    const budget = new RunBudget({ maxRequests, maxInFlightRequests, deadlineAt }, controller.signal, await this.runs.requestsIssued(ctx.runId));
     controller.signal.addEventListener('abort', () => budget.wakeAll(), { once: true });
     // Fixture «faltante» porque la corrida se abortó mientras se resolvía: no es un bloqueo, se
     // cierra (o se abandona) por el motivo del aborto.

@@ -52,8 +52,9 @@ export class QaRunWorkerRepository {
       seed: string;
       cancel_requested_at: Date | null;
       job_run_id: string;
+      started_at: Date | string | null;
     }>(
-      `SELECT _id, _tenant_id, status, plan_snapshot, namespace, reference_date::text AS reference_date, seed, cancel_requested_at, job_run_id FROM ${S}.qa_runs WHERE _id = $runId;`,
+      `SELECT _id, _tenant_id, status, plan_snapshot, namespace, reference_date::text AS reference_date, seed, cancel_requested_at, job_run_id, started_at FROM ${S}.qa_runs WHERE _id = $runId;`,
       { type: QueryTypes.SELECT, bind: { runId } },
     );
     return rows[0] ?? null;
