@@ -475,8 +475,7 @@ paths:
           in: query
           schema:
             type: string
-            minLength: 1
-            maxLength: 40
+            pattern: ^\d{1,19}$
           description: >-
             Filtra por cliente. No sustituye a la comprobación de pertenencia:
             un `customer` sigue viendo solo lo suyo.
@@ -1385,6 +1384,32 @@ paths:
           description: Código del proveedor externo (`segip`, `infocenter`, …).
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              default: {}
+              type: object
+              properties:
+                customerId:
+                  type: string
+                  pattern: ^\d+$
+                queryType: {}
+                purpose:
+                  type: string
+                  minLength: 3
+                  maxLength: 100
+                decisionStage: {}
+                input:
+                  type: object
+                  propertyNames:
+                    type: string
+                  additionalProperties: {}
+                scenario:
+                  type: string
+                  maxLength: 80
+              additionalProperties: false
       responses:
         '200':
           description: Resultado de la ejecución de prueba.
@@ -11300,7 +11325,10 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
-          description: DECISION_ARTIFACT_NOT_PUBLISHED — el motor no publica ese código.
+          description: >-
+            DECISION_ARTIFACT_NOT_PUBLISHED — el motor no publica ese código;
+            DECISION_PINNED_VERSION_NOT_SUPPORTED — pinnedVersion aún no se
+            aplica.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
