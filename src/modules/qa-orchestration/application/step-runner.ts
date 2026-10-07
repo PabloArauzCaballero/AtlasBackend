@@ -28,8 +28,20 @@ type Prepared = {
   expected: Expectation & { label: string };
 };
 
+const SIGNED_URL = /[?&](x-amz-signature|signature|sig|token)=/i;
+
+/** La URL firmada de subida es una credencial de escritura: no viaja a la evidencia. */
+function scrubSignedUrls(value: unknown, depth = 0): unknown {
+  if (typeof value === 'string') return SIGNED_URL.test(value) ? '[REDACTED]' : value;
+  if (depth > 8 || value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map((item) => scrubSignedUrls(item, depth + 1));
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nested]) => [key, key === 'uploadUrl' ? '[REDACTED]' : scrubSignedUrls(nested, depth + 1)]),
+  );
+}
+
 export function summarize(body: unknown): unknown {
-  const redacted = redactSensitiveObject(body);
+  const redacted = scrubSignedUrls(redactSensitiveObject(body));
   const text = JSON.stringify(redacted) ?? '';
   return text.length > 4_000 ? { truncated: true, preview: text.slice(0, 4_000) } : redacted;
 }
@@ -184,7 +196,7 @@ export class StepRunner {
       if (value === undefined) continue;
       setPath(scope, extraction.to, value);
       // Los tokens se extraen a la sesión pero NUNCA a la evidencia.
-      if (!extraction.to.startsWith('session.')) extracted[extraction.to] = value;
+      if (!extraction.to.startsWith('session.')) extracted[extraction.to] = scrubSignedUrls(value);
     }
     this.evidence.extracted = extracted;
     return this.result('PASSED', { branch: verdict.branch });
