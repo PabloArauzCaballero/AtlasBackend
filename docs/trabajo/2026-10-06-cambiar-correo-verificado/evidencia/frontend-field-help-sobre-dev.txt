@@ -1,0 +1,9 @@
+Ver la cabecera de scripts/check-field-help.mjs para el arreglo o la excepción `// sin-ayuda: <motivo>`.
+npm error Lifecycle script `check:field-help` failed with error:
+npm error code 1
+npm error path /home/user/AtlasFrontend/apps/consumer-app
+npm error workspace atlas-consumer-app@0.1.0
+npm error location /home/user/AtlasFrontend/apps/consumer-app
+npm error command failed
+npm error command sh -c node scripts/check-field-help.mjs
+field-help exit=1

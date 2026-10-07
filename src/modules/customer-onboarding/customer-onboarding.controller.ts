@@ -153,7 +153,12 @@ export class CustomerOnboardingController {
   @ApiResponse({ status: 401, description: 'INVALID_VERIFICATION_CODE o VERIFICATION_CODE_EXPIRED.' })
   @ApiResponse({ status: 403, description: 'El token no permite operar sobre este cliente.' })
   @ApiResponse({ status: 404, description: 'VERIFICATION_ATTEMPT_NOT_FOUND — no hay un intento de verificación pendiente.' })
-  @ApiResponse({ status: 409, description: 'CONTACT_ALREADY_VERIFIED — el contacto ya estaba verificado.' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'CONTACT_ALREADY_VERIFIED — el contacto ya estaba verificado. CONTACT_ALREADY_REGISTERED — el valor verificado ' +
+      'pertenece a otro cliente del tenant y no puede pasar a principal.',
+  })
   @Post(':customerId/contact-verification/submit')
   @HttpCode(HttpStatus.OK)
   submitContactVerification(

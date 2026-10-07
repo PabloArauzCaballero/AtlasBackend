@@ -16,6 +16,7 @@ import { REVIEW_CASE_SOURCE } from '../credit-review-case.constants.js';
 import { decisionColumns, decisionEventPayload, type PlacedReviewCase } from './credit-decision-mapping.js';
 import { publishCreditDecisionRecorded } from './credit-decision-event-publisher.js';
 import { decideWithProduct } from './credit-decision-product-resolution.js';
+import { awaitsEngineVerdict, creditVerdictHeld, holdVerdict } from './credit-verdict-hold.js';
 
 /** Motivo con el que queda una solicitud que fue a revisión porque el motor no llegó a decidirla. */
 export const ENGINE_UNAVAILABLE_REASON = 'engine_unavailable';
@@ -67,15 +68,19 @@ export class CreditUnderwritingService {
     currencyCode: string;
     productCode: string | null;
     purposeCode: string | null;
+    /** El producto exige revisión humana: se pregunta al motor igual, pero su veredicto no cierra el caso. */
+    holdForManualReview?: boolean;
   }): Promise<UnderwritingResult> {
-    const result = await decideWithProduct(this.engine, this.credit, this.logger, input);
+    const { holdForManualReview = false, ...request } = input;
+    const result = await decideWithProduct(this.engine, this.credit, this.logger, request);
     const now = new Date();
 
     return this.sequelize.transaction(async (transaction) => {
       const application = await this.credit.findApplicationById(input.tenantId, input.applicationId, { transaction, lock: true });
       if (!application) return { status: 'unknown', decisionMode: null, executionId: null, reasonCodes: [] };
 
-      if (application.status !== 'submitted') {
+      const awaiting = awaitsEngineVerdict(application, holdForManualReview);
+      if (!awaiting) {
         return {
           status: application.status,
           decisionMode: application.decisionMode,
@@ -86,11 +91,13 @@ export class CreditUnderwritingService {
 
       const previousStatus = application.status;
       // Mientras se preguntaba al motor pudo decidirla una persona: una respuesta tardía no pisa eso.
-      if (previousStatus !== 'submitted') {
+      if (!awaiting) {
         return { status: previousStatus, decisionMode: application.decisionMode ?? null, executionId: null, reasonCodes: [] };
       }
-      const applied = this.resolve(result.outcome);
+      const resolved = this.resolve(result.outcome);
+      const applied = creditVerdictHeld(holdForManualReview) ? holdVerdict(resolved) : resolved;
       const reviewCase = await this.placeReviewCase(applied, input, now, transaction);
+      await this.reviewCases.closeIfResolved(application, applied.status, now, { transaction });
 
       Object.assign(application, decisionColumns(applied, result.subjectReference, now, reviewCase), {
         decisionReasonCode: applied.reasonCodes[0] ?? application.decisionReasonCode,
@@ -196,7 +203,9 @@ export class CreditUnderwritingService {
     now: Date,
     transaction: Transaction,
   ): Promise<PlacedReviewCase> {
-    if (applied.status !== 'under_review') return { code: null, source: null };
+    // Diferida (P-09): sigue `submitted` para el reintento, pero con caso en la bandeja — si la
+    // réplica no llega nunca, la solicitud no puede quedar donde nadie la ve.
+    if (applied.status !== 'under_review' && applied.status !== 'submitted') return { code: null, source: null };
 
     const engineCaseCode = applied.response?.manualReview?.caseCode;
     if (engineCaseCode) return { code: engineCaseCode, source: REVIEW_CASE_SOURCE.engine };

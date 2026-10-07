@@ -73,6 +73,12 @@ export type CreditProductIdParamsDto = z.infer<typeof creditProductIdParamsSchem
 export const creditCustomerIdParamsSchema = z.object({ customerId: z.string().regex(/^[1-9][0-9]*$/) });
 export type CreditCustomerIdParamsDto = z.infer<typeof creditCustomerIdParamsSchema>;
 
+export const bankStatementFileParamsSchema = z.object({
+  customerId: z.string().regex(/^[1-9][0-9]*$/),
+  reviewId: z.string().regex(/^[1-9][0-9]*$/),
+});
+export type BankStatementFileParamsDto = z.infer<typeof bankStatementFileParamsSchema>;
+
 export const creditApplicationParamsSchema = z.object({
   customerId: z.string().regex(/^[1-9][0-9]*$/),
   applicationId: z.string().regex(/^[1-9][0-9]*$/),

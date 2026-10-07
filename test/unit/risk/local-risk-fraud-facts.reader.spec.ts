@@ -9,7 +9,13 @@ import { LocalRiskFraudFactsReader, esIpSinValor } from '../../../src/modules/ri
 const NOW = new Date('2026-10-04T12:00:00Z');
 const hace = (horas: number) => new Date(NOW.getTime() - horas * 3_600_000);
 
-function build(overrides: Record<string, unknown> = {}) {
+const SI = { granted: true, revokedAt: null };
+type Consentimientos = Record<string, { granted: boolean; revokedAt: Date | null } | undefined>;
+
+function build(
+  overrides: Record<string, unknown> = {},
+  consentimientos: Consentimientos = { device_address_book: SI, location_tracking: SI },
+) {
   const modelos = {
     sessions: {
       findAll: jest.fn(async (..._a: unknown[]) => [
@@ -33,6 +39,12 @@ function build(overrides: Record<string, unknown> = {}) {
         { phoneHashes: ['a'], emailCount: 0, isFavorite: false, birthday: null, contactType: 'person', createdAtValue: hace(1) },
       ]),
     },
+    consents: {
+      findOne: jest.fn(async (opciones: unknown) => {
+        const proposito = (opciones as { where: { purposeCode: string } }).where.purposeCode;
+        return consentimientos[proposito] ?? null;
+      }),
+    },
   };
   const usados: Record<string, unknown> = { ...modelos, ...overrides };
   const reader = new LocalRiskFraudFactsReader(
@@ -42,6 +54,7 @@ function build(overrides: Record<string, unknown> = {}) {
     usados.pings as never,
     usados.behavior as never,
     usados.contacts as never,
+    usados.consents as never,
   );
   return { reader, modelos };
 }
@@ -98,6 +111,34 @@ describe('LocalRiskFraudFactsReader.read', () => {
     });
     const hechos = await reader.read('1', '10', NOW);
     expect(hechos).toMatchObject({ sameIpCustomers24h: 0, sessionDevices: 0, emulator: true, mockedLocationPings: 4 });
+  });
+});
+
+describe('LocalRiskFraudFactsReader · consentimiento vigente', () => {
+  it('con la agenda retirada no hay señales de agenda ni se leen las fichas', async () => {
+    const { reader, modelos } = build({}, { device_address_book: { granted: true, revokedAt: new Date() }, location_tracking: SI });
+    const hechos = await reader.read('1', '10', NOW);
+    expect(hechos).toMatchObject({ contactSignals: [], contactsAvailable: false, contactsTotal: null, mockedLocationPings: 4 });
+    expect(modelos.contacts.findAll).not.toHaveBeenCalled();
+  });
+
+  it('con la ubicación negada en la última decisión no cuenta las posiciones simuladas', async () => {
+    const { reader, modelos } = build({}, { device_address_book: SI, location_tracking: { granted: false, revokedAt: null } });
+    const hechos = await reader.read('1', '10', NOW);
+    expect(hechos.mockedLocationPings).toBe(0);
+    expect(modelos.pings.count).not.toHaveBeenCalled();
+    expect(hechos.contactsAvailable).toBe(true);
+  });
+
+  it('pide la ÚLTIMA decisión de cada finalidad, no «alguna concedida»', async () => {
+    const { reader, modelos } = build();
+    await reader.read('1', '10', NOW);
+    const llamadas = modelos.consents.findOne.mock.calls.map((c) => c[0] as { where: Record<string, unknown>; order: unknown });
+    expect(llamadas.map((l) => l.where.purposeCode).sort()).toEqual(['device_address_book', 'location_tracking']);
+    for (const llamada of llamadas) {
+      expect(llamada.where).not.toHaveProperty('granted');
+      expect(llamada.order).toEqual([['_id', 'DESC']]);
+    }
   });
 });
 

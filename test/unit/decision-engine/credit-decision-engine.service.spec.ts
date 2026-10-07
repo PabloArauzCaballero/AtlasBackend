@@ -160,7 +160,10 @@ describe('C-2 de punta a punta · la solicitud NO queda submitted si el registro
       // Frente 3A: `decideWithProduct` lo consulta ANTES de llamar al motor.
       findProductByCode: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown> | null> => ({ annualInterestRate: null })),
     };
-    const reviewCases = { open: jest.fn(async (..._args: unknown[]) => ({ caseCode: 'CR-CRA-1' })) };
+    const reviewCases = {
+      closeIfResolved: jest.fn(async (..._args: unknown[]) => undefined),
+      open: jest.fn(async (..._args: unknown[]) => ({ caseCode: 'CR-CRA-1' })),
+    };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
     const underwritingService = new CreditUnderwritingService(
       engine as never,

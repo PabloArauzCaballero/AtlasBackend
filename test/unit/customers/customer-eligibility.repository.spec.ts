@@ -71,12 +71,16 @@ function build() {
 describe('CustomerEligibilityRepository', () => {
   // Las pruebas de fuera fijan la regla sin revisión humana obligatoria; la política va en su bloque.
   let politica: unknown;
+  let autoAplicar: unknown;
   beforeAll(() => {
     politica = env.IDENTITY_REQUIRE_HUMAN_REVIEW;
+    autoAplicar = env.DECISION_ENGINE_AUTO_APPLY;
     (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = false;
+    (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY = ['credit', 'identity'];
   });
   afterAll(() => {
     (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = politica;
+    (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY = autoAplicar;
   });
 
   it('compone en paralelo todos los hechos y resuelve relaciones indirectas', async () => {

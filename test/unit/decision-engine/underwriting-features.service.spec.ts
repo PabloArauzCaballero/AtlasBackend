@@ -5,6 +5,7 @@
  */
 import { describe, expect, it, jest } from '@jest/globals';
 import { NOT_ASSESSED, UnderwritingFeaturesService } from '../../../src/modules/decision-engine/underwriting-features.service.js';
+import { NO_STATEMENT } from '../../../src/modules/decision-engine/underwriting-statement.service.js';
 import { UnderwritingSignalsService } from '../../../src/modules/decision-engine/underwriting-signals.service.js';
 import { calcularSeñalesDelTelefono } from '../../../src/modules/decision-engine/device-risk-features.js';
 
@@ -52,7 +53,12 @@ function build(
       paymentHistoryScore: 0,
     })),
   };
-  const service = new UnderwritingFeaturesService(signals as never, historial as never, deviceSignals as never);
+  const service = new UnderwritingFeaturesService(
+    signals as never,
+    historial as never,
+    deviceSignals as never,
+    { signalsFor: async () => NO_STATEMENT } as never,
+  );
   return { service, signals };
 }
 

@@ -7,6 +7,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { TracingService } from '../../../common/observability/tracing.service.js';
 import { APP_ATTRIBUTES, DECISION_ATTRIBUTES, SPAN_NAMES } from '../../../observability/telemetry.constants.js';
 import { RISK_RULESET_VERSION } from '../risk-heuristic-v0.constants.js';
+import { ENGINE_VERDICT_HELD_FOR_MANUAL_REVIEW, engineVerdictApplies } from '../../../config/decision-engine-auto-apply.js';
 import { RiskDecisionEngineService } from '../../decision-engine/risk-decision-engine.service.js';
 import { RiskPolicyRepository } from '../repositories/risk-policy.repository.js';
 import { FiredRule, evaluateRuleset } from './risk-ruleset-evaluator.js';
@@ -104,7 +105,7 @@ export class RiskPolicyDecisionService {
         'risk.assessment.type': input.assessmentType,
       },
       async (span) => {
-        const decision = await this.resolveDecision(input);
+        const decision = holdForManualReview(await this.resolveDecision(input));
         span.setAttributes({
           [DECISION_ATTRIBUTES.outcome]: decision.decision,
           'risk.decision.source': decision.decisionSource,
@@ -178,4 +179,18 @@ export class RiskPolicyDecisionService {
       motorAbrioCaso: null,
     };
   }
+}
+
+/**
+ * Con el riesgo fuera de `DECISION_ENGINE_AUTO_APPLY`, ningún escalón cierra el caso: el veredicto
+ * —del Motor, del ruleset o de la heurística— queda escrito como motivo y la decisión pasa a una
+ * persona. La ejecución del Motor ya ocurrió y conserva su `decisionExecutionId`.
+ */
+function holdForManualReview(decision: PolicyDecision): PolicyDecision {
+  if (engineVerdictApplies('risk') || decision.decision === 'manual_review_required') return decision;
+  return {
+    ...decision,
+    decision: 'manual_review_required',
+    reasons: [ENGINE_VERDICT_HELD_FOR_MANUAL_REVIEW, `proposed_${decision.decision}`, ...decision.reasons],
+  };
 }
