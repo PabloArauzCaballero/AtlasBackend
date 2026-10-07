@@ -4,7 +4,8 @@
  * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
  */
 import { Module } from '@nestjs/common';
-import { InternalUsersModule } from '../internal-users/internal-users.module.js';
+import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
+import { InternalRbacRepository } from '../internal-users/internal-rbac.repository.js';
 import { CustomerRecipientDirectoryAdapter } from './infrastructure/customer-recipient-directory.adapter.js';
 import { CustomerCampaignAudienceAdapter } from './infrastructure/customer-campaign-audience.adapter.js';
 import { CustomerRecipientDirectoryController } from './customer-recipient-directory.controller.js';
@@ -31,9 +32,15 @@ import {
   EvidenceDocumentModel,
   EvidenceReviewModel,
   FraudCaseModel,
+  InternalPermissionModel,
+  InternalRoleModel,
+  InternalRolePermissionModel,
+  InternalUserModel,
+  InternalUserRoleModel,
   IdentityVerificationAttemptModel,
   ManualReviewCaseModel,
   OnboardingFlowModel,
+  OperationalAuditLogModel,
   OutboxEventModel,
   RiskAssessmentResultModel,
   WatchlistMatchModel,
@@ -53,8 +60,6 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
 
 @Module({
   imports: [
-    // El guard de permisos internos de la decisión de habilitación necesita su repositorio RBAC.
-    InternalUsersModule,
     SequelizeModule.forFeature([
       CustomerModel,
       CustomerProfileVersionModel,
@@ -79,8 +84,14 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
       OnboardingFlowModel,
       CustomerConsumerSurveyAnswerModel,
       OutboxEventModel,
-      OutboxEventModel,
       FraudCaseModel,
+      // Para el guard de permisos internos de la decisión de habilitación (ver `providers`).
+      InternalUserModel,
+      InternalRoleModel,
+      InternalPermissionModel,
+      InternalRolePermissionModel,
+      InternalUserRoleModel,
+      OperationalAuditLogModel,
     ]),
   ],
   controllers: [CustomersController, CustomerEligibilityController, CustomerRecipientDirectoryController],
@@ -101,6 +112,10 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
     CustomerEligibilityRiskRepository,
     CustomerContactsRepository,
     CustomerEligibilityDecisionService,
+    // Se provee aquí y NO se importa `InternalUsersModule`: éste importa `AuthModule`, que importa
+    // `CustomersModule`, y Nest no resuelve ese ciclo de módulos (la app no arrancaba).
+    InternalRbacRepository,
+    InternalPermissionsGuard,
   ],
   exports: [
     CUSTOMER_STATE_PORT,
