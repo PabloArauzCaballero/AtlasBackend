@@ -189,6 +189,16 @@ export class CustomerDeviceContactsRepository {
     return this.contactModel.destroy({ where: { tenantId, customerId }, transaction: options.transaction });
   }
 
+  /** Todos los hashes de teléfono de la agenda guardada del cliente, sin repetir. */
+  async findStoredPhoneHashes(tenantId: string, customerId: string, options: { transaction?: Transaction } = {}): Promise<string[]> {
+    const fichas = await this.contactModel.findAll({
+      attributes: ['phoneHashes'],
+      where: { tenantId, customerId, deleted: { [Op.ne]: true } },
+      transaction: options.transaction,
+    });
+    return [...new Set(fichas.flatMap((ficha) => ficha.phoneHashes ?? []))];
+  }
+
   /**
    * Cuántas de estas fichas aparecen en la agenda de OTROS expedientes.
    *
@@ -196,11 +206,14 @@ export class CustomerDeviceContactsRepository {
    * distintas comparten los mismos números?» sin descifrar ni una ficha. El operador `&&` de
    * PostgreSQL resuelve el solapamiento contra el índice GIN.
    */
-  async countPhoneOverlapWithOtherCustomers(input: {
-    tenantId: string;
-    customerId: string;
-    phoneHashes: readonly string[];
-  }): Promise<number> {
+  async countPhoneOverlapWithOtherCustomers(
+    input: {
+      tenantId: string;
+      customerId: string;
+      phoneHashes: readonly string[];
+    },
+    options: { transaction?: Transaction } = {},
+  ): Promise<number> {
     if (input.phoneHashes.length === 0) return 0;
     return this.contactModel.count({
       distinct: true,
@@ -211,6 +224,7 @@ export class CustomerDeviceContactsRepository {
         deleted: { [Op.ne]: true },
         phoneHashes: { [Op.overlap]: [...input.phoneHashes] },
       },
+      transaction: options.transaction,
     });
   }
 }

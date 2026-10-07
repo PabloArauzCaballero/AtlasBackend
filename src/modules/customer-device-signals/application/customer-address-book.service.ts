@@ -91,7 +91,7 @@ export class CustomerAddressBookService {
 
     // Cifrar es asíncrono y toca al proveedor de llaves; se hace ANTES de abrir la transacción para
     // no retener locks durante la latencia de KMS con quinientas fichas por delante.
-    const filas = await Promise.all(
+    const todas = await Promise.all(
       input.body.contacts.map((contacto) =>
         toContactRow(contacto, {
           tenantId: input.tenantId,
@@ -105,26 +105,12 @@ export class CustomerAddressBookService {
       ),
     );
 
-    /*
-     * El cruce contra las agendas de OTROS expedientes, sólo en el último lote.
-     *
-     * Es la señal que justifica guardar `phone_hashes` en claro: contesta «¿varias solicitudes
-     * distintas comparten los mismos números?» sin descifrar ni una ficha. Se calcula FUERA de la
-     * transacción —es lectura— y sólo al cerrar la sincronización, porque hacerlo en cada lote daría
-     * un número distinto según cuánta agenda llevara subida.
-     *
-     * No se le devuelve al teléfono: queda en el paso del expediente, que es donde lo lee quien
-     * revisa. Decírselo a la persona analizada le enseñaría qué contacto borrar.
-     */
-    const solapamiento = input.body.isFinalBatch
-      ? await this.contacts.countPhoneOverlapWithOtherCustomers({
-          tenantId: input.tenantId,
-          customerId: input.customerId,
-          phoneHashes: filas.flatMap((fila) => fila.phoneHashes),
-        })
-      : null;
+    // Un mismo contacto dos veces en el lote chocaría con la unicidad al insertar y tumbaría el lote
+    // entero: manda la última aparición, que es la que el teléfono dejó en pie.
+    const filas = [...new Map(todas.map((fila) => [fila.contactExternalIdHash, fila])).values()];
 
-    const resultado = await this.persistBatch({ input, filas, contexto, integrityHash, capturedAt, now, solapamiento });
+    const resultado = await this.persistWithRetry({ input, filas, contexto, integrityHash, capturedAt, now });
+    const solapamiento = resultado.solapamiento;
 
     this.logger.log(
       `Agenda del cliente ${input.customerId}: recibidos=${String(filas.length)} ` +
@@ -186,6 +172,19 @@ export class CustomerAddressBookService {
   }
 
   /**
+   * Un reenvío concurrente del mismo lote choca con la unicidad al insertar la misma ficha: el
+   * segundo intento ya ve las filas del primero y las actualiza en vez de crearlas.
+   */
+  private async persistWithRetry(args: Parameters<CustomerAddressBookService['persistBatch']>[0]) {
+    try {
+      return await this.persistBatch(args);
+    } catch (error) {
+      if ((error as { name?: string }).name !== 'SequelizeUniqueConstraintError') throw error;
+      return this.persistBatch(args);
+    }
+  }
+
+  /**
    * La escritura, entera dentro de UNA transacción.
    *
    * La ejecución, las fichas y las dos trazas van juntas o no va ninguna: una fila de ejecución sin
@@ -199,9 +198,8 @@ export class CustomerAddressBookService {
     integrityHash: string;
     capturedAt: Date;
     now: Date;
-    solapamiento: number | null;
-  }): Promise<{ runId: string; creados: number; actualizados: number; totalStored: number }> {
-    const { input, filas, contexto, integrityHash, capturedAt, now, solapamiento } = args;
+  }): Promise<{ runId: string; creados: number; actualizados: number; totalStored: number; solapamiento: number | null }> {
+    const { input, filas, contexto, integrityHash, capturedAt, now } = args;
     return this.sequelize.transaction(async (transaction) => {
       const flow = await this.journal.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
 
@@ -248,6 +246,30 @@ export class CustomerAddressBookService {
 
       const totalStored = await this.contacts.countFor(input.tenantId, input.customerId, { transaction });
 
+      /*
+       * El cruce contra las agendas de OTROS expedientes, sólo en el último lote.
+       *
+       * Es la señal que justifica guardar `phone_hashes` en claro: contesta «¿varias solicitudes
+       * distintas comparten los mismos números?» sin descifrar ni una ficha. Se calcula sobre TODA la
+       * agenda guardada del cliente (el último lote ya está escrito dentro de esta transacción), no
+       * sobre el lote: con la agenda troceada, el último lote trae a veces un puñado de contactos y
+       * el cruce sólo vería esos. Sólo al cerrar la sincronización, porque hacerlo en cada lote daría
+       * un número distinto según cuánta agenda llevara subida.
+       *
+       * No se le devuelve al teléfono: queda en el paso del expediente, que es donde lo lee quien
+       * revisa. Decírselo a la persona analizada le enseñaría qué contacto borrar.
+       */
+      const solapamiento = input.body.isFinalBatch
+        ? await this.contacts.countPhoneOverlapWithOtherCustomers(
+            {
+              tenantId: input.tenantId,
+              customerId: input.customerId,
+              phoneHashes: await this.contacts.findStoredPhoneHashes(input.tenantId, input.customerId, { transaction }),
+            },
+            { transaction },
+          )
+        : null;
+
       await this.journal.recordAddressBookSync(
         {
           tenantId: input.tenantId,
@@ -271,7 +293,7 @@ export class CustomerAddressBookService {
         { transaction },
       );
 
-      return { runId: String(run.id), creados, actualizados, totalStored };
+      return { runId: String(run.id), creados, actualizados, totalStored, solapamiento };
     });
   }
 }

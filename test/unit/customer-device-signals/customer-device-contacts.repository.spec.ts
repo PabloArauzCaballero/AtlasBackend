@@ -280,6 +280,13 @@ describe('CustomerDeviceContactsRepository', () => {
       expect((condicion.phoneHashes as Record<symbol, string[]>)[Op.overlap]).toEqual(['h1']);
     });
 
+    it('los hashes guardados del cliente se juntan sin repetir y sólo de fichas no borradas', async () => {
+      contacts.findAll.mockResolvedValueOnce([{ phoneHashes: ['h1', 'h2'] }, { phoneHashes: ['h2', 'h3'] }, { phoneHashes: null }]);
+
+      await expect(repo.findStoredPhoneHashes('t1', 'c1')).resolves.toEqual(['h1', 'h2', 'h3']);
+      expect(ultima(contacts.findAll).where).toMatchObject({ tenantId: 't1', customerId: 'c1' });
+    });
+
     it('sin teléfonos no hay solapamiento que contar y no se consulta', async () => {
       await expect(repo.countPhoneOverlapWithOtherCustomers({ tenantId: 't1', customerId: 'c1', phoneHashes: [] })).resolves.toBe(0);
       expect(contacts.count).not.toHaveBeenCalled();
