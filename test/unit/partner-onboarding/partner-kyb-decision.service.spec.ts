@@ -1,4 +1,5 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { env } from '../../../src/config/env.js';
 import { ServiceUnavailableException } from '@nestjs/common';
 import { PartnerKybDecisionService } from '../../../src/modules/partner-onboarding/application/partner-kyb-decision.service.js';
 
@@ -100,7 +101,38 @@ describe('PartnerKybDecisionService', () => {
     });
   });
 
+  /**
+   * Por omisión los comercios NO están en `DECISION_ENGINE_AUTO_APPLY`: el Motor se ejecuta igual
+   * —la ejecución queda en su historial— pero nadie se habilita ni se rechaza sin una persona.
+   */
+  describe('evaluate por omisión (sólo el crédito se aplica solo)', () => {
+    it('un APROBADO del Motor queda como propuesta en REVISION_MANUAL, con su ejecución', async () => {
+      const { service, client } = build({ response: { output: { kyb_decision: 'aprobado', kyb_motivo: 'KYB_COMPLETO' } } });
+      const decision = await service.evaluate({
+        tenantId: '1',
+        profile: perfil(),
+        gaps: [],
+        sucursales: 1,
+        contratoVigente: true,
+        idempotencyKey: 'k',
+      });
+
+      expect(client.execute).toHaveBeenCalledTimes(1);
+      expect(decision.outcome).toBe('REVISION_MANUAL');
+      expect(decision.reason).toBe('ENGINE_VERDICT_HELD_FOR_MANUAL_REVIEW:APROBADO:KYB_COMPLETO');
+    });
+  });
+
   describe('evaluate', () => {
+    let anterior: unknown;
+    beforeEach(() => {
+      anterior = (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY;
+      (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY = ['credit', 'partner'];
+    });
+    afterEach(() => {
+      (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY = anterior;
+    });
+
     it('traduce el veredicto del Motor, con su ejecución, su versión y su caso', async () => {
       const { service, client } = build();
 

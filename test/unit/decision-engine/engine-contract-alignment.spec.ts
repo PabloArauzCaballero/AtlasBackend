@@ -260,6 +260,7 @@ describe('P-10 · variableMetadata: sólo fechas conocidas', () => {
       provenance: {},
       variableMetadata: { requested_amount: { observedAt: NOW.toISOString() } },
       observedAt: { economy: new Date('2026-08-01T00:00:00.000Z'), identity: null },
+      affordabilityIncome: 0,
     };
     const extracto = lineVariableMetadata(features, 'EXTRACTO');
     expect(extracto.capacity_recommended_limit).toBeUndefined();

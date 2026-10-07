@@ -208,10 +208,16 @@ export function assessPaymentCapacity(input: {
   if (byGraduation !== null) candidates.push({ limit: byGraduation, constraint: 'GRADUACION' });
 
   const binding = candidates.reduce((lowest, candidate) => (candidate.limit < lowest.limit ? candidate : lowest));
-  const proposed = byCapacity === null ? 0 : Math.max(0, binding.limit);
+  /*
+   * Un crédito castigado deja la propuesta en CERO. Hasta 2026-10 sólo añadía un motivo y el límite salía igual:
+   * el comentario decía que «pesa más que cualquier otra señal» y el cálculo no lo aplicaba. El artefacto de
+   * crédito 2.2.0 también lo veta; aquí se cierra para que la propuesta no contradiga a la política.
+   */
+  const castigado = input.relationship.chargeOffCount > 0;
+  const proposed = byCapacity === null || castigado ? 0 : Math.max(0, binding.limit);
   const recommendedLimit = proposed < policy.minimumUsefulLimit ? 0 : round2(proposed);
 
-  if (recommendedLimit === 0 && byCapacity !== null) {
+  if (recommendedLimit === 0 && byCapacity !== null && !castigado) {
     add(
       'CAP_POR_DEBAJO_DEL_MINIMO',
       `La capacidad medida no llega al mínimo útil del producto (${String(policy.minimumUsefulLimit)}).`,
@@ -235,7 +241,7 @@ export function assessPaymentCapacity(input: {
   if (input.relationship.chargeOffCount > 0) {
     add(
       'CAP_CREDITO_CASTIGADO',
-      'Hay un crédito castigado en el historial, y eso pesa más que cualquier otra señal.',
+      'Hay un crédito castigado en el historial: no se propone ningún límite.',
       `${String(input.relationship.chargeOffCount)} castigo(s)`,
     );
   }
