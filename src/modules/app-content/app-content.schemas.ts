@@ -79,6 +79,16 @@ export const listAdminContentQuerySchema = listContentQuerySchema.extend({
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
+/** Sólo `https://`: es lo único que un `link` puede abrir. */
+export function isHttpsUrl(value: string | null | undefined): boolean {
+  if (!value) return false;
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export const upsertContentSchema = z
   .object({
     surface: contentSurfaceSchema,
@@ -99,6 +109,11 @@ export const upsertContentSchema = z
   // para que quien edita lea por qué en lugar de un error de restricción.
   .refine((value) => !value.actionKind || (value.actionLabel && value.actionValue), {
     message: 'Una acción necesita etiqueta y destino.',
+    path: ['actionValue'],
+  })
+  // Un `link` lo abre la app (y la web) tal cual: `javascript:`, `data:` o `http:` no son un destino válido.
+  .refine((value) => value.actionKind !== 'link' || isHttpsUrl(value.actionValue), {
+    message: 'Un enlace debe ser una URL https.',
     path: ['actionValue'],
   });
 

@@ -9,6 +9,7 @@ import { FindOptions } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
 import { withTextSearch } from '../../common/utils/query/text-search.util.js';
 import { AppContentEntryModel } from '../../database/models/index.js';
+import { isHttpsUrl } from './app-content.schemas.js';
 import type { ContentSurface, UpsertContentDto } from './app-content.types.js';
 
 /** Prefijo internacional de Bolivia. El portal guarda el número local; el enlace lo arma el servidor. */
@@ -171,6 +172,8 @@ export class AppContentService {
 
   private resolveAction(row: AppContentEntryModel): { kind: string; label: string; url: string } | null {
     if (!row.actionKind || !row.actionLabel || !row.actionValue) return null;
+    // Filas guardadas antes de validar el esquema: un `link` que no sea https no se sirve.
+    if (row.actionKind === 'link' && !isHttpsUrl(row.actionValue)) return null;
     if (row.actionKind !== 'whatsapp') return { kind: row.actionKind, label: row.actionLabel, url: row.actionValue };
 
     const digits = row.actionValue.replace(/\D/g, '');
