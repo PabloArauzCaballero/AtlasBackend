@@ -49,14 +49,21 @@ describe('RedisThrottlerStorage', () => {
       expect(result).toEqual({ totalHits: 1, timeToExpire: 60, isBlocked: false, timeToBlockExpire: 0 });
     });
 
-    it('si Redis está caído/inalcanzable (el comando rechaza), degrada FAIL-OPEN sin colgar ni tumbar el request', async () => {
+    it('si Redis está caído/inalcanzable, degrada a un límite POR PROCESO: cuenta y, al pasar el límite, bloquea', async () => {
       const brokenRedis = buildRedis({
         pttl: jest.fn(async (..._args: unknown[]) => {
           throw new Error('Stream isn’t writeable and enableOfflineQueue options is false');
         }),
       });
-      const result = await buildStorage(brokenRedis).increment('ip:1', 60_000, 10, 0, 'default');
-      expect(result).toEqual({ totalHits: 1, timeToExpire: 60, isBlocked: false, timeToBlockExpire: 0 });
+      const storage = buildStorage(brokenRedis);
+      const first = await storage.increment('ip:1', 60_000, 2, 0, 'default');
+      expect(first).toEqual({ totalHits: 1, timeToExpire: 60, isBlocked: false, timeToBlockExpire: 0 });
+      await storage.increment('ip:1', 60_000, 2, 0, 'default');
+      const third = await storage.increment('ip:1', 60_000, 2, 0, 'default');
+      expect(third).toMatchObject({ totalHits: 3, isBlocked: true, timeToBlockExpire: 60 });
+      // otra IP y otro throttler no comparten cuota
+      expect((await storage.increment('ip:2', 60_000, 2, 0, 'default')).isBlocked).toBe(false);
+      expect((await storage.increment('ip:1', 60_000, 2, 0, 'otro')).isBlocked).toBe(false);
     });
   });
 

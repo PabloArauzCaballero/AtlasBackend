@@ -8,7 +8,7 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 
-import { derivePriority } from '../domain/priority-policy.js';
+import { derivePriority, requesterClassification } from '../domain/priority-policy.js';
 import { SupportCatalogRepository } from '../support-catalog.repository.js';
 import { SupportCaseRepository } from '../support-case.repository.js';
 import type { OpenCaseDto } from '../support-case.schemas.js';
@@ -87,14 +87,20 @@ export class SupportCaseService {
     this.actors.assertCategoryAllowed(input.actor, category);
 
     const caseType = (input.dto.caseType ?? category.defaultCaseType ?? 'QUESTION') as SupportCaseType;
-    const impact = (input.dto.impact ?? category.defaultImpact) as SupportImpact;
-    const urgency = (input.dto.urgency ?? category.defaultUrgency) as SupportUrgency;
+    const porDefecto = { impact: category.defaultImpact as SupportImpact, urgency: category.defaultUrgency as SupportUrgency };
+    // Sólo el equipo clasifica a mano; a clientes y comercios se les acota lo que declaran.
+    const { impact, urgency } = input.actor.isInternal
+      ? { impact: input.dto.impact ?? porDefecto.impact, urgency: input.dto.urgency ?? porDefecto.urgency }
+      : requesterClassification({ urgency: input.dto.urgency }, porDefecto);
     const priority = derivePriority({ impact, urgency, caseType });
 
     const queue = category.defaultQueueId ? await this.catalog.findQueueById(input.tenantId, String(category.defaultQueueId)) : null;
     const policy = await this.catalog.findActiveSlaPolicy(input.tenantId, queue?.slaPolicyCode ?? DEFAULT_SLA_POLICY_CODE, priority);
 
     const subject = this.resolveSubject(input.actor, input.dto);
+    // El comercio del cuerpo se contrasta con su dueño ANTES de escribir: el comentario del
+    // controlador lo prometía y sólo se cumplía al leer.
+    if (subject.partnerProfileId) await this.actors.assertOwnsPartnerProfile(input.actor, subject.partnerProfileId, input.tenantId);
     if (subject.contextType === 'CONSUMER' && !input.dto.acknowledgeDuplicate) {
       const open = await this.cases.findOpenCasesForCustomer(input.tenantId, subject.customerId as string, caseType);
       if (open.length) {

@@ -96,6 +96,8 @@ describe('P-10 · CreditDecisionEngineService sólo aprueba lo que classifyDecis
 describe('P-10 · usableLimit del recálculo de línea', () => {
   it('aprobación limpia → escribe el límite emitido', () => {
     expect(usableLimit(response(), { approved_credit_limit: 1500 })).toEqual({ write: true, approvedLimit: 1500 });
+    // Segunda red: aunque la política devuelva decimales, la línea se escribe de 50 en 50, hacia abajo.
+    expect(usableLimit(response(), { approved_credit_limit: 1234.56 })).toEqual({ write: true, approvedLimit: 1200 });
   });
 
   it('rechazo → escribe cero (lo que la política dijo)', () => {

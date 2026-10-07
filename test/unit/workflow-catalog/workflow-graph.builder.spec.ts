@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { buildWorkflowGraph } from '../../../src/modules/workflow-catalog/workflow-graph.builder.js';
-import { buildBundle } from './workflow-bundle.fixtures.js';
+import { buildBundle, buildStep } from './workflow-bundle.fixtures.js';
 
 describe('buildWorkflowGraph', () => {
   it('emite un nodo por etapa y uno por paso', () => {
@@ -31,6 +31,25 @@ describe('buildWorkflowGraph', () => {
 
     const node = graph.nodes.find((candidate) => candidate.id === 'step:step.one');
     expect(node).toMatchObject({ label: 'POST /auth/login', httpMethod: 'POST', routePath: '/auth/login', isEntry: true });
+  });
+
+  it('etiqueta con el nombre un paso que no es HTTP, no con "null null"', () => {
+    const bundle = buildBundle();
+    bundle.steps.push(
+      buildStep({
+        id: '110',
+        stepCode: 'step.job',
+        name: 'Job nocturno',
+        workflowStageId: '10',
+        httpMethod: null,
+        routePath: null,
+        stepKind: 'job',
+      }),
+    );
+
+    const node = buildWorkflowGraph(bundle).nodes.find((candidate) => candidate.id === 'step:step.job');
+
+    expect(node).toMatchObject({ label: 'Job nocturno', httpMethod: null, routePath: null });
   });
 
   it('emite una arista por transición, con null en los extremos del flujo', () => {

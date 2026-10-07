@@ -31,8 +31,9 @@ describe('AuthPasswordChangeService', () => {
       findActiveOneTimeCodeByActor: jest.fn(async (..._args: unknown[]) => null as unknown),
       findActiveOneTimeCodeByChallenge: jest.fn(async (..._args: unknown[]) => null as unknown),
       createOneTimeCode: jest.fn(async (..._args: unknown[]) => ({})),
+      reserveOneTimeCodeAttempt: jest.fn(async (..._args: unknown[]) => true),
       registerOneTimeCodeFailedAttempt: jest.fn(async (..._args: unknown[]) => undefined),
-      consumeOneTimeCode: jest.fn(async (..._args: unknown[]) => undefined),
+      consumeOneTimeCode: jest.fn(async (..._args: unknown[]) => true),
     };
     const passwordChangeRepository = {
       findCredential: jest.fn(async (..._args: unknown[]) => ({ passwordHash }) as unknown),

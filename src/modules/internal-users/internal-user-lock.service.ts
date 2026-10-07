@@ -9,7 +9,7 @@ import { AuthCredentialModel } from '../../database/models/index.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { parsePositiveId } from '../../common/utils/ids/id.util.js';
 import { InternalRbacRepository } from './internal-rbac.repository.js';
-import { assertInternalActor } from './internal-users.policy.js';
+import { assertCanAssignRequestedRoles, assertInternalActor } from './internal-users.policy.js';
 import { UnlockInternalUserDto } from './internal-users.schemas.js';
 import { InternalAccessProfile } from './internal-users.types.js';
 
@@ -27,7 +27,7 @@ const SIN_BLOQUEO: InternalUserLockState = { locked: false, lockedUntil: null, f
  *
  * `internal_users.status = 'locked'` es una decisión de un administrador y ya tiene su vía
  * (`PATCH /internal/users/:id`). Lo de aquí es el bloqueo automático tras N intentos fallidos
- * (`auth.repository.ts → recordFailedAttempt`), que pone `locked_until` en el futuro y, hasta hoy,
+ * (`auth.repository.ts → reserveLoginAttempt`), que pone `locked_until` en el futuro y, hasta hoy,
  * sólo se levantaba esperando o por SQL — y por SQL con la trampa de escribir un hash por ssh.
  *
  * Va en un servicio aparte porque `InternalRbacRepository` está congelado en la línea base de
@@ -79,6 +79,13 @@ export class InternalUserLockService {
     const targetUserId = parsePositiveId(internalUserId, 'internalUserId');
     const user = await this.rbacRepository.findUserById(actor.tenantId, targetUserId);
     if (!user) throw new NotFoundException('Usuario interno no encontrado.');
+
+    // Desbloquear a una cuenta con rol privilegiado exige SUPER_ADMIN, como tocar sus roles: el bloqueo es
+    // justo la defensa contra la fuerza bruta sobre las cuentas que más importan.
+    if (targetUserId !== actor.internalUserId) {
+      const target = await this.rbacRepository.buildAccessProfile(user);
+      await assertCanAssignRequestedRoles(this.rbacRepository, actor, [], target.user.roles);
+    }
 
     const credential = await this.findCredential(targetUserId);
     const lockedUntil = credential?.lockedUntil ? new Date(credential.lockedUntil) : null;

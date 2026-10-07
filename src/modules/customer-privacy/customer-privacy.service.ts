@@ -3,13 +3,14 @@
  * @business Esta pieza hace exigibles los derechos de privacidad y limita el uso de datos personales.
  * @system gestiona decisiones de tratamiento y solicitudes del titular con auditoría y aislamiento por tenant.
  */
-import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../common/utils/auth/ownership.util.js';
 import { encryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { createStableCode, sha256Hex } from '../../common/utils/crypto/hash.util.js';
+import { consentHappenedAt } from '../consents/consent-time.util.js';
 import { ConsentsRepository } from '../consents/consents.repository.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { CustomerPrivacyRepository } from './customer-privacy.repository.js';
@@ -36,6 +37,11 @@ export class CustomerPrivacyService {
   }) {
     if (!input.idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     assertOwnCustomerResource(input.currentUser, input.customerId);
+    // Otorgar es un acto del titular: el personal interno puede registrar una revocación o un rechazo en su
+    // nombre, pero un «granted» sin el titular se vería en `customer_consents` como aceptación propia.
+    if (input.currentUser.role !== 'customer' && input.body.decisions.some((decision) => decision.decision === 'granted')) {
+      throw new ForbiddenException('CONSENT_GRANT_REQUIRES_CUSTOMER');
+    }
     const customer = await this.customersRepository.findById(input.tenantId, input.customerId);
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
@@ -54,7 +60,7 @@ export class CustomerPrivacyService {
       let processed = 0;
       let hasRevoked = false;
       for (const decision of input.body.decisions) {
-        const happenedAt = decision.decidedAt ? new Date(decision.decidedAt) : now;
+        const happenedAt = consentHappenedAt(decision.decidedAt, now);
         const consent = await this.privacyRepository.createCustomerConsent(
           {
             tenantId: input.tenantId,

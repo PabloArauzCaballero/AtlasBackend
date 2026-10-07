@@ -11,24 +11,39 @@ import { OutboxRelayService, type RelayRunResult } from '../platform/events/outb
 
 export const MESSAGING_OWNER_ID = 'messaging-worker';
 export const MESSAGING_CONTEXT = 'messaging';
+const SHUTDOWN_WAIT_MS = 10_000;
 
 @Injectable()
 export class MessagingRelayLoopService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MessagingRelayLoopService.name);
   private timer: NodeJS.Timeout | null = null;
   private running = false;
+  private inFlight: Promise<unknown> | null = null;
   private lastResult: RelayRunResult | null = null;
 
   constructor(private readonly relay: OutboxRelayService) {}
 
   onModuleInit(): void {
-    this.timer = setInterval(() => void this.tick(), env.MESSAGING_RELAY_INTERVAL_MS);
+    this.timer = setInterval(() => {
+      this.inFlight = this.tick();
+    }, env.MESSAGING_RELAY_INTERVAL_MS);
     this.timer.unref();
   }
 
-  onModuleDestroy(): void {
+  /** Espera el tick en curso (con techo) antes de que Nest cierre el pool: un lote reclamado no queda a medias. */
+  async onModuleDestroy(): Promise<void> {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    const pending = this.inFlight;
+    if (!pending) return;
+    let techo: NodeJS.Timeout | undefined;
+    await Promise.race([
+      pending.catch(() => undefined),
+      new Promise<void>((resolve) => {
+        techo = setTimeout(resolve, SHUTDOWN_WAIT_MS);
+      }),
+    ]);
+    clearTimeout(techo);
   }
 
   /** Último resultado (para la sonda): `fenced` = el piloto no es dueño todavía. */

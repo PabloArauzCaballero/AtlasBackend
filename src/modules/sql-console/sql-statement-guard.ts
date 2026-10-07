@@ -5,12 +5,13 @@
  */
 import {
   SQL_ALLOWED_LEADING_KEYWORDS,
+  SQL_CONSOLE_BASE_SCHEMAS,
   SQL_CONSOLE_LIMITS,
   SQL_FORBIDDEN_FUNCTIONS,
   SQL_FORBIDDEN_KEYWORDS,
   SQL_FORBIDDEN_RELATIONS,
 } from './sql-console.constants.js';
-import { scanSql } from './sql-tokenizer.js';
+import { scanSql, type SqlScan } from './sql-tokenizer.js';
 
 export type SqlViolation = { code: string; message: string };
 
@@ -19,6 +20,7 @@ export type SqlGuardVerdict = { ok: true; statement: string } | { ok: false; vio
 const FORBIDDEN_KEYWORDS = new Set<string>(SQL_FORBIDDEN_KEYWORDS);
 const FORBIDDEN_FUNCTIONS = new Set<string>(SQL_FORBIDDEN_FUNCTIONS);
 const FORBIDDEN_RELATIONS = new Set<string>(SQL_FORBIDDEN_RELATIONS);
+const BASE_SCHEMAS = new Set<string>(SQL_CONSOLE_BASE_SCHEMAS);
 const LEADING_KEYWORDS = new Set<string>(SQL_ALLOWED_LEADING_KEYWORDS);
 
 const TAB = 9;
@@ -38,10 +40,13 @@ const DELETE_CHARACTER = 127;
  * Devuelve VIOLACIONES con código, no un booleano: la consola tiene que poder decir qué palabra
  * sobra. «Consulta no permitida» obliga a adivinar y termina con la gente probando variantes a
  * ciegas contra la base de producción.
+ *
+ * `baseSchemas` (por defecto NO) abre las tablas base a quien puede ver en claro. Quien no, se queda
+ * en `read_api`: el enmascarado por nombre de columna no resiste un alias, así que lo que no se
+ * debe ver no se alcanza, en vez de confiar en taparlo después.
  */
-export function guardSqlStatement(input: string): SqlGuardVerdict {
+export function guardSqlStatement(input: string, options: { baseSchemas?: boolean } = {}): SqlGuardVerdict {
   const raw = input.trim();
-  const violations: SqlViolation[] = [];
 
   if (raw.length === 0) {
     return fail([{ code: 'SQL_EMPTY_STATEMENT', message: 'Escribe una consulta.' }]);
@@ -98,12 +103,25 @@ export function guardSqlStatement(input: string): SqlGuardVerdict {
     ]);
   }
 
+  const violations = contentViolations(scan, options);
+  if (violations.length > 0) return fail(violations);
+  return { ok: true, statement: scan.normalized };
+}
+
+/** Lo que la sentencia contiene y no se admite: escapes Unicode, funciones, palabras, relaciones y esquemas. */
+function contentViolations(scan: SqlScan, options: { baseSchemas?: boolean }): SqlViolation[] {
+  const violations: SqlViolation[] = [];
+
+  if (scan.unicodeEscapes) {
+    violations.push({
+      code: 'SQL_UNICODE_ESCAPE',
+      message: 'Los nombres y literales con escape Unicode (U&"…") no se admiten: la consola no puede comprobar a qué apuntan.',
+    });
+  }
+
   for (const word of scan.words) {
     if (word.followedBy === '(' && FORBIDDEN_FUNCTIONS.has(word.value)) {
-      violations.push({
-        code: 'SQL_FORBIDDEN_FUNCTION',
-        message: `La función ${word.value}() no está disponible: lee fuera de las tablas, abre otra conexión o cambia el estado del servidor.`,
-      });
+      violations.push(functionViolation(word.value));
     }
 
     // Un `.` delante lo descarta como calificador (`t.update`), donde la palabra es un nombre de
@@ -116,14 +134,20 @@ export function guardSqlStatement(input: string): SqlGuardVerdict {
     }
 
     if (FORBIDDEN_RELATIONS.has(word.value)) violations.push(relationViolation(word.value));
+
+    if (!options.baseSchemas && word.followedBy === '.' && BASE_SCHEMAS.has(word.value)) {
+      violations.push(baseSchemaViolation(word.value));
+    }
   }
 
   for (const identifier of scan.quotedIdentifiers) {
+    // Entre comillas Postgres llama a la MISMA función: `"set_config"(…)` es `set_config(…)`.
+    if (FORBIDDEN_FUNCTIONS.has(identifier)) violations.push(functionViolation(identifier));
+    if (!options.baseSchemas && BASE_SCHEMAS.has(identifier)) violations.push(baseSchemaViolation(identifier));
     if (FORBIDDEN_RELATIONS.has(identifier)) violations.push(relationViolation(identifier));
   }
 
-  if (violations.length > 0) return fail(violations);
-  return { ok: true, statement: scan.normalized };
+  return violations;
 }
 
 /**
@@ -146,6 +170,20 @@ function relationViolation(relation: string): SqlViolation {
   return {
     code: 'SQL_FORBIDDEN_RELATION',
     message: `La relación «${relation}» guarda credenciales o valores muestreados de otras tablas: no se sirve ni enmascarada.`,
+  };
+}
+
+function functionViolation(name: string): SqlViolation {
+  return {
+    code: 'SQL_FORBIDDEN_FUNCTION',
+    message: `La función ${name}() no está disponible: lee fuera de las tablas, abre otra conexión o cambia el estado del servidor.`,
+  };
+}
+
+function baseSchemaViolation(schema: string): SqlViolation {
+  return {
+    code: 'SQL_BASE_SCHEMA',
+    message: `El esquema «${schema}» guarda datos personales sin desidentificar: tu rol consulta sólo read_api.`,
   };
 }
 

@@ -6,9 +6,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Transaction } from 'sequelize';
+import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { env } from '../../config/env.js';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { DecisionSubjectLinkModel } from '../../database/models/index.js';
+
+const TABLE = `${atlasSchemaFor('decision_subject_links')}.decision_subject_links`;
 
 /** Para qué se emitió la referencia. Un mismo cliente tiene una distinta por propósito. */
 export const CREDIT_DECISION_PURPOSE = 'credit_underwriting';
@@ -53,38 +56,27 @@ export class SubjectReferenceService {
     const subjectReference = this.derive(input.tenantId, input.customerId, purposeCode);
     const now = new Date();
 
-    const existing = await this.linkModel.findOne({
-      where: { tenantId: input.tenantId, customerId: input.customerId, purposeCode },
-      transaction: options.transaction,
-    } as FindOptions);
-
-    if (existing) {
-      existing.lastSeenAt = now;
-      existing.decisionCount += 1;
-      existing.updatedAtValue = now;
-      await existing.save({ transaction: options.transaction });
-      return existing.subjectReference;
-    }
-
-    await this.linkModel.create(
+    /*
+     * Un solo INSERT ... ON CONFLICT: buscar y luego crear hacía fallar a una de dos decisiones
+     * simultáneas de un cliente nuevo (violación de ux_decision_subject_links_customer), y el
+     * contador por lectura-modificación-escritura perdía cuentas. Aquí la base arbitra y suma.
+     * `_created_at` va explícito por el mismo motivo de siempre: el DEFAULT no se aplica si el valor
+     * viaja nulo, y no queremos depender de ello.
+     */
+    const [rows] = (await this.linkModel.sequelize!.query(
+      `INSERT INTO ${TABLE} (_tenant_id, customer_id, subject_reference, purpose_code, first_seen_at, last_seen_at, decision_count, _created_at, _updated_at)
+       VALUES (:tenantId, :customerId, :subjectReference, :purposeCode, :now, :now, 1, :now, :now)
+       ON CONFLICT (_tenant_id, customer_id, purpose_code)
+       DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at,
+                     decision_count = ${TABLE}.decision_count + 1,
+                     _updated_at = EXCLUDED._updated_at
+       RETURNING subject_reference`,
       {
-        tenantId: input.tenantId,
-        customerId: input.customerId,
-        subjectReference,
-        purposeCode,
-        firstSeenAt: now,
-        lastSeenAt: now,
-        decisionCount: 1,
-        // `_created_at` tiene DEFAULT now() en la base, pero el modelo lo declara `allowNull: false`
-        // y Sequelize valida ANTES de enviar la sentencia: sin este valor el insert se rechazaba en
-        // el cliente y no llegaba a Postgres, de modo que la primera decisión de cualquier cliente
-        // moría con una violación de restricción que la base nunca había emitido.
-        createdAtValue: now,
-        updatedAtValue: now,
-      } as never,
-      { transaction: options.transaction },
-    );
-    return subjectReference;
+        replacements: { tenantId: input.tenantId, customerId: input.customerId, subjectReference, purposeCode, now },
+        transaction: options.transaction,
+      },
+    )) as [{ subject_reference: string }[], unknown];
+    return rows[0]?.subject_reference ?? subjectReference;
   }
 
   /**

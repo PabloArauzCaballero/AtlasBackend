@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { ForbiddenException } from '@nestjs/common';
 import { callArg } from '../../support/jest-mocks.js';
 import { CustomerOnboardingController } from '../../../src/modules/customer-onboarding/customer-onboarding.controller.js';
 import { requireIdempotencyKey, tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.js';
@@ -66,5 +67,45 @@ describe('CustomerOnboardingController', () => {
     await controller.submitAddressPackage('1', 'idem', params, { address: {} } as never, user, req);
     expect(callArg<{ customerId: string }>(service.submitIdentityPackage, 0, 0).customerId).toBe('9');
     expect(callArg<{ ipAddress: string }>(service.submitAddressPackage, 0, 0).ipAddress).toBe('7.7.7.7');
+  });
+
+  describe('applyIdentityManualReview: quien decide es quien llama', () => {
+    function conRevision() {
+      const outcome = { applyForCustomer: jest.fn(async (..._args: unknown[]) => ({ identityResult: 'verified' })) };
+      const controller = new CustomerOnboardingController({} as never, outcome as never, {} as never);
+      return { controller, outcome };
+    }
+    const analista = { role: 'risk_analyst', tenantId: '1', internalUserId: '7' } as never;
+
+    it('FALLA sin el fix: el revisor sale del token y el endpoint se marca como operador', async () => {
+      const { controller, outcome } = conRevision();
+      await controller.applyIdentityManualReview('1', params, { decision: 'approved', notes: 'ok' } as never, analista);
+      expect(outcome.applyForCustomer).toHaveBeenCalledWith(
+        { tenantId: '1', customerId: '9', decision: 'approved', reviewedByInternalUserId: '7', notes: 'ok' },
+        'operator',
+      );
+    });
+
+    it('FALLA sin el fix: atribuir la decisión a otro analista es 403 y no resuelve nada', async () => {
+      const { controller, outcome } = conRevision();
+      expect(() =>
+        controller.applyIdentityManualReview(
+          '1',
+          params,
+          { decision: 'approved', notes: 'ok', reviewedByInternalUserId: '8' } as never,
+          analista,
+        ),
+      ).toThrow(ForbiddenException);
+      expect(outcome.applyForCustomer).not.toHaveBeenCalled();
+    });
+
+    it('un token sin usuario interno es 403 (antes escribía "" en una FK bigint y daba 500)', () => {
+      const { controller, outcome } = conRevision();
+      const sinInterno = { role: 'platform_admin', tenantId: '1' } as never;
+      expect(() => controller.applyIdentityManualReview('1', params, { decision: 'rejected', notes: 'x' } as never, sinInterno)).toThrow(
+        ForbiddenException,
+      );
+      expect(outcome.applyForCustomer).not.toHaveBeenCalled();
+    });
   });
 });

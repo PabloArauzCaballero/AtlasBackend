@@ -143,6 +143,37 @@ export class CreditApplicationModel extends Model {
   @Column({ field: 'business_acceptance_notes', type: DataType.TEXT })
   declare businessAcceptanceNotes: string | null;
 
+  /**
+   * El pago inicial (el 60 % de la compra), que el cliente hace directo al comercio y avisa con un comprobante.
+   *
+   * `down_payment_status`: nulo = todavía no avisó; `submitted` = avisó y espera al comercio; `confirmed` = el
+   * comercio vio el dinero entrar; `rejected` = el comercio dijo por qué no (el cliente puede avisar de nuevo).
+   * Atlas nunca recibe este dinero: lo confirma quien lo recibe.
+   */
+  @Column({ field: 'down_payment_amount', type: DataType.DECIMAL(18, 2) })
+  declare downPaymentAmount: string | null;
+
+  @Column({ field: 'down_payment_status', type: DataType.STRING(20) })
+  declare downPaymentStatus: string | null;
+
+  @Column({ field: 'down_payment_proof_evidence_id', type: DataType.BIGINT })
+  declare downPaymentProofEvidenceId: string | null;
+
+  @Column({ field: 'down_payment_payer_reference', type: DataType.STRING(160) })
+  declare downPaymentPayerReference: string | null;
+
+  @Column({ field: 'down_payment_submitted_at', type: DataType.DATE })
+  declare downPaymentSubmittedAt: Date | null;
+
+  @Column({ field: 'down_payment_decided_at', type: DataType.DATE })
+  declare downPaymentDecidedAt: Date | null;
+
+  @Column({ field: 'down_payment_decided_by', type: DataType.STRING(160) })
+  declare downPaymentDecidedBy: string | null;
+
+  @Column({ field: 'down_payment_rejection_reason', type: DataType.STRING(300) })
+  declare downPaymentRejectionReason: string | null;
+
   @Column({ field: 'decided_at', type: DataType.DATE })
   declare decidedAt: Date | null;
 

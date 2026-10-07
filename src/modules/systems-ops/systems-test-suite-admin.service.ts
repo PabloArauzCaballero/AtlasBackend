@@ -7,6 +7,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { actorId } from '../../common/utils/auth/actor.util.js';
 import { mapTestStep, mapTestSuite } from './systems-ops.mapper.js';
+import { restoreRedactedHeaders } from './systems-header-redaction.util.js';
 import {
   CreateTestStepDto,
   CreateTestSuiteDto,
@@ -66,7 +67,9 @@ export class SystemsTestSuiteAdminService {
     await this.assertEndpointBelongsToCatalog(input.endpointId ?? null);
     this.assertStepSafety(suite.isSafeForProduction, { ...mapTestStep(step), ...input } as CreateTestStepDto);
     try {
-      return mapTestStep(await this.repository.updateStep(step, input));
+      // El paso se lee con las llaves redactadas; si vuelven tal cual, se conserva lo guardado.
+      const headers = input.defaultHeaders && restoreRedactedHeaders(input.defaultHeaders, step.defaultHeaders);
+      return mapTestStep(await this.repository.updateStep(step, headers ? { ...input, defaultHeaders: headers } : input));
     } catch (error) {
       this.handlePersistenceError(error, 'SYSTEM_TEST_STEP_UPDATE_FAILED');
     }

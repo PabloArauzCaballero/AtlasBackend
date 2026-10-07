@@ -24,7 +24,12 @@ export type DashboardQueryDto = z.infer<typeof dashboardQuerySchema>;
 export const providerRequestsQuerySchema = z.object({
   days: daysSchema.default(7),
   providerCode: z.string().trim().min(2).max(80).optional(),
-  customerId: z.string().trim().min(1).max(40).optional(),
+  // Columna BIGINT: un valor no numérico llegaba a la consulta y daba 500 en vez de 400.
+  customerId: z
+    .string()
+    .trim()
+    .regex(/^\d{1,19}$/)
+    .optional(),
   /**
    * Lista separada por comas (`?responseStatus=FAILED,RATE_LIMITED`). Se acepta como texto libre
    * y no como enum cerrado a propósito: `response_status` es una columna de texto que ha ganado

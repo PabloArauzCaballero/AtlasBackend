@@ -233,8 +233,8 @@ export class UnderwritingSignalsService {
    * Hasta el 2026-09-25 el core mandaba `sanctions_screening_result = 'CLEAR'`, `pep_status = false`
    * y `fraud_signal = false` para TODOS, declarados `ausente` en la procedencia pero con el valor
    * limpio en la variable: la política los leía como «se cotejó y salió limpio». Nadie lo había
-   * cotejado. `watchlist_matches` sólo tiene fila mientras un cotejo ENCONTRÓ algo y nadie lo
-   * descartó (`clearMatch` la borra), y el cotejo es una acción manual de operaciones: la ausencia de
+   * cotejado. `watchlist_matches` sólo tiene fila ABIERTA mientras un cotejo ENCONTRÓ algo y nadie lo
+   * descartó (`clearMatch` la marca con `cleared_at`), y el cotejo es una acción manual de operaciones: la ausencia de
    * fila no distingue «salió limpio» de «nunca se cotejó». Con `fraud_cases` pasa lo mismo: un caso
    * abierto es un hecho; su ausencia sólo dice que nadie abrió caso.
    *
@@ -243,7 +243,7 @@ export class UnderwritingSignalsService {
    */
   async complianceSignals(tenantId: string, customerId: string): Promise<{ activeWatchlistMatch: boolean; openFraudCase: boolean }> {
     const [matches, cases] = await Promise.all([
-      this.watchlistMatches.count({ where: { tenantId, customerId } } as FindOptions),
+      this.watchlistMatches.count({ where: { tenantId, customerId, clearedAt: null } } as FindOptions),
       this.fraudCases.count({
         where: { tenantId, customerId, closedAt: null, caseStatus: { [Op.in]: OPEN_FRAUD_CASE_STATUSES }, deleted: { [Op.ne]: true } },
       } as FindOptions),

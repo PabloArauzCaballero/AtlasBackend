@@ -191,3 +191,36 @@ export const submitBankStatementSchema = z
   .strict();
 
 export type SubmitBankStatementDto = z.infer<typeof submitBankStatementSchema>;
+
+/**
+ * El aviso del pago INICIAL de una compra (el 60 % que se paga directo al comercio al comprar).
+ *
+ * Es el mismo gesto que avisar una cuota —comprobante + referencia del banco— pero ocurre antes de que exista un
+ * préstamo, así que cuelga de la SOLICITUD de crédito. `amount` es lo que el cliente dice haber pagado: quien lo
+ * comprueba contra su cuenta es el comercio. `storageKey` viene del ticket de subida de comprobantes.
+ */
+export const submitDownPaymentSchema = z
+  .object({
+    amount: z
+      .string()
+      .trim()
+      .regex(/^\d{1,16}(\.\d{1,2})?$/u, 'Importe inválido.'),
+    payerReference: z.string().trim().min(3).max(160).optional(),
+    storageKey: z.string().trim().min(8).max(500),
+    contentType: z.string().trim().min(3).max(100),
+  })
+  .strict();
+export type SubmitDownPaymentDto = z.infer<typeof submitDownPaymentSchema>;
+
+/** La respuesta del comercio sobre el pago inicial. Rechazar exige motivo: quien no ve reconocido su pago tiene derecho a saber por qué. */
+export const decideDownPaymentSchema = z
+  .object({
+    verified: z.boolean(),
+    reason: z.string().trim().min(3).max(300).optional(),
+  })
+  .strict()
+  .refine((valor) => valor.verified || valor.reason !== undefined, {
+    message: 'Rechazar un pago exige un motivo.',
+    path: ['reason'],
+  });
+export type DecideDownPaymentDto = z.infer<typeof decideDownPaymentSchema>;

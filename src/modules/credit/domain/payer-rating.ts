@@ -1,7 +1,7 @@
 /**
  * @file Dominio: la Calificación de pagador (1-100) y el Puntaje (puntos por pagar), separados.
  * @business La app mezclaba cuatro números con nombres que se pisaban. Desde 2026-10-06 (pedido de Pablo):
- *   **Puntaje** = puntos que se ganan PAGANDO a tiempo (1 por boliviano, `experience.xp`); sólo sube.
+ *   **Puntaje** = puntos de experiencia, 1 por boliviano COMPRADO (`experience.xp`); dan el nivel y sólo suben.
  *   **Calificación** = de 1 a 100, qué tan buen pagador es la persona. Sale de la puntuación de relación ya
  *   existente (pagos a tiempo 45 %, compras terminadas 25 %, antigüedad 20 %, identidad 10 %) — supuesto A1 del
  *   plan `docs/trabajo/2026-10-06-credito-puntaje-calificacion-app/PLAN.md`, pendiente de confirmar.

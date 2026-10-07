@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SupportCaseReadService } from '../../../src/modules/support/application/support-case-read.service.js';
 import type { SupportCaseRepository } from '../../../src/modules/support/support-case.repository.js';
 import type { SupportCaseTimelineRepository } from '../../../src/modules/support/support-case-timeline.repository.js';
@@ -223,6 +223,29 @@ describe('SupportCaseReadService', () => {
       expect(cases.listCases).toHaveBeenCalledWith(
         expect.objectContaining({ customerId: null, partnerProfileId: 'pp-1', openedByActorId: 'u-9' }),
       );
+    });
+
+    it('un cliente sin customerId no tiene «propios»: 403 en vez del tenant entero', async () => {
+      const sinCliente = { ...CLIENTE, customerId: null } as SupportActor;
+
+      await expect(service.listOwnCases({ tenantId: 't1', actor: sinCliente, query: { limit: 20 } as never })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(cases.listCases).not.toHaveBeenCalled();
+    });
+
+    it('el personal interno pasa por la misma visibilidad de RESTRINGIDOS que en la cola', async () => {
+      await service.listOwnCases({ tenantId: 't1', actor: AGENTE, query: { limit: 20 } as never });
+
+      expect(cases.listCases).toHaveBeenCalledWith(
+        expect.objectContaining({ restrictedVisibleTo: { agentProfileId: AGENTE.agentProfileId, isSupervisor: false } }),
+      );
+    });
+
+    it('el cliente no lleva filtro de restringidos: ya lo acota su propio sujeto', async () => {
+      await service.listOwnCases({ tenantId: 't1', actor: CLIENTE, query: { limit: 20 } as never });
+
+      expect(cases.listCases).toHaveBeenCalledWith(expect.objectContaining({ restrictedVisibleTo: null }));
     });
 
     it('los estados llegan como lista separada por comas, y sin ellos no se filtra', async () => {

@@ -65,7 +65,7 @@ export const DEFAULT_CAPACITY_POLICY: PaymentCapacityPolicy = {
  * comparar: no habría forma de saber si la diferencia la produjo el cliente o un cambio en la
  * fórmula.
  */
-export const CAPACITY_MODEL_VERSION = '1.0.0';
+export const CAPACITY_MODEL_VERSION = '1.1.0';
 
 /** La escalera de confianza. Cada tramo multiplica el techo de quien empieza. */
 export const RELATIONSHIP_TIERS: ReadonlyArray<{
@@ -86,6 +86,21 @@ export function clamp(value: number, low: number, high: number): number {
 
 export function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/** Los límites se conceden de 50 en 50 (Pablo, 2026-10-06): cifras redondas, sin decimales. */
+export const LIMIT_STEP = 50;
+
+/**
+ * Baja un importe al múltiplo de {@link LIMIT_STEP} inmediato inferior.
+ *
+ * Siempre HACIA ABAJO: redondear al más cercano prestaría hasta 24,99 Bs por encima de lo que la
+ * capacidad sostiene. Se calcula en céntimos enteros para que 1.250,00 no se convierta en 1.200 por
+ * polvo de coma flotante.
+ */
+export function floorToLimitStep(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.floor(Math.round(value * 100) / (LIMIT_STEP * 100)) * LIMIT_STEP;
 }
 
 /**
@@ -215,7 +230,7 @@ export function assessPaymentCapacity(input: {
    */
   const castigado = input.relationship.chargeOffCount > 0;
   const proposed = byCapacity === null || castigado ? 0 : Math.max(0, binding.limit);
-  const recommendedLimit = proposed < policy.minimumUsefulLimit ? 0 : round2(proposed);
+  const recommendedLimit = proposed < policy.minimumUsefulLimit ? 0 : floorToLimitStep(proposed);
 
   if (recommendedLimit === 0 && byCapacity !== null && !castigado) {
     add(

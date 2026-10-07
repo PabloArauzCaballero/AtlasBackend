@@ -109,6 +109,51 @@ describe('OperationsWorkQueueService', () => {
       expect(result.meta.total).toBe(2);
     });
 
+    it('queue: "all" con sortBy=updatedAt mezcla por updatedAt (el campo con el que cada fuente recorta), no por openedAt', async () => {
+      const { service, operationsRepository } = await buildService();
+      (operationsRepository.findManualReviewCasesForQueue as jest.Mock).mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'm1',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            openedAt: '2026-01-09T00:00:00.000Z',
+            updatedAtValue: new Date('2026-02-01T00:00:00.000Z'),
+          },
+        ],
+        meta: { total: 1 },
+      } as never);
+      (operationsRepository.findFraudCasesForQueue as jest.Mock).mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'f1',
+            createdAt: '2026-01-03T00:00:00.000Z',
+            openedAt: '2026-01-02T00:00:00.000Z',
+            updatedAtValue: new Date('2026-02-05T00:00:00.000Z'),
+          },
+        ],
+        meta: { total: 1 },
+      } as never);
+
+      const result = await service.getWorkQueue('t1', {
+        queue: 'all',
+        page: 1,
+        limit: 20,
+        sortBy: 'updatedAt',
+        sortOrder: 'desc',
+      } as never);
+
+      expect(mockedIds(result.items)).toEqual(['f1', 'm1']);
+    });
+
+    it('queue: "all" rechaza una ventana page*limit sin techo antes de tocar la base', async () => {
+      const { service, operationsRepository } = await buildService();
+
+      await expect(service.getWorkQueue('t1', { queue: 'all', page: 100000, limit: 100, sortOrder: 'desc' } as never)).rejects.toThrow(
+        'WORK_QUEUE_WINDOW_TOO_DEEP',
+      );
+      expect(operationsRepository.findManualReviewCasesForQueue).not.toHaveBeenCalled();
+    });
+
     it('queue: "all" respects sortOrder: "asc" too — oldest first', async () => {
       const { service, operationsRepository } = await buildService();
       (operationsRepository.findManualReviewCasesForQueue as jest.Mock).mockResolvedValueOnce({
