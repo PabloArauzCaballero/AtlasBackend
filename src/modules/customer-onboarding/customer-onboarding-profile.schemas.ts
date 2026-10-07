@@ -47,13 +47,22 @@ export const updateProfileSchema = z
     lastName: z.string().trim().min(1).max(120).optional(),
     birthDate: birthDateSchema.optional(),
     genderDeclared: z.enum(['female', 'male', 'other', 'undisclosed']).optional(),
+    /** El «¿cuál?» del género «Otro». Sólo se admite junto a `genderDeclared: 'other'`. */
+    genderSelfDescribed: z.string().trim().min(2).max(60).optional(),
     preferredLanguage: z.enum(['es', 'en', 'qu', 'ay']).optional(),
     marketingOptIn: z.boolean().optional(),
   })
   .strict()
-  .refine((value) => Object.keys(value).length > 0, { message: 'Se requiere al menos un campo para actualizar.' });
+  .refine((value) => Object.keys(value).length > 0, { message: 'Se requiere al menos un campo para actualizar.' })
+  .refine((value) => value.genderSelfDescribed === undefined || value.genderDeclared === 'other', {
+    message: 'genderSelfDescribed sólo se admite junto a genderDeclared "other".',
+    path: ['genderSelfDescribed'],
+  });
 
 export type UpdateProfileDto = z.infer<typeof updateProfileSchema>;
+
+/** Código del rubro «Otra actividad» en el catálogo de la app (`consumer-app/src/features/actividades.ts`). */
+export const OTHER_ECONOMIC_ACTIVITY_CODE = 'Z-OTRO';
 
 const positiveAmount = z.number().finite().nonnegative().max(99_999_999);
 
@@ -70,6 +79,8 @@ export const financialProfileSchema = z
     otherMonthlyIncome: positiveAmount.optional(),
     monthlyExpensesDeclared: positiveAmount.optional(),
     economicActivityCode: z.string().trim().min(1).max(80).optional(),
+    /** El «¿cuál?» de «Otra actividad» (`Z-OTRO`): obligatorio con ese rubro, prohibido con cualquier otro. */
+    economicActivityOther: z.string().trim().min(2).max(120).optional(),
     sourceOfFunds: z.enum(SOURCE_OF_FUNDS_VALUES).optional(),
     monthlyIncomeBand: z.enum(MONTHLY_INCOME_BAND_VALUES).optional(),
     incomeFrequency: z.enum(INCOME_FREQUENCY_VALUES).optional(),
@@ -79,7 +90,18 @@ export const financialProfileSchema = z
   .refine((value) => value.employmentStatus !== 'employee' || value.employerName !== undefined, {
     message: 'employerName es obligatorio cuando employmentStatus es "employee".',
     path: ['employerName'],
-  });
+  })
+  .refine((value) => value.economicActivityCode !== OTHER_ECONOMIC_ACTIVITY_CODE || value.economicActivityOther !== undefined, {
+    message: 'economicActivityOther es obligatorio cuando el rubro es «Otra actividad» (Z-OTRO): hay que decir cuál.',
+    path: ['economicActivityOther'],
+  })
+  .refine(
+    (value) =>
+      value.economicActivityOther === undefined ||
+      value.economicActivityCode === undefined ||
+      value.economicActivityCode === OTHER_ECONOMIC_ACTIVITY_CODE,
+    { message: 'economicActivityOther sólo se admite con el rubro «Otra actividad» (Z-OTRO).', path: ['economicActivityOther'] },
+  );
 
 export type FinancialProfileDto = z.infer<typeof financialProfileSchema>;
 

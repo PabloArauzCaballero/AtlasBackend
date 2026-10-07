@@ -38,6 +38,17 @@ import { CreditLineService, type CalculationTrigger } from './credit-line.servic
  * toda decisión de crédito. Con tope, la cola se drena en varias pasadas y el motor nunca ve un
  * pico que no pidió nadie.
  */
+/**
+ * La ventana de esta pasada. Los «sin línea» van primero, pero un cliente que el Motor no resuelve (revisión, base
+ * habilitante, frescura) sigue «sin línea» y, con un corte fijo, volvía a ocupar su sitio cada hora: con `limit`
+ * clientes así, nadie más se recalculaba nunca. Rotar el comienzo por hora hace que toda la cola pase por la ventana.
+ */
+export function pickWindow<T>(queue: readonly T[], limit: number, rotation: number): T[] {
+  if (queue.length <= limit) return [...queue];
+  const start = (rotation * limit) % queue.length;
+  return Array.from({ length: limit }, (_, index) => queue[(start + index) % queue.length]!);
+}
+
 @Injectable()
 export class CreditLineRefreshService {
   private readonly logger = new Logger(CreditLineRefreshService.name);
@@ -84,10 +95,14 @@ export class CreditLineRefreshService {
 
     // Primero quien no tiene nada: entre «a este no le hemos dicho cuánto puede gastar» y «la cifra
     // de este tiene un mes», la primera es la que el cliente está mirando ahora mismo en la app.
-    const queue: Array<{ customerId: string; trigger: CalculationTrigger }> = [
-      ...missingIds.map((customerId) => ({ customerId, trigger: 'onboarding' as CalculationTrigger })),
-      ...staleIds.map((customerId) => ({ customerId, trigger: 'manual' as CalculationTrigger })),
-    ].slice(0, input.limit);
+    const queue = pickWindow(
+      [
+        ...missingIds.map((customerId) => ({ customerId, trigger: 'onboarding' as CalculationTrigger })),
+        ...staleIds.map((customerId) => ({ customerId, trigger: 'manual' as CalculationTrigger })),
+      ],
+      input.limit,
+      Math.floor(now.getTime() / 3_600_000),
+    );
 
     let recalculated = 0;
     let failed = 0;

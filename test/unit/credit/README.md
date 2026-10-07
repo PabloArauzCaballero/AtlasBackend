@@ -9,14 +9,14 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`credit-application.service.spec.ts`](./credit-application.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`credit-business-acceptance.spec.ts`](./credit-business-acceptance.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| Documento o código                                                                             | Responsabilidad                                               |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [`credit-application.service.spec.ts`](./credit-application.service.spec.ts)                   | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`credit-business-acceptance.spec.ts`](./credit-business-acceptance.spec.ts)                   | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`credit-product-and-decision.service.spec.ts`](./credit-product-and-decision.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`credit-product-eligibility.spec.ts`](./credit-product-eligibility.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`credit.controllers.spec.ts`](./credit.controllers.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`credit.repository.spec.ts`](./credit.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`credit-product-eligibility.spec.ts`](./credit-product-eligibility.spec.ts)                   | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`credit.controllers.spec.ts`](./credit.controllers.spec.ts)                                   | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`credit.repository.spec.ts`](./credit.repository.spec.ts)                                     | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento
 

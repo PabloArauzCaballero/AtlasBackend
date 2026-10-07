@@ -30,6 +30,8 @@ export function otpMessageBody(code: string, ttlMinutes: number): string {
 export function otpMessagePayload(reference: string, code: string, ttlMinutes: number): Record<string, unknown> {
   return {
     reference,
+    // Pide al adaptador que confirme el estado final antes de dar el código por entregado.
+    confirmDelivery: true,
     whatsappTemplateParams: { [OTP_TEMPLATE_PARAMS.code]: code, [OTP_TEMPLATE_PARAMS.minutes]: String(ttlMinutes) },
     whatsappTemplateParameters: [code, String(ttlMinutes)],
   };

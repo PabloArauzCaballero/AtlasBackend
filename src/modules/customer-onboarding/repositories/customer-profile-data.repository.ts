@@ -66,6 +66,7 @@ export class CustomerProfileDataRepository {
       birthDate: string | null;
       ageAtCapture: number | null;
       genderDeclared: string | null;
+      genderSelfDescribed: string | null;
       preferredLanguage: string | null;
       marketingOptIn: boolean | null;
       sourceType: string;
@@ -84,6 +85,7 @@ export class CustomerProfileDataRepository {
         birthDate: values.birthDate,
         ageAtCapture: values.ageAtCapture,
         genderDeclared: values.genderDeclared,
+        genderSelfDescribed: values.genderSelfDescribed,
         preferredLanguage: values.preferredLanguage,
         marketingOptIn: values.marketingOptIn,
         sourceType: values.sourceType,

@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (128 controladores) | 602 |
+| Total montadas (129 controladores) | 604 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
-| Con `@Roles` | 544 |
+| Con `@Roles` | 546 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 77 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -114,7 +114,9 @@
 
 | Método | Ruta | Acceso | Permiso fino | Handler | Notas |
 |---|---|---|---|---|---|
+| `GET` | `/customers/:customerId/bank-statements` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `BankStatementArchiveController.list` | guards: `TenantGuard` |
 | `POST` | `/customers/:customerId/bank-statements` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.submitBankStatement` | guards: `TenantGuard` |
+| `GET` | `/customers/:customerId/bank-statements/:reviewId/file` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `BankStatementArchiveController.file` | guards: `TenantGuard` |
 | `GET` | `/customers/:customerId/bank-statements/latest` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.latestBankStatement` | guards: `TenantGuard` |
 | `GET` | `/customers/:customerId/credit-applications` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.listApplications` | guards: `TenantGuard` |
 | `POST` | `/customers/:customerId/credit-applications` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CreditController.createApplication` | guards: `TenantGuard` |
