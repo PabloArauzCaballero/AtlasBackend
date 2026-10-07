@@ -18,6 +18,7 @@ import { SchemaChangeAuthorizationGuard } from './schema-change-authorization.gu
 import {
   approveSchemaChangeRequestSchema,
   createSchemaTableRequestSchema,
+  numericIdParamSchema,
   schemaChangeLogQuerySchema,
   schemaTablesListQuerySchema,
   schemaVersionsListQuerySchema,
@@ -91,7 +92,7 @@ export class SchemaManagementController {
   @ApiResponse({ status: 404, description: 'SCHEMA_VERSION_NOT_FOUND.' })
   @Get('versions/:versionId')
   @Roles('internal_operator', 'admin', 'platform_admin', 'risk_analyst', 'readonly_auditor')
-  getVersion(@Param('versionId') versionId: string) {
+  getVersion(@Param('versionId', new ZodValidationPipe(numericIdParamSchema)) versionId: string) {
     return this.schemaService.getSchemaVersion(versionId);
   }
 
@@ -104,7 +105,7 @@ export class SchemaManagementController {
   @ApiResponse({ status: 404, description: 'SCHEMA_VERSION_NOT_FOUND.' })
   @Get('versions/:versionId/schemas')
   @Roles('internal_operator', 'admin', 'platform_admin', 'risk_analyst', 'readonly_auditor')
-  listVersionSchemas(@Param('versionId') versionId: string) {
+  listVersionSchemas(@Param('versionId', new ZodValidationPipe(numericIdParamSchema)) versionId: string) {
     return this.schemaService.listSchemaNames(versionId);
   }
 
@@ -144,7 +145,7 @@ export class SchemaManagementController {
   @ApiResponse({ status: 404, description: 'SCHEMA_TABLE_NOT_FOUND.' })
   @Get('tables/:tableId')
   @Roles('internal_operator', 'admin', 'platform_admin', 'risk_analyst', 'readonly_auditor')
-  getTable(@Param('tableId') tableId: string) {
+  getTable(@Param('tableId', new ZodValidationPipe(numericIdParamSchema)) tableId: string) {
     return this.schemaService.getSchemaTable(tableId);
   }
 
@@ -205,7 +206,7 @@ export class SchemaManagementController {
   @InternalPermissions('governance.schema.approve')
   @HttpCode(HttpStatus.OK)
   approveChange(
-    @Param('changeId') changeId: string,
+    @Param('changeId', new ZodValidationPipe(numericIdParamSchema)) changeId: string,
     @Body(new ZodValidationPipe(approveSchemaChangeRequestSchema))
     data: ApproveSchemaChangeRequest,
     @CurrentUser() user: AuthenticatedUser,
