@@ -35,6 +35,8 @@ import {
   type ExpedienteParamsDto,
   type ListarNodosQueryDto,
   type NodoParamsDto,
+  type SubidaParamsDto,
+  subidaParamsSchema,
   type PurgarDto,
 } from './expedientes.schemas.js';
 
@@ -170,14 +172,13 @@ export class ExpedientesNodosController {
   @NivelRequerido('escribir')
   async confirmarSubida(
     @CurrentTenant() tenantId: string,
-    @Param(new ZodValidationPipe(expedienteParamsSchema)) params: ExpedienteParamsDto,
-    @Param('ticketId') ticketId: string,
+    @Param(new ZodValidationPipe(subidaParamsSchema)) params: SubidaParamsDto,
     @Req() request: RequestConExpediente,
   ) {
     const nodo = await this.subidas.confirmar({
       tenantId,
       expedienteId: params.id,
-      ticketId,
+      ticketId: params.ticketId,
       actor: request.expediente!.actor,
     });
     return toNodoDto(nodo, request.expediente!.nivel);
