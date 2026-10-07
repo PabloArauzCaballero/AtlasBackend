@@ -247,8 +247,7 @@ export class AuditRepository {
    * Alcance: a diferencia de `findCustomerAuditEvents` (que solo cubre 5 fuentes), esta variante
    * cubre las 8 fuentes de la vista. El filtro por cliente replica la semántica de la vista
    * original: `data_change_log` no tiene un `target_type` fijo (usa el nombre de tabla real), así
-   * que para esa fuente se filtra por la tabla del cliente (`customers`) y su `record_id`: el de
-   * `manual_review_cases`, `loans`... puede coincidir con el id del cliente y no es suyo.
+   * que para esa fuente se filtra por la tabla del cliente y su `record_id` (el de otras tablas puede coincidir).
    */
   async findCustomerAuditEventsWithCursor(
     tenantId: string,
