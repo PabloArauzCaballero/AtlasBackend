@@ -66,6 +66,7 @@ describe('CustomerProfileDataRepository', () => {
           birthDate: '1990-01-01',
           ageAtCapture: 36,
           genderDeclared: null,
+          genderSelfDescribed: null,
           preferredLanguage: 'es',
           marketingOptIn: false,
           sourceType: 'mobile_app',

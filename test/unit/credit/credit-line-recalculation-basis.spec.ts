@@ -8,7 +8,12 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { CreditLineRecalculationService } from '../../../src/modules/credit/application/credit-line-recalculation.service.js';
 import { DecisionEngineClient } from '../../../src/modules/decision-engine/decision-engine.client.js';
 
-function build(readiness: { status: 'ready' | 'pending' | 'superseded' | 'revoked'; marker: string | null }) {
+type Productos = () => Promise<Array<{ annualInterestRate: unknown }>>;
+
+function build(
+  readiness: { status: 'ready' | 'pending' | 'superseded' | 'revoked'; marker: string | null },
+  productos: Productos = async () => [{ annualInterestRate: '22.0000' }, { annualInterestRate: '18.0000' }],
+) {
   const order: string[] = [];
   const client = {
     isConfigured: true,
@@ -50,6 +55,7 @@ function build(readiness: { status: 'ready' | 'pending' | 'superseded' | 'revoke
     capacity as never,
     {} as never,
     escritor as never,
+    { findOfferableProducts: productos } as never,
   );
   return { service, client, escritor, order };
 }
@@ -80,7 +86,67 @@ describe('P-09 · recálculo de línea: base habilitante antes de decidir', () =
     expect(escritor.persist).not.toHaveBeenCalled();
   });
 
+  it('manda la tasa base del producto ofertable más barato, en tanto por uno y fechada al pedir', async () => {
+    const { service, client } = build({ status: 'ready', marker: '1' });
+    await service.recalculate(input);
+    const [[, request]] = client.execute.mock.calls as unknown as [
+      [string, { variables: Record<string, unknown>; context: { provenance: Record<string, unknown> } }],
+    ];
+    expect(request.variables.product_base_annual_rate).toBeCloseTo(0.18, 9);
+    expect(request.context.provenance.product_base_annual_rate).toBe('derivado');
+  });
+
+  it.each([
+    ['sin productos ofertables', async () => []],
+    ['si la consulta del catálogo falla', async () => Promise.reject(new Error('caída'))],
+  ] as Array<[string, Productos]>)('%s manda 0 y sigue decidiendo', async (_caso, productos) => {
+    const { service, client, escritor } = build({ status: 'ready', marker: '1' }, productos);
+    await service.recalculate(input);
+    const [[, request]] = client.execute.mock.calls as unknown as [[string, { variables: Record<string, unknown> }]];
+    expect(request.variables.product_base_annual_rate).toBe(0);
+    expect(escritor.persist).toHaveBeenCalled();
+  });
+
   it('la regla de bloqueo del cliente es la del módulo del motor', () => {
     expect(DecisionEngineClient.basisBlocker({ status: 'superseded', marker: 's1' })).toBeNull();
+  });
+});
+
+/**
+ * El crédito habilitado que ve la app es el que DECIDIÓ el motor (plan 2026-10-06, H1.S1.M2), en tres niveles:
+ * el monto del motor se escribe tal cual con su ejecución; un monto 0 es una decisión y no se rellena; y un motor
+ * caído no escribe nada (la línea vigente queda como estaba).
+ */
+describe('H1.S1.M2 · el monto de la línea es el del motor', () => {
+  const persistido = (escritor: ReturnType<typeof build>['escritor']) => JSON.stringify((escritor.persist.mock.calls as unknown[][])[0]);
+
+  it('correcto: escribe el límite que devolvió el motor, con su ejecución', async () => {
+    const { service, escritor } = build({ status: 'ready', marker: '1' });
+    await service.recalculate(input);
+    const escrito = persistido(escritor);
+    expect(escrito).toContain('"approvedLimit":900,');
+    expect(escrito).toContain('e1');
+  });
+
+  it('límite: un monto 0 del motor se respeta, no se sustituye por la capacidad', async () => {
+    const { service, client, escritor } = build({ status: 'ready', marker: '1' });
+    client.execute.mockResolvedValueOnce({
+      executionId: 'e0',
+      status: 'SUCCEEDED',
+      outcome: 'DECLINE',
+      reasonCodes: [],
+      output: { approved_credit_limit: 0 },
+    } as never);
+    await service.recalculate(input);
+    const escrito = persistido(escritor);
+    expect(escrito).toContain('e0');
+    expect(escrito).toContain('"approvedLimit":0,');
+  });
+
+  it('inválido: si el motor falla, no escribe ninguna línea', async () => {
+    const { service, client, escritor } = build({ status: 'ready', marker: '1' });
+    client.execute.mockRejectedValueOnce(new Error('motor caído') as never);
+    await expect(service.recalculate(input)).resolves.toBeNull();
+    expect(escritor.persist).not.toHaveBeenCalled();
   });
 });

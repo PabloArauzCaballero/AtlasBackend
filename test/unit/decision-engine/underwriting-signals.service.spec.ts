@@ -7,6 +7,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { UnderwritingCreditHistoryService } from '../../../src/modules/decision-engine/underwriting-credit-history.service.js';
 import { UnderwritingFeaturesService } from '../../../src/modules/decision-engine/underwriting-features.service.js';
+import { NO_STATEMENT } from '../../../src/modules/decision-engine/underwriting-statement.service.js';
 import { UnderwritingSignalsService } from '../../../src/modules/decision-engine/underwriting-signals.service.js';
 
 /** Un modelo que no sabe nada del cliente: sin filas, sin conteos. */
@@ -75,8 +76,13 @@ describe('UnderwritingSignalsService.identitySignals', () => {
 describe('UnderwritingFeaturesService.build · lo que llega al Motor de un cliente verificado por el móvil', () => {
   function buildFeatures(findAll: (...args: unknown[]) => Promise<unknown[]>) {
     const { service: signals } = build(findAll);
-    const history = new UnderwritingCreditHistoryService(emptyModel() as never, emptyModel() as never);
-    return new UnderwritingFeaturesService(signals, history, { signalsFor: async () => null } as never);
+    const history = new UnderwritingCreditHistoryService(emptyModel() as never, emptyModel() as never, emptyModel() as never);
+    return new UnderwritingFeaturesService(
+      signals,
+      history,
+      { signalsFor: async () => null } as never,
+      { signalsFor: async () => NO_STATEMENT } as never,
+    );
   }
 
   const request = { tenantId: '7', customerId: '10', requestedAmount: 1000, requestedTermMonths: 6 };

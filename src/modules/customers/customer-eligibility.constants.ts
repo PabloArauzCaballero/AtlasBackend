@@ -119,6 +119,7 @@ export const OPTIONAL_FINANCIAL_ATTRIBUTE_CODES = [
   'income_frequency',
   'monthly_expenses_declared',
   'source_of_funds',
+  'economic_activity_other',
 ] as const;
 
 export const FINANCIAL_ATTRIBUTE_CODES = [...REQUIRED_FINANCIAL_ATTRIBUTE_CODES, ...OPTIONAL_FINANCIAL_ATTRIBUTE_CODES] as const;

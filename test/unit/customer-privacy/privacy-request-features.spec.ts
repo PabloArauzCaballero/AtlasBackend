@@ -28,6 +28,9 @@ const ENTRADAS_DEL_ARTEFACTO = [
   'dsr_pagos_en_conciliacion',
   'dsr_tuvo_credito',
   'dsr_extracto_en_revision',
+  'dsr_evidencia_identidad',
+  'dsr_credencial_restablecida_7d',
+  'dsr_creada_por_titular',
   'dsr_campo',
   'dsr_cambios_del_campo_365d',
 ];
@@ -35,6 +38,9 @@ const ENTRADAS_DEL_ARTEFACTO = [
 const hechos = (cambios: Partial<HechosDeLaCuenta> = {}): HechosDeLaCuenta => ({
   lifecycleStatus: 'active',
   identidadVerificada: true,
+  evidenciaIdentidad: true,
+  credencialRestablecida7d: false,
+  creadaPorTitular: true,
   contactoCambiado7d: false,
   dispositivoNuevo7d: false,
   fraudeAbierto: false,
@@ -53,7 +59,7 @@ const hechos = (cambios: Partial<HechosDeLaCuenta> = {}): HechosDeLaCuenta => ({
 const pin = new Date('2026-10-04T12:00:00Z');
 
 describe('variablesDeLaSolicitud', () => {
-  it('manda exactamente las 17 entradas del artefacto, ni una más', () => {
+  it('manda exactamente las 20 entradas del artefacto, ni una más', () => {
     const variables = variablesDeLaSolicitud({ requestType: 'deletion', rectificationField: null, pinVerifiedAt: pin }, hechos());
     expect(Object.keys(variables).sort()).toEqual([...ENTRADAS_DEL_ARTEFACTO].sort());
   });
