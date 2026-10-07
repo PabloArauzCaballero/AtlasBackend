@@ -235,6 +235,15 @@ describe('PartnerCommercialNetworkRepository', () => {
 
       const [values] = pos.create.mock.calls.at(-1) as [Record<string, unknown>];
       expect(values.status).toBe('registered');
+      expect(values.manualCode).toMatch(/^[2-9A-HJKMNP-TW-Z]{8}$/);
+    });
+
+    it('el código manual se busca normalizado e ignorando los retirados', async () => {
+      await repo.findPosByManualCode('t1', 'K7M29QXD');
+
+      const condicion = ultima(pos.findOne).where;
+      expect(condicion.manualCode).toBe('K7M29QXD');
+      expect((condicion.status as Record<symbol, string>)[Op.ne]).toBe('retired');
     });
 
     it('la primera activación sella desde cuándo la caja pudo cobrar', async () => {

@@ -35,6 +35,14 @@ export class PartnerPosTerminalModel extends Model {
   @Column({ field: 'terminal_serial', type: DataType.STRING(80), allowNull: false })
   declare terminalSerial: string;
 
+  /**
+   * Lo que se teclea cuando la cámara no lee el QR (8 caracteres, ver `pos-manual-code.ts`). Único por
+   * tenant entre las cajas no retiradas. Va aparte del serial porque el serial es del equipo y puede
+   * ser largo e ilegible; éste es de la caja y está hecho para dictarse.
+   */
+  @Column({ field: 'manual_code', type: DataType.STRING(12) })
+  declare manualCode: string | null;
+
   @Column({ field: 'terminal_alias', type: DataType.STRING(120) })
   declare terminalAlias: string | null;
 
