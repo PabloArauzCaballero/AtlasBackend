@@ -156,7 +156,9 @@ export class SupportMessageService {
     await this.assertParticipates(input.tenantId, input.channelId, input.actor);
     // El archivo se comprueba ANTES de escribir nada: un mensaje inmutable no debe quedar
     // prometiendo un comprobante que resultó inválido.
-    const verified = input.dto.attachment ? await this.attachments.verify(input.dto.attachment, { tenantId: input.tenantId, channelId: input.channelId }) : null;
+    const verified = input.dto.attachment
+      ? await this.attachments.verify(input.dto.attachment, { tenantId: input.tenantId, channelId: input.channelId })
+      : null;
 
     const message = await this.append({
       tenantId: input.tenantId,

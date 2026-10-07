@@ -57,7 +57,14 @@ describe('SupportAttachmentService', () => {
 
   describe('verify', () => {
     const adjunto = (over: Record<string, unknown> = {}) =>
-      ({ storageObjectKey: 't1/support-ch-1/support-attachment/x.png', filename: 'x.png', declaredMime: 'image/png', sizeBytes: 100, sha256: SHA, ...over }) as never;
+      ({
+        storageObjectKey: 't1/support-ch-1/support-attachment/x.png',
+        filename: 'x.png',
+        declaredMime: 'image/png',
+        sizeBytes: 100,
+        sha256: SHA,
+        ...over,
+      }) as never;
     const alcance = { tenantId: 't1', channelId: 'ch-1' };
 
     it('una clave de otro canal o de otro tenant se rechaza sin tocar el almacenamiento', async () => {

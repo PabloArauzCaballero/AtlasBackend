@@ -127,12 +127,12 @@ export class OperationsWorkQueueService {
     };
   }
 
-  private keyed(row: { updatedAtValue?: Date }, item: WorkQueueItemDto, sortBy?: string) {
+  private keyed(row: { updatedAtValue?: Date | null }, item: WorkQueueItemDto, sortBy?: string) {
     return { item, key: this.sortKey(row, item, sortBy) };
   }
 
   /** El valor por el que la fuente ordenó la fila (ISO, comparable como texto). */
-  private sortKey(row: { updatedAtValue?: Date }, item: WorkQueueItemDto, sortBy?: string): string {
+  private sortKey(row: { updatedAtValue?: Date | null }, item: WorkQueueItemDto, sortBy?: string): string {
     return sortBy === 'updatedAt' ? (row.updatedAtValue?.toISOString() ?? item.createdAt) : item.createdAt;
   }
 

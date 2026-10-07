@@ -165,9 +165,14 @@ describe('SupportChannelRepository', () => {
     it('la baja de la mesa saca a la persona de todas sus conversaciones vivas del tenant, por perfil y por usuario', async () => {
       participants.update.mockResolvedValueOnce([3] as never);
 
-      await expect(repo.removeInternalParticipantEverywhere('t1', { internalUserId: '7', agentProfileId: 'ag-1' }, 'AGENT_DEACTIVATED')).resolves.toBe(3);
+      await expect(
+        repo.removeInternalParticipantEverywhere('t1', { internalUserId: '7', agentProfileId: 'ag-1' }, 'AGENT_DEACTIVATED'),
+      ).resolves.toBe(3);
 
-      const [values, opciones] = participants.update.mock.calls.at(-1) as [Record<string, unknown>, { where: Record<string | symbol, unknown> }];
+      const [values, opciones] = participants.update.mock.calls.at(-1) as [
+        Record<string, unknown>,
+        { where: Record<string | symbol, unknown> },
+      ];
       expect(values.leaveReason).toBe('AGENT_DEACTIVATED');
       expect(values.leftAt).toBeInstanceOf(Date);
       expect(opciones.where).toEqual({

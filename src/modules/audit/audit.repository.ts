@@ -57,9 +57,6 @@ function buildDateWhere(query: AuditQueryDto): WhereOperators<Date> | null {
  * para cubrir la página combinada. Para lecturas profundas, usar la ruta por cursor respaldada
  * por la vista unificada de auditoría.
  */
-/** Tablas de `data_change_logs` cuyo `record_id` ES el id del cliente (el de otras tablas no lo es). */
-const CUSTOMER_TABLE_NAMES = ['customers', 'customer'];
-
 @Injectable()
 export class AuditRepository {
   constructor(
@@ -136,7 +133,7 @@ export class AuditRepository {
     }
     if (query.eventType === 'all' || query.eventType === 'data_change') {
       const rows = await this.dataChangeLogModel.findAll({
-        where: { tenantId, recordId: customerId, tableName: CUSTOMER_TABLE_NAMES, ...(dateWhere ? { changedAt: dateWhere } : {}) },
+        where: { tenantId, recordId: customerId, tableName: ['customers', 'customer'], ...(dateWhere ? { changedAt: dateWhere } : {}) },
         limit: depth,
         order: [['changedAt', 'DESC']],
       } as FindOptions);
@@ -250,9 +247,8 @@ export class AuditRepository {
    * Alcance: a diferencia de `findCustomerAuditEvents` (que solo cubre 5 fuentes), esta variante
    * cubre las 8 fuentes de la vista. El filtro por cliente replica la semántica de la vista
    * original: `data_change_log` no tiene un `target_type` fijo (usa el nombre de tabla real), así
-   * que para esa fuente se filtra por las tablas propias del cliente (`CUSTOMER_TABLE_NAMES`) y su
-   * `record_id`. Sin el filtro de tabla entraban cambios de `manual_review_cases`, `loans`... cuyo
-   * id coincidía con el del cliente.
+   * que para esa fuente se filtra por la tabla del cliente (`customers`) y su `record_id`: el de
+   * `manual_review_cases`, `loans`... puede coincidir con el id del cliente y no es suyo.
    */
   async findCustomerAuditEventsWithCursor(
     tenantId: string,
@@ -284,7 +280,7 @@ export class AuditRepository {
         replacements: {
           tenantId,
           customerId,
-          customerTables: CUSTOMER_TABLE_NAMES,
+          customerTables: ['customers', 'customer'],
           limitPlusOne: limit + 1,
           ...(cursorKey
             ? { cursorOccurredAt: cursorKey.occurredAt, cursorSourceTable: cursorKey.sourceTable, cursorSourceId: cursorKey.sourceId }

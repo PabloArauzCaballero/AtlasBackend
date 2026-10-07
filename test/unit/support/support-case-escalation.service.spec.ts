@@ -41,7 +41,10 @@ describe('SupportCaseEscalationService', () => {
 
   beforeEach(() => {
     const sequelize = { transaction: jest.fn(async (fn: (t: unknown) => unknown) => fn({})) };
-    cases = { requireById: jest.fn(async (_t: string, id: string) => caso({ id })), appendEvent: jest.fn(async () => undefined) };
+    cases = {
+      requireById: jest.fn(async (...args: unknown[]) => caso({ id: String(args[1]) })),
+      appendEvent: jest.fn(async () => undefined),
+    };
     timeline = { releaseLiveAssignment: jest.fn(async () => undefined), createLink: jest.fn(async () => undefined) };
     channels = { listChannelsForCase: jest.fn(async () => [{ id: 'ch-1', status: 'ACTIVE' }]) };
     messages = { append: jest.fn(async () => ({ id: 'm-1' })) };

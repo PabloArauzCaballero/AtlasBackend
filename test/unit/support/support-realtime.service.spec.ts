@@ -103,7 +103,9 @@ describe('bus de tiempo real de soporte', () => {
       const service = new SupportRealtimeService(redis as never);
       const received = firstValueFrom(service.streamFor('1', '10').pipe(take(1)));
 
-      deliver(JSON.stringify({ type: 'message.created', tenantId: '1', channelId: '10', payload: { n: 9 }, emittedAt: 'x', origin: 'otra' }));
+      deliver(
+        JSON.stringify({ type: 'message.created', tenantId: '1', channelId: '10', payload: { n: 9 }, emittedAt: 'x', origin: 'otra' }),
+      );
 
       expect((await received).payload).toEqual({ n: 9 });
     });

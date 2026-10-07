@@ -65,12 +65,7 @@ export class SupportChannelService {
     if (input.dto.partnerProfileId) {
       await this.actors.assertOwnsPartnerProfile(input.actor, input.dto.partnerProfileId, input.tenantId);
     }
-    const existing =
-      input.actor.actorType === 'CUSTOMER' && input.actor.customerId
-        ? await this.channels.findLiveChannelForCustomer(input.tenantId, input.actor.customerId)
-        : input.actor.actorType === 'PARTNER_USER' && input.dto.partnerProfileId
-          ? await this.channels.findLiveChannelForPartnerUser(input.tenantId, input.dto.partnerProfileId, input.actor.actorId)
-          : null;
+    const existing = await this.findLiveChannel(input);
     if (existing) return { ...toChannelDto(existing), reused: true, agentsAvailable: null as number | null };
     await this.assertMayOpenFor(input);
 
@@ -125,6 +120,17 @@ export class SupportChannelService {
       reserved ? Promise.resolve(null) : this.disponibilidad.countAvailable(input.tenantId, queue ? String(queue.id) : null),
     ]);
     return { ...toChannelDto(channel), reused: false, agentsAvailable };
+  }
+
+  /** El canal vivo de quien pide: el del cliente, o el del usuario del comercio en ese comercio. */
+  private async findLiveChannel(input: { tenantId: string; actor: SupportActor; dto: OpenChannelDto }) {
+    if (input.actor.actorType === 'CUSTOMER' && input.actor.customerId) {
+      return this.channels.findLiveChannelForCustomer(input.tenantId, input.actor.customerId);
+    }
+    if (input.actor.actorType === 'PARTNER_USER' && input.dto.partnerProfileId) {
+      return this.channels.findLiveChannelForPartnerUser(input.tenantId, input.dto.partnerProfileId, input.actor.actorId);
+    }
+    return null;
   }
 
   /**

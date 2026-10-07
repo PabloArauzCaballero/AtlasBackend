@@ -96,7 +96,10 @@ describe('AuditRepository', () => {
         { changedAt: new Date('2026-01-03'), changedByType: 'system', tableName: 'customers', changeType: 'update', changeReason: 'x' },
       ] as never);
       const [event] = await repo.findCustomerAuditEvents('t1', 'c1', baseQuery({ eventType: 'data_change' }));
-      expect(callArg<CallArgRecord>(models.dataChangeLog.findAll, 0, 0).where).toMatchObject({ recordId: 'c1', tableName: ['customers', 'customer'] });
+      expect(callArg<CallArgRecord>(models.dataChangeLog.findAll, 0, 0).where).toMatchObject({
+        recordId: 'c1',
+        tableName: ['customers', 'customer'],
+      });
       expect(event.summary).toBe('customers:update');
     });
 
