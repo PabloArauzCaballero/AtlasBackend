@@ -78,6 +78,24 @@ describe('IdentityEngineReconciler', () => {
     expect(identidad.start).toHaveBeenCalledTimes(1);
   });
 
+  it('FALLA sin el fix: los paquetes ya vistos por el Motor no tapan a un atascado más viejo (se pagina por id)', async () => {
+    const pagina1 = Array.from({ length: 20 }, (_, i) => ({ id: String(500 - i), tenantId: '1', customerId: String(100 + i) }));
+    const atascado = { id: '12', tenantId: '1', customerId: '999' };
+    attempts.findAll.mockResolvedValueOnce(pagina1).mockResolvedValueOnce([atascado]);
+    // Los 20 primeros clientes ya tienen un intento móvil vigente; el atascado no.
+    attempts.count.mockImplementation(async (...args: unknown[]) => {
+      const donde = (args[0] as { where: { customerId: string; verificationChannel: string } }).where;
+      return donde.customerId === '999' ? 0 : 1;
+    });
+
+    expect(await reconciliador.pasada()).toBe(1);
+
+    expect(identidad.start.mock.calls[0]?.[1]).toMatchObject({ customerId: '999' });
+    expect((attempts.findAll.mock.calls[1]?.[0] as { where: { id: Record<symbol, unknown> } }).where.id[Op.lt as unknown as symbol]).toBe(
+      '481',
+    );
+  });
+
   it('un mismo cliente con dos paquetes pendientes se manda una sola vez', async () => {
     attempts.findAll.mockResolvedValue([paquete, { ...paquete, id: '70' }]);
     expect(await reconciliador.pasada()).toBe(1);

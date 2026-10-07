@@ -182,7 +182,8 @@ describe('UnderwritingSignalsService.complianceSignals', () => {
 
     await service.complianceSignals('1', 'c1');
 
-    expect(watchlistMatches.count).toHaveBeenCalledWith({ where: { tenantId: '1', customerId: 'c1' } });
+    // Las descartadas por cumplimiento quedan como evidencia, pero no son una coincidencia activa.
+    expect(watchlistMatches.count).toHaveBeenCalledWith({ where: { tenantId: '1', customerId: 'c1', clearedAt: null } });
     const [[options]] = fraudCases.count.mock.calls as unknown as [[{ where: Record<string, unknown> }]];
     expect(options.where).toMatchObject({ tenantId: '1', customerId: 'c1', closedAt: null });
   });

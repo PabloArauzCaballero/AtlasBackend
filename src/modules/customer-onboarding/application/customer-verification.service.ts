@@ -36,7 +36,7 @@ import { IdentityReviewCaseRepository } from '../repositories/identity-review-ca
  * decisiones para la misma identidad tomadas por dos personas que no se ven. Se corta en el
  * servicio y no en la pantalla porque una pantalla se salta con curl.
  */
-function assertNotDelegatedToEngine(attempt: { finalResult: string | null; reasonCodesJson: Record<string, unknown> | null }): void {
+export function assertNotDelegatedToEngine(attempt: { finalResult: string | null; reasonCodesJson: Record<string, unknown> | null }): void {
   const executionId = attempt.reasonCodesJson?.executionId;
   // Retenido por `IDENTITY_REQUIRE_HUMAN_REVIEW`: el Motor DECIDIÓ (no abrió caso) y su veredicto quedó
   // como sugerencia. La única bandeja donde se resuelve es ésta.
