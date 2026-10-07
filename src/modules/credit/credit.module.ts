@@ -18,6 +18,7 @@ import {
   CustomerActivitySummaryModel,
   FraudCaseModel,
   CustomerModel,
+  EvidenceDocumentModel,
   IdentityVerificationAttemptModel,
   LoanInstallmentModel,
   LoanModel,
@@ -49,6 +50,8 @@ import { CreditProductAuditRepository } from './credit-product-audit.repository.
 import { CreditProductUsuryCheckService } from './application/credit-product-usury-check.service.js';
 import { PaymentCapacityService } from './application/payment-capacity.service.js';
 import { MerchantCreditController } from './merchant-credit.controller.js';
+import { CreditDownPaymentService } from './application/credit-down-payment.service.js';
+import { CreditDownPaymentCustomerController, MerchantDownPaymentController } from './credit-down-payment.controller.js';
 import { CreditUnderwritingService } from './application/credit-underwriting.service.js';
 import { CreditOperationsController } from './credit-operations.controller.js';
 import { CreditReviewCallbackController } from './credit-review-callback.controller.js';
@@ -108,6 +111,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
       ManualReviewCaseModel,
       // La huella de activar, suspender o retirar un producto (quién, de qué a qué y por qué).
       OperationalAuditLogModel,
+      // El comprobante del pago inicial de una compra se guarda donde vive el resto de la evidencia del cliente.
+      EvidenceDocumentModel,
     ]),
     CustomersModule,
     DecisionEngineModule,
@@ -123,6 +128,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     CardTierOperationsController,
     CreditOperationsController,
     MerchantCreditController,
+    CreditDownPaymentCustomerController,
+    MerchantDownPaymentController,
     CreditReviewCallbackController,
     // A6: la vuelta de la revisión humana de extractos hecha en el Motor.
     BankStatementReviewCallbackController,
@@ -138,6 +145,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     CreditRepository,
     CreditReviewCaseRepository,
     CreditProductService,
+    // El pago inicial de una compra: aviso del cliente con su comprobante y confirmación del comercio.
+    CreditDownPaymentService,
     CreditProductStatusService,
     CreditProductAuditRepository,
     CreditApplicationService,
