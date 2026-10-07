@@ -21,7 +21,9 @@ export async function upsertByCode<T extends Model>(
 ): Promise<{ record: T; created: boolean }> {
   const existing = await model.findOne({ where: { [fieldName]: fieldValue }, transaction: options.transaction } as FindOptions);
   if (existing) {
-    await existing.update({ ...values, updatedAtValue: values.updatedAtValue }, { transaction: options.transaction });
+    // La fecha de creación es la de la PRIMERA vez: reenviar el paquete no la reescribe.
+    const { createdAtValue: _creada, ...cambios } = values;
+    await existing.update(cambios, { transaction: options.transaction });
     return { record: existing, created: false };
   }
   const record = await model.create(values as CreationAttributes<T>, { transaction: options.transaction });
