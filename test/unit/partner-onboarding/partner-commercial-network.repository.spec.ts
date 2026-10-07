@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { Op } from 'sequelize';
+import { Op, UniqueConstraintError } from 'sequelize';
 import { PartnerCommercialNetworkRepository } from '../../../src/modules/partner-onboarding/partner-commercial-network.repository.js';
 import type {
   PartnerBranchModel,
@@ -235,6 +235,46 @@ describe('PartnerCommercialNetworkRepository', () => {
 
       const [values] = pos.create.mock.calls.at(-1) as [Record<string, unknown>];
       expect(values.status).toBe('registered');
+      expect(values.manualCode).toMatch(/^[2-9A-HJKMNP-TW-Z]{8}$/);
+    });
+
+    const valoresCaja = {
+      tenantId: 't1',
+      partnerProfileId: 'pp-1',
+      branchId: 'b-1',
+      terminalSerial: 'SN-123',
+      terminalAlias: null,
+      provider: null,
+      model: null,
+    };
+
+    it('si el código al azar choca con otro, genera uno nuevo en vez de fallar el alta', async () => {
+      pos.create.mockImplementationOnce(async () => {
+        throw new UniqueConstraintError({ fields: { _tenant_id: 't1', manual_code: 'AAAAAAAA' } });
+      });
+
+      await repo.createPosTerminal(valoresCaja);
+
+      expect(pos.create).toHaveBeenCalledTimes(2);
+      const codigos = pos.create.mock.calls.map(([values]) => (values as { manualCode: string }).manualCode);
+      expect(codigos[0]).not.toBe(codigos[1]);
+    });
+
+    it('un serial repetido NO se reintenta: es un error de verdad, no una colisión de código', async () => {
+      pos.create.mockImplementation(async () => {
+        throw new UniqueConstraintError({ fields: { _tenant_id: 't1', terminal_serial: 'SN-123' } });
+      });
+
+      await expect(repo.createPosTerminal(valoresCaja)).rejects.toBeInstanceOf(UniqueConstraintError);
+      expect(pos.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('el código manual se busca normalizado e ignorando los retirados', async () => {
+      await repo.findPosByManualCode('t1', 'K7M29QXD');
+
+      const condicion = ultima(pos.findOne).where;
+      expect(condicion.manualCode).toBe('K7M29QXD');
+      expect((condicion.status as Record<symbol, string>)[Op.ne]).toBe('retired');
     });
 
     it('la primera activación sella desde cuándo la caja pudo cobrar', async () => {

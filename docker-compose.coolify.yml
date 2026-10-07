@@ -313,6 +313,7 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   GMAIL_FROM_EMAIL: '${GMAIL_FROM_EMAIL:?}'
   GMAIL_FROM_NAME: '${GMAIL_FROM_NAME:-ATLAS}'
   NOTIFICATION_TOKEN_ENCRYPTION_KEY: '${NOTIFICATION_TOKEN_ENCRYPTION_KEY:?}'
+  NOTIFICATION_TOKEN_ENCRYPTION_PREVIOUS_KEYS: '${NOTIFICATION_TOKEN_ENCRYPTION_PREVIOUS_KEYS:-}'
 
   MAILSENDER_BASE_URL: '${MAILSENDER_BASE_URL:-}'
   MAILSENDER_API_PREFIX: '${MAILSENDER_API_PREFIX:-/api/v1}'
@@ -361,6 +362,9 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   # ambiente de DECISION_ENGINE_ENVIRONMENT_CODE; si no, el motor responde ACTIVE_DEPLOYMENT_NOT_FOUND
   # y se degrada igual.
   DECISION_ENGINE_RISK_ARTIFACT: '${DECISION_ENGINE_RISK_ARTIFACT:-RIESGO_ONBOARDING_CLIENTE}'
+  # Qué decisiones APLICA solas el veredicto del motor (credit,risk,identity,partner). El resto llega
+  # igual al motor pero queda en revisión humana. Por omisión sólo crédito.
+  DECISION_ENGINE_AUTO_APPLY: '${DECISION_ENGINE_AUTO_APPLY:-credit}'
   # Rechaza la cadena vacía y exige /^[A-Z0-9_-]{2,40}$/.
   DECISION_ENGINE_ENVIRONMENT_CODE: '${DECISION_ENGINE_ENVIRONMENT_CODE:-DEV}'
 
@@ -592,6 +596,10 @@ services:
     # siembra» —legítimo y frecuente— de «la siembra falló», que sí tiene que parar el
     # despliegue. Antes, sin origen configurado, las dos cosas se veían igual: EXITED.
     #
+    # NOTA (2026-10-07): los refrescos de catálogo que antes cerraban este comando pasaron al servicio
+    # `catalogo` (más abajo), para que `api` no los espere. Los comentarios siguientes describen qué
+    # hace cada uno y por qué existe; siguen valiendo, sólo que corren allí.
+    #
     # Después de migrar corren TRES cosas que hasta el 2026-09-17 no corría nadie, y por eso el
     # portal salía a medias en toda instalación que no fuera la de desarrollo:
     #
@@ -637,7 +645,33 @@ services:
         node dist/src/database/apply-grants.js &&
         if [ -n "$${SEED_SOURCE_DATABASE_URL}$${SEED_SOURCE_HOST}" ]; then
         node dist/src/database/seed.js pull --if-empty;
-        else echo 'sin SEED_SOURCE_*: se migra pero no se siembra desde otra base'; fi &&
+        else echo 'sin SEED_SOURCE_*: se migra pero no se siembra desde otra base'; fi
+    restart: 'no'
+
+  # Los refrescos de catálogo y la siembra demostrativa, FUERA del camino del API.
+  #
+  # Hasta el 2026-10-07 iban al final de `migrate`, y `api` espera a `migrate`. Cada paso arranca un
+  # Nest entero (~13 s) y los seis sumaban ~50 s con el API viejo ya retirado: el despliegue de DEV de
+  # las 01:40 UTC dejó ~2 min sin API (migrate 82 s), más que el presupuesto de reintentos de la app
+  # (45 s), y la app de TestFlight salió con «Sin conexión» y no cargó los permisos.
+  #
+  # Todos son metadatos idempotentes y van con `||` a un aviso (si uno falla, el despliegue no cae),
+  # es decir: el API no los necesita para arrancar. Corren aquí, en paralelo con el API y los workers,
+  # tras `migrate` (necesitan el esquema al día). `seed-demo` conserva su orden —después de la siembra
+  # fundamental— y su interruptor `DEMO_SEED_ENABLED`. `restart: 'no'`: acaba y queda `Exited (0)`,
+  # como `migrate`.
+  catalogo:
+    init: true
+    <<: [*common, *image]
+    environment:
+      <<: *atlas-env
+      APP_ROLE: all
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    command:
+      - sh
+      - -c
+      - >
         (node dist/scripts/apply-entity-business-narratives.js || echo 'AVISO: narrativa de entidades sin refrescar') &&
         (node dist/scripts/apply-curated-business-metadata.js || echo 'AVISO: dominios de negocio sin refrescar') &&
         (node dist/scripts/refresh-systems-catalog-introspection.js || echo 'AVISO: catalogo de esquema sin refrescar') &&

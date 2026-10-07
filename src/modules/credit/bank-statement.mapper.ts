@@ -4,6 +4,7 @@
  * @system compone la respuesta de `BankStatementReviewModel`.
  */
 import type { BankStatementReviewModel } from '../../database/models/index.js';
+import { bankStatementFileName } from './domain/bank-statement-file-name.js';
 import { reviewCopyFor } from './domain/statement-rejection.js';
 
 /**
@@ -131,5 +132,22 @@ export function toBankStatementResponse(review: BankStatementReviewModel) {
               })),
           }
         : null,
+  };
+}
+
+/**
+ * El historial de extractos de «Mis datos».
+ *
+ * Cada fila es la misma revisión que ya lee la app, más lo que hace falta para el botón de descarga:
+ * si el archivo sigue disponible y con qué nombre se guarda. `available` se decide con lo que dice la
+ * fila —hay clave de almacén— y no preguntándole al almacén por cada extracto: la lista tiene que
+ * abrir al instante, y la descarga contesta `BANK_STATEMENT_FILE_NOT_AVAILABLE` si al final no estaba.
+ */
+export function toBankStatementArchiveResponse(reviews: BankStatementReviewModel[]) {
+  return {
+    items: reviews.map((review) => ({
+      ...toBankStatementResponse(review),
+      file: { available: Boolean(review.storageKey), fileName: bankStatementFileName(review) },
+    })),
   };
 }

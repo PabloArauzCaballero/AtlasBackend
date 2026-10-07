@@ -110,24 +110,77 @@ describe('CreditProgressService', () => {
     expect(Object.keys(capacity)).toEqual(['assessDetailed']);
   });
 
-  it('la experiencia sale de las cuotas pagadas A TIEMPO: capital e intereses, nunca el recargo por mora', async () => {
+  it('la experiencia sale de lo COMPRADO: 1 punto por boliviano de las compras activas o pagadas', async () => {
     const { service } = armar({
       linea: null,
       historial: [],
-      prestamos: [{ id: 'l1' }],
+      prestamos: [
+        { id: 'l1', status: 'active', principalAmount: '350.60' },
+        { id: 'l2', status: 'paid_off', principalAmount: '200.00' },
+        // No suman: anulada, sin desembolsar y castigada.
+        { id: 'l3', status: 'cancelled', principalAmount: '9000.00' },
+        { id: 'l4', status: 'pending_disbursement', principalAmount: '9000.00' },
+        { id: 'l5', status: 'written_off', principalAmount: '9000.00' },
+      ],
       cuotas: [
         { dueDate: '2026-08-01', status: 'paid', daysPastDue: 0, paidPrincipal: '90.00', paidInterest: '10.00', paidLateFee: '0' },
-        // Pagada tarde: no suma, aunque se haya pagado completa y con recargo.
+        // Pagada tarde: no cuenta para las insignias de pago, aunque se haya pagado completa y con recargo.
         { dueDate: '2026-09-01', status: 'paid', daysPastDue: 8, paidPrincipal: '90.00', paidInterest: '10.00', paidLateFee: '5.00' },
       ],
     });
 
     const r = await service.get('1', '42');
 
-    expect(r.experience.xp).toBe(100);
+    expect(r.experience.xp).toBe(550);
+    expect(r.experience.paidOnTime).toBe(100);
     expect(r.experience.onTimeInstallments).toBe(1);
     expect(r.experience.badges.find((b) => b.code === 'primera_compra')!.earned).toBe(true);
     expect(r.experience.badges.find((b) => b.code === 'cien_bs')!.earned).toBe(true);
+  });
+
+  it('publica el Puntaje (puntos de experiencia) y la Calificación 1-100 como campos con su nombre', async () => {
+    const { service } = armar({
+      linea: null,
+      historial: [],
+      prestamos: [{ id: 'l1', status: 'active', principalAmount: '100.00' }],
+      cuotas: [{ dueDate: '2026-08-01', status: 'paid', daysPastDue: 0, paidPrincipal: '90.00', paidInterest: '10.00', paidLateFee: '0' }],
+    });
+
+    const r = await service.get('1', '42');
+
+    expect(r.points).toEqual({ value: r.experience.xp, currentStreak: r.experience.currentStreak, bestStreak: r.experience.bestStreak });
+    expect(r.points.value).toBe(100);
+    expect(r.rating.scale).toEqual({ min: 1, max: 100 });
+    expect(r.rating.value).toBe(Math.max(1, Math.min(100, Math.round(r.score))));
+  });
+
+  it('el NIVEL y la tarjeta Normal…Black salen de los PUNTOS, no de la calificación 1-100', async () => {
+    const { service, cards } = armar({
+      linea: null,
+      historial: [],
+      prestamos: [{ id: 'l1', status: 'active', principalAmount: '2100.00' }],
+      cuotas: [{ dueDate: '2026-08-01', status: 'paid', daysPastDue: 0, paidPrincipal: '2000.00', paidInterest: '100.00' }],
+    });
+
+    const r = await service.get('1', '42');
+
+    expect(r.experience.xp).toBeGreaterThanOrEqual(2_000);
+    expect(r.level).toMatchObject({ code: 'ESTABLECIDO', points: r.experience.xp });
+    const [[, , nivelPedido]] = cards.resolveFor.mock.calls as unknown as [[string, string, string]];
+    expect(nivelPedido).toBe(r.level.code);
+    expect((r.card as unknown as { levelCode: string }).levelCode).toBe(r.level.code);
+    // La calificación sigue siendo la de la relación, en su escala 1-100.
+    expect(r.rating.value).toBe(Math.max(1, Math.min(100, Math.round(r.score))));
+  });
+
+  it('sin compras el nivel es Nuevo con 0 puntos, aunque la calificación no sea 0', async () => {
+    const { service } = armar({ linea: null, historial: [] });
+
+    const r = await service.get('1', '42');
+
+    expect(r.level).toMatchObject({ code: 'NUEVO', points: 0 });
+    expect(r.nextLevel).toMatchObject({ code: 'EN_CONSTRUCCION', pointsMissing: 500 });
+    expect(r.levelLadder).toHaveLength(5);
   });
 
   it('sin compras, la experiencia es 0 y ni siquiera consulta las cuotas', async () => {
@@ -144,7 +197,7 @@ describe('CreditProgressService', () => {
 
     const r = await service.get('1', '42');
 
-    expect(cards.resolveFor).toHaveBeenCalledWith('1', '42', r.tier.code);
+    expect(cards.resolveFor).toHaveBeenCalledWith('1', '42', r.level.code);
     expect(r.card.source).toBe('AUTOMATICA');
     expect(r.card.catalog.map((t: { code: string }) => t.code)).toEqual(['NORMAL', 'SILVER', 'GOLD', 'PREMIUM', 'BLACK']);
     expect(r.card.catalog.filter((t: { current: boolean }) => t.current)).toHaveLength(1);
@@ -158,13 +211,18 @@ describe('CreditProgressService', () => {
     expect(JSON.stringify(r.card)).not.toMatch(/reason|setBy|revoke/i);
   });
 
-  it('levelOf devuelve sólo el nivel y no consulta cuotas ni historial', async () => {
-    const { service, installments, lines } = armar({ linea: null, historial: [] });
+  it('levelOf devuelve el nivel por puntos (lee las compras) y no consulta el historial', async () => {
+    const { service, installments, lines } = armar({
+      linea: null,
+      historial: [],
+      prestamos: [{ id: 'l1', status: 'paid_off', principalAmount: '600.00' }],
+      cuotas: [{ dueDate: '2026-08-01', status: 'paid', daysPastDue: 0, paidPrincipal: '600.00', paidInterest: '0' }],
+    });
 
     const nivel = await service.levelOf('1', '42');
 
-    expect(nivel.tier.code).toBeDefined();
-    expect(installments.findAll).not.toHaveBeenCalled();
+    expect(nivel.level.code).toBe('EN_CONSTRUCCION');
+    expect(installments.findAll).toHaveBeenCalled();
     expect(lines.history).not.toHaveBeenCalled();
   });
 });

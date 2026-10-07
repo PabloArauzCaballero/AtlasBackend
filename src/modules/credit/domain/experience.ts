@@ -1,17 +1,22 @@
 /**
- * @file Dominio: la experiencia (puntos por boliviano pagado a tiempo), las rachas y las insignias de un cliente.
- * @business Convierte pagar a tiempo en algo que se ve y se acumula, sin premiar el endeudarse: la experiencia sale de lo que se PAGA, no de lo que se compra.
- * @system función pura sobre las cuotas del cliente; no lee base de datos ni llama al motor.
+ * @file Dominio: la experiencia (puntos por boliviano COMPRADO), las rachas y las insignias de un cliente.
+ * @business Pablo (2026-10-06): «una cosa son los puntos de calificación y otra los puntos de experiencia. En los de
+ *   experiencia, cada peso comprado es un punto, y dan los niveles». La experiencia mide cuánto USA Atlas la persona;
+ *   qué tan buen pagador es lo mide la Calificación 1-100 (`payer-rating.ts`), que es la que mira el crédito.
+ * @system función pura sobre las compras y las cuotas del cliente; no lee base de datos ni llama al motor.
  *
  * ## La regla de los puntos
  *
- * 1 punto por cada boliviano (parte entera) de una cuota pagada A TIEMPO. Cuenta capital e intereses pagados; no la mora
- * ni el recargo por atraso, porque pagar tarde no debe sumar. Una cuota pagada con atraso suma 0 y rompe la racha.
+ * 1 punto por cada boliviano (parte entera) del monto de cada compra hecha con Atlas: los créditos `active` y
+ * `paid_off`. No cuentan los anulados ni los que aún esperan desembolso (la compra no se concretó), ni los castigados
+ * (`written_off`): una compra que no se pagó no puede seguir dando nivel.
  *
- * ## Por qué no se gana al comprar
+ * ## El nivel no toca el monto
  *
- * Si cada boliviano comprado diera puntos, subir de nivel pediría endeudarse más: justo lo contrario de lo que el
- * puntaje de crédito debe premiar. Comprar no suma; pagar a tiempo sí.
+ * Antes la experiencia salía de lo pagado a tiempo, para no premiar el endeudarse. Ese riesgo no desaparece, pero
+ * queda acotado: el nivel y la tarjeta Normal…Black son presentación y estatus (`points-level.ts`); el límite lo
+ * decide el motor con la puntuación de relación, que sigue midiendo pagos a tiempo. Las rachas y las insignias de
+ * pago siguen saliendo de las cuotas pagadas a tiempo.
  */
 
 export type InstallmentFact = {
@@ -36,8 +41,10 @@ export type Badge = {
 };
 
 export type Experience = {
-  /** Puntos de experiencia: 1 por cada boliviano pagado a tiempo. */
+  /** Puntos de experiencia: 1 por cada boliviano comprado con Atlas. */
   xp: number;
+  /** Bolivianos pagados a tiempo (capital + intereses): lo que miden las insignias de pago. */
+  paidOnTime: number;
   onTimeInstallments: number;
   /** Cuotas seguidas a tiempo hasta hoy. */
   currentStreak: number;
@@ -47,6 +54,8 @@ export type Experience = {
 
 export type ExperienceInput = {
   installments: readonly InstallmentFact[];
+  /** El monto de cada compra que cuenta para la experiencia (créditos `active` y `paid_off`). */
+  purchaseAmounts: readonly number[];
   /** Compras con su crédito activo o desembolsado alguna vez. */
   loansEver: number;
   loansSettled: number;
@@ -84,7 +93,10 @@ function badge(def: { code: string; label: string; detail: string; icon: string;
 
 export function buildExperience(input: ExperienceInput): Experience {
   const aTiempo = input.installments.filter(isOnTime);
-  const xp = Math.floor(aTiempo.reduce((suma, c) => suma + Math.max(0, c.paidAmount), 0));
+  // Un importe negativo o no numérico (nunca debería llegar) no resta ni rompe la cuenta.
+  const positivo = (valor: number) => (Number.isFinite(valor) && valor > 0 ? valor : 0);
+  const xp = Math.floor(input.purchaseAmounts.reduce((suma, monto) => suma + positivo(monto), 0));
+  const pagadoATiempo = Math.floor(aTiempo.reduce((suma, c) => suma + positivo(c.paidAmount), 0));
   const { current, best } = streaks(input.installments, input.today);
 
   const badges: Badge[] = [
@@ -119,7 +131,7 @@ export function buildExperience(input: ExperienceInput): Experience {
       label: '100 Bs a tiempo',
       detail: 'Pagaste 100 Bs sin atrasos.',
       icon: 'billetera',
-      current: xp,
+      current: pagadoATiempo,
       target: 100,
     }),
     badge({
@@ -127,7 +139,7 @@ export function buildExperience(input: ExperienceInput): Experience {
       label: '1.000 Bs a tiempo',
       detail: 'Pagaste 1.000 Bs sin atrasos.',
       icon: 'billetera',
-      current: xp,
+      current: pagadoATiempo,
       target: 1000,
     }),
     badge({
@@ -135,7 +147,7 @@ export function buildExperience(input: ExperienceInput): Experience {
       label: '5.000 Bs a tiempo',
       detail: 'Pagaste 5.000 Bs sin atrasos.',
       icon: 'estrella',
-      current: xp,
+      current: pagadoATiempo,
       target: 5000,
     }),
     badge({
@@ -156,5 +168,5 @@ export function buildExperience(input: ExperienceInput): Experience {
     }),
   ];
 
-  return { xp, onTimeInstallments: aTiempo.length, currentStreak: current, bestStreak: best, badges };
+  return { xp, paidOnTime: pagadoATiempo, onTimeInstallments: aTiempo.length, currentStreak: current, bestStreak: best, badges };
 }
