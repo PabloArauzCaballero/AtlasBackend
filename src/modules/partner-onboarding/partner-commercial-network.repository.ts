@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, Sequelize, Transaction, UniqueConstraintError } from 'sequelize';
+import type { NewBranchValues, NewQrCodeValues, NewRepresentativeValues } from './partner-commercial-network.types.js';
 import {
   PartnerBranchModel,
   PartnerLegalRepresentativeModel,
@@ -46,17 +47,7 @@ export class PartnerCommercialNetworkRepository {
     });
   }
 
-  createRepresentative(
-    values: {
-      tenantId: string;
-      partnerProfileId: string;
-      fullName: string;
-      documentType: string;
-      documentNumber: string;
-      powerOfAttorneyKey: string | null;
-    },
-    options: RepositoryOptions = {},
-  ): Promise<PartnerLegalRepresentativeModel> {
+  createRepresentative(values: NewRepresentativeValues, options: RepositoryOptions = {}): Promise<PartnerLegalRepresentativeModel> {
     return this.representativeModel.create({ ...values, createdAtValue: new Date() }, { transaction: options.transaction });
   }
 
@@ -80,20 +71,7 @@ export class PartnerCommercialNetworkRepository {
     });
   }
 
-  createBranch(
-    values: {
-      tenantId: string;
-      partnerProfileId: string;
-      branchCode: string;
-      name: string;
-      addressLine: string | null;
-      city: string | null;
-      latitude: number | null;
-      longitude: number | null;
-      erpBranchId: string | null;
-    },
-    options: RepositoryOptions = {},
-  ): Promise<PartnerBranchModel> {
+  createBranch(values: NewBranchValues, options: RepositoryOptions = {}): Promise<PartnerBranchModel> {
     return this.branchModel.create({ ...values, status: 'active', createdAtValue: new Date() }, { transaction: options.transaction });
   }
 
@@ -159,21 +137,7 @@ export class PartnerCommercialNetworkRepository {
     return archivados;
   }
 
-  createQrCode(
-    values: {
-      tenantId: string;
-      partnerProfileId: string;
-      branchId: string | null;
-      qrKind: string;
-      storageKey: string;
-      contentType: string;
-      sizeBytes: number;
-      sha256: string;
-      bankInstitutionCode: string | null;
-      accountNumberMasked: string | null;
-    },
-    options: RepositoryOptions = {},
-  ): Promise<PartnerQrCodeModel> {
+  createQrCode(values: NewQrCodeValues, options: RepositoryOptions = {}): Promise<PartnerQrCodeModel> {
     return this.qrModel.create({ ...values, status: 'pending_review', createdAtValue: new Date() }, { transaction: options.transaction });
   }
 

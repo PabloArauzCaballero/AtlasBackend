@@ -46,28 +46,19 @@ import { toPartnerProfileDto, toPartnerQrDto } from './partner-onboarding.mapper
 /**
  * Quien firma que un comercio es de fiar.
  *
- * El expediente llegaba a `under_review` y **se quedaba ahí para siempre**: no había un solo camino
- * que escribiera `decided_at`. Sin esta decisión ningún comercio quedaba verificado, así que ningún
- * QR de caja resolvía y ninguna compra podía atribuirse a un comercio — el vínculo que sostiene la
- * categoría del gasto no tenía dónde empezar.
- *
- * NO admite el rol `merchant`, y es la diferencia con todo el resto del módulo: el onboarding es
- * autoservicio hasta el envío, y desde ahí en adelante es verificación. Un comercio que pudiera
- * aprobarse a sí mismo convertiría el trámite en un formulario.
+ * Sin esta decisión el expediente se quedaba en `under_review` para siempre: ningún QR de caja
+ * resolvía. NO admite el rol `merchant`: el onboarding es autoservicio hasta el envío y desde ahí
+ * es verificación; un comercio que pudiera aprobarse a sí mismo convertiría el trámite en formulario.
  */
 @ApiTags('partner-onboarding')
 @ApiBearerAuth('access-token')
 @Controller('operations/partners')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, InternalPermissionsGuard)
 /*
- * El ERP llega por PERMISO, no por rol de aplicación.
- *
- * `operations_manager` es un rol interno del RBAC (`internal_rbac.roles`), no uno de los roles de
- * aplicación que `@Roles` entiende, así que la puerta del ERP se abre con `partner.kyb.request` en
- * las dos rutas que necesita —pedir la verificación y enlazar su cuenta—, mientras `@Roles` de la
- * clase sigue gobernando el resto. El ERP pide y NO decide: `POST :partnerId/decision` exige
- * `partner.kyb.decide`, la misma separación que ya rige el alta de identidades de comercio
- * (`merchant.users.request` frente a `merchant.users.manage`).
+ * El ERP llega por PERMISO, no por rol de aplicación: `operations_manager` es un rol interno del
+ * RBAC que `@Roles` no entiende, así que `partner.kyb.request` abre las dos rutas que necesita
+ * (pedir la verificación y enlazar su cuenta). El ERP pide y NO decide: `POST :partnerId/decision`
+ * exige `partner.kyb.decide` (como `merchant.users.request` frente a `merchant.users.manage`).
  */
 @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
 export class PartnerOperationsController {
@@ -127,9 +118,8 @@ export class PartnerOperationsController {
   /**
    * Una persona aprueba o rechaza el QR de cobro de un comercio.
    *
-   * Un QR ya NO espera esta revisión para verse: el comercio lo confirma al registrarlo y nace
-   * `active` (`markQrActive`). Esta ruta sólo resuelve los que siguen en `pending_review` (los que
-   * dejó la revisión retirada el 2026-10-02). Se corta en el servicio (409 si no está pendiente).
+   * Un QR nace `active` (`markQrActive`); esta ruta sólo resuelve los que quedaron en
+   * `pending_review` tras retirarse la revisión (2026-10-02). 409 en el servicio si no lo está.
    */
   @InternalPermissions('partner.qr.review')
   @ApiOperation({
@@ -263,8 +253,7 @@ export class PartnerOperationsController {
   }
 
   @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
-  // El rol de aplicación no basta: `internal_operator` lo comparten soporte y cobranza, y aprobar
-  // habilita al comercio a cobrar.
+  // `internal_operator` lo comparten soporte y cobranza, y aprobar habilita al comercio a cobrar.
   @InternalPermissions('partner.kyb.decide')
   @ApiOperation({
     summary: 'Aprobar o rechazar el expediente de un comercio',
