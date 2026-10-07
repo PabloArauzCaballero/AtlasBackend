@@ -309,8 +309,7 @@ export class NotificationsRepository {
    * Mensajes a medio entregar que nadie va a retomar (A-03). `sending` entra junto a `pending`: lo deja
    * `markMessageSending` si el proceso muere entre marcar y entregar. El corte por antigüedad evita
    * competir con una entrega en vuelo; los avisos de campaña y los programados a futuro no son suyos.
-   * Quien no tiene corte (el job de pendientes) pide sólo `pending`: un `sending` reciente es una
-   * entrega en vuelo, no un varado.
+   * El job de pendientes (sin corte) pide sólo `pending`: un `sending` reciente va en vuelo.
    */
   listStuckMessages(input: {
     tenantId: string;
@@ -332,8 +331,7 @@ export class NotificationsRepository {
   }
 
   /**
-   * Reabre un mensaje para reintentarlo, sólo si falló (o quedó a medio reintentar). Compare-and-set:
-   * un entregado, leído o cancelado no se vuelve a mandar ni a cobrar por pulsar «reintentar».
+   * Reabre para reintentar sólo un mensaje fallido (compare-and-set): un entregado o cancelado no se reenvía.
    */
   async markMessageRetrying(message: NotificationMessageModel): Promise<boolean> {
     const [reopened] = await this.messageModel.update({ status: 'retrying', failedAt: null, updatedAtValue: new Date() } as never, {
@@ -343,9 +341,8 @@ export class NotificationsRepository {
   }
 
   /**
-   * Reclama el mensaje para entregarlo: compare-and-set sobre el estado que se leyó. Si otra tanda (el
-   * job de pendientes, el de varados, un reintento manual) lo reclamó entre la lectura y aquí, el UPDATE
-   * no toca ninguna fila y quien llega segundo no envía: así un SMS no sale ni se cobra dos veces.
+   * Reclama el mensaje para entregarlo (compare-and-set sobre el estado leído): si otra tanda (pendientes,
+   * varados, reintento manual) llegó antes, el UPDATE no toca filas y quien llega segundo no envía.
    */
   async markMessageSending(message: NotificationMessageModel): Promise<boolean> {
     const now = new Date();
