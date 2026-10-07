@@ -1,5 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
-import { hashPassword, isPasswordStrongEnough, verifyPassword } from '../../../src/common/utils/crypto/password.util.js';
+import {
+  hashPassword,
+  isPasswordStrongEnough,
+  verifyPassword,
+  verifyPasswordAgainstDummy,
+} from '../../../src/common/utils/crypto/password.util.js';
 
 describe('password.util', () => {
   describe('hashPassword / verifyPassword', () => {
@@ -21,6 +26,15 @@ describe('password.util', () => {
 
     it('does not throw when verifying against a malformed/corrupted hash, returns false instead', async () => {
       await expect(verifyPassword('not-a-real-argon2-hash', 'anything')).resolves.toBe(false);
+    });
+  });
+
+  describe('verifyPasswordAgainstDummy', () => {
+    it('gasta una verificación real de argon2 sin lanzar ni devolver nada', async () => {
+      const inicio = Date.now();
+      await expect(verifyPasswordAgainstDummy('cualquier-cosa')).resolves.toBeUndefined();
+      await expect(verifyPasswordAgainstDummy('cualquier-cosa')).resolves.toBeUndefined();
+      expect(Date.now() - inicio).toBeGreaterThan(0);
     });
   });
 

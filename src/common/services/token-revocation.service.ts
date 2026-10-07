@@ -53,7 +53,10 @@ export class TokenRevocationService {
 
     if (version !== null && this.redis) {
       try {
-        await this.redis.set(key, String(version), 'EX', TokenRevocationService.CACHE_TTL_SECONDS);
+        // NX: el lector sólo LLENA una entrada ausente. Un SET incondicional pisaba la versión que un
+        // bump concurrente acababa de publicar con la que este lector leyó ANTES del bump, y el token
+        // revocado volvía a valer hasta el TTL.
+        await this.redis.set(key, String(version), 'EX', TokenRevocationService.CACHE_TTL_SECONDS, 'NX');
       } catch (error) {
         this.logger.warn(`Fallo escribiendo caché de tokenVersion (no bloqueante): ${error instanceof Error ? error.message : error}`);
       }

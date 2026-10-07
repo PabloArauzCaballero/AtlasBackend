@@ -11,7 +11,7 @@ import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { env } from '../../config/env.js';
 
-import { verifyPassword } from '../../common/utils/crypto/password.util.js';
+import { verifyPassword, verifyPasswordAgainstDummy } from '../../common/utils/crypto/password.util.js';
 import { hashRefreshToken } from '../../common/utils/crypto/refresh-token.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
@@ -89,49 +89,58 @@ export class AuthService {
     };
 
     if (!actor) {
+      await verifyPasswordAgainstDummy(input.dto.password);
       await logAttempt({ actorId: null, reasonCode: 'actor_not_found' });
       throw invalidCredentialsError;
     }
 
     const credential = await this.authRepository.findCredentialsByActor(input.dto.actorType, actor.id);
     if (!credential) {
+      await verifyPasswordAgainstDummy(input.dto.password);
       await logAttempt({ actorId: actor.id, reasonCode: 'no_credentials' });
       throw invalidCredentialsError;
     }
 
-    if (credential.lockedUntil && credential.lockedUntil.getTime() > Date.now()) {
+    /*
+     * El bloqueo dice HASTA CUÁNDO, no «más tarde».
+     *
+     * Antes se respondía con una frase suelta y sin código, así que la app no podía distinguir
+     * «te equivocaste de contraseña» de «estás bloqueado» —caía en el mensaje genérico— y quien
+     * lo leía no tenía forma de saber si esperar un minuto o una hora. La respuesta previsible
+     * es no volver a intentarlo nunca, o intentarlo cada diez segundos: las dos peores.
+     *
+     * Decir cuándo se puede volver no debilita el control: el bloqueo sigue siendo el mismo
+     * tiempo y quien lo provocó ya sabe que existe. Lo que cambia es que el titular legítimo
+     * —que es quien casi siempre se equivoca de contraseña— sabe qué hacer con su tarde.
+     */
+    const rejectLocked = async (lockedUntil: Date | null): Promise<never> => {
       await logAttempt({ actorId: actor.id, reasonCode: 'account_locked' });
-
-      /*
-       * El bloqueo dice HASTA CUÁNDO, no «más tarde».
-       *
-       * Antes se respondía con una frase suelta y sin código, así que la app no podía distinguir
-       * «te equivocaste de contraseña» de «estás bloqueado» —caía en el mensaje genérico— y quien
-       * lo leía no tenía forma de saber si esperar un minuto o una hora. La respuesta previsible
-       * es no volver a intentarlo nunca, o intentarlo cada diez segundos: las dos peores.
-       *
-       * Decir cuándo se puede volver no debilita el control: el bloqueo sigue siendo el mismo
-       * tiempo y quien lo provocó ya sabe que existe. Lo que cambia es que el titular legítimo
-       * —que es quien casi siempre se equivoca de contraseña— sabe qué hacer con su tarde.
-       */
-      const retryAfterSeconds = Math.max(1, Math.ceil((credential.lockedUntil.getTime() - Date.now()) / 1000));
+      const until = lockedUntil ?? new Date(Date.now() + env.AUTH_LOCKOUT_MINUTES * 60_000);
       throw new UnauthorizedException({
         code: 'ACCOUNT_LOCKED',
         message: 'Cuenta bloqueada temporalmente por múltiples intentos fallidos.',
-        lockedUntil: credential.lockedUntil.toISOString(),
-        retryAfterSeconds,
+        lockedUntil: until.toISOString(),
+        retryAfterSeconds: Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000)),
       });
-    }
+    };
+
+    if (credential.lockedUntil && credential.lockedUntil.getTime() > Date.now()) await rejectLocked(credential.lockedUntil);
+
+    // El intento se RESERVA antes de argon2 y en un solo UPDATE: con la lectura de arriba sola, N
+    // peticiones en paralelo veían «sin bloqueo», probaban N secretos y dejaban el contador en k+1.
+    // Sobre un PIN de 4 dígitos eso era recorrer el espacio entero entre bloqueo y bloqueo.
+    const locked = await this.authRepository.reserveLoginAttempt(credential.id, {
+      maxAttempts: env.AUTH_MAX_FAILED_LOGIN_ATTEMPTS,
+      lockoutMinutes: env.AUTH_LOCKOUT_MINUTES,
+    });
+    if (locked) await rejectLocked(locked.lockedUntil);
 
     const passwordMatches = await verifyPassword(credential.passwordHash, input.dto.password);
     if (!passwordMatches) {
-      await this.authRepository.recordFailedAttempt(credential, {
-        maxAttempts: env.AUTH_MAX_FAILED_LOGIN_ATTEMPTS,
-        lockoutMinutes: env.AUTH_LOCKOUT_MINUTES,
-      });
       await logAttempt({ actorId: actor.id, reasonCode: 'invalid_password' });
       throw invalidCredentialsError;
     }
+    await this.authRepository.clearFailedAttempts(credential.id);
 
     if (this.secondFactor.isRequired(input.dto.actorType, credential)) {
       return this.secondFactor.issueChallenge(actor, input.dto.actorType, { ip: input.ip, userAgent: input.userAgent });
@@ -157,7 +166,13 @@ export class AuthService {
    * La verificación vive en `AuthSecondFactorService`; aquí queda solo lo que es competencia de este
    * servicio — decidir qué claims lleva el par de tokens que se emite.
    */
-  async verifyLoginPin(input: { challengeToken: string; pin: string; ip: string | null; userAgent: string | null }): Promise<LoginResult> {
+  async verifyLoginPin(input: {
+    challengeToken: string;
+    pin: string;
+    ip: string | null;
+    userAgent: string | null;
+    expectedActorType?: ActorType;
+  }): Promise<LoginResult> {
     const verified = await this.secondFactor.consumeChallenge(input);
     return this.tokenIssuer.issueTokenPair(verified.actor, verified.actorType, verified.credential.tokenVersion, {
       ip: input.ip,
@@ -178,7 +193,12 @@ export class AuthService {
    * caso de reuso detectado, la revocación de la cadena de descendientes es justo lo que NO
    * queremos perder aunque la solicitud en sí termine en 401.
    */
-  async refresh(input: { refreshToken: string; ip: string | null; userAgent: string | null }): Promise<LoginResult> {
+  async refresh(input: {
+    refreshToken: string;
+    ip: string | null;
+    userAgent: string | null;
+    expectedActorType?: ActorType;
+  }): Promise<LoginResult> {
     const tokenHash = hashRefreshToken(input.refreshToken);
 
     const outcome = await this.sequelize.transaction((transaction) =>
@@ -211,7 +231,7 @@ export class AuthService {
 
   private async rotateRefreshTokenWithinTransaction(
     tokenHash: string,
-    input: { ip: string | null; userAgent: string | null },
+    input: { ip: string | null; userAgent: string | null; expectedActorType?: ActorType },
     transaction: Transaction,
   ): Promise<
     | { kind: 'success'; accessToken: string; refreshToken: string }
@@ -223,6 +243,8 @@ export class AuthService {
     if (!stored) return { kind: 'invalid' };
 
     const actorType = stored.actorType as ActorType;
+    // Un token de otro tipo de actor llegado a la ruta equivocada se rechaza SIN rotarlo ni revocarlo.
+    if (input.expectedActorType && actorType !== input.expectedActorType) return { kind: 'invalid' };
 
     if (stored.revokedAt) {
       // El token ya fue consumido antes. Si fue consumido específicamente por una rotación

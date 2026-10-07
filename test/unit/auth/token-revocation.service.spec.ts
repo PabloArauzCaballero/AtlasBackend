@@ -52,7 +52,7 @@ describe('TokenRevocationService — caché de tokenVersion', () => {
 
     expect(version).toBe(3);
     expect(credentialModel.findOne).toHaveBeenCalledTimes(1);
-    expect(redis.set).toHaveBeenCalledWith('atlas:auth:token-version:customer:cust-1', '3', 'EX', 300);
+    expect(redis.set).toHaveBeenCalledWith('atlas:auth:token-version:customer:cust-1', '3', 'EX', 300, 'NX');
   });
 
   it('si Redis falla en la lectura, se degrada a la base de datos sin lanzar error', async () => {

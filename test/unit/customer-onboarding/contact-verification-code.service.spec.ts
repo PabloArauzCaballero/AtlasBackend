@@ -19,8 +19,9 @@ describe('ContactVerificationCodeService', () => {
     const authRepository = {
       createOneTimeCode: jest.fn(async (..._args: unknown[]) => ({ id: 'otc-1' })),
       findActiveOneTimeCodeByActor: jest.fn(async (..._args: unknown[]) => null),
+      reserveOneTimeCodeAttempt: jest.fn(async (..._args: unknown[]) => true),
       registerOneTimeCodeFailedAttempt: jest.fn(),
-      consumeOneTimeCode: jest.fn(),
+      consumeOneTimeCode: jest.fn(async (..._args: unknown[]) => true),
     };
     const mailSenderService = {
       isEnabled: jest.fn((..._args: unknown[]) => options.emailEnabled ?? true),
@@ -201,6 +202,21 @@ describe('ContactVerificationCodeService', () => {
 
       await expect(service.verify({ customerId: 'c1', contactType: 'phone', candidate: '654321' })).resolves.toEqual({ ok: true });
       expect(authRepository.consumeOneTimeCode).toHaveBeenCalledWith(record);
+    });
+
+    it('sin intentos que reservar, o si otra petición ya lo consumió, el código correcto tampoco sirve', async () => {
+      const { service, authRepository } = await build();
+      const { hashOneTimeCode } = await import('../../../src/common/utils/crypto/one-time-code.util.js');
+      const record = { codeHash: hashOneTimeCode('654321'), expiresAt: new Date(Date.now() + 60_000) };
+      (authRepository.findActiveOneTimeCodeByActor as jest.Mock).mockResolvedValue(record as never);
+      const input = { customerId: 'c1', contactType: 'phone' as const, candidate: '654321' };
+
+      (authRepository.reserveOneTimeCodeAttempt as jest.Mock).mockResolvedValueOnce(false as never);
+      await expect(service.verify(input)).resolves.toEqual({ ok: false, reason: 'invalid' });
+      expect(authRepository.consumeOneTimeCode).not.toHaveBeenCalled();
+
+      (authRepository.consumeOneTimeCode as jest.Mock).mockResolvedValueOnce(false as never);
+      await expect(service.verify(input)).resolves.toEqual({ ok: false, reason: 'invalid' });
     });
   });
 });

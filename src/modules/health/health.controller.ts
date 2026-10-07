@@ -176,8 +176,10 @@ export class HealthController {
       const caidas = [postgres !== 'ok' ? `postgres=${postgres}` : null, redis === 'unreachable' ? 'redis=unreachable' : null].filter(
         (x): x is string => x !== null,
       );
+      // `code` en MAYÚSCULAS: sin él el filtro global descarta `checks` y `shuttingDown` del cuerpo.
       throw new ServiceUnavailableException({
         ...body,
+        code: 'NOT_READY',
         message: shuttingDown
           ? 'La instancia está drenando y no debe recibir tráfico.'
           : `Dependencias no disponibles: ${caidas.join(', ')}.`,
