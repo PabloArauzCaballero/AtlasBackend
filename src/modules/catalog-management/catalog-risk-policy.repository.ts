@@ -95,7 +95,11 @@ export class CatalogRiskPolicyRepository {
     options: RepositoryOptions,
   ): Promise<number> {
     if (!rulesetCode) return 0;
-    const [count] = await this.riskRulesetVersionModel.update({ status: 'retired', effectiveUntil } as never, {
+    // Con una vigencia FUTURA la versión vigente sigue 'active' y sólo se le acota `effectiveUntil`:
+    // `findActiveRuleset` filtra por estado y por fecha, y retirarla ya dejaría el scoring sin
+    // política hasta que llegue `effectiveFrom` de la nueva.
+    const changes = effectiveUntil.getTime() > Date.now() ? { effectiveUntil } : { status: 'retired', effectiveUntil };
+    const [count] = await this.riskRulesetVersionModel.update(changes as never, {
       where: { rulesetCode, id: { [Op.ne]: currentId }, status: 'active' },
       transaction: options.transaction,
     });
