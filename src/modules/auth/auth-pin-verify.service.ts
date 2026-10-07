@@ -45,6 +45,9 @@ export type PinVerifyRequester = {
  */
 @Injectable()
 export class AuthPinVerifyService {
+  /** Comprobaciones en vuelo por cuenta: el recuento de fallos sólo ve las ya registradas y las ráfagas lo burlarían. */
+  private readonly enCurso = new Map<string, number>();
+
   constructor(
     private readonly actorResolver: AuthActorResolverService,
     private readonly passwordChangeRepository: AuthPasswordChangeRepository,
@@ -58,7 +61,9 @@ export class AuthPinVerifyService {
     }
 
     const fallos = await this.passwordChangeRepository.countRecentPinFailures(input.actorId, new Date(Date.now() - PIN_VERIFY_WINDOW_MS));
-    if (fallos >= PIN_VERIFY_MAX_FAILURES) {
+    const key = `${input.actorType}:${input.actorId}`;
+    const previas = this.enCurso.get(key) ?? 0;
+    if (fallos + previas >= PIN_VERIFY_MAX_FAILURES) {
       // No se registra como fallo: contaría contra la ventana y la pausa no terminaría nunca para quien insiste.
       throw new HttpException(
         { code: 'PIN_VERIFY_COOLDOWN', message: 'Demasiados intentos con el PIN. Espera unos minutos y vuelve a intentarlo.' },
@@ -66,9 +71,27 @@ export class AuthPinVerifyService {
       );
     }
 
-    const correct = await verifyPassword(credential.passwordHash, input.pin);
+    // Reserva síncrona tras el recuento: N peticiones simultáneas ya no leen todas el mismo número (por proceso).
+    this.enCurso.set(key, previas + 1);
+    let correct: boolean;
+    try {
+      correct = await verifyPassword(credential.passwordHash, input.pin);
+      await this.registrar(actor.tenantId, input, correct);
+    } finally {
+      const quedan = (this.enCurso.get(key) ?? 1) - 1;
+      if (quedan > 0) this.enCurso.set(key, quedan);
+      else this.enCurso.delete(key);
+    }
+    if (!correct) {
+      throw new BadRequestException({ code: 'PIN_INCORRECT', message: 'El PIN no es correcto.' });
+    }
+
+    return { verified: true, verifiedAt: new Date().toISOString() };
+  }
+
+  private async registrar(tenantId: string | null, input: PinVerifyRequester, correct: boolean): Promise<void> {
     await this.passwordChangeRepository.recordEvent({
-      tenantId: actor.tenantId,
+      tenantId,
       actorType: input.actorType,
       actorId: input.actorId,
       eventType: 'pin_verify',
@@ -77,10 +100,5 @@ export class AuthPinVerifyService {
       ip: input.ip,
       userAgent: input.userAgent,
     });
-    if (!correct) {
-      throw new BadRequestException({ code: 'PIN_INCORRECT', message: 'El PIN no es correcto.' });
-    }
-
-    return { verified: true, verifiedAt: new Date().toISOString() };
   }
 }

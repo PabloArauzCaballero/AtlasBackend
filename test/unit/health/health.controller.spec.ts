@@ -141,6 +141,15 @@ describe('HealthController', () => {
       expect(body.shuttingDown).toBe(true);
     });
 
+    it('el 503 lleva un code de negocio para que el filtro conserve `checks` en el cuerpo', async () => {
+      const { controller } = buildController({ authenticate: async () => undefined, shuttingDown: true });
+
+      const error = await controller.readiness().catch((thrown: unknown) => thrown);
+      const body = (error as ServiceUnavailableException).getResponse() as { code: string; checks: unknown };
+      expect(body.code).toBe('NOT_READY');
+      expect(body.checks).toBeDefined();
+    });
+
     it('mientras no haya apagado, readiness reporta shuttingDown=false', async () => {
       const { controller } = buildController({ authenticate: async () => undefined, redis: null });
 

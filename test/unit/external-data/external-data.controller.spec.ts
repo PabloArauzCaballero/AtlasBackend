@@ -34,7 +34,15 @@ describe('ExternalDataController (ejecución)', () => {
     const c = new ExternalDataController(svc as never);
     const body = { customerId: '9', providerCode: 'SEGIP' } as never;
     await c.createConsent('1', '1.2.3.4', 'agent', body, user);
-    expect(svc.createConsent).toHaveBeenCalledWith({ tenantId, body, ipAddress: '1.2.3.4', userAgent: 'agent' });
+    expect(svc.createConsent).toHaveBeenCalledWith({
+      tenantId,
+      body,
+      ipAddress: '1.2.3.4',
+      userAgent: 'agent',
+      assistedByUserId: 'u1',
+    });
+    await c.createConsent('1', '1.2.3.4', 'agent', { customerId: '9' } as never, { role: 'customer', customerId: '9', sub: 's' } as never);
+    expect((svc.createConsent.mock.calls[1][0] as { assistedByUserId?: string }).assistedByUserId).toBeUndefined();
   });
 
   it('listConsents y revokeConsent (revoke usa el scope de mutación del actor)', async () => {
@@ -51,21 +59,43 @@ describe('ExternalDataController (ejecución)', () => {
     const c = new ExternalDataController(svc as never);
     const body = { customerId: '9', providerCode: 'SEGIP', queryType: 'q', purpose: 'p', decisionStage: 'd', input: {} } as never;
     await c.previewRequest('1', body, user);
-    expect(svc.previewExternalDataRequest).toHaveBeenCalledWith({ tenantId, body, requestedByUserId: actorId(user) });
+    expect(svc.previewExternalDataRequest).toHaveBeenCalledWith({
+      tenantId,
+      body,
+      requestedByUserId: actorId(user),
+      approvedByAdminId: undefined,
+    });
     await c.executeRequest('1', 'idem-1', body, user);
     expect(svc.executeExternalDataRequest).toHaveBeenCalledWith({
       tenantId,
       body,
       idempotencyKey: 'idem-1',
       requestedByUserId: actorId(user),
+      approvedByAdminId: undefined,
     });
+  });
+
+  it('approvedByAdminId del cuerpo: un cliente o un analista no se autoaprueban; un admin aprueba a SU nombre', async () => {
+    const svc = service();
+    const c = new ExternalDataController(svc as never);
+    const customer = { role: 'customer', tenantId: '1', customerId: '9' } as never;
+    const body = { customerId: '9', providerCode: 'INFOCENTER', queryType: 'CREDIT_REPORT', approvedByAdminId: '1' } as never;
+    await c.executeRequest('1', undefined, body, customer);
+    expect(svc.executeExternalDataRequest).toHaveBeenLastCalledWith(expect.objectContaining({ approvedByAdminId: undefined }));
+    await c.executeRequest('1', undefined, body, user);
+    expect(svc.executeExternalDataRequest).toHaveBeenLastCalledWith(expect.objectContaining({ approvedByAdminId: undefined }));
+    const admin = { role: 'admin', tenantId: '1', internalUserId: 'a9' } as never;
+    await c.executeRequest('1', undefined, body, admin);
+    expect(svc.executeExternalDataRequest).toHaveBeenLastCalledWith(expect.objectContaining({ approvedByAdminId: 'a9' }));
+    await c.previewRequest('1', body, customer);
+    expect(svc.previewExternalDataRequest).toHaveBeenLastCalledWith(expect.objectContaining({ approvedByAdminId: undefined }));
   });
 
   it('lecturas por cliente y por request (features, scoring-input, decision-package, observations, getRequest, health)', async () => {
     const svc = service();
     const c = new ExternalDataController(svc as never);
-    await c.getRequest('1', { requestId: '7' } as never);
-    expect(svc.getProviderRequest).toHaveBeenCalledWith({ tenantId, requestId: '7' });
+    await c.getRequest('1', { requestId: '7' } as never, user);
+    expect(svc.getProviderRequest).toHaveBeenCalledWith({ tenantId, requestId: '7', customerId: undefined });
     await c.getProviderHealth('SEGIP');
     expect(svc.getProviderHealth).toHaveBeenCalledWith('SEGIP');
     await c.getUserFeatures('1', { customerId: '9' } as never, user);
@@ -81,6 +111,14 @@ describe('ExternalDataController (ejecución)', () => {
     });
     await c.getUserObservations('1', { customerId: '9' } as never, user);
     expect(svc.getCustomerObservations).toHaveBeenCalledWith({ tenantId, customerId: '9' });
+  });
+
+  it('getRequest de un customer va acotado a su propio customerId', async () => {
+    const svc = service();
+    const c = new ExternalDataController(svc as never);
+    const customer = { role: 'customer', tenantId: '1', customerId: '9' } as never;
+    await c.getRequest('1', { requestId: '7' } as never, customer);
+    expect(svc.getProviderRequest).toHaveBeenCalledWith({ tenantId: tenantIdFromHeader('1', customer), requestId: '7', customerId: '9' });
   });
 
   it('bloquea a un customer que consulta datos de otro cliente', () => {
@@ -144,10 +182,10 @@ describe('AdminExternalProvidersController (administración)', () => {
     expect(svc.getProviderUsage).toHaveBeenCalledWith({ tenantId, providerCode: 'SEGIP', days: 30 });
     await c.idempotencyAudit('1', { days: 3, limit: 10 } as never);
     expect(svc.auditIdempotencyKeys).toHaveBeenCalledWith({ tenantId, days: 3, limit: 10 });
-    await c.retentionPreview({ days: 90, limit: 5 } as never);
-    expect(svc.getRetentionPreview).toHaveBeenCalledWith({ days: 90, limit: 5 });
-    await c.sanitizationAudit({ limit: 20 } as never);
-    expect(svc.auditResponseSanitization).toHaveBeenCalledWith({ limit: 20 });
+    await c.retentionPreview('1', { days: 90, limit: 5 } as never);
+    expect(svc.getRetentionPreview).toHaveBeenCalledWith({ tenantId, days: 90, limit: 5 });
+    await c.sanitizationAudit('1', { limit: 20 } as never);
+    expect(svc.auditResponseSanitization).toHaveBeenCalledWith({ tenantId, limit: 20 });
   });
 
   it('mutaciones de runtime/costo (patchRuntime, killSwitch, getCostPolicy, updateCostPolicy)', async () => {
@@ -155,8 +193,12 @@ describe('AdminExternalProvidersController (administración)', () => {
     const c = new AdminExternalProvidersController(svc as never);
     await c.patchRuntime({ providerCode: 'SEGIP' } as never, { mode: 'disabled' } as never);
     expect(svc.updateProviderRuntimePolicy).toHaveBeenCalledWith({ providerCode: 'SEGIP', patch: { mode: 'disabled' } });
-    await c.killSwitch({ providerCode: 'SEGIP' } as never, { reason: 'leak' } as never);
-    expect(svc.activateProviderKillSwitch).toHaveBeenCalledWith({ providerCode: 'SEGIP', reason: 'leak' });
+    await c.killSwitch(
+      { providerCode: 'SEGIP' } as never,
+      { reason: 'leak' } as never,
+      { role: 'risk_analyst', internalUserId: '7' } as never,
+    );
+    expect(svc.activateProviderKillSwitch).toHaveBeenCalledWith({ providerCode: 'SEGIP', reason: 'leak', activatedBy: '7' });
     await c.getCostPolicy({ providerCode: 'SEGIP' } as never);
     expect(svc.getProviderCostPolicies).toHaveBeenCalledWith('SEGIP');
     await c.updateCostPolicy({ providerCode: 'SEGIP' } as never, 'CREDIT_CHECK', { blockByDefault: false } as never);
@@ -172,7 +214,12 @@ describe('AdminExternalProvidersController (administración)', () => {
     const c = new AdminExternalProvidersController(svc as never);
     const body = { customerId: '9', providerCode: 'SEGIP', queryType: 'q', purpose: 'p', decisionStage: 'd', input: {} } as never;
     await c.previewPolicy('1', body, user);
-    expect(svc.previewExternalDataRequest).toHaveBeenCalledWith({ tenantId, body, requestedByUserId: actorId(user) });
+    expect(svc.previewExternalDataRequest).toHaveBeenCalledWith({
+      tenantId,
+      body,
+      requestedByUserId: actorId(user),
+      approvedByAdminId: undefined,
+    });
   });
 
   it('testProvider rellena defaults sensatos cuando el body viene vacío, sin inventar cliente', async () => {
@@ -189,10 +236,10 @@ describe('AdminExternalProvidersController (administración)', () => {
         decisionStage: 'MANUAL_REVIEW',
         input: {},
         scenario: undefined,
-        approvedByAdminId: actorId(user),
         forceRefresh: true,
       },
       requestedByUserId: actorId(user),
+      approvedByAdminId: actorId(user),
       syntheticProbe: true,
     });
   });
@@ -211,17 +258,28 @@ describe('AdminExternalProvidersController (administración)', () => {
     await c.testProvider('1', { providerCode: 'INFOCENTER' } as never, body, user);
     expect(svc.executeExternalDataRequest).toHaveBeenCalledWith({
       tenantId,
-      body: { providerCode: 'INFOCENTER', ...body, approvedByAdminId: actorId(user), forceRefresh: true },
+      body: { providerCode: 'INFOCENTER', ...body, forceRefresh: true },
       requestedByUserId: actorId(user),
+      approvedByAdminId: actorId(user),
       syntheticProbe: true,
     });
   });
 
-  it('approveRequest usa el approvedByAdminId del body o cae al actor; retry y rebuild delegan', async () => {
+  it('testProvider de un analista NO se autoaprueba: la política de costo decide', async () => {
+    const svc = service();
+    const c = new AdminExternalProvidersController(svc as never);
+    const analyst = { role: 'risk_analyst', tenantId: '1', internalUserId: 'r1' } as never;
+    await c.testProvider('1', { providerCode: 'INFOCENTER' } as never, { approvedByAdminId: 'a1' } as never, analyst);
+    expect(svc.executeExternalDataRequest).toHaveBeenLastCalledWith(
+      expect.objectContaining({ approvedByAdminId: undefined, requestedByUserId: 'r1' }),
+    );
+  });
+
+  it('approveRequest queda siempre a nombre del actor (el approvedByAdminId del body no atribuye a otro); retry y rebuild delegan', async () => {
     const svc = service();
     const c = new AdminExternalProvidersController(svc as never);
     await c.approveRequest('1', { requestId: '7' } as never, { approvedByAdminId: 'boss', approvalReason: 'ok' } as never, user);
-    expect(svc.approveRequest).toHaveBeenCalledWith({ tenantId, requestId: '7', approvedByAdminId: 'boss', approvalReason: 'ok' });
+    expect(svc.approveRequest).toHaveBeenCalledWith({ tenantId, requestId: '7', approvedByAdminId: actorId(user), approvalReason: 'ok' });
     await c.approveRequest('1', { requestId: '8' } as never, { approvalReason: 'ok2' } as never, user);
     expect(svc.approveRequest).toHaveBeenLastCalledWith({
       tenantId,
@@ -231,7 +289,13 @@ describe('AdminExternalProvidersController (administración)', () => {
     });
     const retryBody = { reason: 'transient' } as never;
     await c.retryRequest('1', { requestId: '9' } as never, retryBody, user);
-    expect(svc.retryProviderRequest).toHaveBeenCalledWith({ tenantId, requestId: '9', body: retryBody, requestedByUserId: actorId(user) });
+    expect(svc.retryProviderRequest).toHaveBeenCalledWith({
+      tenantId,
+      requestId: '9',
+      body: retryBody,
+      requestedByUserId: actorId(user),
+      approvedByAdminId: undefined,
+    });
     await c.rebuildFeatures('1', { requestId: '10' } as never);
     expect(svc.rebuildFeatureSnapshotFromRequest).toHaveBeenCalledWith({ tenantId, requestId: '10' });
   });

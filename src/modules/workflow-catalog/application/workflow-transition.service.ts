@@ -5,6 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { WorkflowTransitionCheckDto } from '../workflow-catalog.dtos.js';
+import { WorkflowAudience } from '../workflow-catalog.constants.js';
 import { ValidateWorkflowTransitionDto } from '../workflow-catalog.schemas.js';
 import { WorkflowBundle } from '../workflow-catalog.repository.js';
 import { WorkflowCatalogService } from '../workflow-catalog.service.js';
@@ -28,8 +29,12 @@ type Rejection = Pick<WorkflowTransitionCheckDto, 'reasonCode' | 'message'> & { 
 export class WorkflowTransitionService {
   constructor(private readonly catalogService: WorkflowCatalogService) {}
 
-  async validate(workflowCode: string, body: ValidateWorkflowTransitionDto): Promise<WorkflowTransitionCheckDto> {
-    const bundle = await this.catalogService.loadBundle(workflowCode, body.version);
+  async validate(
+    workflowCode: string,
+    body: ValidateWorkflowTransitionDto,
+    audience: WorkflowAudience = 'internal',
+  ): Promise<WorkflowTransitionCheckDto> {
+    const bundle = await this.catalogService.loadBundle(workflowCode, body.version, audience);
     const stepByCode = new Map(bundle.steps.map((step) => [step.stepCode, step]));
     const stepCodeById = new Map(bundle.steps.map((step) => [String(step.id), step.stepCode]));
 

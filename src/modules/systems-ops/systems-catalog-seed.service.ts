@@ -10,7 +10,11 @@ import { join } from 'node:path';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { SYSTEM_TOOL_SEEDS } from './systems-ops.constants.js';
-import { SystemsCatalogAutoSyncService } from './systems-catalog-auto-sync.service.js';
+import {
+  CATALOG_LOCK_IDLE_TIMEOUT_SQL,
+  CATALOG_SELF_SYNC_LOCK_KEY,
+  SystemsCatalogAutoSyncService,
+} from './systems-catalog-auto-sync.service.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { SystemsErpInventoryService } from './systems-erp-inventory.service.js';
 import { SystemsCatalogRepository } from './systems-catalog.repository.js';
@@ -56,27 +60,37 @@ export class SystemsCatalogSeedService {
     user: AuthenticatedUser,
   ) {
     const lockTransaction = await this.sequelize.transaction();
+    const releaseLock = async (error: unknown): Promise<never> => {
+      await lockTransaction.rollback().catch(() => undefined);
+      throw error;
+    };
+    // Dos llaves: la del refresco y la de la pasada automática, que también cataloga las rutas propias.
     const [lock] = await this.sequelize.query<{ acquired: boolean }>(
-      `SELECT pg_try_advisory_xact_lock(hashtext('atlas_systems_catalog_refresh')) AS acquired`,
-      { type: QueryTypes.SELECT, transaction: lockTransaction },
+      `SELECT pg_try_advisory_xact_lock(hashtext('atlas_systems_catalog_refresh'))
+          AND pg_try_advisory_xact_lock(hashtext(:selfSyncKey)) AS acquired`,
+      { type: QueryTypes.SELECT, transaction: lockTransaction, replacements: { selfSyncKey: CATALOG_SELF_SYNC_LOCK_KEY } },
     );
     if (!lock?.acquired) {
       await lockTransaction.rollback();
       throw new ConflictException('SYSTEMS_CATALOG_REFRESH_ALREADY_RUNNING');
     }
+    await this.sequelize.query(CATALOG_LOCK_IDLE_TIMEOUT_SQL, { transaction: lockTransaction }).catch(releaseLock);
     const startedAt = new Date();
-    const job = await this.jobRunModel.create({
-      tenantId: systemsTenantScope(user),
-      jobCode: 'systems_catalog_refresh',
-      status: 'running',
-      startedAt,
-      inputJson: input,
-      resultJson: null,
-      errorMessage: null,
-      triggeredByType: 'user',
-      triggeredById: actorId(user),
-      createdAtValue: startedAt,
-    } as never);
+    // El INSERT va con el candado tomado: si lanza hay que soltarlo, o cada refresco responde 409.
+    const job = await this.jobRunModel
+      .create({
+        tenantId: systemsTenantScope(user),
+        jobCode: 'systems_catalog_refresh',
+        status: 'running',
+        startedAt,
+        inputJson: input,
+        resultJson: null,
+        errorMessage: null,
+        triggeredByType: 'user',
+        triggeredById: actorId(user),
+        createdAtValue: startedAt,
+      } as never)
+      .catch(releaseLock);
     const result = {
       tools: 0,
       dataEntities: 0,

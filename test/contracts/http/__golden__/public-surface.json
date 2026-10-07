@@ -1825,6 +1825,30 @@
     ],
     "body": true
   },
+  "POST /customers/{customerId}/credit-applications/{applicationId}/down-payment": {
+    "operationId": "CreditDownPaymentCustomerController_submit",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "422",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "applicationId",
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
   "GET /customers/{customerId}/credit-line": {
     "operationId": "CreditController_creditLine",
     "responses": [
@@ -5390,6 +5414,72 @@
       "access-token"
     ],
     "body": true
+  },
+  "GET /merchant/partners/{partnerId}/down-payments": {
+    "operationId": "MerchantDownPaymentController_list",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "partnerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "GET /merchant/partners/{partnerId}/down-payments/{applicationId}/proof": {
+    "operationId": "MerchantDownPaymentController_proof",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "applicationId",
+      "partnerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "POST /merchant/partners/{partnerId}/down-payments/{applicationId}/verification": {
+    "operationId": "MerchantDownPaymentController_decide",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "applicationId",
+      "partnerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
   },
   "GET /merchant/partners/{partnerId}/payment-claims": {
     "operationId": "MerchantPaymentClaimsController_list",

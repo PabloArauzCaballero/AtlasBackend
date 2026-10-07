@@ -25,6 +25,8 @@ import { SystemsDashboardRepository } from './systems-dashboard.repository.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 
 import { SystemsMetadataRepository } from './systems-metadata.repository.js';
+import { SystemsReviewRepository } from './systems-review.repository.js';
+import { actorId } from '../../common/utils/auth/actor.util.js';
 @Injectable()
 export class SystemsCatalogQueryService {
   constructor(
@@ -34,6 +36,7 @@ export class SystemsCatalogQueryService {
     private readonly seedService: SystemsCatalogSeedService,
     private readonly healthService: SystemsHealthService,
     private readonly metadatos: SystemsMetadataRepository,
+    private readonly reviewRepository: SystemsReviewRepository,
   ) {}
 
   async listEndpoints(query: SystemsListQueryDto) {
@@ -116,8 +119,8 @@ export class SystemsCatalogQueryService {
     };
   }
 
-  async updateDataEntityMetadata(entityId: string, body: Record<string, unknown>) {
-    const entity = await this.catalogRepository.updateDataEntityMetadata(entityId, body);
+  async updateDataEntityMetadata(entityId: string, body: Record<string, unknown>, user: AuthenticatedUser) {
+    const entity = await this.reviewRepository.updateDataEntityMetadata(entityId, body, actorId(user), user.role, user.tenantId ?? null);
     if (!entity) throw new NotFoundException('SYSTEM_DATA_ENTITY_NOT_FOUND');
     return mapDataEntity(entity);
   }

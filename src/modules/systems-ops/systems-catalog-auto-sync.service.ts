@@ -21,6 +21,15 @@ import { EndpointSeed } from './systems-ops.types.js';
 const SELF_CODE = 'ATLAS_BACKEND';
 const SELF_SOURCE = 'openapi_contract';
 const LOCK_KEY = 'atlas_systems_catalog_auto_sync';
+/** `refreshCatalog` también cataloga las rutas propias: toma esta misma llave para no pisarse con la pasada. */
+export const CATALOG_SELF_SYNC_LOCK_KEY = LOCK_KEY;
+/**
+ * La transacción del candado queda ociosa mientras se catalogan cientos de rutas y se federan los bloques
+ * por red. Con el `idle_in_transaction_session_timeout` del pool (60 s) Postgres cortaba la sesión a
+ * mitad de pasada, el candado se soltaba y otra réplica entraba a la vez. Se amplía sólo para esta
+ * transacción, con techo: si el proceso se cuelga, el candado no queda tomado para siempre.
+ */
+export const CATALOG_LOCK_IDLE_TIMEOUT_SQL = `SET LOCAL idle_in_transaction_session_timeout = '15min'`;
 
 export interface AutoSyncResult {
   readonly trigger: string;
@@ -125,6 +134,7 @@ export class SystemsCatalogAutoSyncService implements OnApplicationBootstrap, On
         this.logger.log(`Puesta al día del catálogo (${trigger}) omitida: otra réplica la está haciendo.`);
         return null;
       }
+      await this.sequelize.query(CATALOG_LOCK_IDLE_TIMEOUT_SQL, { transaction: lock });
       const self = await this.syncSelf();
       const federated = await this.federation.federateAll(null);
       const outcomes = [self, ...federated];

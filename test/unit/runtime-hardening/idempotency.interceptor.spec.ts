@@ -1,6 +1,7 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { ExecutionContext, CallHandler } from '@nestjs/common';
-import { firstValueFrom, of, throwError } from 'rxjs';
+import { Subject, firstValueFrom, of, throwError } from 'rxjs';
+import { markCommittedResult } from '../../../src/modules/runtime-hardening/application/committed-result.js';
 import { IdempotencyInterceptor } from '../../../src/modules/runtime-hardening/idempotency.interceptor.js';
 
 /**
@@ -148,6 +149,47 @@ describe('IdempotencyInterceptor', () => {
       const context = buildContext({ method: 'POST', headers: { 'x-idempotency-key': 'k1' } });
 
       await expect(firstValueFrom(interceptor.intercept(context, buildNext(failing)))).rejects.toThrow('boom');
+    });
+  });
+
+  describe('fallos posteriores al commit y timeout', () => {
+    it('si falla el cierre de la clave, NO la marca fallida (la mutación ya ocurrió)', async () => {
+      const runtime = buildRuntime({ mode: 'execute', lease: LEASE, policy: POLICY });
+      runtime.completeIdempotency.mockRejectedValue(new Error('db caída') as never);
+      const interceptor = new IdempotencyInterceptor(runtime as never);
+      const context = buildContext({ method: 'POST', headers: { 'x-idempotency-key': 'k1' } });
+
+      await expect(firstValueFrom(interceptor.intercept(context, buildNext(next)))).rejects.toThrow('db caída');
+      expect(runtime.failIdempotency).not.toHaveBeenCalled();
+    });
+
+    it('un error marcado como posterior al commit (outbox) guarda el cuerpo del handler en vez de liberar la clave', async () => {
+      const runtime = buildRuntime({ mode: 'execute', lease: LEASE, policy: POLICY });
+      const postCommit = markCommittedResult(new Error('outbox caído'), { id: 'p-1' });
+      const failing = jest.fn((..._args: unknown[]) => throwError(() => postCommit));
+      const interceptor = new IdempotencyInterceptor(runtime as never);
+      const context = buildContext({ method: 'POST', headers: { 'x-idempotency-key': 'k1' } }, { statusCode: 201 });
+
+      await expect(firstValueFrom(interceptor.intercept(context, buildNext(failing)))).rejects.toBe(postCommit);
+      expect(runtime.completeIdempotency).toHaveBeenCalledWith(LEASE, 201, { id: 'p-1' });
+      expect(runtime.failIdempotency).not.toHaveBeenCalled();
+    });
+
+    it('si quien espera se desuscribe (timeout global), el resultado del handler se registra igual', async () => {
+      const runtime = buildRuntime({ mode: 'execute', lease: LEASE, policy: POLICY });
+      const handler = new Subject<unknown>();
+      const interceptor = new IdempotencyInterceptor(runtime as never);
+      const context = buildContext({ method: 'POST', headers: { 'x-idempotency-key': 'k1' } }, { statusCode: 201 });
+
+      const subscription = interceptor.intercept(context, buildNext(jest.fn(() => handler))).subscribe({ error: () => undefined });
+      await new Promise((resolve) => setImmediate(resolve)); // se resuelve el reclamo de la clave
+      subscription.unsubscribe(); // `timeout()` corta aquí
+      handler.next({ ok: 'tarde' });
+      handler.complete();
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(runtime.completeIdempotency).toHaveBeenCalledWith(LEASE, 201, { ok: 'tarde' });
+      expect(runtime.failIdempotency).not.toHaveBeenCalled();
     });
   });
 

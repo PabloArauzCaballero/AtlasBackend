@@ -2,7 +2,8 @@ import { describe, expect, it } from '@jest/globals';
 import { buildExperience, type ExperienceInput, type InstallmentFact } from '../../../src/modules/credit/domain/experience.js';
 
 /**
- * 1 punto por cada boliviano pagado A TIEMPO. Comprar no suma: sólo lo que se paga sin atraso.
+ * 1 punto de experiencia por cada boliviano COMPRADO. Las rachas y las insignias de pago siguen saliendo de las
+ * cuotas pagadas a tiempo.
  */
 const HOY = '2026-10-03';
 const cuota = (dueDate: string, extra: Partial<InstallmentFact> = {}): InstallmentFact => ({
@@ -14,6 +15,7 @@ const cuota = (dueDate: string, extra: Partial<InstallmentFact> = {}): Installme
 });
 const base = (installments: InstallmentFact[], extra: Partial<ExperienceInput> = {}): ExperienceInput => ({
   installments,
+  purchaseAmounts: [],
   loansEver: 1,
   loansSettled: 0,
   kycComplete: false,
@@ -23,35 +25,28 @@ const base = (installments: InstallmentFact[], extra: Partial<ExperienceInput> =
 });
 const insignia = (r: ReturnType<typeof buildExperience>, code: string) => r.badges.find((b) => b.code === code)!;
 
-describe('puntos por boliviano pagado a tiempo', () => {
-  it('suma 1 por cada boliviano de las cuotas pagadas a tiempo', () => {
-    expect(buildExperience(base([cuota('2026-08-01', { paidAmount: 120.4 }), cuota('2026-09-01', { paidAmount: 80.9 })])).xp).toBe(201);
+describe('puntos de experiencia por boliviano comprado', () => {
+  it('suma 1 por cada boliviano de cada compra', () => {
+    expect(buildExperience(base([], { purchaseAmounts: [120.4, 80.9] })).xp).toBe(201);
   });
 
-  it('una cuota pagada con atraso suma 0', () => {
-    expect(buildExperience(base([cuota('2026-08-01'), cuota('2026-09-01', { daysPastDue: 6 })])).xp).toBe(100);
+  it('pagar no suma experiencia: sólo comprar', () => {
+    expect(buildExperience(base([cuota('2026-08-01'), cuota('2026-09-01')])).xp).toBe(0);
   });
 
-  it('una cuota sin pagar o pendiente no suma', () => {
-    expect(
-      buildExperience(
-        base([cuota('2026-08-01', { status: 'pending', paidAmount: 0 }), cuota('2026-11-01', { status: 'pending', paidAmount: 0 })]),
-      ).xp,
-    ).toBe(0);
+  it('lo pagado a tiempo se cuenta aparte, para las insignias de pago; lo pagado tarde no', () => {
+    const r = buildExperience(base([cuota('2026-08-01', { paidAmount: 120.4 }), cuota('2026-09-01', { daysPastDue: 6 })]));
+    expect(r.paidOnTime).toBe(120);
   });
 
-  it('sin cuotas, 0 puntos y ninguna racha', () => {
+  it('sin compras ni cuotas, 0 puntos y ninguna racha', () => {
     const r = buildExperience(base([], { loansEver: 0 }));
-    expect(r).toMatchObject({ xp: 0, onTimeInstallments: 0, currentStreak: 0, bestStreak: 0 });
-  });
-
-  it('la experiencia no depende de cuánto se compró: ni siquiera recibe ese dato', () => {
-    // El tipo de entrada no tiene «monto comprado»: comprar más no puede sumar puntos.
-    expect(Object.keys(base([]))).not.toContain('purchasedAmount');
+    expect(r).toMatchObject({ xp: 0, paidOnTime: 0, onTimeInstallments: 0, currentStreak: 0, bestStreak: 0 });
   });
 
   it('un importe negativo o corrupto no resta ni rompe la cuenta', () => {
-    expect(buildExperience(base([cuota('2026-08-01', { paidAmount: -50 }), cuota('2026-09-01', { paidAmount: 40 })])).xp).toBe(40);
+    expect(buildExperience(base([], { purchaseAmounts: [-50, Number.NaN, 40] })).xp).toBe(40);
+    expect(buildExperience(base([cuota('2026-08-01', { paidAmount: -50 }), cuota('2026-09-01', { paidAmount: 40 })])).paidOnTime).toBe(40);
   });
 });
 
@@ -111,5 +106,90 @@ describe('insignias', () => {
   it('cada insignia tiene un código único', () => {
     const codigos = buildExperience(base([])).badges.map((b) => b.code);
     expect(new Set(codigos).size).toBe(codigos.length);
+  });
+
+  it('hay más de treinta, repartidas en siete colecciones y cinco rangos', () => {
+    const { badges } = buildExperience(base([]));
+    expect(badges.length).toBeGreaterThanOrEqual(30);
+    expect(new Set(badges.map((b) => b.category)).size).toBe(7);
+    expect(new Set(badges.map((b) => b.rank))).toEqual(new Set(['bronce', 'plata', 'oro', 'platino', 'diamante']));
+  });
+
+  it('las secretas llevan pista y las demás no', () => {
+    const { badges } = buildExperience(base([]));
+    const secretas = badges.filter((b) => b.secret).map((b) => b.code);
+    expect(secretas.sort()).toEqual(['al_filo', 'domingo', 'remontada']);
+    expect(badges.filter((b) => b.secret).every((b) => !!b.hint)).toBe(true);
+    expect(badges.filter((b) => !b.secret).every((b) => b.hint === null)).toBe(true);
+  });
+});
+
+describe('insignias de compras', () => {
+  it('cuentan compras concretadas y la mayor de una sola vez', () => {
+    const r = buildExperience(base([], { purchaseAmounts: [100, 600, 2_500], loansEver: 3 }));
+    expect(insignia(r, 'compras_3').earned).toBe(true);
+    expect(insignia(r, 'compras_10')).toMatchObject({ earned: false, current: 3, target: 10 });
+    expect(insignia(r, 'compra_grande').earned).toBe(true);
+    expect(insignia(r, 'compra_gigante').earned).toBe(true);
+  });
+
+  it('muchas compras chicas no hacen una compra grande', () => {
+    const r = buildExperience(base([], { purchaseAmounts: [400, 400, 400] }));
+    expect(insignia(r, 'compra_grande')).toMatchObject({ earned: false, current: 400 });
+  });
+});
+
+describe('insignias de estilo de pago', () => {
+  const pagada = (dueDate: string, paidOn: string) => cuota(dueDate, { paidOn });
+
+  it('madrugador: 3 días o más de adelanto; 2 no alcanza', () => {
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-07')])), 'madrugador').earned).toBe(true);
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-08')])), 'madrugador').earned).toBe(false);
+  });
+
+  it('al filo: el mismo día del vencimiento', () => {
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-10')])), 'al_filo').earned).toBe(true);
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-09')])), 'al_filo').earned).toBe(false);
+  });
+
+  it('domingo: 2026-09-06 fue domingo', () => {
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-06')])), 'domingo').earned).toBe(true);
+    expect(insignia(buildExperience(base([pagada('2026-09-10', '2026-09-07')])), 'domingo').earned).toBe(false);
+  });
+
+  it('sin fecha de pago no se gana ninguna de estilo', () => {
+    const r = buildExperience(base([cuota('2026-09-10')]));
+    for (const c of ['madrugador', 'al_filo', 'domingo']) expect(insignia(r, c).earned).toBe(false);
+  });
+
+  it('una cuota pagada TARDE no cuenta como madrugada ni al filo, aunque traiga fecha', () => {
+    const r = buildExperience(base([cuota('2026-09-10', { paidOn: '2026-09-10', daysPastDue: 2 })]));
+    expect(insignia(r, 'al_filo').earned).toBe(false);
+  });
+
+  it('la remontada: tras un atraso, tres a tiempo; sin atraso previo no hay remontada', () => {
+    const conAtraso = base([cuota('2026-04-01', { daysPastDue: 5 }), cuota('2026-05-01'), cuota('2026-06-01'), cuota('2026-07-01')]);
+    expect(insignia(buildExperience(conAtraso), 'remontada').earned).toBe(true);
+    const sinAtraso = base([cuota('2026-05-01'), cuota('2026-06-01'), cuota('2026-07-01')]);
+    expect(insignia(buildExperience(sinAtraso), 'remontada').earned).toBe(false);
+    const dosNada = base([cuota('2026-04-01', { daysPastDue: 5 }), cuota('2026-05-01'), cuota('2026-06-01')]);
+    expect(insignia(buildExperience(dosNada), 'remontada').earned).toBe(false);
+  });
+});
+
+describe('la colección', () => {
+  it('ganar insignias es otra insignia, y no se cuenta a sí misma', () => {
+    const vacio = buildExperience(base([], { loansEver: 0 }));
+    expect(insignia(vacio, 'coleccionista_10').current).toBe(0);
+    const lleno = buildExperience(
+      base(
+        Array.from({ length: 12 }, (_, i) =>
+          cuota(`2026-${String(i + 1).padStart(2, '0')}-01`, { paidOn: `2026-${String(i + 1).padStart(2, '0')}-01` }),
+        ),
+        { purchaseAmounts: [3_000], loansSettled: 1, kycComplete: true, tenureMonths: 12 },
+      ),
+    );
+    expect(insignia(lleno, 'coleccionista_10').earned).toBe(true);
+    expect(insignia(lleno, 'coleccionista_total').earned).toBe(false);
   });
 });

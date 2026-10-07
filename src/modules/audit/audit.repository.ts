@@ -133,7 +133,7 @@ export class AuditRepository {
     }
     if (query.eventType === 'all' || query.eventType === 'data_change') {
       const rows = await this.dataChangeLogModel.findAll({
-        where: { tenantId, recordId: customerId, ...(dateWhere ? { changedAt: dateWhere } : {}) },
+        where: { tenantId, recordId: customerId, tableName: ['customers', 'customer'], ...(dateWhere ? { changedAt: dateWhere } : {}) },
         limit: depth,
         order: [['changedAt', 'DESC']],
       } as FindOptions);
@@ -247,8 +247,7 @@ export class AuditRepository {
    * Alcance: a diferencia de `findCustomerAuditEvents` (que solo cubre 5 fuentes), esta variante
    * cubre las 8 fuentes de la vista. El filtro por cliente replica la semántica de la vista
    * original: `data_change_log` no tiene un `target_type` fijo (usa el nombre de tabla real), así
-   * que para esa fuente se filtra por `source_id = customerId` directamente en vez de por
-   * `target_type = 'customer'`.
+   * que para esa fuente se filtra por la tabla del cliente y su `record_id` (el de otras tablas puede coincidir).
    */
   async findCustomerAuditEventsWithCursor(
     tenantId: string,
@@ -269,7 +268,7 @@ export class AuditRepository {
       WHERE tenant_id = :tenantId
         AND (
           (target_type = 'customer' AND target_id = :customerId)
-          OR (source_table = 'data_change_log' AND source_id IS NOT NULL AND target_id = :customerId)
+          OR (source_table = 'data_change_log' AND source_id IS NOT NULL AND target_type IN (:customerTables) AND target_id = :customerId)
         )
         ${cursorClause}
       ORDER BY occurred_at DESC, source_table DESC, source_id DESC
@@ -280,6 +279,7 @@ export class AuditRepository {
         replacements: {
           tenantId,
           customerId,
+          customerTables: ['customers', 'customer'],
           limitPlusOne: limit + 1,
           ...(cursorKey
             ? { cursorOccurredAt: cursorKey.occurredAt, cursorSourceTable: cursorKey.sourceTable, cursorSourceId: cursorKey.sourceId }

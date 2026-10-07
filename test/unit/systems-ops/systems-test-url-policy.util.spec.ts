@@ -42,6 +42,34 @@ describe('systems-test-url-policy.util', () => {
       expect(isPrivateOrMetadataAddress('example.com')).toBe(false); // no son 4 octetos
       expect(isPrivateOrMetadataAddress('999.1.1.1')).toBe(false); // octeto inválido
     });
+
+    it('detecta CGNAT/Tailscale y los rangos reservados 192.0.0/24 y 198.18/15', () => {
+      expect(isPrivateOrMetadataAddress('100.101.207.88')).toBe(true);
+      expect(isPrivateOrMetadataAddress('100.64.0.1')).toBe(true);
+      expect(isPrivateOrMetadataAddress('100.127.255.255')).toBe(true);
+      expect(isPrivateOrMetadataAddress('100.128.0.1')).toBe(false);
+      expect(isPrivateOrMetadataAddress('192.0.0.8')).toBe(true);
+      expect(isPrivateOrMetadataAddress('198.18.0.1')).toBe(true);
+      expect(isPrivateOrMetadataAddress('198.19.255.1')).toBe(true);
+      expect(isPrivateOrMetadataAddress('198.20.0.1')).toBe(false);
+    });
+
+    it('desenvuelve las IPv4 mapeadas en IPv6, también en la forma hex que deja new URL', () => {
+      expect(isPrivateOrMetadataAddress('::ffff:127.0.0.1')).toBe(true);
+      expect(isPrivateOrMetadataAddress('::ffff:10.0.0.1')).toBe(true);
+      expect(isPrivateOrMetadataAddress(new URL('http://[::ffff:10.0.0.1]/').hostname)).toBe(true);
+      expect(isPrivateOrMetadataAddress('::ffff:a9fe:a9fe')).toBe(true); // 169.254.169.254
+      expect(isPrivateOrMetadataAddress('::ffff:8.8.8.8')).toBe(false);
+      expect(isPrivateOrMetadataAddress('0:0:0:0:0:0:0:1')).toBe(true);
+      expect(isPrivateOrMetadataAddress('::')).toBe(true);
+      expect(isPrivateOrMetadataAddress('fe80::1%eth0')).toBe(true);
+    });
+
+    it('no confunde nombres de host que empiezan por fc/fd con IPv6 ULA', () => {
+      expect(isPrivateOrMetadataAddress('fcm.example.com')).toBe(false);
+      expect(isPrivateOrMetadataAddress('fd-api.atlas.bo')).toBe(false);
+      expect(isPrivateOrMetadataAddress('2001:4860::8888')).toBe(false);
+    });
   });
 
   describe('assertHostAllowed (guardas deterministas)', () => {

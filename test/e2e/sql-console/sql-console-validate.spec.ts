@@ -24,7 +24,7 @@ describe('SqlConsoleController — validate (e2e/supertest)', () => {
 
   const catalog = { datasets: jest.fn(async () => []), limits: jest.fn(() => ({})) };
   const queries = {
-    validate: jest.fn((statement: string) => ({ valid: !statement.toLowerCase().includes('drop'), violations: [] })),
+    validate: jest.fn((statement: string, _user?: unknown) => ({ valid: !statement.toLowerCase().includes('drop'), violations: [] })),
     execute: jest.fn(async () => ({ rows: [], columns: [], rowCount: 0, durationMs: 1 })),
   };
   const history = { record: jest.fn(async () => undefined), listOwn: jest.fn(async () => ({ rows: [] })) };
@@ -87,7 +87,7 @@ describe('SqlConsoleController — validate (e2e/supertest)', () => {
 
     expect(response.body).toMatchObject({ valid: true });
     expect(queries.validate).toHaveBeenCalledTimes(1);
-    expect(queries.validate).toHaveBeenCalledWith('select 1 from read_api.customers limit 1');
+    expect(queries.validate).toHaveBeenCalledWith('select 1 from read_api.customers limit 1', expect.anything());
     // `validate` no es `query`: no deja rastro en el historial de consultas.
     expect(history.record).not.toHaveBeenCalled();
   });

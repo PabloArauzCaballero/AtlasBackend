@@ -181,6 +181,16 @@ describe('DataQualityRepository — findIssues / finders / mutaciones', () => {
     expect((issueModel.findOne as jest.Mock).mock.calls[0][0]).toMatchObject({ where: { tenantId: 't1', id: '9' } });
   });
 
+  it('findIssueById toma FOR UPDATE dentro de una transacción y no fuera', async () => {
+    const { repo, issueModel } = buildFull();
+    (issueModel.findOne as jest.Mock).mockResolvedValue(null as never);
+    await repo.findIssueById('t1', '9', { transaction: 'tx' as never });
+    await repo.findIssueById('t1', '9');
+    const calls = (issueModel.findOne as jest.Mock).mock.calls;
+    expect(calls[0][0]).toMatchObject({ transaction: 'tx', lock: true });
+    expect(calls[1][0]).toMatchObject({ lock: false });
+  });
+
   it('resolveIssue fija estado/resolvedAt/notas y guarda en la transacción', async () => {
     const { repo } = buildFull();
     const save = jest.fn(async (..._args: unknown[]) => ({}));

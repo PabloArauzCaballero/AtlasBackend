@@ -85,6 +85,23 @@ describe('ExternalDataService', () => {
       expect(result.providerCode).toBe('GENERAL');
     });
 
+    it('alta asistida por personal: fuerza el canal y deja el actor en user_agent', async () => {
+      const { service, repository } = buildService();
+      (repository.createCustomerConsent as jest.Mock).mockResolvedValueOnce({ id: 'consent-1', grantedAt: new Date() } as never);
+
+      await service.createConsent({
+        tenantId: 't1',
+        body: { customerId: 'c1', purpose: 'external_data', channel: 'app' } as never,
+        userAgent: 'ua',
+        assistedByUserId: 'u9',
+      });
+
+      expect((repository.createCustomerConsent as jest.Mock).mock.calls[0][0]).toMatchObject({
+        channel: 'staff_assisted',
+        userAgent: 'staff:u9 ua',
+      });
+    });
+
     it('prefixes the purpose with the lowercased provider code when one is given', async () => {
       const { service, repository } = buildService();
       (repository.createCustomerConsent as jest.Mock).mockResolvedValueOnce({ id: 'consent-1', grantedAt: new Date() } as never);
