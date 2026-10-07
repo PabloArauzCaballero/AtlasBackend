@@ -1,4 +1,5 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { env } from '../../../src/config/env.js';
 import { RiskPolicyDecisionService } from '../../../src/modules/risk/application/risk-policy-decision.service.js';
 import { RISK_RULESET_VERSION } from '../../../src/modules/risk/risk-heuristic-v0.constants.js';
 
@@ -45,185 +46,231 @@ describe('RiskPolicyDecisionService', () => {
    * nadie lo llamaba. Lo que fijan estas pruebas es el ORDEN y, sobre todo, que bajar un escalón
    * quede escrito: dos poblaciones resueltas por criterios distintos no se pueden medir juntas.
    */
-  describe('con el motor de decisión disponible', () => {
+  /**
+   * Por omisión el riesgo NO está en `DECISION_ENGINE_AUTO_APPLY`: el motor se consulta igual —la
+   * ejecución queda registrada—, pero su veredicto es una propuesta y el caso va a una persona.
+   */
+  describe('por omisión (sólo el crédito se aplica solo)', () => {
     const engineDecision = {
       decision: 'approved_for_next_step',
       reasons: ['POLICY_PASS'],
       artifactVersionId: '4001',
       executionId: '88001',
+      manualReviewCaseCode: null,
     };
 
-    /**
-     * Que el motor DECIDA y que el motor ABRA CASO son dos cosas distintas.
-     *
-     * Un rechazo lo resuelve el motor sin pasar por un nodo de revisión manual: no hay bandeja allí.
-     * Si Atlas se apartara sólo por haber decidido el motor, cerraría su propia cola —la única
-     * posible— y el analista acabaría en una ejecución sin nada que atender. Por eso la delegación
-     * viaja en su propio campo y no se deduce de `decisionExecutionId`.
-     */
-    it('propaga el caso del motor cuando lo abrió', async () => {
-      const { service } = build(null, { ...engineDecision, manualReviewCaseCode: 'MR-0000088001' });
+    it('el motor se consulta y su aprobación queda como propuesta en revisión manual', async () => {
+      const { service, engine } = build({ rules: [{}] }, engineDecision);
 
       const decision = await service.resolve(input);
 
-      expect(decision.motorAbrioCaso).toBe('MR-0000088001');
+      expect(engine.evaluate).toHaveBeenCalledTimes(1);
+      expect(decision.decision).toBe('manual_review_required');
       expect(decision.decisionExecutionId).toBe('88001');
+      expect(decision.reasons).toEqual(['ENGINE_VERDICT_HELD_FOR_MANUAL_REVIEW', 'proposed_approved_for_next_step', 'POLICY_PASS']);
     });
 
-    it('sin caso en el motor no hay nada que delegar, aunque él decidiera', async () => {
-      const { service } = build(null, { ...engineDecision, manualReviewCaseCode: null });
-
-      const decision = await service.resolve(input);
-
-      expect(decision.motorAbrioCaso).toBeNull();
-      expect(decision.decisionSource).toBe('decision_engine');
+    it('un bloqueo del motor tampoco se aplica solo', async () => {
+      const { service } = build(null, { ...engineDecision, decision: 'blocked', reasons: ['X'] });
+      expect((await service.resolve(input)).decision).toBe('manual_review_required');
     });
 
-    it('manda el motor: ni siquiera se consulta el ruleset local', async () => {
-      const { service, policyRepository } = build({ rules: [{}] }, engineDecision);
+    it('una revisión ya manual se deja tal cual', async () => {
+      const { service } = build(null, null);
+      expect((await service.resolve(input)).reasons).toEqual(['missing_identity']);
+    });
+  });
 
-      const decision = await service.resolve(input);
-
-      expect(decision.decision).toBe('approved_for_next_step');
-      expect(decision.decisionSource).toBe('decision_engine');
-      expect(policyRepository.findActiveRuleset).not.toHaveBeenCalled();
+  describe('con el riesgo en DECISION_ENGINE_AUTO_APPLY', () => {
+    let anterior: unknown;
+    beforeEach(() => {
+      anterior = (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY;
+      (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY = ['credit', 'risk'];
+    });
+    afterEach(() => {
+      (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY = anterior;
     });
 
-    it('ata la decisión a la ejecución y la versión del artefacto que la produjo', async () => {
-      const { service } = build(null, engineDecision);
-
-      const decision = await service.resolve(input);
-
-      expect(decision.decisionExecutionId).toBe('88001');
-      expect(decision.rulesetVersionCode).toBe('4001');
-      // No vino de un ruleset local, y decir lo contrario falsearía la procedencia.
-      expect(decision.fromRuleset).toBe(false);
-    });
-
-    /**
-     * C-5: el Motor RESPONDIÓ pero sin veredicto (`NO_DECISION`). No es «el Motor no respondió», y
-     * escribir `heuristic_v0` mentiría sobre el origen: dos poblaciones distintas quedarían mezcladas.
-     */
-    it('un NO_DECISION del Motor queda como engine_no_decision, con su ejecución, no como heuristic_v0', async () => {
-      const { service } = build(null, {
-        decision: 'manual_review_required',
-        reasons: ['VARIABLE_MISSING_OR_INVALID'],
+    describe('con el motor de decisión disponible', () => {
+      const engineDecision = {
+        decision: 'approved_for_next_step',
+        reasons: ['POLICY_PASS'],
         artifactVersionId: '4001',
-        executionId: '88002',
-        manualReviewCaseCode: null,
-        noDecision: true,
-        engineOutcome: null,
+        executionId: '88001',
+      };
+
+      /**
+       * Que el motor DECIDA y que el motor ABRA CASO son dos cosas distintas.
+       *
+       * Un rechazo lo resuelve el motor sin pasar por un nodo de revisión manual: no hay bandeja allí.
+       * Si Atlas se apartara sólo por haber decidido el motor, cerraría su propia cola —la única
+       * posible— y el analista acabaría en una ejecución sin nada que atender. Por eso la delegación
+       * viaja en su propio campo y no se deduce de `decisionExecutionId`.
+       */
+      it('propaga el caso del motor cuando lo abrió', async () => {
+        const { service } = build(null, { ...engineDecision, manualReviewCaseCode: 'MR-0000088001' });
+
+        const decision = await service.resolve(input);
+
+        expect(decision.motorAbrioCaso).toBe('MR-0000088001');
+        expect(decision.decisionExecutionId).toBe('88001');
       });
 
-      const decision = await service.resolve(input);
+      it('sin caso en el motor no hay nada que delegar, aunque él decidiera', async () => {
+        const { service } = build(null, { ...engineDecision, manualReviewCaseCode: null });
 
-      expect(decision.decisionSource).toBe('engine_no_decision');
-      expect(decision.decisionSource).not.toBe('heuristic_v0');
-      expect(decision.decisionExecutionId).toBe('88002');
-      expect(decision.fromRuleset).toBe(false);
-      // No hay caso del Motor: Atlas abre el suyo, como siempre que el Motor no lo abrió.
-      expect(decision.motorAbrioCaso).toBeNull();
+        const decision = await service.resolve(input);
+
+        expect(decision.motorAbrioCaso).toBeNull();
+        expect(decision.decisionSource).toBe('decision_engine');
+      });
+
+      it('manda el motor: ni siquiera se consulta el ruleset local', async () => {
+        const { service, policyRepository } = build({ rules: [{}] }, engineDecision);
+
+        const decision = await service.resolve(input);
+
+        expect(decision.decision).toBe('approved_for_next_step');
+        expect(decision.decisionSource).toBe('decision_engine');
+        expect(policyRepository.findActiveRuleset).not.toHaveBeenCalled();
+      });
+
+      it('ata la decisión a la ejecución y la versión del artefacto que la produjo', async () => {
+        const { service } = build(null, engineDecision);
+
+        const decision = await service.resolve(input);
+
+        expect(decision.decisionExecutionId).toBe('88001');
+        expect(decision.rulesetVersionCode).toBe('4001');
+        // No vino de un ruleset local, y decir lo contrario falsearía la procedencia.
+        expect(decision.fromRuleset).toBe(false);
+      });
+
+      /**
+       * C-5: el Motor RESPONDIÓ pero sin veredicto (`NO_DECISION`). No es «el Motor no respondió», y
+       * escribir `heuristic_v0` mentiría sobre el origen: dos poblaciones distintas quedarían mezcladas.
+       */
+      it('un NO_DECISION del Motor queda como engine_no_decision, con su ejecución, no como heuristic_v0', async () => {
+        const { service } = build(null, {
+          decision: 'manual_review_required',
+          reasons: ['VARIABLE_MISSING_OR_INVALID'],
+          artifactVersionId: '4001',
+          executionId: '88002',
+          manualReviewCaseCode: null,
+          noDecision: true,
+          engineOutcome: null,
+        });
+
+        const decision = await service.resolve(input);
+
+        expect(decision.decisionSource).toBe('engine_no_decision');
+        expect(decision.decisionSource).not.toBe('heuristic_v0');
+        expect(decision.decisionExecutionId).toBe('88002');
+        expect(decision.fromRuleset).toBe(false);
+        // No hay caso del Motor: Atlas abre el suyo, como siempre que el Motor no lo abrió.
+        expect(decision.motorAbrioCaso).toBeNull();
+      });
+
+      it('si el motor no responde, baja al escalón local y lo deja escrito', async () => {
+        const { service } = build(null, null);
+
+        const decision = await service.resolve(input);
+
+        // Degradar es correcto: esto no concede dinero y bloquear el alta sería peor. Lo que no puede
+        // pasar es que el caso quede indistinguible de uno resuelto por el motor.
+        expect(decision.decision).toBe(fallback.decision);
+        expect(decision.decisionSource).toBe('heuristic_v0');
+        expect(decision.decisionExecutionId).toBeNull();
+      });
     });
 
-    it('si el motor no responde, baja al escalón local y lo deja escrito', async () => {
-      const { service } = build(null, null);
+    describe('sin ruleset activo', () => {
+      it('degrada a la heurística en vez de bloquear el onboarding', async () => {
+        const { service } = build(null);
 
-      const decision = await service.resolve(input);
+        const decision = await service.resolve(input);
 
-      // Degradar es correcto: esto no concede dinero y bloquear el alta sería peor. Lo que no puede
-      // pasar es que el caso quede indistinguible de uno resuelto por el motor.
-      expect(decision.decision).toBe(fallback.decision);
-      expect(decision.decisionSource).toBe('heuristic_v0');
-      expect(decision.decisionExecutionId).toBeNull();
-    });
-  });
+        expect(decision.decision).toBe(fallback.decision);
+        expect(decision.reasons).toEqual(fallback.reasons);
+      });
 
-  describe('sin ruleset activo', () => {
-    it('degrada a la heurística en vez de bloquear el onboarding', async () => {
-      const { service } = build(null);
+      it('marca la decisión como NO proveniente de política, con la versión del motor de arranque', async () => {
+        const { service } = build(null);
 
-      const decision = await service.resolve(input);
+        const decision = await service.resolve(input);
 
-      expect(decision.decision).toBe(fallback.decision);
-      expect(decision.reasons).toEqual(fallback.reasons);
-    });
+        expect(decision.fromRuleset).toBe(false);
+        expect(decision.rulesetVersionCode).toBe(RISK_RULESET_VERSION);
+        expect(decision.firedRules).toEqual([]);
+      });
 
-    it('marca la decisión como NO proveniente de política, con la versión del motor de arranque', async () => {
-      const { service } = build(null);
+      it('un ruleset activo SIN reglas se trata como si no hubiera ninguno', async () => {
+        const { service } = build({ rulesetVersionId: '9', rulesetCode: 'bnpl', versionCode: 'v3', rules: [] });
 
-      const decision = await service.resolve(input);
+        const decision = await service.resolve(input);
 
-      expect(decision.fromRuleset).toBe(false);
-      expect(decision.rulesetVersionCode).toBe(RISK_RULESET_VERSION);
-      expect(decision.firedRules).toEqual([]);
-    });
+        expect(decision.fromRuleset).toBe(false);
+        expect(decision.rulesetVersionCode).toBe(RISK_RULESET_VERSION);
+      });
 
-    it('un ruleset activo SIN reglas se trata como si no hubiera ninguno', async () => {
-      const { service } = build({ rulesetVersionId: '9', rulesetCode: 'bnpl', versionCode: 'v3', rules: [] });
+      it('consulta el ruleset por tipo de evaluación y momento, no de forma global', async () => {
+        const { service, policyRepository } = build(null);
 
-      const decision = await service.resolve(input);
+        await service.resolve(input);
 
-      expect(decision.fromRuleset).toBe(false);
-      expect(decision.rulesetVersionCode).toBe(RISK_RULESET_VERSION);
+        expect(policyRepository.findActiveRuleset).toHaveBeenCalledWith('onboarding', input.now);
+      });
     });
 
-    it('consulta el ruleset por tipo de evaluación y momento, no de forma global', async () => {
-      const { service, policyRepository } = build(null);
+    describe('con ruleset activo', () => {
+      /** Regla de parada dura: dispara cuando el score no llega al umbral. */
+      const hardStopRule = {
+        ruleCode: 'score_below_threshold',
+        ruleName: 'Score insuficiente',
+        riskDimension: 'overall',
+        severity: 'high',
+        actionCode: 'manual_review_required',
+        reasonCode: 'score_below_threshold',
+        isHardStop: true,
+        expression: { all: [{ field: 'totalScore', lt: 65 }] },
+      };
 
-      await service.resolve(input);
+      it('la decisión del ruleset MANDA sobre el fallback', async () => {
+        const { service } = build({ rulesetVersionId: '9', rulesetCode: 'bnpl', versionCode: 'v3', rules: [hardStopRule] });
 
-      expect(policyRepository.findActiveRuleset).toHaveBeenCalledWith('onboarding', input.now);
-    });
-  });
+        const decision = await service.resolve({ ...input, features: { totalScore: 40 } });
 
-  describe('con ruleset activo', () => {
-    /** Regla de parada dura: dispara cuando el score no llega al umbral. */
-    const hardStopRule = {
-      ruleCode: 'score_below_threshold',
-      ruleName: 'Score insuficiente',
-      riskDimension: 'overall',
-      severity: 'high',
-      actionCode: 'manual_review_required',
-      reasonCode: 'score_below_threshold',
-      isHardStop: true,
-      expression: { all: [{ field: 'totalScore', lt: 65 }] },
-    };
+        expect(decision.fromRuleset).toBe(true);
+        expect(decision.decision).toBe('manual_review_required');
+        expect(decision.reasons).toContain('score_below_threshold');
+      });
 
-    it('la decisión del ruleset MANDA sobre el fallback', async () => {
-      const { service } = build({ rulesetVersionId: '9', rulesetCode: 'bnpl', versionCode: 'v3', rules: [hardStopRule] });
+      it('persiste la versión REALMENTE aplicada, no la del motor de arranque', async () => {
+        const { service } = build({ rulesetVersionId: '9', rulesetCode: 'bnpl', versionCode: 'v3', rules: [hardStopRule] });
 
-      const decision = await service.resolve({ ...input, features: { totalScore: 40 } });
+        const decision = await service.resolve({ ...input, features: { totalScore: 40 } });
 
-      expect(decision.fromRuleset).toBe(true);
-      expect(decision.decision).toBe('manual_review_required');
-      expect(decision.reasons).toContain('score_below_threshold');
-    });
+        expect(decision.rulesetVersionCode).toBe('v3');
+        expect(decision.rulesetVersionCode).not.toBe(RISK_RULESET_VERSION);
+      });
 
-    it('persiste la versión REALMENTE aplicada, no la del motor de arranque', async () => {
-      const { service } = build({ rulesetVersionId: '9', rulesetCode: 'bnpl', versionCode: 'v3', rules: [hardStopRule] });
+      it('expone las reglas disparadas: sin ellas la decisión no sería explicable', async () => {
+        const { service } = build({ rulesetVersionId: '9', rulesetCode: 'bnpl', versionCode: 'v3', rules: [hardStopRule] });
 
-      const decision = await service.resolve({ ...input, features: { totalScore: 40 } });
+        const decision = await service.resolve({ ...input, features: { totalScore: 40 } });
 
-      expect(decision.rulesetVersionCode).toBe('v3');
-      expect(decision.rulesetVersionCode).not.toBe(RISK_RULESET_VERSION);
-    });
+        expect(decision.firedRules.map((rule) => rule.ruleCode)).toContain('score_below_threshold');
+      });
 
-    it('expone las reglas disparadas: sin ellas la decisión no sería explicable', async () => {
-      const { service } = build({ rulesetVersionId: '9', rulesetCode: 'bnpl', versionCode: 'v3', rules: [hardStopRule] });
+      it('ninguna regla disparada sigue siendo una decisión DE POLÍTICA, no un fallback', async () => {
+        const { service } = build({ rulesetVersionId: '9', rulesetCode: 'bnpl', versionCode: 'v3', rules: [hardStopRule] });
 
-      const decision = await service.resolve({ ...input, features: { totalScore: 40 } });
+        const decision = await service.resolve({ ...input, features: { totalScore: 90 } });
 
-      expect(decision.firedRules.map((rule) => rule.ruleCode)).toContain('score_below_threshold');
-    });
-
-    it('ninguna regla disparada sigue siendo una decisión DE POLÍTICA, no un fallback', async () => {
-      const { service } = build({ rulesetVersionId: '9', rulesetCode: 'bnpl', versionCode: 'v3', rules: [hardStopRule] });
-
-      const decision = await service.resolve({ ...input, features: { totalScore: 90 } });
-
-      expect(decision.fromRuleset).toBe(true);
-      expect(decision.rulesetVersionCode).toBe('v3');
-      expect(decision.firedRules).toEqual([]);
+        expect(decision.fromRuleset).toBe(true);
+        expect(decision.rulesetVersionCode).toBe('v3');
+        expect(decision.firedRules).toEqual([]);
+      });
     });
   });
 });

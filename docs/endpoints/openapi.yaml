@@ -3356,7 +3356,9 @@ paths:
               additionalProperties: false
       responses:
         '201':
-          description: Contacto registrado — queda pendiente de verificación.
+          description: >-
+            Pendiente de verificación. El mismo valor sin verificar devuelve el
+            mismo contactMethodId.
           content:
             application/json:
               schema:
@@ -3370,7 +3372,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: CONTACT_ALREADY_REGISTERED.
+          description: CONTACT_ALREADY_VERIFIED — el cliente ya tiene ese valor verificado.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -3529,7 +3531,10 @@ paths:
             VERIFICATION_ATTEMPT_NOT_FOUND — no hay un intento de verificación
             pendiente.
         '409':
-          description: CONTACT_ALREADY_VERIFIED — el contacto ya estaba verificado.
+          description: >-
+            CONTACT_ALREADY_VERIFIED — el contacto ya estaba verificado.
+            CONTACT_ALREADY_REGISTERED — el valor verificado pertenece a otro
+            cliente del tenant y no puede pasar a principal.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -3892,6 +3897,10 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 80
+                economicActivityOther:
+                  type: string
+                  minLength: 2
+                  maxLength: 120
                 sourceOfFunds:
                   type: string
                   enum:
@@ -4312,6 +4321,10 @@ paths:
                     - male
                     - other
                     - undisclosed
+                genderSelfDescribed:
+                  type: string
+                  minLength: 2
+                  maxLength: 60
                 preferredLanguage:
                   type: string
                   enum:
@@ -5007,6 +5020,52 @@ paths:
       tags:
         - customer-device-signals
   /customers/{customerId}/bank-statements:
+    get:
+      description: >-
+        Todos, del más reciente al más antiguo (hasta 24), cada uno con su
+        estado, el banco y el período que se leyeron, y si el archivo se puede
+        descargar todavía (`file.available`). `bank-statements/latest` sólo
+        decía el estado del último; con esta ruta «Mis datos» enseña el
+        historial completo.
+      operationId: BankStatementArchiveController_list
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: Opcional para `customer` (se toma del token).
+          required: false
+          schema:
+            type: string
+        - name: customerId
+          in: path
+          required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Extractos del cliente; `items` vacío si nunca subió ninguno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Los extractos bancarios que subió el cliente
+      tags:
+        - credit
     post:
       description: >-
         El archivo ya viajó cifrado por `documents/upload-url` con
@@ -5104,6 +5163,60 @@ paths:
       security:
         - access-token: []
       summary: Estado del último extracto que subió
+      tags:
+        - credit
+  /customers/{customerId}/bank-statements/{reviewId}/file:
+    get:
+      description: >-
+        El archivo tal y como se subió. Sale por la API con la sesión del
+        cliente y no por una URL del almacén: un enlace firmado se puede
+        reenviar, una respuesta autenticada no.
+      operationId: BankStatementArchiveController_file
+      parameters:
+        - name: x-tenant-id
+          in: header
+          description: Opcional para `customer` (se toma del token).
+          required: false
+          schema:
+            type: string
+        - name: customerId
+          in: path
+          required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - name: reviewId
+          in: path
+          required: true
+          description: Identificador de ruta `reviewId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: PDF del extracto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: >-
+            BANK_STATEMENT_NOT_FOUND — no existe o no es de este cliente.
+            BANK_STATEMENT_FILE_NOT_AVAILABLE — es suyo, pero el archivo ya no
+            está en el almacén.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: El PDF de un extracto bancario del cliente
       tags:
         - credit
   /customers/{customerId}/credit-applications:
@@ -5276,11 +5389,18 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          description: CREDIT_LINE_NOT_CALCULATED — el motor todavía no la calculó.
+          description: >-
+            CREDIT_LINE_NOT_CALCULATED — el cliente todavía no está activo, así
+            que no hay línea que pedir al motor.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          description: >-
+            CREDIT_LINE_ENGINE_UNAVAILABLE — el cliente está activo y no tenía
+            línea; se le pidió al motor en ese momento y no respondió.
+            Reintentar.
       security:
         - access-token: []
       summary: Línea de crédito vigente del cliente, con el porqué
@@ -6466,7 +6586,15 @@ paths:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Nivel, puntos, componentes, misiones, señales e historial.
+          description: >-
+            Nivel, componentes, misiones, señales e historial. `rating` =
+            Calificación de pagador de 1 a 100; `points` = Puntaje, los puntos
+            ganados pagando a tiempo (1 por boliviano). Ninguno de los dos es el
+            score 0-1000 del motor. `level`/`nextLevel`/`levelLadder` = Nivel
+            Atlas medido en PUNTOS (Nuevo 0 · En construcción 500 · Establecido
+            2.000 · Consolidado 5.000 · Preferente 10.000); la tarjeta sigue a
+            ese nivel. `tier` sigue siendo el escalón de la relación que usa la
+            capacidad de pago.
           content:
             application/json:
               schema:

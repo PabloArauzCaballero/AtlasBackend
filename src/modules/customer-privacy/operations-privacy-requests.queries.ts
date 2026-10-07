@@ -92,10 +92,27 @@ export const SQL_CONTEO = (where: string): string =>
      LEFT JOIN ${tabla('customers')} cu ON cu._id = d.customer_id AND cu._tenant_id = d._tenant_id
     WHERE ${where}`;
 
-/** El resumen es de TODA la cola del tenant: dice si hay que ir a mirar, y no cambia con el filtro. */
+/**
+ * El resumen es de TODA la cola del tenant: dice si hay que ir a mirar, y no cambia con el filtro.
+ *
+ * `shadow*` es la medida de la sombra del Motor (P-09/P-10): de lo que una persona ya cerró, cuánto coincide con lo que el
+ * Motor habría hecho; cuántos ACEPTAR del Motor rechazó una persona (el error caro: el criterio de salida exige 0);
+ * y las solicitudes a las que el Motor no llegó a opinar —se rindió tras los intentos, o lleva horas sin opinar—, que
+ * antes sólo se veían abriendo la fila.
+ */
 export const SQL_RESUMEN = `
   SELECT COUNT(*) FILTER (WHERE d.status IN ${SQL_OPEN_STATUSES})::text AS open,
-         COUNT(*) FILTER (WHERE d.status IN ${SQL_OPEN_STATUSES} AND ${SQL_RECEIVED_AT} < $overdueCutoff)::text AS overdue
+         COUNT(*) FILTER (WHERE d.status IN ${SQL_OPEN_STATUSES} AND ${SQL_RECEIVED_AT} < $overdueCutoff)::text AS overdue,
+         COUNT(*) FILTER (WHERE d.engine_decision IN ('ACEPTAR', 'RECHAZAR') AND d.status IN ('completed', 'rejected'))::text AS "shadowCompared",
+         COUNT(*) FILTER (WHERE (d.engine_decision = 'ACEPTAR' AND d.status = 'completed')
+                             OR (d.engine_decision = 'RECHAZAR' AND d.status = 'rejected'))::text AS "shadowAgreed",
+         COUNT(*) FILTER (WHERE d.engine_decision = 'ACEPTAR' AND d.status = 'rejected')::text AS "shadowFalseAccept",
+         COUNT(*) FILTER (WHERE d.engine_decision = 'REVISION_HUMANA' AND d.status IN ('completed', 'rejected'))::text AS "shadowHandedToPerson",
+         COUNT(*) FILTER (WHERE d.engine_decided_at IS NULL AND d.status IN ${SQL_OPEN_STATUSES}
+                             AND d.request_type IN ('rectification', 'deletion') AND COALESCE(d.engine_attempts, 0) >= $maxEngineAttempts)::text AS "shadowGaveUp",
+         COUNT(*) FILTER (WHERE d.engine_decided_at IS NULL AND d.status IN ${SQL_OPEN_STATUSES}
+                             AND d.request_type IN ('rectification', 'deletion') AND COALESCE(d.engine_attempts, 0) < $maxEngineAttempts
+                             AND d._created_at < $shadowStaleCutoff)::text AS "shadowStale"
     FROM ${tabla('data_subject_requests')} d
    WHERE d._tenant_id = $tenantId AND COALESCE(d._deleted, false) = false`;
 

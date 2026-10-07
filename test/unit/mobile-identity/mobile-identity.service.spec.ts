@@ -165,13 +165,37 @@ describe('MobileIdentityService', () => {
   /** La política de revisión humana, encendida o apagada sólo durante una prueba. */
   async function conRevisionHumana(valor: boolean, prueba: () => Promise<void>): Promise<void> {
     const anterior = env.IDENTITY_REQUIRE_HUMAN_REVIEW;
+    const autoAplicar = env.DECISION_ENGINE_AUTO_APPLY;
     (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = valor;
+    // «Apagada» es apagada de verdad: la identidad también tiene que estar en DECISION_ENGINE_AUTO_APPLY.
+    (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY = valor ? ['credit'] : ['credit', 'identity'];
     try {
       await prueba();
     } finally {
       (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = anterior;
+      (env as Record<string, unknown>).DECISION_ENGINE_AUTO_APPLY = autoAplicar;
     }
   }
+
+  it('sin la identidad en DECISION_ENGINE_AUTO_APPLY, un VERIFICADO queda IN_REVIEW aunque la otra política esté apagada', async () => {
+    const anterior = env.IDENTITY_REQUIRE_HUMAN_REVIEW;
+    (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = false;
+    try {
+      const { service, repository } = montar({ output: { identidad_resultado: 'VERIFICADO', identidad_motivo: 'IDENTIDAD_CONFIRMADA' } });
+      await service.start('1', cuerpo(), 'idem-1');
+      await dejarResolver();
+      expect(repository.complete).toHaveBeenCalledWith(
+        '1',
+        '5501',
+        expect.objectContaining({
+          finalResult: 'IN_REVIEW',
+          reasonCodes: expect.objectContaining({ engineDecision: 'VERIFIED', humanReviewPolicy: true }),
+        }),
+      );
+    } finally {
+      (env as Record<string, unknown>).IDENTITY_REQUIRE_HUMAN_REVIEW = anterior;
+    }
+  });
 
   it('con revisión humana, un VERIFICADO del Motor queda IN_REVIEW con la sugerencia y abre el caso en la bandeja', () =>
     conRevisionHumana(true, async () => {

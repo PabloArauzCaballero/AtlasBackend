@@ -14,22 +14,30 @@ import { DecisionEngineClient } from '../../decision-engine/decision-engine.clie
 import { SubjectReferenceService } from '../../decision-engine/subject-reference.service.js';
 import { UnderwritingFeaturesService } from '../../decision-engine/underwriting-features.service.js';
 import { lineVariableMetadata } from '../../decision-engine/underwriting-features-line-metadata.js';
+import { percentToUnitRate } from '../../decision-engine/rate-units.js';
+import { CreditRepository } from '../credit.repository.js';
+import { lineBaseRatePercent } from './credit-line-base-rate.js';
 import { pricedRateUnitToPercentNumber } from './credit-decision-pricing.mapper.js';
 import { PaymentCapacityService } from './payment-capacity.service.js';
+import { DEFAULT_CAPACITY_POLICY } from '../domain/payment-capacity.js';
+import { affordabilityRatioFor } from '../../decision-engine/underwriting-income-basis.js';
+import { lineProbeAmount, lineRateWithinUsuryCap } from './credit-line-probe.js';
+
+export { lineProbeAmount, lineRateWithinUsuryCap } from './credit-line-probe.js';
 import { capacityProvenance, capacityVariables } from './credit-line.service.js';
 
 /** Qué movió la línea. Se escribe siempre: una bajada sin causa visible parece un error. */
 export type CalculationTrigger = 'onboarding' | 'bank_statement' | 'delinquency' | 'repayment' | 'manual' | 'application';
 
 /**
- * El importe de referencia con el que se pide la línea cuando NO hay una compra concreta.
+ * El importe con el que se pide la línea cuando NO hay una compra concreta.
  *
- * El artefacto necesita un `requested_amount` para calcular la relación cuota/ingreso. Al abrir la
- * cuenta todavía no hay compra, así que se usa este importe como sonda: es el techo del producto, de
- * modo que la línea que sale es la máxima que la política concede a esa persona, no la que
- * cabría en una compra imaginaria más pequeña.
+ * El artefacto necesita un `requested_amount` para la relación cuota/ingreso. Hasta 2026-10 era una
+ * constante de Bs 5.000: con un ingreso por debajo de Bs 4.763 la sonda sola sumaba 45-70 puntos de
+ * riesgo, aunque la línea que después salía fuera de Bs 1.000. Ahora la sonda es la línea que la
+ * capacidad de pago PROPONE (lo que el cliente podrá gastar de verdad) y, si no propone nada, el
+ * mínimo útil del producto. Ver `lineProbeAmount`.
  */
-const PROBE_AMOUNT = 5000;
 const PROBE_TERM_MONTHS = 3;
 
 function num(value: unknown): number | null {
@@ -57,6 +65,24 @@ export function usableLimit(
   const limit = raw === null || raw === undefined ? null : num(raw);
   if (limit === null || limit < 0) return { write: false, reason: `INVALID_ECONOMIC_OUTPUT:approved_credit_limit=${String(raw)}` };
   return { write: true, approvedLimit: limit };
+}
+
+/**
+ * La base de la subida escalonada: lo que la capacidad RECOMENDÓ en el cálculo anterior, no lo que se aprobó.
+ *
+ * El límite aprobado ya viene recortado por la banda de riesgo (D al 50 %). Graduar sobre él acopla los dos factores:
+ * el tope «el doble del vigente» valía 2 × 0,5 × recomendado = recomendado, así que en banda D la línea no podía subir
+ * nunca aunque la capacidad creciera, y si bajaba una vez no volvía (C-04 del plan 2026-10-05). Sin recomendación
+ * guardada (líneas anteriores a ese campo) se cae al aprobado, como antes.
+ */
+export function graduationBase(
+  current: { recommendedLimit?: string | number | null; approvedLimit: string | number } | null,
+): number | null {
+  if (!current) return null;
+  const recommended = Number(current.recommendedLimit);
+  if (current.recommendedLimit !== null && current.recommendedLimit !== undefined && Number.isFinite(recommended) && recommended > 0)
+    return recommended;
+  return Number(current.approvedLimit);
 }
 
 function str(value: unknown): string | null {
@@ -104,6 +130,7 @@ export class CreditLineRecalculationService {
     private readonly capacity: PaymentCapacityService,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly escritor: CreditLineWriterService,
+    private readonly credit: CreditRepository,
   ) {}
 
   /**
@@ -128,14 +155,14 @@ export class CreditLineRecalculationService {
     }
 
     const now = new Date();
-    const requestedAmount = input.requestedAmount ?? PROBE_AMOUNT;
     const requestedTermMonths = input.requestedTermMonths ?? PROBE_TERM_MONTHS;
 
     const current = await this.escritor.lineaVigente(input.tenantId, input.customerId);
     const features = await this.features.build({
       tenantId: input.tenantId,
       customerId: input.customerId,
-      requestedAmount,
+      // Provisional: la sonda real se fija abajo, cuando la capacidad haya propuesto la línea.
+      requestedAmount: input.requestedAmount ?? DEFAULT_CAPACITY_POLICY.minimumUsefulLimit,
       requestedTermMonths,
       bankStatementNsfCount: input.bankStatementNsfCount ?? null,
       now,
@@ -157,11 +184,21 @@ export class CreditLineRecalculationService {
       tenantId: input.tenantId,
       customerId: input.customerId,
       declaredMonthlyIncome: num(variables.declared_monthly_income) ?? null,
-      currentLimit: current ? Number(current.approvedLimit) : null,
+      currentLimit: graduationBase(current),
       termMonths: requestedTermMonths,
       now,
     });
     Object.assign(variables, capacityVariables(capacity));
+    if (input.requestedAmount === undefined) {
+      const probe = lineProbeAmount(capacity);
+      variables.requested_amount = probe;
+      variables.affordability_ratio = affordabilityRatioFor(probe / requestedTermMonths, features.affordabilityIncome);
+    }
+    // Sin compra no hay producto, y el artefacto exige la tasa base: ver `credit-line-base-rate.ts`.
+    provenance.product_base_annual_rate = 'derivado';
+    variables.product_base_annual_rate = percentToUnitRate(
+      await lineBaseRatePercent(this.credit, this.logger, { tenantId: input.tenantId, now }),
+    );
     Object.assign(provenance, capacityProvenance(capacity));
 
     const subjectReference = await this.subjects.register({ tenantId: input.tenantId, customerId: input.customerId });
@@ -247,7 +284,8 @@ export class CreditLineRecalculationService {
          * dos lean este campo por un solo sitio es lo que hace posible que lo que el cliente VE en su
          * línea y lo que se le COBRA en el préstamo puedan, alguna vez, ser el mismo número.
          */
-        annualPercentageRate: pricedRateUnitToPercentNumber(output.annual_percentage_rate),
+        // Recortada al tope de usura: lo que la línea MUESTRA no puede superar lo que el desembolso COBRA.
+        annualPercentageRate: lineRateWithinUsuryCap(pricedRateUnitToPercentNumber(output.annual_percentage_rate)),
         affordabilityScore: num(output.affordability_score),
         affordabilityDecision: str(output.affordability_decision),
         probabilityOfDefault: num(output.probability_of_default),

@@ -39,7 +39,10 @@ describe('CreditUnderwritingService', () => {
       findProductByCode: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown> | null> => ({ annualInterestRate: null })),
     };
     // El caso PROPIO de Atlas (C-1): sólo se abre cuando el Motor no abrió el suyo.
-    const reviewCases = { open: jest.fn(async (..._args: unknown[]) => ({ caseCode: 'CR-CRA-1' })) };
+    const reviewCases = {
+      closeIfResolved: jest.fn(async (..._args: unknown[]) => undefined),
+      open: jest.fn(async (..._args: unknown[]) => ({ caseCode: 'CR-CRA-1' })),
+    };
     const sequelize = {
       transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})),
       // `nextCreditApplicationVersion` (T-11): sin outbox previo, el máximo es null -> versión 1.
@@ -67,6 +70,56 @@ describe('CreditUnderwritingService', () => {
     productCode: 'consumo_30',
     purposeCode: null,
   };
+
+  /*
+   * Producto `requiresManualReview`: la solicitud nace `under_review` y antes NO llegaba al motor ni
+   * abría caso. Ahora se consulta igual; el veredicto queda como propuesta y la solicitud en la
+   * bandeja de Atlas, con la ejecución del motor atada al expediente.
+   */
+  describe('con revisión manual exigida por el producto', () => {
+    it('consulta al motor, retiene la aprobación y abre el caso de Atlas', async () => {
+      const { service, application, engine, reviewCases } = build({ kind: 'approved', response: response() });
+      application.status = 'under_review';
+      const result = await service.underwrite({ ...input, holdForManualReview: true });
+
+      expect(engine.decide).toHaveBeenCalledWith(expect.not.objectContaining({ holdForManualReview: expect.anything() }));
+      expect(result).toMatchObject({ status: 'under_review', decisionMode: 'manual', executionId: '88001' });
+      expect(result.reasonCodes[0]).toBe('ENGINE_VERDICT_HELD_FOR_MANUAL_REVIEW');
+      expect(application.decisionExecutionId).toBe('88001');
+      expect(application.businessAcceptance).toBeNull();
+      expect(reviewCases.open).toHaveBeenCalledTimes(1);
+      expect(application).toMatchObject({ manualReviewCaseCode: 'CR-CRA-1', manualReviewCaseSource: 'atlas' });
+    });
+
+    it('un rechazo del motor tampoco se aplica solo', async () => {
+      const { service, application } = build({ kind: 'declined', response: response({ outcome: 'DECLINE' }) });
+      application.status = 'under_review';
+      expect((await service.underwrite({ ...input, holdForManualReview: true })).status).toBe('under_review');
+    });
+
+    it('una solicitud ya consultada no se vuelve a decidir', async () => {
+      const { service, application, engine } = build({ kind: 'approved', response: response() });
+      Object.assign(application, { status: 'under_review', decisionExecutionId: '77' });
+      const result = await service.underwrite({ ...input, holdForManualReview: true });
+      expect(result.status).toBe('under_review');
+      expect(application.save).not.toHaveBeenCalled();
+      expect(engine.decide).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('una solicitud diferida queda submitted PERO con caso en la bandeja', async () => {
+    const { service, application, reviewCases } = build({ kind: 'deferred', reason: 'ENABLING_BASIS_NOT_REPLICATED' });
+    const result = await service.underwrite(input);
+    expect(result.status).toBe('submitted');
+    expect(reviewCases.open).toHaveBeenCalledTimes(1);
+    expect(application).toMatchObject({ manualReviewCaseSource: 'atlas', decidedAt: null });
+  });
+
+  it('una aprobación cierra el caso de Atlas que dejó una diferida anterior', async () => {
+    const { service, reviewCases } = build({ kind: 'approved', response: response() });
+    await service.underwrite(input);
+    expect(reviewCases.closeIfResolved).toHaveBeenCalledWith(expect.anything(), 'approved', expect.any(Date), { transaction: {} });
+  });
 
   it('aprueba cuando el motor aprueba, y guarda la ejecución que lo decidió', async () => {
     const { service, application } = build({ kind: 'approved', response: response() });
