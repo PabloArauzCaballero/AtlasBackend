@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { PartnerProfileModel } from '../../../database/models/index.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
+import { openKybReviewCase } from './partner-kyb-review-case.js';
 
 /** Los estados del caso que YA son un veredicto. El resto sigue esperando a una persona. */
 const RESUELTOS: Record<string, 'approved' | 'rejected' | 'cancelled'> = {
@@ -23,6 +24,8 @@ export type PartnerKybSyncResult = {
   cancelled: number;
   pending: number;
   unreachable: number;
+  /** Expedientes que esperaban a una persona SIN caso en el Motor y a los que se les abrió uno. */
+  opened: number;
 };
 
 /**
@@ -49,8 +52,10 @@ export class PartnerKybSyncService {
   ) {}
 
   async syncPendingReviews(input: { tenantId: string; limit: number }): Promise<PartnerKybSyncResult> {
-    const resultado: PartnerKybSyncResult = { checked: 0, approved: 0, rejected: 0, cancelled: 0, pending: 0, unreachable: 0 };
+    const resultado: PartnerKybSyncResult = { checked: 0, approved: 0, rejected: 0, cancelled: 0, pending: 0, unreachable: 0, opened: 0 };
     if (!this.client.isConfigured) return resultado;
+
+    await this.openMissingCases(input, resultado);
 
     const pendientes = await this.profileModel.findAll({
       where: {
@@ -105,6 +110,40 @@ export class PartnerKybSyncService {
     }
 
     return resultado;
+  }
+  /**
+   * La garantía: un expediente en revisión SIEMPRE tiene su caso en la cola del Motor.
+   *
+   * Si el caso no se abrió al evaluar (el Motor no respondió, o la versión del artefacto no tiene
+   * nodo MANUAL_REVIEW y el desenlace dijo «revisión» sin abrir nada) el expediente esperaba a una
+   * persona que no podía verlo. Se abre aquí, idempotente por ejecución. Un caso CANCELADO es una
+   * decisión de una persona de devolverlo a la decisión local: no se reabre.
+   */
+  private async openMissingCases(input: { tenantId: string; limit: number }, resultado: PartnerKybSyncResult): Promise<void> {
+    const sinCaso = await this.profileModel.findAll({
+      where: {
+        tenantId: input.tenantId,
+        onboardingStatus: 'under_review',
+        manualReviewCaseCode: null,
+        decisionExecutionId: { [Op.ne]: null },
+        deleted: false,
+      },
+      order: [['decision_evaluated_at', 'ASC']],
+      limit: input.limit,
+    });
+    for (const profile of sinCaso) {
+      const caso = await openKybReviewCase(this.client, {
+        executionId: profile.decisionExecutionId!,
+        profileId: String(profile.id),
+        reason: profile.decisionReason,
+      });
+      // Sin caso (el Motor no respondió) o con el caso ya cerrado —una persona lo canceló o lo
+      // resolvió—: no se reabre. Cancelar devuelve el expediente a la decisión local a propósito.
+      if (!caso) continue;
+      await profile.update({ manualReviewCaseCode: caso.caseCode, updatedAtValue: new Date() });
+      resultado.opened += 1;
+      this.logger.log(`partner_kyb_case_opened profile=${profile.id} case=${caso.caseCode}`);
+    }
   }
 }
 
