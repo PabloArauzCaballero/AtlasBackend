@@ -39,9 +39,10 @@ export class CardTierOperationsController {
   ) {}
 
   private async view(tenantId: string, customerId: string) {
-    const { tier } = await this.progress.levelOf(tenantId, customerId);
+    // La tarjeta automática sigue al nivel por PUNTOS, igual que la que ve el cliente en `/progress`.
+    const { level } = await this.progress.levelOf(tenantId, customerId);
     const [card, catalog, history] = await Promise.all([
-      this.cards.resolveFor(tenantId, customerId, tier.code),
+      this.cards.resolveFor(tenantId, customerId, level.code),
       this.cards.catalog(tenantId),
       this.cards.history(tenantId, customerId),
     ]);
