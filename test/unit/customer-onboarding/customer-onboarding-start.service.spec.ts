@@ -367,6 +367,24 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
       const eventArgs = (mocks.consentsRepository.createConsentEvent as jest.Mock).mock.calls[0][0] as { eventType: string };
       expect(eventArgs.eventType).toBe('granted');
     });
+
+    it('FALLA sin el fix: la fecha de aceptación que declara el cliente no puede ser anterior a la ventana ni futura', async () => {
+      const mocks = await buildService();
+      await primeHappyPathMocks(mocks);
+      const antes = Date.now();
+
+      await mocks.service.startOnboarding(
+        't1',
+        validInput({
+          consents: [{ consentDocumentId: 'doc-1', purposeCode: 'terms', granted: true, acceptedAt: '2020-01-01T00:00:00.000Z' }],
+        }),
+        null,
+        'idem-1',
+      );
+
+      const guardada = (mocks.consentsRepository.createCustomerConsent as jest.Mock).mock.calls[0][0] as { happenedAt: Date };
+      expect(guardada.happenedAt.getTime()).toBeGreaterThanOrEqual(antes);
+    });
   });
 
   describe('camino feliz — orquestación completa', () => {

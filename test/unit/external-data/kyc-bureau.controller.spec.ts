@@ -47,6 +47,19 @@ describe('KYC/Bureau external-data controllers', () => {
       body,
       idempotencyKey: 'idem',
       requestedByUserId: actorId(internalUser),
+      approvedByAdminId: undefined,
     });
+  });
+
+  it('checkInfocenter: approvedByAdminId del cuerpo sólo cuenta si el actor es admin, y a su propio nombre', async () => {
+    const service = { executeInfocenter: jest.fn(async (..._args: unknown[]) => ({ ok: true })) };
+    const controller = new BureauExternalDataController(service as never);
+    const body = { customerId: '9', approvedByAdminId: '1' } as never;
+    const analyst = { role: 'risk_analyst', tenantId: '1', internalUserId: 'r1' } as never;
+    await controller.checkInfocenter('1', undefined, body, analyst);
+    expect(service.executeInfocenter).toHaveBeenLastCalledWith(expect.objectContaining({ approvedByAdminId: undefined }));
+    const admin = { role: 'platform_admin', tenantId: '1', platformUserId: 'p1' } as never;
+    await controller.checkInfocenter('1', undefined, body, admin);
+    expect(service.executeInfocenter).toHaveBeenLastCalledWith(expect.objectContaining({ approvedByAdminId: 'p1' }));
   });
 });

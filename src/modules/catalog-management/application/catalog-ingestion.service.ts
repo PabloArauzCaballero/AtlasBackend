@@ -123,6 +123,11 @@ export class CatalogIngestionService {
             `Staging item ${decision.stagingItemId} pertenece a un catálogo distinto al de la versión destino.`,
           );
         }
+        // Un ítem ya decidido no se decide otra vez: re-aprobar duplicaría el ítem de contexto y
+        // aprobado→rechazado borraría el estado previo con el ítem ya creado.
+        if (['approved', 'rejected'].includes(staging.reviewStatus ?? '')) {
+          throw new UnprocessableEntityException(`STAGING_ITEM_ALREADY_DECIDED: ${decision.stagingItemId} está ${staging.reviewStatus}.`);
+        }
         if (decision.decision === 'approve') {
           approved += 1;
           const itemCode = decision.itemCode ?? staging.proposedItemCode;

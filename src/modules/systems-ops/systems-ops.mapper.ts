@@ -18,6 +18,7 @@ import {
   SystemTestStepRunModel,
   SystemTestSuiteModel,
 } from '../../database/models/index.js';
+import { redactSecretHeaders } from './systems-header-redaction.util.js';
 
 // `mapTool` y `mapToolRequirement` viven en su propio archivo: este mapper ya estaba en la deuda
 // congelada de tamaño (383 líneas) y añadirles la metadata de gobierno lo empujaba por encima. Se
@@ -263,7 +264,8 @@ export function mapTestStep(row: SystemTestStepModel) {
     inputMode: row.inputMode,
     method: row.method,
     pathTemplate: row.pathTemplate,
-    defaultHeaders: row.defaultHeaders,
+    // Lo lee todo SYSTEMS_OPS_ROLES (auditores, analistas): las llaves no salen en claro.
+    defaultHeaders: redactSecretHeaders(row.defaultHeaders, { keepTemplates: true }),
     defaultPayload: row.defaultPayload,
     configSchema: row.configSchema,
     extractors: row.extractors,

@@ -188,7 +188,9 @@ export class AuthSecondFactorService {
    * El mismo mensaje para "desafío inexistente", "expirado" y "PIN incorrecto" es deliberado: son
    * tres estados que un atacante no debe poder distinguir.
    */
-  async consumeChallenge(input: { challengeToken: string; pin: string } & Network): Promise<VerifiedSecondFactor> {
+  async consumeChallenge(
+    input: { challengeToken: string; pin: string; expectedActorType?: ActorType } & Network,
+  ): Promise<VerifiedSecondFactor> {
     const invalidPinError = new UnauthorizedException('PIN inválido o expirado.');
 
     const challenge = await this.oneTimeCodeRepository.findActiveOneTimeCodeByChallenge(hashOneTimeCode(input.challengeToken));
@@ -197,6 +199,11 @@ export class AuthSecondFactorService {
     }
 
     const actorType = challenge.actorType as ActorType;
+    // Un desafío de otro tipo de actor, presentado en la ruta equivocada, no se gasta: se rechaza antes.
+    if (input.expectedActorType && actorType !== input.expectedActorType) throw invalidPinError;
+    // El intento se reserva antes de comparar (ver `reserveOneTimeCodeAttempt`): sin intentos, nada que comparar.
+    if (!(await this.oneTimeCodeRepository.reserveOneTimeCodeAttempt(challenge, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS)))
+      throw invalidPinError;
     if (!verifyOneTimeCode(input.pin, challenge.codeHash)) {
       await this.oneTimeCodeRepository.registerOneTimeCodeFailedAttempt(challenge, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
       await this.authRepository.recordLoginAttemptEvent({
@@ -212,7 +219,8 @@ export class AuthSecondFactorService {
       throw invalidPinError;
     }
 
-    await this.oneTimeCodeRepository.consumeOneTimeCode(challenge);
+    // Dos canjes concurrentes del PIN correcto: sólo el que consume emite sesión.
+    if (!(await this.oneTimeCodeRepository.consumeOneTimeCode(challenge))) throw invalidPinError;
 
     const actor = await this.actorResolver.reResolveActorRole(actorType, challenge.actorId, challenge.tenantId);
     const credential = actor ? await this.authRepository.findCredentialsByActor(actorType, actor.id) : null;

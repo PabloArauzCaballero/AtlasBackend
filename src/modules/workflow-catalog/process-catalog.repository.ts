@@ -102,13 +102,13 @@ export class ProcessCatalogRepository {
     const label = entity.labelColumn ? `${entity.labelColumn}::text` : 'NULL';
     const conditions = [where];
     if (filter.status) conditions.push(`${entity.statusColumn}::text = :status`);
-    if (filter.search) conditions.push(`(${entity.idColumn}::text = :search OR ${label} ILIKE :like)`);
+    if (filter.search) conditions.push(`(${entity.idColumn}::text = :search OR ${label} ILIKE :like ESCAPE '\\')`);
     const sqlWhere = conditions.join(' AND ');
     const params = {
       ...replacements,
       status: filter.status,
       search: filter.search,
-      like: `%${filter.search ?? ''}%`,
+      like: `%${(filter.search ?? '').replace(/[\\%_]/g, '\\$&')}%`,
       limit: filter.limit,
       offset: filter.offset,
     };

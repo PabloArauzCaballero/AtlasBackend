@@ -121,3 +121,41 @@ describe('WorkflowCatalogService lecturas del árbol', () => {
     expect(repository.findDefinition).toHaveBeenCalledWith('demo_flow', 'v3');
   });
 });
+
+describe('WorkflowCatalogService: audiencia customer', () => {
+  const internal = () => buildDefinition({ processType: 'back_office' });
+
+  it('no lista los procesos internos para un cliente y sí para el personal', async () => {
+    const { service } = buildService({
+      findDefinitions: jest.fn(async (..._args: unknown[]) => [buildDefinition(), internal()]),
+    });
+
+    expect(await service.listWorkflows({ includeDeprecated: false } as never, 'customer')).toHaveLength(1);
+    expect(await service.listWorkflows({ includeDeprecated: false } as never)).toHaveLength(2);
+  });
+
+  it('responde WORKFLOW_NOT_FOUND al cliente que pide el árbol de un proceso interno', async () => {
+    const { service } = buildService({ findDefinition: jest.fn(async (..._args: unknown[]) => internal()) });
+
+    await expect(service.getTree('internal_users_rbac', TREE_QUERY, 'customer')).rejects.toThrow(NotFoundException);
+    await expect(service.getGraph('internal_users_rbac', TREE_QUERY, 'customer')).rejects.toThrow(NotFoundException);
+    await expect(service.getTree('internal_users_rbac', TREE_QUERY)).resolves.toBeDefined();
+  });
+
+  it('no entrega al cliente las rutas de ficheros (`metadata.sources`) de un proceso suyo', async () => {
+    const definition = buildDefinition({ metadata: { documentation: 'x', sources: ['src/a.ts'] } });
+    const { service } = buildService({
+      findDefinition: jest.fn(async (..._args: unknown[]) => definition),
+      loadBundle: jest.fn(async (..._args: unknown[]) => ({ ...buildBundle(), definition })),
+    });
+
+    expect((await service.getTree('demo_flow', TREE_QUERY, 'customer')).metadata).toEqual({ documentation: 'x' });
+    expect((await service.getTree('demo_flow', TREE_QUERY)).metadata).toHaveProperty('sources');
+  });
+
+  it('oculta al cliente las versiones de un proceso interno', async () => {
+    const { service } = buildService({ findVersions: jest.fn(async (..._args: unknown[]) => [internal()]) });
+
+    await expect(service.listVersions('internal_users_rbac', 'customer')).rejects.toThrow(NotFoundException);
+  });
+});

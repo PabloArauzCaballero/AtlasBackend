@@ -23,6 +23,10 @@ describe('SystemsReviewRepository', () => {
       endpointTool: make(),
       reviewEvent: make(),
     };
+    // Transacción gestionada falsa: ejecuta el callback y deja ver que todo va en la misma.
+    const transaction = { LOCK: { UPDATE: 'UPDATE' } };
+    const sequelize = { transaction: jest.fn(async (work: (t: unknown) => Promise<unknown>) => work(transaction)) };
+    Object.assign(models.reviewEvent, { sequelize });
     const repo = new SystemsReviewRepository(
       models.endpoint as never,
       models.dataEntity as never,
@@ -32,7 +36,7 @@ describe('SystemsReviewRepository', () => {
       models.endpointTool as never,
       models.reviewEvent as never,
     );
-    return { repo, models };
+    return { repo, models, transaction };
   }
 
   describe('listReviewQueue', () => {
@@ -95,6 +99,73 @@ describe('SystemsReviewRepository', () => {
       await repo.updateEndpointReview('e1', { reviewStatus: 'rejected' } as never, null, 'reviewer', null);
       expect((row as { confidenceLevel: string }).confidenceLevel).toBe('medium');
       expect(callArg<CallArgRecord>(models.reviewEvent.create, 0, 0).newConfidence).toBe('medium');
+    });
+  });
+
+  describe('decisión y evento en la misma transacción', () => {
+    it('bloquea la fila y pasa la transacción al save y al evento', async () => {
+      const { repo, models, transaction } = buildRepo();
+      const save = jest.fn(async (..._args: unknown[]) => ({}));
+      const row = { reviewStatus: 'pending', confidenceLevel: 'low', save } as never;
+      (models.endpoint.findByPk as jest.Mock).mockResolvedValue(row as never);
+      (models.reviewEvent.create as jest.Mock).mockResolvedValue({} as never);
+      await repo.updateEndpointReview('e1', { reviewStatus: 'approved' } as never, 'u1', 'admin', 't1');
+      expect((models.endpoint.findByPk as jest.Mock).mock.calls[0][1]).toEqual({ transaction, lock: 'UPDATE' });
+      expect(save).toHaveBeenCalledWith({ transaction });
+      expect((models.reviewEvent.create as jest.Mock).mock.calls[0][1]).toEqual({ transaction });
+    });
+
+    it('si el evento no se escribe, el error sale de la transacción (que la revierte)', async () => {
+      const { repo, models } = buildRepo();
+      const save = jest.fn(async (..._args: unknown[]) => ({}));
+      const row = { reviewStatus: 'pending', confidenceLevel: 'low', save } as never;
+      (models.dataEntity.findByPk as jest.Mock).mockResolvedValue(row as never);
+      (models.reviewEvent.create as jest.Mock).mockRejectedValue(new Error('connection reset') as never);
+      await expect(repo.updateDataEntityReview('d1', { reviewStatus: 'approved' } as never, 'u1', 'admin', 't1')).rejects.toThrow(
+        'connection reset',
+      );
+    });
+  });
+
+  describe('updateDataEntityMetadata', () => {
+    it('devuelve null si no existe; si existe aplica solo los campos presentes en el body y guarda', async () => {
+      const missing = buildRepo();
+      (missing.models.dataEntity.findByPk as jest.Mock).mockResolvedValue(null as never);
+      expect(await missing.repo.updateDataEntityMetadata('e1', {}, 'u1', 'admin', null)).toBeNull();
+
+      const found = buildRepo();
+      const save = jest.fn(async (..._args: unknown[]) => found);
+      const entity = { businessPurpose: 'old', status: 'ACTIVE', reviewStatus: 'NEEDS_REVIEW', save } as Record<string, unknown>;
+      (found.models.dataEntity.findByPk as jest.Mock).mockResolvedValue(entity as never);
+      await found.repo.updateDataEntityMetadata('e1', { businessPurpose: 'nuevo', dataOwner: 'riesgo' }, 'u1', 'admin', null);
+      expect(entity.businessPurpose).toBe('nuevo');
+      expect(entity.status).toBe('ACTIVE'); // no venía en el body
+      expect(save).toHaveBeenCalledWith({ transaction: found.transaction });
+      // Texto descriptivo: no cambia cómo se gobierna la tabla, no hay evento.
+      expect(found.models.reviewEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('aprobar o quitar la marca de PII por metadata deja evento de revisión con actor y antes→después', async () => {
+      const { repo, models, transaction } = buildRepo();
+      const save = jest.fn(async (..._args: unknown[]) => ({}));
+      const entity = { reviewStatus: 'NEEDS_REVIEW', confidenceLevel: 'MEDIUM', containsPii: true, save } as Record<string, unknown>;
+      (models.dataEntity.findByPk as jest.Mock).mockResolvedValue(entity as never);
+      (models.reviewEvent.create as jest.Mock).mockResolvedValue({} as never);
+      await repo.updateDataEntityMetadata('e1', { reviewStatus: 'APPROVED', containsPii: false }, 'u9', 'admin', 't1');
+      expect((models.dataEntity.findByPk as jest.Mock).mock.calls[0][1]).toEqual({ transaction, lock: 'UPDATE' });
+      const [event, options] = (models.reviewEvent.create as jest.Mock).mock.calls[0] as [Record<string, unknown>, unknown];
+      expect(event).toMatchObject({
+        targetType: 'data_entity',
+        targetId: 'e1',
+        previousStatus: 'NEEDS_REVIEW',
+        newStatus: 'APPROVED',
+        actorId: 'u9',
+        actorRole: 'admin',
+        tenantId: 't1',
+      });
+      expect(event.notes).toContain('containsPii: true→false');
+      expect(event.notes).toContain('reviewStatus: NEEDS_REVIEW→APPROVED');
+      expect(options).toEqual({ transaction });
     });
   });
 

@@ -98,7 +98,7 @@ export class OperationsService {
     }
     const now = new Date();
     return this.sequelize.transaction(async (transaction) => {
-      const reviewCase = await this.operationsRepository.findManualReviewCaseById(input.tenantId, input.params.caseId);
+      const reviewCase = await this.operationsRepository.findManualReviewCaseById(input.tenantId, input.params.caseId, { transaction });
       if (!reviewCase) throw new NotFoundException('CASE_NOT_FOUND');
       if (reviewCase.closedAt || reviewCase.status === 'closed') throw new ConflictException('CASE_ALREADY_CLOSED');
       assertDecidableFromPortal(reviewCase);

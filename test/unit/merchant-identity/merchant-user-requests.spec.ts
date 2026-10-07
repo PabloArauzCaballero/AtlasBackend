@@ -162,6 +162,16 @@ describe('Cola de altas de identidad de comercio', () => {
     );
   });
 
+  it('rechazar toma el cerrojo de la fila dentro de una transacción (no pisa una aprobación concurrente)', async () => {
+    const { service, requestModel, merchantUsersService, fila } = buildService(peticionPendiente);
+
+    await service.reject('t1', 'r1', { reason: 'no corresponde' }, { internalUserId: 'i1' });
+
+    expect(merchantUsersService.connection.transaction).toHaveBeenCalledTimes(1);
+    expect((requestModel.findOne.mock.calls[0]?.[0] as { lock?: string }).lock).toBe('UPDATE');
+    expect((fila?.update as jest.Mock).mock.calls[0]?.[1]).toMatchObject({ transaction: { LOCK: { UPDATE: 'UPDATE' } } });
+  });
+
   it('una petición inexistente no se puede decidir', async () => {
     const { service } = buildService(null);
     await expect(service.get('t1', 'r9')).rejects.toThrow('MERCHANT_PROVISIONING_REQUEST_NOT_FOUND');

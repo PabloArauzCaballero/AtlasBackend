@@ -78,11 +78,17 @@ export class CustomerVerificationRepository {
    * Es lo que necesita quien YA sabe cuál intento resolver —el callback del Motor lo localizó por su
    * `executionId`—: resolver "el último del cliente" podía caer en otro intento y escribir el
    * veredicto de la revisión sobre él. El tenant va en el `where`, no se comprueba después.
+   * `lock` (dentro de una transacción) toma la fila FOR UPDATE: dos resoluciones a la vez no se pisan.
    */
-  findAttemptById(tenantId: string, attemptId: string, options: RepositoryOptions = {}): Promise<IdentityVerificationAttemptModel | null> {
+  findAttemptById(
+    tenantId: string,
+    attemptId: string,
+    options: RepositoryOptions & { lock?: boolean } = {},
+  ): Promise<IdentityVerificationAttemptModel | null> {
     return this.attemptModel.findOne({
       where: { tenantId, id: attemptId },
       transaction: options.transaction,
+      ...(options.lock && options.transaction ? { lock: options.transaction.LOCK.UPDATE } : {}),
     } as FindOptions);
   }
 
@@ -220,11 +226,32 @@ export class CustomerVerificationRepository {
     } as FindOptions);
   }
 
-  findMatches(tenantId: string, customerId: string, options: RepositoryOptions = {}): Promise<WatchlistMatchModel[]> {
+  /**
+   * Coincidencias del cliente. Por omisión TODAS, también las descartadas: el screening las necesita
+   * para no volver a crear una que cumplimiento ya descartó. `onlyOpen` deja sólo las que bloquean.
+   */
+  findMatches(
+    tenantId: string,
+    customerId: string,
+    options: RepositoryOptions & { onlyOpen?: boolean } = {},
+  ): Promise<WatchlistMatchModel[]> {
     return this.watchlistMatchModel.findAll({
-      where: { tenantId, customerId },
+      where: { tenantId, customerId, ...(options.onlyOpen ? { clearedAt: null } : {}) },
       transaction: options.transaction,
     } as FindOptions);
+  }
+
+  /**
+   * Hashes del número de documento de identidad del cliente —declarado, leído por OCR y verificado—.
+   * Son los hashes que guardó el alta; cotejan contra entradas de la lista hasheadas igual.
+   */
+  async findIdentityDocumentHashes(tenantId: string, customerId: string): Promise<string[]> {
+    const documents = await this.identityDocumentModel.findAll({
+      where: { tenantId, customerId },
+      attributes: ['declaredNumberHash', 'ocrNumberHash', 'verifiedNumberHash'],
+    } as FindOptions);
+    const hashes = documents.flatMap((document) => [document.declaredNumberHash, document.ocrNumberHash, document.verifiedNumberHash]);
+    return [...new Set(hashes.filter((hash): hash is string => typeof hash === 'string' && hash.length > 0))];
   }
 
   createMatch(
@@ -246,7 +273,15 @@ export class CustomerVerificationRepository {
     );
   }
 
-  async clearMatch(match: WatchlistMatchModel, options: RepositoryOptions): Promise<void> {
-    await match.destroy({ transaction: options.transaction });
+  /** Descartar NO borra: la coincidencia es evidencia AML y el screening no debe recrearla. */
+  async clearMatch(
+    match: WatchlistMatchModel,
+    values: { clearedAt: Date; clearedByInternalUserId: string | null; clearedReasonCode: string },
+    options: RepositoryOptions,
+  ): Promise<void> {
+    match.clearedAt = values.clearedAt;
+    match.clearedByInternalUserId = values.clearedByInternalUserId;
+    match.clearedReasonCode = values.clearedReasonCode;
+    await match.save({ transaction: options.transaction });
   }
 }

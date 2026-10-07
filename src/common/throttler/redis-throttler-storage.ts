@@ -44,6 +44,13 @@ type ThrottlerStorageRecord = {
 export class RedisThrottlerStorage implements ThrottlerStorage {
   private readonly logger = new Logger(RedisThrottlerStorage.name);
 
+  /**
+   * Respaldo por proceso para cuando Redis no responde: ventana fija en memoria con el mismo límite.
+   * Sin él, la caída de Redis dejaba SIN freno por IP a login, PIN y OTP (fail-open puro). Es menos
+   * preciso —cada instancia cuenta lo suyo— pero el freno sigue existiendo.
+   */
+  private readonly fallbackHits = new Map<string, { hits: number; expiresAt: number }>();
+
   constructor(@Optional() @Inject(REDIS_CLIENT) private readonly redis: Redis | null) {}
 
   isAvailable(): boolean {
@@ -96,13 +103,33 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
       return { totalHits, timeToExpire, isBlocked: false, timeToBlockExpire: 0 };
     } catch (error) {
       // Redis caído/inalcanzable/lento (con enableOfflineQueue=false los comandos rechazan de
-      // inmediato). Se DEGRADA fail-open: se permite el request en vez de colgarlo o tumbarlo. El
-      // rate limiting distribuido queda temporalmente inactivo, pero una caída de Redis no debe
-      // dejar la API entera sin responder. Se loguea con severidad alta para que salte en alertas.
+      // inmediato). Se DEGRADA, pero no a «sin límite»: una caída de Redis no debe dejar la API
+      // sin responder, ni tampoco sin freno a la fuerza bruta de credenciales. Se cuenta en memoria
+      // del proceso (`fallbackHits`) con el mismo límite. Se loguea con severidad alta para alertas.
       this.logger.error(
-        `Redis no disponible para rate limiting; se degrada fail-open (request permitido): ${error instanceof Error ? error.message : String(error)}`,
+        `Redis no disponible para rate limiting; se degrada a límite por proceso: ${error instanceof Error ? error.message : String(error)}`,
       );
-      return { totalHits: 1, timeToExpire: Math.ceil(ttl / 1000), isBlocked: false, timeToBlockExpire: 0 };
+      return this.incrementInMemory(hitKey, ttl, limit, blockDuration);
     }
+  }
+
+  private incrementInMemory(hitKey: string, ttl: number, limit: number, blockDuration: number): ThrottlerStorageRecord {
+    const now = Date.now();
+    if (this.fallbackHits.size > 10_000) {
+      for (const [key, entry] of this.fallbackHits) if (entry.expiresAt <= now) this.fallbackHits.delete(key);
+    }
+    let entry = this.fallbackHits.get(hitKey);
+    if (!entry || entry.expiresAt <= now) {
+      entry = { hits: 0, expiresAt: now + ttl };
+      this.fallbackHits.set(hitKey, entry);
+    }
+    entry.hits += 1;
+    const timeToExpire = Math.ceil((entry.expiresAt - now) / 1000);
+    if (entry.hits > limit) {
+      const effectiveBlockDuration = blockDuration > 0 ? blockDuration : ttl;
+      entry.expiresAt = Math.max(entry.expiresAt, now + effectiveBlockDuration);
+      return { totalHits: entry.hits, timeToExpire, isBlocked: true, timeToBlockExpire: Math.ceil(effectiveBlockDuration / 1000) };
+    }
+    return { totalHits: entry.hits, timeToExpire, isBlocked: false, timeToBlockExpire: 0 };
   }
 }

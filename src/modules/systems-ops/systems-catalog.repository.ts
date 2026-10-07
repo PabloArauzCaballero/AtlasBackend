@@ -262,35 +262,6 @@ export class SystemsCatalogRepository {
     return this.dataEntityModel.findAll({ where: { id: { [Op.in]: entityIds } } } as FindOptions);
   }
 
-  async updateDataEntityMetadata(entityId: string, body: Record<string, unknown>): Promise<SystemDataEntityCatalogModel | null> {
-    const entity = await this.dataEntityModel.findByPk(entityId);
-    if (!entity) return null;
-
-    const updatableFields = [
-      'businessPurpose',
-      'dataOwner',
-      'containsPii',
-      'containsFinancialData',
-      'containsRiskData',
-      'containsLegalData',
-      'containsDeviceData',
-      'containsLocationData',
-      'isAuditCritical',
-      'retentionPolicyCode',
-      'status',
-      'reviewStatus',
-    ] as const;
-
-    for (const field of updatableFields) {
-      if (field in body) {
-        (entity as never)[field] = body[field] as never;
-      }
-    }
-    entity.updatedAtValue = new Date();
-    await entity.save();
-    return entity;
-  }
-
   async upsertDataEntity(seed: DataEntitySeed): Promise<void> {
     const now = new Date();
     await this.dataEntityModel.upsert({

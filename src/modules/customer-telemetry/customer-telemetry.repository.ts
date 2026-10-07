@@ -15,7 +15,6 @@ import {
   IpReputationObservationModel,
   OnDeviceComputationRunModel,
   OnDeviceMetricValueModel,
-  OnboardingBehaviorSummaryModel,
   OnboardingFlowModel,
   OnboardingStepEventModel,
   OperationalAuditLogModel,
@@ -105,20 +104,6 @@ export class CustomerTelemetryRepository {
     options: RepositoryOptions,
   ): Promise<OnboardingStepEventModel> {
     return this.behavior.createOnboardingStepEvent(values, options);
-  }
-
-  createBehaviorSummary(
-    values: {
-      tenantId: string;
-      customerId: string;
-      onboardingFlowId: string | null;
-      formEventCount: number;
-      permissionEventCount: number;
-      computedAt: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<OnboardingBehaviorSummaryModel> {
-    return this.behavior.createBehaviorSummary(values, options);
   }
 
   createAuthEvent(

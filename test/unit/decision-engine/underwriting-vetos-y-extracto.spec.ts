@@ -60,6 +60,7 @@ function build(economia: Record<string, unknown>, extracto: StatementSignals = N
     historial as never,
     { signalsFor: async () => null } as never,
     { signalsFor: async () => extracto } as never,
+    { signalsFor: async () => null } as never,
   );
 }
 

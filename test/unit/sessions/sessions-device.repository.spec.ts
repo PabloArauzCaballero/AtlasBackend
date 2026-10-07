@@ -29,14 +29,11 @@ describe('SessionsDeviceRepository', () => {
 
   const opts = { transaction: 'tx' as never };
 
-  it('findGlobalDevice busca por fingerprint + versión', async () => {
+  it('findGlobalDevice busca por la huella sola (la clave única), sin filtrar por versión', async () => {
     const { repo, models } = buildRepo();
     (models.globalDevice.findOne as jest.Mock).mockResolvedValue(null as never);
-    await repo.findGlobalDevice('fp', 'v1', opts);
-    expect(callArg<CallArgRecord>(models.globalDevice.findOne, 0, 0).where).toMatchObject({
-      deviceFingerprint: 'fp',
-      fingerprintVersion: 'v1',
-    });
+    await repo.findGlobalDevice('fp', 'v2', opts);
+    expect(callArg<CallArgRecord>(models.globalDevice.findOne, 0, 0).where).toEqual({ deviceFingerprint: 'fp' });
   });
 
   it('createGlobalDevice nace con reuseCount=1 y riesgo unknown', async () => {
@@ -58,8 +55,9 @@ describe('SessionsDeviceRepository', () => {
   it('findDevice / findDeviceById excluyen borrados', async () => {
     const { repo, models } = buildRepo();
     (models.device.findOne as jest.Mock).mockResolvedValue(null as never);
-    await repo.findDevice('t1', 'fp', 'v1', opts);
+    await repo.findDevice('t1', 'fp', 'v2', opts);
     await repo.findDeviceById('t1', 'd1');
+    expect(callArg<CallArgRecord>(models.device.findOne, 0, 0).where).not.toHaveProperty('fingerprintVersion');
     expect(callArg<CallArgRecord>(models.device.findOne, 0, 0).where.deleted).toBeDefined();
     expect(callArg<CallArgRecord>(models.device.findOne, 1, 0).where).toMatchObject({ tenantId: 't1', id: 'd1' });
   });

@@ -152,13 +152,23 @@ describe('SystemsCatalogAutoSyncService · pasada completa', () => {
     expect(transaction.rollback).toHaveBeenCalled();
   });
 
+  it('con el candado, amplía el corte por ociosidad sólo en su transacción para no soltarlo a mitad de pasada', async () => {
+    const { service, sequelize, transaction } = build();
+    await service.run('prueba');
+    const calls = sequelize.query.mock.calls as unknown as [string, Record<string, unknown>][];
+    expect(calls[0]![1]).toMatchObject({ replacements: { key: 'atlas_systems_catalog_auto_sync' }, transaction });
+    expect(calls[1]![0]).toMatch(/^SET LOCAL idle_in_transaction_session_timeout = '15min'$/);
+    expect(calls[1]![1]).toEqual({ transaction });
+  });
+
   it('si otra réplica tiene el candado, no hace nada', async () => {
-    const { service, federation, catalogRepository, transaction } = build({ lockAcquired: false });
+    const { service, federation, catalogRepository, transaction, sequelize } = build({ lockAcquired: false });
 
     await expect(service.run('prueba')).resolves.toBeNull();
     expect(federation.federateAll).not.toHaveBeenCalled();
     expect(catalogRepository.upsertEndpoint).not.toHaveBeenCalled();
     expect(transaction.rollback).toHaveBeenCalled();
+    expect(sequelize.query).toHaveBeenCalledTimes(1);
   });
 
   it('nunca lanza: un fallo de la federación se traga y devuelve null', async () => {

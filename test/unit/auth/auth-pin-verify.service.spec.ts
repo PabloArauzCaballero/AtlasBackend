@@ -93,4 +93,14 @@ describe('AuthPinVerifyService', () => {
     repository.countRecentPinFailures.mockResolvedValueOnce(4 as never);
     await expect(service.verify({ ...REQUESTER, pin: '4821' })).resolves.toMatchObject({ verified: true });
   });
+
+  it('una ráfaga simultánea no supera el tope: las que exceden reciben 429 sin mirar el PIN', async () => {
+    const resultados = await Promise.all(
+      Array.from({ length: 8 }, () => service.verify({ ...REQUESTER, pin: '0000' }).catch((caught: unknown) => caught)),
+    );
+
+    const pausadas = resultados.filter((r) => r instanceof HttpException && r.getStatus() === 429);
+    expect(pausadas).toHaveLength(3);
+    expect(repository.recordEvent).toHaveBeenCalledTimes(5);
+  });
 });

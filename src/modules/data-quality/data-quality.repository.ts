@@ -171,8 +171,14 @@ export class DataQualityRepository {
     return { items, nextCursor };
   }
 
-  findIssueById(tenantId: string, issueId: string): Promise<DataQualityIssueModel | null> {
-    return this.issueModel.findOne({ where: { tenantId, id: issueId } } as FindOptions);
+  findIssueById(tenantId: string, issueId: string, options: { transaction?: Transaction } = {}): Promise<DataQualityIssueModel | null> {
+    // Dentro de una transacción se toma FOR UPDATE: dos resoluciones simultáneas se serializan y la
+    // segunda ve la incidencia ya cerrada (409) en vez de pisar estado y notas de la primera.
+    return this.issueModel.findOne({
+      where: { tenantId, id: issueId },
+      transaction: options.transaction,
+      lock: Boolean(options.transaction),
+    } as FindOptions);
   }
 
   async resolveIssue(

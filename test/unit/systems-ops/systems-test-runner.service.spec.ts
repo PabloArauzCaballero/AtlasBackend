@@ -105,6 +105,42 @@ describe('SystemsTestRunnerService.runSuite', () => {
     expect(patch.summary).toMatchObject({ passed: 1, failed: 0 });
   });
 
+  it('las llaves de las cabeceras no se guardan en claro en la corrida, ni en dry-run ni en real', async () => {
+    const withKeys = step({ defaultHeaders: { 'x-api-key': 'llave-del-paso', accept: 'application/json' } });
+    const stored = (repository: { createTestStepRun: jest.Mock }) =>
+      (repository.createTestStepRun.mock.calls[0] as unknown as [{ requestPayloadSanitized: { headers: Record<string, string> } }])[0]
+        .requestPayloadSanitized;
+
+    const dry = build(enabledSuite(), [withKeys]);
+    await dry.service.runSuite('1', { ...(dryBody as object), headers: { 'x-platform-catalog-key': 'llave-del-cuerpo' } } as never, user);
+    expect(stored(dry.repository as never).headers).toEqual({
+      'x-platform-catalog-key': '[REDACTED]',
+      'x-api-key': '[REDACTED]',
+      accept: 'application/json',
+    });
+
+    const real = build(enabledSuite({ environmentScope: ['LOCAL'] }), [withKeys]);
+    (real.httpClient.execute as jest.Mock).mockResolvedValue({ statusCode: 200, responseBody: {}, errorMessage: null } as never);
+    await real.service.runSuite(
+      '1',
+      {
+        ...(dryBody as object),
+        environment: 'LOCAL',
+        dryRun: false,
+        baseUrl: 'http://localhost:3000',
+        headers: { 'x-platform-catalog-key': 'llave-del-cuerpo' },
+      } as never,
+      user,
+    );
+    const persisted = JSON.stringify(stored(real.repository as never));
+    expect(persisted).not.toContain('llave-del-paso');
+    expect(persisted).not.toContain('llave-del-cuerpo');
+    // Al objetivo sí le llega la llave real: se redacta lo que se guarda, no lo que se manda.
+    expect((real.httpClient.execute as jest.Mock).mock.calls[0][0]).toMatchObject({
+      headers: { 'x-api-key': 'llave-del-paso', 'x-platform-catalog-key': 'llave-del-cuerpo' },
+    });
+  });
+
   it('un paso que falla con continueOnFailure=false salta los siguientes (SKIPPED) y el run queda FAILED', async () => {
     const steps = [
       step({ id: 1, stepOrder: 1, pathTemplate: '{{ bad.x }}' }), // scope inválido -> resolveString lanza -> paso FAILED
