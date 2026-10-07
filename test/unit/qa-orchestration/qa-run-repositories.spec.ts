@@ -303,6 +303,16 @@ describe('repositorio del worker QA: escrituras cercadas por fencing', () => {
     }
   });
 
+  it('listAbandonedRuns une la corrida con su job vencido y sin intentos, y devuelve el cerco del último dueño', async () => {
+    const db = fakeSequelize(() => [{ run_id: 42, job_run_id: 7001, fencing_token: 9 }]);
+    const repo = new QaRunWorkerRepository(db.asSequelize);
+    const ahora = new Date();
+    expect(await repo.listAbandonedRuns(3, ahora)).toEqual([{ runId: '42', fence: { jobRunId: '7001', fencingToken: '9' } }]);
+    expect(db.calls[0].sql).toContain(`r.status IN ('QUEUED','PREFLIGHT','RUNNING','CANCELLING')`);
+    expect(db.calls[0].sql).toContain('j.attempts >= $maxAttempts');
+    expect(db.calls[0].options.bind).toEqual({ now: ahora, maxAttempts: 3 });
+  });
+
   it('con una fila confirmada devuelve true', async () => {
     const repo = new QaRunWorkerRepository(fakeSequelize(() => [{ ok: 1 }]).asSequelize);
     expect(await repo.markRunning('42', fence)).toBe(true);

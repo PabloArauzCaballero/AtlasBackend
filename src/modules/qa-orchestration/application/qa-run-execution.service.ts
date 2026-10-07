@@ -86,6 +86,18 @@ export class QaRunExecutionService {
     };
   }
 
+  /**
+   * `markRunning` sólo acepta QUEUED/RUNNING, así que una corrida que se canceló (CANCELLING) mientras
+   * su worker moría llega aquí sin lease perdido: nadie más la va a cerrar. Se cierra como CANCELLED;
+   * cualquier otro motivo sí es un lease perdido y no se toca nada.
+   */
+  private async closeIfCancelling(ctx: RunContext, fence: Fence): Promise<ExecutionOutcome> {
+    const run = await this.runs.loadRun(ctx.runId);
+    if (run?.status !== 'CANCELLING') return { kind: 'ABANDONED', reason: 'LOST_LEASE' };
+    await this.runs.closePendingPersonas(ctx.runId, 'CANCELLED', 'corrida cancelada', fence);
+    return this.closing.finish(ctx, { status: 'CANCELLED', verdict: null, evidence: {} });
+  }
+
   async execute(runId: string, fence: Fence, signal: AbortSignal): Promise<ExecutionOutcome> {
     const loaded = await this.load(runId, fence);
     if ('kind' in loaded) return loaded;
@@ -97,7 +109,7 @@ export class QaRunExecutionService {
     // Un apagado o un lease perdido ANTES de empezar: `addEventListener` no avisa de una señal ya
     // abortada, así que sin esta comprobación la corrida entera se ejecutaría ignorando el apagado.
     if (signal.aborted) return { kind: 'ABANDONED', reason: String(signal.reason ?? 'SHUTDOWN') };
-    if (!(await this.runs.markRunning(runId, fence))) return { kind: 'ABANDONED', reason: 'LOST_LEASE' };
+    if (!(await this.runs.markRunning(runId, fence))) return this.closeIfCancelling(ctx, fence);
     await this.runs.appendEvent(runId, 'RUN_STARTED', { persons: ctx.plan.persons, concurrency: ctx.plan.concurrency });
 
     // Una sola señal para cancelar, vencer el plazo o apagar; el motivo decide cómo se cierra.

@@ -258,6 +258,15 @@ describe('ejecución de una corrida QA: antes de la primera persona', () => {
     expect(runs.appendEvent).not.toHaveBeenCalled();
   });
 
+  it('una corrida CANCELLING que retoma otro worker se cierra CANCELLED, no se abandona para siempre', async () => {
+    const { service, world, runs } = fakeWorld(frozenPlan(), { status: 'CANCELLING' });
+    runs.markRunning.mockResolvedValue(false);
+    expect(await service.execute('42', fence, signal())).toMatchObject({ kind: 'FINISHED', runStatus: 'CANCELLED' });
+    expect(world.closedPending).toEqual([{ status: 'CANCELLED', reason: 'corrida cancelada' }]);
+    expect(world.finished).toMatchObject({ status: 'CANCELLED' });
+    expect(runs.appendEvent).not.toHaveBeenCalledWith('42', 'RUN_STARTED', expect.anything());
+  });
+
   it('una fixture que falta bloquea a todas las personas pendientes y la corrida', async () => {
     const { service, world } = fakeWorld(frozenPlan());
     fakeBackend((path) => (path === '/consent-documents/active' ? new Response('{"data":[]}', { status: 200 }) : undefined));

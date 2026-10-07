@@ -14,6 +14,7 @@ import { atlasSchemaFor } from '../../../database/domain-schemas.js';
 import { DurableJobQueue, type ClaimedJob } from '../../../platform/jobs/durable-job-queue.js';
 import { QA_JOURNEY_JOB_CODE } from '../infrastructure/qa-run-admission.repository.js';
 import { QaRunSupportRepository } from '../infrastructure/qa-run-support.repository.js';
+import { QaRunWorkerRepository } from '../infrastructure/qa-run-worker.repository.js';
 import { QaRunExecutionService } from './qa-run-execution.service.js';
 
 const LEASE_MS = 60_000;
@@ -32,6 +33,7 @@ export class QaJourneyConsumerService implements OnModuleDestroy {
   constructor(
     @InjectConnection() sequelize: Sequelize,
     private readonly runs: QaRunSupportRepository,
+    private readonly workerRuns: QaRunWorkerRepository,
     private readonly execution: QaRunExecutionService,
   ) {
     this.queue = new DurableJobQueue(sequelize, {
@@ -52,11 +54,31 @@ export class QaJourneyConsumerService implements OnModuleDestroy {
     await this.runs.workerHeartbeat(this.owner, process.env.APP_VERSION ?? process.env.GIT_SHA ?? 'dev');
     if (this.active || this.shutdown.signal.aborted) return { claimed: 0, busy: Boolean(this.active) };
     const job = await this.queue.claim([QA_JOURNEY_JOB_CODE], this.owner);
-    if (!job) return { claimed: 0, busy: false };
+    if (!job) {
+      await this.sweepAbandoned();
+      return { claimed: 0, busy: false };
+    }
     this.active = this.runClaimed(job, this.shutdown.signal).finally(() => {
       this.active = null;
     });
     return { claimed: 1, busy: true };
+  }
+
+  /**
+   * Cierra las corridas cuyo job agotó sus intentos con el lease vencido: ningún worker volverá a
+   * tomarlas y, abiertas, bloquearían al tenant. Cercadas con el token que dejó el último dueño.
+   */
+  private async sweepAbandoned(): Promise<void> {
+    try {
+      for (const { runId, fence } of await this.workerRuns.listAbandonedRuns(MAX_ATTEMPTS)) {
+        const message = 'JOB_ABANDONED: la corrida agotó sus intentos sin que ningún worker la terminara.';
+        this.logger.error(`Corrida QA ${runId} abandonada (job ${fence.jobRunId}): se cierra por infraestructura.`);
+        await this.execution.failInfrastructure(runId, fence, message);
+        await this.queue.complete({ ...fence, jobCode: QA_JOURNEY_JOB_CODE } as unknown as ClaimedJob, { status: 'failed', errorMessage: message });
+      }
+    } catch (error) {
+      this.logger.warn(`Barrido de corridas QA abandonadas falló: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /** Al apagar: se deja de admitir y el lease vence; otro worker retoma desde el checkpoint. */
@@ -71,11 +93,16 @@ export class QaJourneyConsumerService implements OnModuleDestroy {
     signal.addEventListener('abort', cancel, { once: true });
     const heartbeat = setInterval(() => {
       void this.runs.workerHeartbeat(this.owner, 'dev').catch(() => undefined);
-      void this.queue.heartbeat(job).then((stillOwner) => {
-        if (stillOwner) return;
-        this.logger.warn(`Lease perdido en la corrida QA del job ${job.jobRunId}: otro worker la tomó. Se abandona aquí.`);
-        controller.abort('LOST_LEASE');
-      });
+      void this.queue.heartbeat(job).then(
+        (stillOwner) => {
+          if (stillOwner) return;
+          this.logger.warn(`Lease perdido en la corrida QA del job ${job.jobRunId}: otro worker la tomó. Se abandona aquí.`);
+          controller.abort('LOST_LEASE');
+        },
+        // Un fallo transitorio de base no puede tumbar el proceso con un rechazo sin capturar: el
+        // siguiente latido reintenta, y si el lease llega a vencer lo detecta el fencing.
+        (error: unknown) => this.logger.warn(`Latido del lease QA falló (job ${job.jobRunId}): ${error instanceof Error ? error.message : String(error)}`),
+      );
     }, HEARTBEAT_MS);
     heartbeat.unref();
     const fence = { jobRunId: job.jobRunId, fencingToken: job.fencingToken };
