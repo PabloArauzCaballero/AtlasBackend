@@ -11,6 +11,7 @@ import {
   PartnerProfileModel,
   PartnerQrCodeModel,
 } from '../../database/models/index.js';
+import { formatPosManualCode } from './application/pos-manual-code.js';
 
 /**
  * Ningún modelo Sequelize cruza el borde HTTP.
@@ -96,6 +97,7 @@ export function toPartnerPosTerminalDto(model: PartnerPosTerminalModel) {
     terminalId: model.id,
     branchId: model.branchId,
     terminalSerial: model.terminalSerial,
+    manualCode: model.manualCode ? formatPosManualCode(model.manualCode) : null,
     terminalAlias: model.terminalAlias,
     provider: model.provider,
     model: model.model,
