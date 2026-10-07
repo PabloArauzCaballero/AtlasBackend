@@ -1,7 +1,7 @@
 /**
- * @file Dominio: el NIVEL Atlas medido en PUNTOS (los que se ganan pagando a tiempo las compras).
+ * @file Dominio: el NIVEL Atlas medido en PUNTOS de experiencia (1 por boliviano comprado, `experience.ts`).
  * @business Pablo (2026-10-06): el nivel salía «24 de 100» porque se medía sobre la Calificación. El nivel es la
- *   escalera de los PUNTOS: cuantas más compras pagas a tiempo, más alto. La Calificación (1-100) es otra cosa.
+ *   escalera de los PUNTOS: cuanto más compras con Atlas, más alto. La Calificación (1-100) es otra cosa.
  *   Los escalones son un supuesto (A1 del plan `docs/trabajo/2026-10-06-correcciones-app-real/PLAN.md` de
  *   AtlasFrontend) y se cambian aquí.
  * @system función pura. Es PRESENTACIÓN y estatus: decide el nivel y la tarjeta Normal…Black que se enseñan, NO el

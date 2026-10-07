@@ -7,6 +7,7 @@
 import {
   assessPaymentCapacity,
   DEFAULT_CAPACITY_POLICY,
+  floorToLimitStep,
   type RelationshipInput,
   type StatementCapacityInput,
 } from '../../src/modules/credit/domain/payment-capacity.js';
@@ -239,5 +240,49 @@ describe('propuesta de límite de crédito', () => {
       currentLimit: null,
     });
     expect(propuesta.modelVersion).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+});
+
+describe('la capacidad se concede de 50 en 50, siempre hacia abajo', () => {
+  it.each([
+    [1234.56, 1200],
+    [1249.99, 1200],
+    [1250, 1250],
+    [1299.99, 1250],
+    [349.98, 300],
+    [49.99, 0],
+    [0, 0],
+    [-10, 0],
+  ])('floorToLimitStep(%p) = %p', (entrada, esperado) => {
+    expect(floorToLimitStep(entrada)).toBe(esperado);
+  });
+
+  it('un extracto con decimales da una capacidad entera y múltiplo de 50, sin pasarse del techo', () => {
+    // 411,52 × 3 = 1.234,56 → 1.200 (no 1.250: eso prestaría Bs 15,44 por encima de lo que soporta).
+    const propuesta = assessPaymentCapacity({
+      statement: extracto(411.52),
+      relationship: VETERANO,
+      declaredMonthlyIncome: null,
+      currentLimit: null,
+    });
+    expect(propuesta.recommendedLimit).toBe(1_200);
+    expect(propuesta.ceilings.byCapacity).toBe(1234.56);
+    expect(propuesta.recommendedLimit).toBeLessThanOrEqual(propuesta.ceilings.byCapacity ?? 0);
+  });
+
+  it('barrido: todo extracto da un múltiplo de 50 entero, nunca sobre el techo y cero bajo el mínimo', () => {
+    for (let k = 0; k <= 30_000; k += 7) {
+      const cuota = k / 100;
+      const { recommendedLimit, ceilings } = assessPaymentCapacity({
+        statement: extracto(cuota),
+        relationship: VETERANO,
+        declaredMonthlyIncome: null,
+        currentLimit: null,
+      });
+      expect(recommendedLimit % 50).toBe(0);
+      expect(Number.isInteger(recommendedLimit)).toBe(true);
+      expect(recommendedLimit).toBeLessThanOrEqual(ceilings.byCapacity ?? 0);
+      if ((ceilings.byCapacity ?? 0) < DEFAULT_CAPACITY_POLICY.minimumUsefulLimit) expect(recommendedLimit).toBe(0);
+    }
   });
 });
