@@ -94,8 +94,20 @@ export class OperationsRepository {
       limit: 10,
     } as FindOptions);
   }
-  findManualReviewCaseById(tenantId: string, caseId: string): Promise<ManualReviewCaseModel | null> {
-    return this.manualReviewCaseModel.findOne({ where: { tenantId, id: caseId, deleted: { [Op.ne]: true } } } as FindOptions);
+  /**
+   * Con transacción, la fila queda bloqueada (FOR UPDATE) hasta confirmar: decidir es leer «abierto»
+   * y cerrar, y sin el bloqueo dos analistas leían los dos `closedAt = null` y confirmaban los dos.
+   */
+  findManualReviewCaseById(
+    tenantId: string,
+    caseId: string,
+    options: { transaction?: Transaction } = {},
+  ): Promise<ManualReviewCaseModel | null> {
+    return this.manualReviewCaseModel.findOne({
+      where: { tenantId, id: caseId, deleted: { [Op.ne]: true } },
+      transaction: options.transaction,
+      lock: options.transaction ? Transaction.LOCK.UPDATE : undefined,
+    } as FindOptions);
   }
 
   // Las escrituras de fraude viven en `FraudRepository`.

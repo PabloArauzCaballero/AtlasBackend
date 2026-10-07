@@ -7,6 +7,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { buildPaginationMeta, toOffset } from '../../../common/utils/pagination/pagination.util.js';
 import { SupportAgentRepository } from '../support-agent.repository.js';
 import { SupportCatalogRepository } from '../support-catalog.repository.js';
+import { SupportChannelRepository } from '../support-channel.repository.js';
 import { SupportDeskListRepository } from '../support-desk-list.repository.js';
 import {
   SUPPORT_CASE_TYPES,
@@ -41,6 +42,7 @@ export class SupportDeskService {
     private readonly agents: SupportAgentRepository,
     private readonly actors: SupportActorService,
     private readonly catalog: SupportCatalogRepository,
+    private readonly channelMembers: SupportChannelRepository,
   ) {}
 
   /**
@@ -191,11 +193,21 @@ export class SupportDeskService {
     return { agentProfileId: String(created.id), reactivated: false };
   }
 
-  /** Quitar a alguien de la mesa. No borra su historia: apaga el perfil. */
+  /**
+   * Quitar a alguien de la mesa. No borra su historia: apaga el perfil y lo saca de los chats.
+   *
+   * Apagar sólo el perfil dejaba sus participaciones vivas, y con ellas la transcripción, los
+   * adjuntos y la escritura a clientes: justo lo que un supervisor quiere cortar ante una sospecha.
+   */
   async deactivateAgent(input: { tenantId: string; agentProfileId: string }) {
     const profile = await this.agents.findById(input.tenantId, input.agentProfileId);
     if (!profile) throw new NotFoundException({ code: 'SUPPORT_AGENT_PROFILE_NOT_FOUND', agentProfileId: input.agentProfileId });
     await this.agents.deactivateProfile(input.tenantId, input.agentProfileId);
+    await this.channelMembers.removeInternalParticipantEverywhere(
+      input.tenantId,
+      { internalUserId: profile.internalUserId ? String(profile.internalUserId) : null, agentProfileId: input.agentProfileId },
+      'AGENT_DEACTIVATED',
+    );
     return { agentProfileId: input.agentProfileId, isActive: false };
   }
 }

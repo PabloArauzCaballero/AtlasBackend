@@ -57,6 +57,14 @@ describe('ProcessCatalogRepository', () => {
     });
   });
 
+  it('escapa % y _ de la búsqueda para que no actúen como comodines del ILIKE', async () => {
+    const { repository, query } = build(false);
+    await repository.listInstances(CUSTOMERS, '1', { search: '50%_a\\b', limit: 10, offset: 0 });
+    const [sql, options] = query.mock.calls.find(([s]) => /LIMIT :limit/.test(s))!;
+    expect(sql).toContain("ILIKE :like ESCAPE '\\'");
+    expect((options as { replacements: Record<string, unknown> }).replacements.like).toBe('%50\\%\\_a\\\\b%');
+  });
+
   it('no consulta Flujos si no hay rutas que buscar', async () => {
     const { repository, query } = build();
     expect(await repository.flowsFor([])).toEqual([]);

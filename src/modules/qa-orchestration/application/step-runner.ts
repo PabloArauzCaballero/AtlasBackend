@@ -5,7 +5,7 @@
  * @system bindings tipados → admisión y presupuesto → transporte con reintentos seguros → oráculo
  *   → extracción; la evidencia se sanea al guardarla, nunca antes de extraer.
  */
-import { redactSensitiveObject } from '../../../common/utils/privacy/redaction.util.js';
+import { scrubSignedUrls, summarize } from './step-evidence.js';
 import type { Expectation, RecipeStep } from '../domain/journey-recipe.types.js';
 import { errorCodeOf, evaluateQaStep, selectExpectation, type StepVerdict } from '../domain/journey-assertions.js';
 import { idempotencyKeyFor } from '../domain/run-accounting.js';
@@ -27,12 +27,6 @@ type Prepared = {
   headers: Record<string, string>;
   expected: Expectation & { label: string };
 };
-
-export function summarize(body: unknown): unknown {
-  const redacted = redactSensitiveObject(body);
-  const text = JSON.stringify(redacted) ?? '';
-  return text.length > 4_000 ? { truncated: true, preview: text.slice(0, 4_000) } : redacted;
-}
 
 function setPath(target: Record<string, unknown>, path: string, value: unknown): void {
   const segments = path.split('.');
@@ -184,7 +178,7 @@ export class StepRunner {
       if (value === undefined) continue;
       setPath(scope, extraction.to, value);
       // Los tokens se extraen a la sesión pero NUNCA a la evidencia.
-      if (!extraction.to.startsWith('session.')) extracted[extraction.to] = value;
+      if (!extraction.to.startsWith('session.')) extracted[extraction.to] = scrubSignedUrls(value);
     }
     this.evidence.extracted = extracted;
     return this.result('PASSED', { branch: verdict.branch });

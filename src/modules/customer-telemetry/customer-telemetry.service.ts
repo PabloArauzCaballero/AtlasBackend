@@ -80,15 +80,12 @@ export class CustomerTelemetryService {
     const flow = await this.telemetryRepository.findLatestOnboardingFlow(input.tenantId, input.customerId);
     let acceptedEvents = 0;
     let acceptedMetrics = 0;
-    let formEventCount = 0;
-    let permissionEventCount = 0;
 
     await this.sequelize.transaction(async (transaction) => {
       for (const event of input.body.events) {
         const metadata = asRecord(event.metadata);
         const occurredAt = new Date(event.occurredAt);
         if (event.eventType === 'form_field_interaction') {
-          formEventCount += 1;
           await this.telemetryRepository.createFormFieldEvent(
             {
               tenantId: input.tenantId,
@@ -103,7 +100,6 @@ export class CustomerTelemetryService {
             { transaction },
           );
         } else if (event.eventType === 'permission_event') {
-          permissionEventCount += 1;
           await this.telemetryRepository.createPermissionEvent(
             {
               tenantId: input.tenantId,
@@ -238,17 +234,11 @@ export class CustomerTelemetryService {
         acceptedMetrics += input.body.onDeviceMetrics.length;
       }
 
-      await this.telemetryRepository.createBehaviorSummary(
-        {
-          tenantId: input.tenantId,
-          customerId: input.customerId,
-          onboardingFlowId: flow ? String(flow.id) : null,
-          formEventCount,
-          permissionEventCount,
-          computedAt: now,
-        },
-        { transaction },
-      );
+      /*
+       * Aquí NO se escribe un resumen de comportamiento: `onboarding_behavior_summaries` lo calcula
+       * OnboardingBehaviorSummaryService y los lectores toman la fila más reciente. Una fila vacía por
+       * lote la taparía (bot, tiempos y errores a null) hasta el siguiente cálculo.
+       */
       await this.telemetryRepository.upsertActivitySummary(
         {
           tenantId: input.tenantId,

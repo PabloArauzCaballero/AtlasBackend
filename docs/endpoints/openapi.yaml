@@ -475,8 +475,7 @@ paths:
           in: query
           schema:
             type: string
-            minLength: 1
-            maxLength: 40
+            pattern: ^\d{1,19}$
           description: >-
             Filtra por cliente. No sustituye a la comprobación de pertenencia:
             un `customer` sigue viendo solo lo suyo.
@@ -1385,6 +1384,32 @@ paths:
           description: Código del proveedor externo (`segip`, `infocenter`, …).
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              default: {}
+              type: object
+              properties:
+                customerId:
+                  type: string
+                  pattern: ^\d+$
+                queryType: {}
+                purpose:
+                  type: string
+                  minLength: 3
+                  maxLength: 100
+                decisionStage: {}
+                input:
+                  type: object
+                  propertyNames:
+                    type: string
+                  additionalProperties: {}
+                scenario:
+                  type: string
+                  maxLength: 80
+              additionalProperties: false
       responses:
         '200':
           description: Resultado de la ejecución de prueba.
@@ -4770,13 +4795,11 @@ paths:
               properties:
                 deviceId:
                   type: string
-                  minLength: 1
-                  maxLength: 40
+                  pattern: ^[1-9][0-9]{0,18}$
                 sessionId:
                   anyOf:
                     - type: string
-                      minLength: 1
-                      maxLength: 40
+                      pattern: ^[1-9][0-9]{0,18}$
                     - type: 'null'
                 algorithmVersion:
                   type: string
@@ -5005,7 +5028,9 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: El token no permite operar sobre este cliente.
+          description: >-
+            El token no permite operar sobre este cliente, o el operador interno
+            no tiene `privacy.requests.manage`.
         '404':
           description: Cliente no encontrado.
         '409':
@@ -5795,13 +5820,11 @@ paths:
               properties:
                 deviceId:
                   type: string
-                  minLength: 1
-                  maxLength: 40
+                  pattern: ^[1-9][0-9]{0,18}$
                 sessionId:
                   anyOf:
                     - type: string
-                      minLength: 1
-                      maxLength: 40
+                      pattern: ^[1-9][0-9]{0,18}$
                     - type: 'null'
                 pings:
                   minItems: 1
@@ -6592,9 +6615,13 @@ paths:
             Calificación de pagador de 1 a 100; `points` = Puntaje, los puntos
             ganados pagando a tiempo (1 por boliviano). Ninguno de los dos es el
             score 0-1000 del motor. `level`/`nextLevel`/`levelLadder` = Nivel
-            Atlas medido en PUNTOS (Nuevo 0 · En construcción 500 · Establecido
-            2.000 · Consolidado 5.000 · Preferente 10.000); la tarjeta sigue a
-            ese nivel. `tier` sigue siendo el escalón de la relación que usa la
+            Atlas medido en PUNTOS: doce niveles (Nuevo 0 · Explorador 100 · En
+            crecimiento 500 · Constante 1.000 · Establecido 2.000 · Confiable
+            3.500 · Consolidado 5.000 · Destacado 7.500 · Preferente 10.000 ·
+            Élite 15.000 · Leyenda 25.000 · Titán Atlas 50.000); `code` es el
+            escalón de cinco que sigue la tarjeta e `id` es único por nivel.
+            `experience.badges` trae las insignias con `rank`, `category` y
+            `secret`. `tier` sigue siendo el escalón de la relación que usa la
             capacidad de pago.
           content:
             application/json:
@@ -11301,7 +11328,10 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
-          description: DECISION_ARTIFACT_NOT_PUBLISHED — el motor no publica ese código.
+          description: >-
+            DECISION_ARTIFACT_NOT_PUBLISHED — el motor no publica ese código;
+            DECISION_PINNED_VERSION_NOT_SUPPORTED — pinnedVersion aún no se
+            aplica.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':

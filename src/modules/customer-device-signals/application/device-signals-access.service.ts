@@ -7,6 +7,7 @@ import { ForbiddenException, Injectable, NotFoundException, UnprocessableEntityE
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
+import { InternalRbacRepository } from '../../internal-users/internal-rbac.repository.js';
 import { CustomerDeviceContactsRepository } from '../repositories/customer-device-contacts.repository.js';
 
 /** Lo que las dos señales necesitan saber antes de escribir una sola fila. */
@@ -35,7 +36,19 @@ export class DeviceSignalsAccessService {
   constructor(
     private readonly customersRepository: CustomersRepository,
     private readonly contacts: CustomerDeviceContactsRepository,
+    private readonly rbac: InternalRbacRepository,
   ) {}
+
+  /** Lo que se le exige a un operador interno para borrar la agenda de un cliente. */
+  static readonly PURGE_PERMISSION = 'privacy.requests.manage';
+
+  /** Un cliente borra la suya; un operador interno sólo con el permiso de quien atiende al titular. */
+  async assertMayPurge(tenantId: string, user: AuthenticatedUser): Promise<void> {
+    if (user.role === 'customer') return;
+    const code = DeviceSignalsAccessService.PURGE_PERMISSION;
+    const allowed = user.internalUserId ? await this.rbac.hasPermissions(tenantId, user.internalUserId, [code]) : false;
+    if (!allowed) throw new ForbiddenException(`El usuario interno no tiene los permisos requeridos para esta operación: ${code}.`);
+  }
 
   async resolve(input: {
     tenantId: string;

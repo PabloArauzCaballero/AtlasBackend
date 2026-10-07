@@ -5,6 +5,7 @@
  */
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { WorkflowGraphDto, WorkflowStageDto, WorkflowSummaryDto, WorkflowTransitionDto, WorkflowTreeDto } from './workflow-catalog.dtos.js';
+import { WORKFLOW_CUSTOMER_VISIBLE_PROCESS_TYPES, WorkflowAudience } from './workflow-catalog.constants.js';
 import { ListWorkflowsQueryDto, WorkflowTreeQueryDto } from './workflow-catalog.schemas.js';
 import { WorkflowBundle, WorkflowCatalogRepository } from './workflow-catalog.repository.js';
 import { filterWorkflowBundle } from './workflow-bundle-filter.util.js';
@@ -25,13 +26,14 @@ export class WorkflowCatalogService {
 
   constructor(private readonly repository: WorkflowCatalogRepository) {}
 
-  async listWorkflows(query: ListWorkflowsQueryDto): Promise<WorkflowSummaryDto[]> {
-    const definitions = await this.repository.findDefinitions({
+  async listWorkflows(query: ListWorkflowsQueryDto, audience: WorkflowAudience = 'internal'): Promise<WorkflowSummaryDto[]> {
+    const found = await this.repository.findDefinitions({
       status: query.status,
       processType: query.processType,
       ownerDomain: query.ownerDomain,
       includeDeprecated: query.includeDeprecated,
     });
+    const definitions = found.filter((definition) => isVisibleTo(audience, definition.processType));
     if (!query.moduleCode && !query.role) return definitions.map(toWorkflowSummary);
 
     const facets = await this.repository.findFacetsByDefinition(definitions.map((definition) => String(definition.id)));
@@ -47,20 +49,30 @@ export class WorkflowCatalogService {
       .map(toWorkflowSummary);
   }
 
-  async listVersions(workflowCode: string): Promise<WorkflowSummaryDto[]> {
-    const versions = await this.repository.findVersions(workflowCode);
+  async listVersions(workflowCode: string, audience: WorkflowAudience = 'internal'): Promise<WorkflowSummaryDto[]> {
+    const versions = (await this.repository.findVersions(workflowCode)).filter((definition) =>
+      isVisibleTo(audience, definition.processType),
+    );
     if (versions.length === 0) throw new NotFoundException('WORKFLOW_NOT_FOUND');
     return versions.map(toWorkflowSummary);
   }
 
-  async getTree(workflowCode: string, query: WorkflowTreeQueryDto): Promise<WorkflowTreeDto> {
-    const bundle = await this.loadFilteredBundle(workflowCode, query);
-    return toWorkflowTree(bundle);
+  async getTree(workflowCode: string, query: WorkflowTreeQueryDto, audience: WorkflowAudience = 'internal'): Promise<WorkflowTreeDto> {
+    const bundle = await this.loadFilteredBundle(workflowCode, query, audience);
+    const tree = toWorkflowTree(bundle);
+    if (audience === 'internal') return tree;
+    // `sources` son rutas de ficheros del repositorio: material interno aunque el proceso sea del cliente.
+    const { sources: _sources, ...metadata } = tree.metadata;
+    return { ...tree, metadata };
   }
 
   /** Etapas en orden de ejecución, aplanadas con su profundidad. Para pintar un stepper lineal. */
-  async listStages(workflowCode: string, query: WorkflowTreeQueryDto): Promise<Array<WorkflowStageDto & { depth: number }>> {
-    const tree = toWorkflowTree(await this.loadFilteredBundle(workflowCode, query));
+  async listStages(
+    workflowCode: string,
+    query: WorkflowTreeQueryDto,
+    audience: WorkflowAudience = 'internal',
+  ): Promise<Array<WorkflowStageDto & { depth: number }>> {
+    const tree = toWorkflowTree(await this.loadFilteredBundle(workflowCode, query, audience));
     const flattened: Array<WorkflowStageDto & { depth: number }> = [];
     const walk = (stages: WorkflowStageDto[], depth: number): void => {
       for (const stage of stages) {
@@ -72,14 +84,18 @@ export class WorkflowCatalogService {
     return flattened;
   }
 
-  async listTransitions(workflowCode: string, query: WorkflowTreeQueryDto): Promise<WorkflowTransitionDto[]> {
-    const bundle = await this.loadFilteredBundle(workflowCode, query);
+  async listTransitions(
+    workflowCode: string,
+    query: WorkflowTreeQueryDto,
+    audience: WorkflowAudience = 'internal',
+  ): Promise<WorkflowTransitionDto[]> {
+    const bundle = await this.loadFilteredBundle(workflowCode, query, audience);
     const stepCodeById = new Map(bundle.steps.map((step) => [String(step.id), step.stepCode]));
     return bundle.transitions.map((transition) => toWorkflowTransition(transition, stepCodeById));
   }
 
-  async getGraph(workflowCode: string, query: WorkflowTreeQueryDto): Promise<WorkflowGraphDto> {
-    return buildWorkflowGraph(await this.loadFilteredBundle(workflowCode, query));
+  async getGraph(workflowCode: string, query: WorkflowTreeQueryDto, audience: WorkflowAudience = 'internal'): Promise<WorkflowGraphDto> {
+    return buildWorkflowGraph(await this.loadFilteredBundle(workflowCode, query, audience));
   }
 
   /**
@@ -89,8 +105,12 @@ export class WorkflowCatalogService {
    * resolver la versión pedida falla igual, en vez de devolver un árbol vacío que el consumidor
    * interpretaría como "el flujo existe pero no tiene etapas".
    */
-  async loadFilteredBundle(workflowCode: string, query: WorkflowTreeQueryDto): Promise<WorkflowBundle> {
-    const bundle = await this.loadBundle(workflowCode, query.version);
+  async loadFilteredBundle(
+    workflowCode: string,
+    query: WorkflowTreeQueryDto,
+    audience: WorkflowAudience = 'internal',
+  ): Promise<WorkflowBundle> {
+    const bundle = await this.loadBundle(workflowCode, query.version, audience);
     return filterWorkflowBundle(bundle, {
       moduleCode: query.moduleCode,
       role: query.role,
@@ -99,12 +119,17 @@ export class WorkflowCatalogService {
     });
   }
 
-  async loadBundle(workflowCode: string, version: string): Promise<WorkflowBundle> {
+  async loadBundle(workflowCode: string, version: string, audience: WorkflowAudience = 'internal'): Promise<WorkflowBundle> {
     const definition = await this.repository.findDefinition(workflowCode, version);
-    if (!definition) {
+    // Un proceso interno no se le muestra al cliente ni con 403: para él no existe.
+    if (!definition || !isVisibleTo(audience, definition.processType)) {
       this.logger.warn(`Flujo no encontrado: workflowCode=${workflowCode} version=${version}`);
       throw new NotFoundException('WORKFLOW_NOT_FOUND');
     }
     return this.repository.loadBundle(definition);
   }
+}
+
+function isVisibleTo(audience: WorkflowAudience, processType: string): boolean {
+  return audience === 'internal' || WORKFLOW_CUSTOMER_VISIBLE_PROCESS_TYPES.includes(processType);
 }

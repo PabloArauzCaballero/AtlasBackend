@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, jest } from '@jest/globals';
 import { SchemaManagementController } from '../../../src/modules/schema-management/schema-management.controller.js';
 
@@ -58,5 +59,22 @@ describe('SchemaManagementController', () => {
     await controller.approveChange('c1', decision, user);
     expect(service.proposeNewTable).toHaveBeenCalledWith(proposal, user);
     expect(service.approveSchemaChange).toHaveBeenCalledWith('c1', decision, user);
+  });
+
+  /*
+   * Las columnas `_id` son BIGINT: un id no numérico llegaba a Postgres como 22P02 y salía 500. Los
+   * tres ids de ruta pasan por el pipe, que lo corta antes con 400.
+   */
+  it.each(['getVersion', 'getTable', 'approveChange'] as const)('%s rechaza con 400 un id de ruta no numérico', (metodo) => {
+    const argumentos = Reflect.getMetadata('__routeArguments__', SchemaManagementController, metodo) as Record<
+      string,
+      { index: number; pipes: { transform: (value: unknown, meta: object) => unknown }[] }
+    >;
+    const parametro = Object.values(argumentos).find((argumento) => argumento.index === 0);
+    const pipe = parametro?.pipes[0];
+
+    expect(pipe).toBeDefined();
+    expect(() => pipe!.transform('abc', { type: 'param' })).toThrow(BadRequestException);
+    expect(pipe!.transform('42', { type: 'param' })).toBe('42');
   });
 });

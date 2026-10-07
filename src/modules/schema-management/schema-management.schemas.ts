@@ -24,6 +24,9 @@ const sqlIdentifier = z
 
 const numericIdString = z.string().regex(/^\d+$/, 'Must be a numeric id');
 
+/** Id de ruta: las columnas `_id` son BIGINT y un valor no numérico llegaría a Postgres como 22P02 (500). */
+export const numericIdParamSchema = numericIdString;
+
 // ============================================================================
 // GET /operations/schema/versions
 // ============================================================================

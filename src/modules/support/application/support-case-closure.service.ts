@@ -44,6 +44,8 @@ export class SupportCaseClosureService {
    */
   async resolve(input: { tenantId: string; actor: SupportActor; caseId: string; dto: ResolveCaseDto }) {
     this.actors.assertIsAgent(input.actor);
+    // Resolver escribe y devuelve el expediente: pasa por la misma regla que abrirlo.
+    await this.actors.assertCanViewCase(input.actor, await this.cases.requireById(input.tenantId, input.caseId), input.tenantId);
 
     const updated = await this.sequelize.transaction(async (transaction) => {
       const sequence = await this.timeline.nextResolutionSequence(input.caseId, { transaction });
@@ -119,6 +121,7 @@ export class SupportCaseClosureService {
   async close(input: { tenantId: string; actor: SupportActor; caseId: string; dto: CloseCaseDto; automatic?: boolean }) {
     if (!input.automatic) this.actors.assertIsAgent(input.actor);
     const supportCase = await this.cases.requireById(input.tenantId, input.caseId);
+    if (!input.automatic) await this.actors.assertCanViewCase(input.actor, supportCase, input.tenantId);
 
     if (supportCase.legalHold) {
       throw new ForbiddenException({ code: 'SUPPORT_CASE_LEGAL_HOLD', message: 'Un caso con bloqueo legal no puede cerrarse.' });

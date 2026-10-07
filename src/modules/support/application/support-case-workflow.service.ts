@@ -13,7 +13,9 @@ import { SupportCaseRepository } from '../support-case.repository.js';
 import { SupportCaseTimelineRepository } from '../support-case-timeline.repository.js';
 import type { AssignCaseDto, TriageCaseDto } from '../support-case.schemas.js';
 
+import type { SupportCaseType } from '../support.constants.js';
 import { toInternalCaseDto } from '../support.mapper.js';
+import { sensitivityFor, strictestSensitivity } from './support-case-factory.service.js';
 import type { SupportActor } from './support-actor.service.js';
 import { SupportActorService } from './support-actor.service.js';
 import { SupportAuditService } from './support-audit.service.js';
@@ -46,6 +48,8 @@ export class SupportCaseWorkflowService {
 
     const updated = await this.sequelize.transaction(async (transaction) => {
       const supportCase = await this.cases.requireById(input.tenantId, input.caseId, { transaction });
+      // Lo que no se puede abrir tampoco se puede reclasificar: sin esto, RESTRICTED sólo valía al leer.
+      await this.actors.assertCanViewCase(input.actor, supportCase, input.tenantId);
       const classification = await this.enrutado.resolveClassification(input.tenantId, input.actor, supportCase, input.dto, transaction);
       const { category, queue, impact, urgency, caseType, priority } = classification;
 
@@ -64,7 +68,7 @@ export class SupportCaseWorkflowService {
           impact,
           urgency,
           priority,
-          sensitivity: category?.sensitivity ?? supportCase.sensitivity,
+          sensitivity: this.triagedSensitivity(input.actor, supportCase.sensitivity, caseType, category?.sensitivity),
           queueId: queue ? String(queue.id) : supportCase.queueId,
           internalSummary: input.dto.internalSummary ?? supportCase.internalSummary,
           triagedAt: supportCase.triagedAt ?? new Date(),
@@ -86,7 +90,22 @@ export class SupportCaseWorkflowService {
   }
 
   /**
+   * La sensibilidad tras reclasificar: la del motivo nuevo con el piso de su tipo, igual que al nacer.
+   *
+   * Copiar la del motivo tal cual dejaba que un caso escalado a seguridad volviera a `NORMAL` —y a
+   * la vista de cualquier agente— con sólo cambiarle la categoría. Bajarla queda para un supervisor,
+   * que es quien responde de la decisión; para el resto, reclasificar sólo puede endurecer.
+   */
+  private triagedSensitivity(actor: SupportActor, current: string, caseType: string, categorySensitivity?: string | null) {
+    const proposed = sensitivityFor(caseType as SupportCaseType, categorySensitivity ?? current);
+    return actor.isSupervisor ? proposed : strictestSensitivity(current, proposed);
+  }
+
+  /**
    * Tomar el caso. Un agente sólo puede tomarse a sí mismo; asignar a otro es de supervisores.
+   *
+   * Un caso `RESTRICTED` no se toma: lo asigna un supervisor. Si bastara pulsar «tomar» para quedar
+   * como responsable, la regla de visibilidad se saltaría con la misma petición que la activa.
    *
    * La distinción evita el patrón clásico de repartirse el trabajo entre pares: cuando cualquiera
    * puede asignar a cualquiera, la cola deja de reflejar quién está realmente trabajando en qué.
@@ -103,6 +122,7 @@ export class SupportCaseWorkflowService {
 
     const updated = await this.sequelize.transaction(async (transaction) => {
       const supportCase = await this.cases.requireById(input.tenantId, input.caseId, { transaction });
+      await this.actors.assertCanViewCase(input.actor, supportCase, input.tenantId);
       if (supportCase.currentAssigneeAgentId && String(supportCase.currentAssigneeAgentId) === targetAgentId) {
         throw new ConflictException({ code: 'SUPPORT_CASE_ALREADY_ASSIGNED', agentProfileId: targetAgentId });
       }
@@ -168,6 +188,8 @@ export class SupportCaseWorkflowService {
   async transfer(input: { tenantId: string; actor: SupportActor; caseId: string; dto: AssignCaseDto & { summary?: string } }) {
     this.actors.assertIsAgent(input.actor);
     const queue = input.dto.queueCode ? await this.catalog.requireQueueByCode(input.tenantId, input.dto.queueCode) : null;
+    // Antes de dejar el resumen: la nota se escribe en la conversación del caso.
+    await this.actors.assertCanViewCase(input.actor, await this.cases.requireById(input.tenantId, input.caseId), input.tenantId);
 
     await this.enrutado.leaveHandoverSummary(input.tenantId, input.caseId, input.actor, input.dto.summary);
 

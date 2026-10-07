@@ -58,10 +58,13 @@ describe('ExternalProviderConvenienceService', () => {
       await service.executeInfocenter({
         tenantId: 't1',
         customerId: 'c1',
-        body: { documentNumber: '123', decisionStage: 'ORIGINATION', approvedByAdminId: 'admin-1' },
+        body: { documentNumber: '123', decisionStage: 'ORIGINATION' },
+        approvedByAdminId: 'admin-1',
       });
       const body = lastCallBody(execution);
       expect(body.input).toEqual({ documentNumber: '123' });
+      expect(body.approvedByAdminId).toBeUndefined();
+      expect((execution.executeExternalDataRequest.mock.calls[0] as unknown[])[0]).toMatchObject({ approvedByAdminId: 'admin-1' });
     });
 
     it('executeQrPayment maps to QR_GENERIC / PAYMENT_VERIFICATION / PAYMENT_RECONCILIATION', async () => {

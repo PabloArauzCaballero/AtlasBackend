@@ -154,7 +154,7 @@
     },
     "customer-device-signals": {
       "context": "sessions-telemetry",
-      "allowedDependencies": []
+      "allowedDependencies": ["internal-users"]
     },
     "external-data": {
       "context": "external-providers",

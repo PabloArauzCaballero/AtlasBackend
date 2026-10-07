@@ -116,6 +116,12 @@ describe('presupuesto de la corrida', () => {
     expect(budget.exhausted).toBe('BUDGET_EXHAUSTED');
   });
 
+  it('lo emitido antes por otro worker cuenta contra el tope', async () => {
+    const budget = new RunBudget({ maxRequests: 5, maxInFlightRequests: 5, deadlineAt: lejos() }, new AbortController().signal, 5);
+    expect(budget.requestsIssued).toBe(5);
+    expect(await budget.acquire()).toEqual({ ok: false, reason: 'BUDGET_EXHAUSTED' });
+  });
+
   it('vencido el plazo, DEADLINE_EXCEEDED; cancelada la corrida, CANCELLED', async () => {
     const vencido = new RunBudget({ maxRequests: 10, maxInFlightRequests: 5, deadlineAt: Date.now() - 1 }, new AbortController().signal);
     expect(await vencido.acquire()).toEqual({ ok: false, reason: 'DEADLINE_EXCEEDED' });

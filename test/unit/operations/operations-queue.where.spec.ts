@@ -22,6 +22,13 @@ describe('filtros de la cola de trabajo', () => {
     expect(or).toEqual(expect.arrayContaining([{ id: '42' }, { customerId: '42' }]));
   });
 
+  it('un número que no cabe en bigint no se compara con ids (Postgres daría 22003)', () => {
+    const or = fraudQueueWhere('1', { q: '9999999999999999999' }, escape)[Op.or] as Record<string, unknown>[];
+    expect(or).toHaveLength(2);
+    const max = fraudQueueWhere('1', { q: '9223372036854775807' }, escape)[Op.or] as Record<string, unknown>[];
+    expect(max).toHaveLength(4);
+  });
+
   it('estado y prioridad: status/priority en revisión manual, caseStatus/severity en fraude', () => {
     expect(manualReviewQueueWhere('1', { status: 'open', priority: 'high' }, escape)).toMatchObject({ status: 'open', priority: 'high' });
     expect(fraudQueueWhere('1', { status: 'open', priority: 'high' }, escape)).toMatchObject({ caseStatus: 'open', severity: 'high' });

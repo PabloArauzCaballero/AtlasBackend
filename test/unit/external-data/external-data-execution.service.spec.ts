@@ -404,6 +404,54 @@ describe('ExternalDataExecutionService', () => {
       expect(adapter.execute).not.toHaveBeenCalled();
     });
 
+    const highCostPolicy = {
+      costTier: 'HIGH',
+      blockByDefault: true,
+      requiresManualApproval: true,
+      unitCostAmount: '5',
+      currency: 'BOB',
+      cacheTtlSeconds: 0,
+      allowedDecisionStagesJson: [],
+    };
+
+    it('approvedByAdminId en el CUERPO no aprueba nada: la consulta costosa sigue retenida y la fila no queda approved_inline', async () => {
+      const { service, repository, registry } = buildService();
+      (registry.requireProvider as jest.Mock).mockResolvedValueOnce(provider as never);
+      const adapter = { execute: jest.fn(), normalize: jest.fn() };
+      (registry.requireAdapter as jest.Mock).mockReturnValueOnce(adapter as never);
+      (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce(highCostPolicy as never);
+      (repository.createProviderRequest as jest.Mock).mockResolvedValueOnce({ id: 'req-b' } as never);
+
+      const result = await service.executeExternalDataRequest({ tenantId: 't1', body: body({ approvedByAdminId: '1' }) });
+      expect(result).toMatchObject({ status: 'MANUAL_APPROVAL_REQUIRED' });
+      expect(adapter.execute).not.toHaveBeenCalled();
+      const row = (repository.createProviderRequest as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+      expect(row.approvedByAdminId).toBeUndefined();
+      expect(row.approvalStatus).toBeUndefined();
+    });
+
+    it('la aprobación verificada por el borde (input.approvedByAdminId) sí deja pasar y queda a nombre de ese actor', async () => {
+      const { service, repository, registry } = buildService();
+      (registry.requireProvider as jest.Mock).mockResolvedValueOnce(provider as never);
+      const adapter = {
+        execute: jest.fn(async (..._args: unknown[]) => {
+          throw new Error('provider boom');
+        }),
+        normalize: jest.fn(),
+      };
+      (registry.requireAdapter as jest.Mock).mockReturnValueOnce(adapter as never);
+      (repository.findCostPolicy as jest.Mock).mockResolvedValueOnce(highCostPolicy as never);
+      (repository.createProviderRequest as jest.Mock).mockResolvedValueOnce({ id: 'req-a' } as never);
+      (repository.updateProviderRequest as jest.Mock).mockResolvedValueOnce({} as never);
+
+      await service.executeExternalDataRequest({ tenantId: 't1', body: body({ approvedByAdminId: '1' }), approvedByAdminId: 'a7' });
+      expect(adapter.execute).toHaveBeenCalled();
+      expect((repository.createProviderRequest as jest.Mock).mock.calls[0][0]).toMatchObject({
+        approvedByAdminId: 'a7',
+        approvalStatus: 'approved_inline',
+      });
+    });
+
     it('cache hit -> devuelve CACHED (replay) sin ejecutar el adapter', async () => {
       const { service, repository, registry } = buildService();
       (registry.requireProvider as jest.Mock).mockResolvedValueOnce(provider as never);

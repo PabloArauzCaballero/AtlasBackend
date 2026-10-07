@@ -12,15 +12,12 @@ import { SubjectReferenceService } from '../../../src/modules/decision-engine/su
  */
 describe('SubjectReferenceService', () => {
   function build() {
-    const rows: Record<string, unknown>[] = [];
+    const query = jest.fn(async (..._args: unknown[]) => [[{ subject_reference: 'ref-existente' }], 1] as unknown);
     const linkModel = {
-      findOne: jest.fn(async (..._args: unknown[]) => rows[0] ?? null),
-      create: jest.fn(async (values: unknown) => {
-        rows.push(values as Record<string, unknown>);
-        return values;
-      }),
+      sequelize: { query },
+      findOne: jest.fn(async (..._args: unknown[]) => null),
     };
-    return { service: new SubjectReferenceService(linkModel as never), linkModel, rows };
+    return { service: new SubjectReferenceService(linkModel as never), linkModel, query };
   }
 
   /*
@@ -58,14 +55,15 @@ describe('SubjectReferenceService', () => {
     expect(reference).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('cuenta las decisiones de un sujeto que vuelve', async () => {
-    const { service, rows } = build();
-    await service.register({ tenantId: '1', customerId: 'c1' });
-    expect(rows[0].decisionCount).toBe(1);
-
-    rows[0].save = jest.fn();
-    await service.register({ tenantId: '1', customerId: 'c1' });
-    expect(rows[0].decisionCount).toBe(2);
+  it('registra en una sola sentencia atómica (ON CONFLICT) y devuelve la referencia guardada', async () => {
+    const { service, query } = build();
+    const reference = await service.register({ tenantId: '1', customerId: 'c1' });
+    expect(reference).toBe('ref-existente');
+    expect(query).toHaveBeenCalledTimes(1);
+    const [sql, options] = query.mock.calls[0] as [string, { replacements: Record<string, unknown> }];
+    expect(sql).toMatch(/ON CONFLICT \(_tenant_id, customer_id, purpose_code\)/);
+    expect(sql).toMatch(/decision_count = .*decision_count \+ 1/);
+    expect(options.replacements).toMatchObject({ tenantId: '1', customerId: 'c1', purposeCode: 'credit_underwriting' });
   });
 
   it('se niega a derivar sin sal configurada', () => {
