@@ -10,7 +10,13 @@ import { UnderwritingDeviceSignalsService } from '../../../src/modules/decision-
 
 const NOW = new Date('2026-10-04T12:00:00Z');
 
-function build(overrides: Record<string, unknown> = {}) {
+const SI = { granted: true, revokedAt: null };
+type Consentimientos = Record<string, { granted: boolean; revokedAt: Date | null } | undefined>;
+
+function build(
+  overrides: Record<string, unknown> = {},
+  consentimientos: Consentimientos = { device_address_book: SI, location_tracking: SI },
+) {
   const query = jest.fn(async (..._args: unknown[]) => [{ n: '2' }]);
   const modelos = {
     pings: {
@@ -31,6 +37,12 @@ function build(overrides: Record<string, unknown> = {}) {
       sequelize: { query },
     },
     watchlist: { count: jest.fn(async (..._args: unknown[]) => 1) },
+    consents: {
+      findOne: jest.fn(async (opciones: unknown) => {
+        const proposito = (opciones as { where: { purposeCode: string } }).where.purposeCode;
+        return consentimientos[proposito] ?? null;
+      }),
+    },
   };
   const usados: Record<string, unknown> = { ...modelos, ...overrides };
   const service = new UnderwritingDeviceSignalsService(
@@ -40,6 +52,7 @@ function build(overrides: Record<string, unknown> = {}) {
     usados.behavior as never,
     usados.contacts as never,
     usados.watchlist as never,
+    usados.consents as never,
   );
   return { service, modelos, query };
 }
@@ -91,6 +104,33 @@ describe('UnderwritingDeviceSignalsService.signalsFor', () => {
       },
     });
     await expect(service.signalsFor('1', '10', NOW)).resolves.toBeNull();
+  });
+});
+
+describe('UnderwritingDeviceSignalsService · consentimiento vigente', () => {
+  it('con la agenda retirada no lee las fichas guardadas ni cruza nada', async () => {
+    const { service, modelos, query } = build({}, { device_address_book: { granted: true, revokedAt: new Date() }, location_tracking: SI });
+    const señales = await service.signalsFor('1', '10', NOW);
+    expect(señales?.contacts).toEqual({ available: false, totalContacts: 0, watchlistMatches: 0, ringCustomers: 0 });
+    expect(modelos.contacts.findAll).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
+    // La ubicación, que sigue consentida, sí se lee.
+    expect(señales?.geo.pingsCount).toBe(2);
+  });
+
+  it('si la ÚLTIMA decisión es un «no», la concesión anterior ya no ampara nada', async () => {
+    const { service, modelos } = build({}, { device_address_book: SI, location_tracking: { granted: false, revokedAt: null } });
+    const señales = await service.signalsFor('1', '10', NOW);
+    expect(señales?.geo).toMatchObject({ available: false, pingsCount: 0, mockedCount: 0 });
+    expect(modelos.pings.findAll).not.toHaveBeenCalled();
+    expect(señales?.contacts.available).toBe(true);
+  });
+
+  it('sin ninguna decisión registrada no se lee nada del teléfono', async () => {
+    const { service } = build({}, {});
+    const señales = await service.signalsFor('1', '10', NOW);
+    expect(señales?.geo.available).toBe(false);
+    expect(señales?.contacts.available).toBe(false);
   });
 });
 
