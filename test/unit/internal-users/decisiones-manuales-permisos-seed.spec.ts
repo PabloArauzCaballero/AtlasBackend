@@ -46,4 +46,13 @@ describe('permisos de las decisiones manuales', () => {
       }
     },
   );
+
+  it('mínimo privilegio: KYB lo deciden cumplimiento y la jefatura de riesgo; la elegibilidad, riesgo', () => {
+    for (const rol of ['COMPLIANCE_MANAGER', 'COMPLIANCE_ANALYST', 'RISK_MANAGER'] as const) {
+      expect(ROLE_PERMISSION_CODES[rol]).toContain('partner.kyb.decide');
+    }
+    for (const rol of ['RISK_MANAGER', 'RISK_ANALYST'] as const) {
+      expect(ROLE_PERMISSION_CODES[rol]).toContain('customers.eligibility.decide');
+    }
+  });
 });

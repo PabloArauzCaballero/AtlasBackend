@@ -107,6 +107,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'expedientes.escribir',
     'operations.riskPolicy.read',
     'catalog.data.read',
+    // Decidir la habilitación crediticia de un cliente (decisión de mínimo privilegio, 2026-10-07).
+    'customers.eligibility.decide',
   ],
   FRAUD_ANALYST: [
     'auth.internal.me.read',
@@ -136,6 +138,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'privacy.requests.manage',
     // Habilitar o suspender a un cliente por KYC/observaciones es también decisión de cumplimiento.
     'customers.eligibility.decide',
+    // Decisión manual del expediente KYB del comercio cuando el Motor no abrió caso.
+    'partner.kyb.decide',
   ],
   COMPLIANCE_ANALYST: [
     'auth.internal.me.read',
@@ -147,6 +151,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'audit.events.read',
     // Vigila los plazos de las solicitudes del titular; cerrarlas es de COMPLIANCE_MANAGER.
     'privacy.requests.read',
+    // Decisión manual del expediente KYB del comercio (decisión de mínimo privilegio, 2026-10-07).
+    'partner.kyb.decide',
   ],
   COLLECTIONS_MANAGER: [
     'auth.internal.me.read',
