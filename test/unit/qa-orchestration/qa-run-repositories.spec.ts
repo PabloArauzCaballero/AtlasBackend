@@ -137,6 +137,31 @@ describe('repositorio de admisión de corridas QA', () => {
     expect(JSON.parse(String(evento.options.bind?.payload))).toEqual({ persons: 3, concurrency: 2 });
   });
 
+  it('con tope, cuenta las corridas activas bajo cerrojo DENTRO de la transacción y rechaza si no hay cupo', async () => {
+    const db = fakeSequelize((sql) => {
+      if (sql.includes('SELECT _id, plan_hash')) return [];
+      if (sql.includes('COUNT(*)')) return [{ count: '1' }];
+      return [];
+    });
+    const result = await new QaRunAdmissionRepository(db.asSequelize).admit({ ...admission(), maxActiveRuns: 1 });
+    expect(result).toEqual({ conflict: 'QA_RUN_ALREADY_ACTIVE' });
+    const [, cerrojo, conteo] = db.calls;
+    expect(cerrojo.sql).toContain('pg_advisory_xact_lock');
+    expect(conteo.options.transaction).toBe(db.transactionHandle);
+    expect(db.calls.some((call) => call.sql.includes('INSERT INTO'))).toBe(false);
+  });
+
+  it('con tope y cupo libre la corrida se admite', async () => {
+    const db = fakeSequelize((sql) => {
+      if (sql.includes('SELECT _id, plan_hash')) return [];
+      if (sql.includes('COUNT(*)')) return [{ count: '0' }];
+      if (sql.includes('qa_runs (_tenant_id')) return [{ _id: 42 }];
+      if (sql.includes('system_job_runs')) return [{ _id: 7001 }];
+      return [];
+    });
+    expect(await new QaRunAdmissionRepository(db.asSequelize).admit({ ...admission(), maxActiveRuns: 1 })).toMatchObject({ runId: '42', replayed: false });
+  });
+
   it('dos lanzamientos simultáneos: el perdedor relee al ganador en vez de propagar la unicidad (A29)', async () => {
     let lecturas = 0;
     const db = fakeSequelize((sql) => {

@@ -135,6 +135,7 @@ export class QaRunOrchestratorService {
       // identificadores operacionales que no chocan con los de la corrida anterior.
       namespace: `qa-${Date.now().toString(36)}-${runNonce}`,
       referenceDate: new Date().toISOString().slice(0, 10),
+      maxActiveRuns: MAX_ACTIVE_RUNS_PER_TENANT,
     });
     if ('conflict' in result) throw new ConflictException(qaError(result.conflict));
     return { runId: result.runId, status: result.status };

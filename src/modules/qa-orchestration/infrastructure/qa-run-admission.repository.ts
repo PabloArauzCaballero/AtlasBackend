@@ -28,9 +28,11 @@ export type AdmissionInput = {
   workflowCode: string;
   namespace: string;
   referenceDate: string;
+  /** Tope de corridas activas del tenant; si se da, se comprueba DENTRO de la transacción, bajo cerrojo. */
+  maxActiveRuns?: number;
 };
 
-export type AdmissionResult = { runId: string; status: string; replayed: boolean } | { conflict: 'IDEMPOTENCY_KEY_REUSED' };
+export type AdmissionResult = { runId: string; status: string; replayed: boolean } | { conflict: 'IDEMPOTENCY_KEY_REUSED' | 'QA_RUN_ALREADY_ACTIVE' };
 
 @Injectable()
 export class QaRunAdmissionRepository {
@@ -91,6 +93,19 @@ export class QaRunAdmissionRepository {
   }
 
   /**
+   * El tope por tenant se cuenta bajo un cerrojo consultivo de la transacción: dos lanzamientos con
+   * claves distintas que pasaron la lectura previa a la vez se serializan aquí y el segundo lo ve.
+   */
+  private async hasRoomForRun(tenantId: string, maxActive: number, transaction: Transaction): Promise<boolean> {
+    await this.sequelize.query(`SELECT pg_advisory_xact_lock(hashtext('qa_runs:' || $tenantId::text));`, { transaction, bind: { tenantId } });
+    const rows = await this.sequelize.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM ${S}.qa_runs WHERE _tenant_id = $tenantId AND status IN ('QUEUED','PREFLIGHT','RUNNING','CANCELLING');`,
+      { type: QueryTypes.SELECT, transaction, bind: { tenantId } },
+    );
+    return Number(rows[0]?.count ?? 0) < maxActive;
+  }
+
+  /**
    * Corrida, personas, job y primer evento en la misma transacción. Si cualquiera falla no queda
    * una corrida huérfana que el portal enseñe «en cola» sin que nadie la vaya a ejecutar.
    *
@@ -102,6 +117,8 @@ export class QaRunAdmissionRepository {
     if (existing) return this.replayOrConflict(existing, input.planHash);
     try {
       return await this.sequelize.transaction(async (transaction) => {
+        if (input.maxActiveRuns !== undefined && !(await this.hasRoomForRun(input.tenantId, input.maxActiveRuns, transaction)))
+          return { conflict: 'QA_RUN_ALREADY_ACTIVE' as const };
         const runs = await this.sequelize.query<{ _id: string }>(
           `INSERT INTO ${S}.qa_runs (_tenant_id, operator_id, idempotency_key, plan_id, plan_hash, plan_snapshot, recipe_hash,
              template_code, template_version, workflow_code, environment_id, status, seed, namespace, reference_date, generator_version, counters_json)
