@@ -42,13 +42,11 @@ import {
 } from './notification-types.js';
 import { buildEncryptedDeliveryTargets, decryptDeliveryTargets } from './notification-delivery-targets.util.js';
 import { notExpired, ownedByGenericJobs } from './campaigns/notification-visibility.util.js';
-import { withCreatedBetween, withTextSearch } from './notification-list.filters.js';
+import { HIDDEN_INBOX_STATUSES, withCreatedBetween, withInboxStatus, withTextSearch } from './notification-list.filters.js';
 
 // Tamaño de lote para insertar mensajes de broadcast. Un único bulkCreate con decenas de miles de
 // filas produce una sentencia SQL gigante; trocear acota memoria del driver/servidor por INSERT.
 const BROADCAST_INSERT_CHUNK_SIZE = 1_000;
-/** Estados de un in_app que la bandeja del destinatario no muestra, no cuenta ni marca como leídos. */
-const HIDDEN_INBOX_STATUSES: string[] = ['pending', 'cancelled', 'failed'];
 
 @Injectable()
 export class NotificationsRepository {
@@ -274,13 +272,7 @@ export class NotificationsRepository {
 
   async listRecipientMessages(tenantId: string, recipientType: RecipientType, recipientId: string, query: CustomerNotificationsQueryDto) {
     const where: Record<string | symbol, unknown> = { tenantId, recipientType, recipientId, channel: 'in_app', ...notExpired() };
-    // Un pendiente (campaña escalonada que aún no le toca), cancelado o fallido no es un aviso del
-    // destinatario: ni se lista ni se puede pedir por `status`.
-    where.status = query.status
-      ? HIDDEN_INBOX_STATUSES.includes(query.status)
-        ? { [Op.in]: [] }
-        : query.status
-      : { [Op.notIn]: HIDDEN_INBOX_STATUSES };
+    withInboxStatus(where, query.status);
     if (query.channel) where.channel = query.channel;
     withCreatedBetween(where, query);
     withTextSearch(where, query.q, ['title', 'subject', 'body']);

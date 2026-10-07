@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, it } from '@jest/globals';
 import express from 'express';
 import request from 'supertest';
 import { internalMailBodyParser, internalMailRoutes } from '../../../src/modules/notifications/internal-mail-body-parser.js';
@@ -6,7 +6,10 @@ import { internalMailBodyParser, internalMailRoutes } from '../../../src/modules
 describe('internalMailBodyParser', () => {
   function buildApp() {
     const app = express();
-    app.use(internalMailRoutes('api/v1'), internalMailBodyParser(() => undefined));
+    app.use(
+      internalMailRoutes('api/v1'),
+      internalMailBodyParser(() => undefined),
+    );
     app.use(express.json({ limit: '2mb' }));
     app.post('*path', (req, res) => {
       res.json({ ok: true, size: JSON.stringify(req.body).length });

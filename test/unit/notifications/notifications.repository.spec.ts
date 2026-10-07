@@ -166,7 +166,10 @@ describe('NotificationsRepository — núcleo', () => {
     const message = baseMessage();
     const previousStatus = (message as { status: string }).status;
     await expect(repo.markMessageSending(message as never)).resolves.toBe(true);
-    const [values, options] = (messageModel.update as jest.Mock).mock.calls[0] as [Record<string, unknown>, { where: Record<string, unknown> }];
+    const [values, options] = (messageModel.update as jest.Mock).mock.calls[0] as [
+      Record<string, unknown>,
+      { where: Record<string, unknown> },
+    ];
     expect(values.status).toBe('sending');
     expect(options.where).toEqual({ id: (message as { id: unknown }).id, status: previousStatus });
     expect((message as { status: string }).status).toBe('sending');
