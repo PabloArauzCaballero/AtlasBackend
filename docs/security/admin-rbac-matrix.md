@@ -29,7 +29,7 @@
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
 | Con `@Roles` | 546 |
-| Con permiso fino `@InternalPermissions` (además del rol) | 77 |
+| Con permiso fino `@InternalPermissions` (además del rol) | 79 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
 ## `app-content`
@@ -220,11 +220,11 @@
 
 | Método | Ruta | Acceso | Permiso fino | Handler | Notas |
 |---|---|---|---|---|---|
-| `GET` | `/customers/:customerId/eligibility` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `CustomerEligibilityController.getEligibility` | guards: `TenantGuard` |
+| `GET` | `/customers/:customerId/eligibility` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `CustomerEligibilityController.getEligibility` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `GET` | `/customers/:customerId/me` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `CustomersController.getCustomerMe` | guards: `TenantGuard` |
 | `GET` | `/internal/contexts/customers/recipient-directory/addresses` | identidad de servicio `{"scope":"customers:recipient-directory","audienceContext":"customers","allowedServices":["messaging-worker"]}` | — | `CustomerRecipientDirectoryController.addresses` | guards: `ServiceTokenGuard` |
 | `GET` | `/internal/contexts/customers/recipient-directory/resolve` | identidad de servicio `{"scope":"customers:recipient-directory","audienceContext":"customers","allowedServices":["messaging-worker"]}` | — | `CustomerRecipientDirectoryController.resolve` | guards: `ServiceTokenGuard` |
-| `POST` | `/operations/customers/:customerId/eligibility/decision` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `CustomerEligibilityController.decideEligibility` | guards: `TenantGuard` |
+| `POST` | `/operations/customers/:customerId/eligibility/decision` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | `customers.eligibility.decide` | `CustomerEligibilityController.decideEligibility` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 
 ## `data-notebook`
 
@@ -564,7 +564,7 @@
 | `PATCH` | `/operations/partner-contract-templates/:templateId/default` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | `governance.policies.manage` | `PartnerContractTemplatesController.setDefault` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `GET` | `/operations/partner-contract-templates/default` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | `partner.kyb.request` | `PartnerContractTemplatesController.getDefault` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `GET` | `/operations/partners` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `PartnerOperationsController.find` | guards: `TenantGuard`, `InternalPermissionsGuard` |
-| `POST` | `/operations/partners/:partnerId/decision` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `PartnerOperationsController.decide` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `POST` | `/operations/partners/:partnerId/decision` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | `partner.kyb.decide` | `PartnerOperationsController.decide` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `PATCH` | `/operations/partners/:partnerId/erp-account` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | `partner.kyb.request` | `PartnerOperationsController.linkErpAccount` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `POST` | `/operations/partners/:partnerId/kyb-review` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | `partner.kyb.request` | `PartnerOperationsController.requestKybReview` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `POST` | `/operations/partners/:partnerId/qr-codes/:qrId/review` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | `partner.qr.review` | `PartnerOperationsController.reviewQr` | guards: `TenantGuard`, `InternalPermissionsGuard` |
