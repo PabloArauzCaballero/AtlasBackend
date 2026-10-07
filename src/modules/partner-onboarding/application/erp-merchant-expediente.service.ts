@@ -181,22 +181,40 @@ export class ErpMerchantExpedienteService {
       }
     }
 
-    if (input.branch && admite(assertCommercialNetworkEditable, profile)) {
-      const sucursales = await this.network.listBranches(tenantId, profile.id);
-      if (!sucursales.some((item) => item.branchCode === input.branch?.branchCode)) {
-        await this.commerce.registerBranch(tenantId, profile.id, input.branch);
-        loaded.push('branch');
-      }
+    if (await this.cargarSucursal(tenantId, profile, input.branch)) {
+      loaded.push('branch');
     }
 
-    if (input.bankQr && admite(assertPaymentQrEditable, profile)) {
-      const vigente = await this.network.findLiveQr(tenantId, profile.id, 'bank', null);
-      if (!vigente) {
-        await this.qr.register(tenantId, profile.id, { ...input.bankQr, qrKind: 'bank' });
-        loaded.push('bank_qr');
-      }
+    if (await this.cargarQrBanco(tenantId, profile, input.bankQr)) {
+      loaded.push('bank_qr');
     }
     return { profile, loaded };
+  }
+
+  /** Registra la sucursal si su código aún no existe; devuelve si la cargó. */
+  private async cargarSucursal(
+    tenantId: string,
+    profile: PartnerProfileModel,
+    branch: ErpMerchantExpedienteDto['branch'],
+  ): Promise<boolean> {
+    if (!branch || !admite(assertCommercialNetworkEditable, profile)) return false;
+    const sucursales = await this.network.listBranches(tenantId, profile.id);
+    if (sucursales.some((item) => item.branchCode === branch.branchCode)) return false;
+    await this.commerce.registerBranch(tenantId, profile.id, branch);
+    return true;
+  }
+
+  /** Registra el QR bancario si no hay uno vigente; devuelve si lo cargó. */
+  private async cargarQrBanco(
+    tenantId: string,
+    profile: PartnerProfileModel,
+    bankQr: ErpMerchantExpedienteDto['bankQr'],
+  ): Promise<boolean> {
+    if (!bankQr || !admite(assertPaymentQrEditable, profile)) return false;
+    const vigente = await this.network.findLiveQr(tenantId, profile.id, 'bank', null);
+    if (vigente) return false;
+    await this.qr.register(tenantId, profile.id, { ...bankQr, qrKind: 'bank' });
+    return true;
   }
 
   private async buscar(tenantId: string, input: ErpMerchantExpedienteDto): Promise<PartnerProfileModel | null> {

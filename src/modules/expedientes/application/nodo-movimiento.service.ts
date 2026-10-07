@@ -68,9 +68,7 @@ export class NodoMovimientoService {
   }): Promise<void> {
     if (input.nodo.inmutable) throw new ConflictException('EXPEDIENTE_NODO_CONGELADO');
     const destino = input.destinoId ? await this.nodos.obtenerNodo(input.tenantId, input.expedienteId, input.destinoId) : null;
-    if (destino && destino.tipo !== 'carpeta') throw new BadRequestException('EXPEDIENTE_DESTINO_NO_ES_CARPETA');
-    // Un nodo congelado no admite escritura: tampoco que le cuelguen cosas nuevas.
-    if (destino?.inmutable) throw new ConflictException('EXPEDIENTE_NODO_CONGELADO');
+    assertDestinoAdmisible(destino);
 
     /*
      * Un nodo no puede moverse dentro de sí mismo.
@@ -197,4 +195,11 @@ export class NodoMovimientoService {
       detalle: { ruta: this.nodos.rutaDe(padreVivo?.ruta ?? '', nombre), volvioALaRaiz: !padreVivo },
     });
   }
+}
+
+/** El destino de un movimiento debe ser una carpeta, y un nodo congelado no admite que le cuelguen cosas nuevas. */
+function assertDestinoAdmisible(destino: { tipo: string; inmutable?: boolean | null } | null): void {
+  if (!destino) return;
+  if (destino.tipo !== 'carpeta') throw new BadRequestException('EXPEDIENTE_DESTINO_NO_ES_CARPETA');
+  if (destino.inmutable) throw new ConflictException('EXPEDIENTE_NODO_CONGELADO');
 }

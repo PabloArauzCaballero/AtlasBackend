@@ -24,14 +24,26 @@ describe('permisos de las decisiones manuales', () => {
     expect(requeridos(CustomerEligibilityController, 'decideEligibility')).toEqual(['customers.eligibility.decide']);
   });
 
-  it.each(['partner.kyb.decide', 'customers.eligibility.decide'])('%s está en el catálogo con riesgo ALTO y lo tiene SUPER_ADMIN', (codigo) => {
-    expect(INTERNAL_PERMISSION_SEEDS.find((p) => p.code === codigo)?.riskLevel).toBe('HIGH');
-    expect(ROLE_PERMISSION_CODES.SUPER_ADMIN).toContain(codigo);
-  });
+  it.each(['partner.kyb.decide', 'customers.eligibility.decide'])(
+    '%s está en el catálogo con riesgo ALTO y lo tiene SUPER_ADMIN',
+    (codigo) => {
+      expect(INTERNAL_PERMISSION_SEEDS.find((p) => p.code === codigo)?.riskLevel).toBe('HIGH');
+      expect(ROLE_PERMISSION_CODES.SUPER_ADMIN).toContain(codigo);
+    },
+  );
 
-  it.each(['partner.kyb.decide', 'customers.eligibility.decide'])('PRUEBA EN NEGATIVO: soporte, cobranza y quien pide (%s) no lo tienen', (codigo) => {
-    for (const rol of ['SUPPORT_AGENT', 'COLLECTIONS_AGENT', 'COLLECTIONS_MANAGER', 'OPERATIONS_MANAGER', 'OPERATIONS_ANALYST'] as const) {
-      expect(ROLE_PERMISSION_CODES[rol] ?? []).not.toContain(codigo);
-    }
-  });
+  it.each(['partner.kyb.decide', 'customers.eligibility.decide'])(
+    'PRUEBA EN NEGATIVO: soporte, cobranza y quien pide (%s) no lo tienen',
+    (codigo) => {
+      for (const rol of [
+        'SUPPORT_AGENT',
+        'COLLECTIONS_AGENT',
+        'COLLECTIONS_MANAGER',
+        'OPERATIONS_MANAGER',
+        'OPERATIONS_ANALYST',
+      ] as const) {
+        expect(ROLE_PERMISSION_CODES[rol] ?? []).not.toContain(codigo);
+      }
+    },
+  );
 });
