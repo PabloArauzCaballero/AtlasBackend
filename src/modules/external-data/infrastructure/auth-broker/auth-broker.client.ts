@@ -3,7 +3,7 @@
  * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
-import { HttpException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { z } from 'zod';
 import {
   AuthBrokerAvailability,
@@ -30,7 +30,13 @@ export class AuthBrokerClient {
 
   private readonly baseUrl = process.env.AUTH_BROKER_BASE_URL?.trim();
   private readonly serviceToken = process.env.AUTH_BROKER_SERVICE_TOKEN?.trim();
-  private readonly timeoutMs = Number(process.env.AUTH_BROKER_TIMEOUT_MS ?? 8000);
+  private readonly timeoutMs = AuthBrokerClient.parseTimeout(process.env.AUTH_BROKER_TIMEOUT_MS);
+
+  /** Un valor no numérico o <= 0 daba NaN/0 y abortaba cada llamada al instante: se vuelve al plazo por defecto. */
+  private static parseTimeout(raw: string | undefined): number {
+    const value = Number(raw ?? 8000);
+    return Number.isFinite(value) && value > 0 ? value : 8000;
+  }
 
   private static readonly authStateSchema = z.object({
     providerCode: z.string(),
@@ -144,6 +150,7 @@ export class AuthBrokerClient {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
     let response: Response;
+    let payload: unknown;
     try {
       response = await fetch(`${this.baseUrl}${path}`, {
         method,
@@ -155,6 +162,8 @@ export class AuthBrokerClient {
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         signal: controller.signal,
       });
+      // El plazo cubre también la lectura del cuerpo: un broker que manda cabeceras y no acaba no cuelga la petición.
+      payload = await response.json().catch(() => null);
     } catch {
       // El detalle del fallo de red puede arrastrar la URL con el token en algunos runtimes:
       // se registra el destino lógico, nunca el error crudo.
@@ -164,13 +173,19 @@ export class AuthBrokerClient {
       clearTimeout(timer);
     }
 
-    const payload: unknown = await response.json().catch(() => null);
-
     if (!response.ok) {
       const parsed = AuthBrokerClient.errorSchema.safeParse(payload);
       const code = parsed.success ? parsed.data.code : 'AUTH_BROKER_ERROR';
       const message = parsed.success ? parsed.data.message : 'El broker de autenticación devolvió un error.';
       this.logger.warn(`Broker de autenticación: ${code} (${method} ${path}).`);
+      // El 401/403 del broker es de NUESTRO token de servicio, no de la sesión del admin: reenviarlo
+      // haría que el portal lo tome por sesión caducada. Se presenta como fallo de pasarela.
+      if (response.status === 401 || response.status === 403) {
+        throw new HttpException(
+          { code: 'AUTH_BROKER_AUTH_FAILED', message: 'El broker de autenticación rechazó las credenciales del servicio.' },
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
       throw new HttpException({ code, message }, response.status);
     }
 

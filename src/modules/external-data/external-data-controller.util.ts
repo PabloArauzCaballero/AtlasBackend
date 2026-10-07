@@ -23,6 +23,23 @@ export function assertCustomerAccess(currentUser: AuthenticatedUser, customerId?
   if (customerId) assertOwnCustomerResource(currentUser, customerId);
 }
 
+/** Roles que pueden aprobar en línea una consulta de alto costo (los mismos que `/requests/:id/approve`). */
+const INLINE_APPROVER_ROLES: ReadonlySet<string> = new Set(['admin', 'platform_admin']);
+
+/**
+ * Quién aprueba en línea una consulta de alto costo: el ACTOR autenticado, y sólo si es admin.
+ *
+ * `requested` es la señal del cuerpo (`approvedByAdminId`): con ella el admin pide aprobar en el
+ * mismo acto, pero su VALOR no se usa nunca. Antes se copiaba tal cual, así que cualquier token —un
+ * cliente en `/external-data/requests`, un analista en `/bureau/infocenter/check`— se saltaba el
+ * bloqueo de costo y la fila quedaba «approved_inline» a nombre de un admin que no aprobó nada.
+ * Sin rol admin la señal se ignora y la política decide (MANUAL_APPROVAL_REQUIRED si corresponde).
+ */
+export function inlineApprovalBy(currentUser: AuthenticatedUser, requested: unknown): string | undefined {
+  if (!requested || !INLINE_APPROVER_ROLES.has(currentUser.role)) return undefined;
+  return actorId(currentUser);
+}
+
 export function customerScopeForConsentMutation(currentUser: AuthenticatedUser): string | undefined {
   if (currentUser.role !== 'customer') return undefined;
   if (!currentUser.customerId) throw new ForbiddenException('El token de cliente no contiene customerId.');
@@ -56,10 +73,11 @@ export function providerProbeRequest(
       decisionStage: typeof body.decisionStage === 'string' ? body.decisionStage : 'MANUAL_REVIEW',
       input: typeof body.input === 'object' && body.input !== null ? (body.input as Record<string, unknown>) : {},
       scenario: typeof body.scenario === 'string' ? body.scenario : undefined,
-      approvedByAdminId: actorId(currentUser),
       forceRefresh: true,
     },
     requestedByUserId: actorId(currentUser),
+    // Probar es aprobar sólo si quien prueba podría aprobar: un analista no se autoaprueba el buró.
+    approvedByAdminId: inlineApprovalBy(currentUser, true),
     syntheticProbe: true,
   };
 }

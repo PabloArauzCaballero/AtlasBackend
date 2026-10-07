@@ -38,9 +38,17 @@ export class ExternalDataEvidenceService {
     return { id: String(consent.id), customerId: String(consent.customerId), revoked: true, revokedAt: consent.revokedAt };
   }
 
-  async getProviderRequest(input: { tenantId: string; requestId: string }) {
+  /**
+   * `customerId` es el alcance del actor: con token de cliente, sólo SUS solicitudes. Sin él, un cliente
+   * recorría los ids secuenciales y leía buró, deudas e identidad de todo el tenant. Una ajena da el
+   * mismo 404 que una inexistente, para no confirmar que existe.
+   */
+  async getProviderRequest(input: { tenantId: string; requestId: string; customerId?: string }) {
     const request = await this.repository.findProviderRequestByIdAndTenant(input.tenantId, input.requestId);
     if (!request) throw new NotFoundException('Solicitud de provider externo no encontrada.');
+    if (input.customerId !== undefined && String(request.customerId ?? '') !== input.customerId) {
+      throw new NotFoundException('Solicitud de provider externo no encontrada.');
+    }
     const responses = await this.repository.findProviderResponsesByRequestIdAndTenant(input.tenantId, input.requestId);
     return {
       id: String(request.id),

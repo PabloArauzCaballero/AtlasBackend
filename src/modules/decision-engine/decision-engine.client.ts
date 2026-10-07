@@ -242,7 +242,7 @@ export class DecisionEngineClient {
     const todos: ArtifactSummary[] = [];
     for (let page = 1; page <= ARTIFACT_MAX_PAGES; page += 1) {
       const url = `${this.transport.baseUrl()}/v1/artifacts?page=${page}&pageSize=${ARTIFACT_PAGE_SIZE}`;
-      const response = await fetch(url, { headers });
+      const response = await fetch(url, { headers, signal: AbortSignal.timeout(env.DECISION_ENGINE_TIMEOUT_MS) });
       if (!response.ok) {
         this.logger.warn(`El motor respondió ${response.status} al listar artefactos.`);
         return page === 1 ? [] : todos;
@@ -279,7 +279,10 @@ export class DecisionEngineClient {
     const url = `${this.transport.baseUrl()}/v1/manual-reviews/${encodeURIComponent(caseCode)}`;
     const apiKey = env.DECISION_ENGINE_GOVERNANCE_API_KEY ?? env.DECISION_ENGINE_API_KEY ?? '';
     try {
-      const response = await fetch(url, { headers: { 'x-api-key': apiKey, 'x-tenant-id': env.DECISION_ENGINE_TENANT_ID } });
+      const response = await fetch(url, {
+        headers: { 'x-api-key': apiKey, 'x-tenant-id': env.DECISION_ENGINE_TENANT_ID },
+        signal: AbortSignal.timeout(env.DECISION_ENGINE_TIMEOUT_MS),
+      });
       if (!response.ok) {
         this.logger.warn(`El motor respondió ${response.status} al leer el caso ${caseCode}.`);
         return null;

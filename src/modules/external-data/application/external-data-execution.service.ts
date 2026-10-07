@@ -43,6 +43,13 @@ export class ExternalDataExecutionService {
     idempotencyKey?: string;
     requestedByUserId?: string;
     retryOfRequestId?: string;
+    /**
+     * Quién aprobó en línea una consulta de alto costo. Lo fija el BORDE con el actor autenticado y
+     * sólo si es admin (`inlineApprovalBy`); `body.approvedByAdminId` no se lee nunca. Antes salía
+     * del cuerpo, así que cualquier token —incluido el de un cliente— se autoaprobaba el buró y
+     * dejaba la fila «approved_inline» a nombre de un admin que no había aprobado nada.
+     */
+    approvedByAdminId?: string;
     /** Prueba del portal interno con datos sintéticos; ver `validateConsent`. */
     syntheticProbe?: boolean;
   }): Promise<ExternalDataRequestResult> {
@@ -122,7 +129,7 @@ export class ExternalDataExecutionService {
       providerCode,
       policy,
       decisionStage: input.body.decisionStage,
-      approvedByAdminId: input.body.approvedByAdminId,
+      approvedByAdminId: input.approvedByAdminId,
     });
     if (!policyBlock.blocked) {
       policyBlock = await this.decision.evaluateQuotaPolicy({
@@ -180,8 +187,8 @@ export class ExternalDataExecutionService {
           actualCostAmount: '0.0000',
           currency: policy?.currency ?? undefined,
           requestedByUserId: input.requestedByUserId,
-          approvedByAdminId: input.body.approvedByAdminId,
-          approvalStatus: input.body.approvedByAdminId ? 'approved_inline' : undefined,
+          approvedByAdminId: input.approvedByAdminId,
+          approvalStatus: input.approvedByAdminId ? 'approved_inline' : undefined,
           metadataJson: {
             providerCode,
             scenario: input.body.scenario ?? null,
@@ -220,8 +227,8 @@ export class ExternalDataExecutionService {
       estimatedCostAmount: policy ? String(policy.unitCostAmount) : undefined,
       currency: policy?.currency ?? undefined,
       requestedByUserId: input.requestedByUserId,
-      approvedByAdminId: input.body.approvedByAdminId,
-      approvalStatus: input.body.approvedByAdminId ? 'approved_inline' : undefined,
+      approvedByAdminId: input.approvedByAdminId,
+      approvalStatus: input.approvedByAdminId ? 'approved_inline' : undefined,
       metadataJson: { providerCode, scenario: input.body.scenario ?? null, retryOfRequestId: input.retryOfRequestId ?? null },
       retryOfRequestId: input.retryOfRequestId,
       now,
@@ -252,7 +259,7 @@ export class ExternalDataExecutionService {
       scenario: input.body.scenario as ExternalProviderExecutionInput['scenario'],
       idempotencyKey: input.idempotencyKey,
       requestedByUserId: input.requestedByUserId,
-      approvedByAdminId: input.body.approvedByAdminId,
+      approvedByAdminId: input.approvedByAdminId,
       mockBaseUrl: mockBaseUrlFor(providerCode),
       // Contexto de corrida QA (H09): sólo existe si la petición trae una credencial firmada por el
       // worker y la corrida sigue viva; lo resuelve el middleware de `qa-orchestration`, nunca una
