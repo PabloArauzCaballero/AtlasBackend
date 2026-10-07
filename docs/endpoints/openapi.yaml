@@ -5377,6 +5377,56 @@ paths:
       summary: Crear una solicitud de crédito
       tags:
         - credit
+  /customers/{customerId}/credit-applications/{applicationId}/down-payment:
+    post:
+      operationId: CreditDownPaymentCustomerController_submit
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
+        - name: applicationId
+          in: path
+          required: true
+          description: Identificador de ruta `applicationId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Aviso registrado, esperando la confirmación del comercio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: CREDIT_APPLICATION_NOT_FOUND.
+        '409':
+          description: >-
+            DOWN_PAYMENT_NOT_ALLOWED_YET, DOWN_PAYMENT_ALREADY_PENDING o
+            DOWN_PAYMENT_ALREADY_CONFIRMED.
+        '422':
+          description: EVIDENCE_OBJECT_NOT_FOUND o APPLICATION_WITHOUT_PARTNER.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Avisar que se pagó el inicial de una compra
+      tags:
+        - credit
   /customers/{customerId}/credit-line:
     get:
       description: >-
@@ -14723,6 +14773,130 @@ paths:
       security:
         - access-token: []
       summary: Aceptar o rechazar una compra que el motor aprobó
+      tags:
+        - credit
+  /merchant/partners/{partnerId}/down-payments:
+    get:
+      operationId: MerchantDownPaymentController_list
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: partnerId
+          in: path
+          required: true
+          description: Identificador de ruta `partnerId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Pagos iniciales avisados por los clientes, más recientes primero.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: >-
+        Pagos iniciales de mis compras, por defecto sólo los que esperan mi
+        confirmación
+      tags:
+        - credit
+  /merchant/partners/{partnerId}/down-payments/{applicationId}/proof:
+    get:
+      operationId: MerchantDownPaymentController_proof
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: partnerId
+          in: path
+          required: true
+          description: Identificador de ruta `partnerId`.
+          schema:
+            type: string
+        - name: applicationId
+          in: path
+          required: true
+          description: Identificador de ruta `applicationId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: La imagen del comprobante.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: CREDIT_APPLICATION_NOT_FOUND | DOWN_PAYMENT_WITHOUT_PROOF.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: La imagen del comprobante del pago inicial
+      tags:
+        - credit
+  /merchant/partners/{partnerId}/down-payments/{applicationId}/verification:
+    post:
+      operationId: MerchantDownPaymentController_decide
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: partnerId
+          in: path
+          required: true
+          description: Identificador de ruta `partnerId`.
+          schema:
+            type: string
+        - name: applicationId
+          in: path
+          required: true
+          description: Identificador de ruta `applicationId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Decisión registrada; el cliente la ve en su app.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: La compra no nació en este comercio.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: DOWN_PAYMENT_NOT_PENDING.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Confirmar o rechazar el pago inicial de una compra
       tags:
         - credit
   /merchant/partners/{partnerId}/payment-claims:
