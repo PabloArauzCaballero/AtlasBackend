@@ -25,6 +25,7 @@ describe('PartnerKybSyncService', () => {
     sinCaso?: Record<string, unknown>[];
     sinEvaluar?: Record<string, unknown>[];
     evaluarFalla?: boolean;
+    anexoFalla?: boolean;
     abierto?: unknown;
     filas?: number;
   }) {
@@ -53,6 +54,10 @@ describe('PartnerKybSyncService', () => {
       evaluarConMotor: jest.fn(async (..._args: unknown[]) => {
         if (options.evaluarFalla) throw new Error('503');
         return {};
+      }),
+      construirAnexo: jest.fn(async (..._args: unknown[]) => {
+        if (options.anexoFalla) throw new Error('sin base');
+        return { version: 1, comercio: { razonSocial: 'Tienda SRL' } };
       }),
     };
     return {
@@ -136,6 +141,20 @@ describe('PartnerKybSyncService', () => {
     // Sólo se marca como consultado (para rotar la cola): ni estado ni veredicto.
     const escrito = (profileModel.update.mock.calls[0] as [Record<string, unknown>])[0];
     expect(Object.keys(escrito)).toEqual(['updatedAtValue']);
+  });
+
+  it('mientras el caso espera le reenvía el anexo: lo que el comercio subió después también llega', async () => {
+    const { service, client } = build({
+      profiles: [expediente({ decisionExecutionId: '88002' })],
+      caso: { caseCode: 'MRC-1', status: 'OPEN', resolution: null, resolvedAt: null, assignedTo: null },
+    });
+
+    await service.syncPendingReviews({ tenantId: '1', limit: 10 });
+
+    expect(client.manualReviews.putOnboardingDossier).toHaveBeenCalledWith(
+      '88002',
+      expect.objectContaining({ dossier: expect.objectContaining({ comercio: { razonSocial: 'Tienda SRL' } }) }),
+    );
   });
 
   it('con el Motor sin responder no decide nada: lo cuenta y lo reintentará la pasada siguiente', async () => {
@@ -231,6 +250,24 @@ describe('PartnerKybSyncService', () => {
         expect.objectContaining({ openIfMissing: expect.objectContaining({ queueCode: 'MERCHANT_KYB' }) }),
       );
       expect((perfil.update.mock.calls[0] as [Record<string, unknown>])[0].manualReviewCaseCode).toBe('MR-0000088001');
+    });
+
+    it('si el anexo no se puede armar, el caso se abre igual con lo mínimo', async () => {
+      const perfil = sinCaso();
+      const { service, client } = build({
+        profiles: [],
+        sinCaso: [perfil],
+        abierto: { caseCode: 'MR-0000088001', status: 'OPEN' },
+        anexoFalla: true,
+      });
+
+      const resultado = await service.syncPendingReviews({ tenantId: '1', limit: 10 });
+
+      expect(resultado.opened).toBe(1);
+      expect(client.manualReviews.putOnboardingDossier).toHaveBeenCalledWith(
+        '88001',
+        expect.objectContaining({ dossier: { origen: 'KYB_COMERCIO', expedienteId: expect.any(String) } }),
+      );
     });
 
     it('si el Motor no responde no inventa un caso: el expediente se reintenta en la pasada siguiente', async () => {
