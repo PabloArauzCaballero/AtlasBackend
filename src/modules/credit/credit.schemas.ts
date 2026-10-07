@@ -53,6 +53,9 @@ export const creditProductStatusSchema = z
 
 export type CreditProductStatusDto = z.infer<typeof creditProductStatusSchema>;
 
+/** Id numérico de una ruta (`:applicationId`, `:customerId`): si no lo es, 400 y no un 22P02 de PostgreSQL. */
+export const numericIdParamSchema = z.string().regex(/^[1-9][0-9]*$/u);
+
 export const creditProductIdParamsSchema = z.object({ productId: z.string().regex(/^[1-9][0-9]*$/) });
 export type CreditProductIdParamsDto = z.infer<typeof creditProductIdParamsSchema>;
 

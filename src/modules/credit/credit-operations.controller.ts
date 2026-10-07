@@ -33,6 +33,7 @@ import {
   creditBusinessAcceptanceSchema,
   creditProductIdParamsSchema,
   creditProductStatusSchema,
+  numericIdParamSchema,
 } from './credit.schemas.js';
 
 /**
@@ -68,7 +69,10 @@ export class CreditOperationsController {
   @ApiResponse({ status: 503, description: 'DECISION_ENGINE_UNAVAILABLE — no se cambió nada.' })
   @Post('customers/:customerId/credit-line/recalculate')
   @HttpCode(HttpStatus.OK)
-  async recalculateCreditLine(@CurrentTenant() tenantId: string, @Param('customerId') customerId: string) {
+  async recalculateCreditLine(
+    @CurrentTenant() tenantId: string,
+    @Param('customerId', new ZodValidationPipe(numericIdParamSchema)) customerId: string,
+  ) {
     const line = await this.creditLines.recalculate({ tenantId, customerId, trigger: 'manual' });
     if (!line) {
       throw new ServiceUnavailableException('DECISION_ENGINE_UNAVAILABLE');
@@ -151,7 +155,7 @@ export class CreditOperationsController {
   @HttpCode(HttpStatus.OK)
   decideApplication(
     @CurrentTenant() tenantId: string,
-    @Param('applicationId') applicationId: string,
+    @Param('applicationId', new ZodValidationPipe(numericIdParamSchema)) applicationId: string,
     @Body(new ZodValidationPipe(creditApplicationDecisionSchema)) body: CreditApplicationDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
@@ -182,7 +186,7 @@ export class CreditOperationsController {
   @HttpCode(HttpStatus.OK)
   decideBusinessAcceptance(
     @CurrentTenant() tenantId: string,
-    @Param('applicationId') applicationId: string,
+    @Param('applicationId', new ZodValidationPipe(numericIdParamSchema)) applicationId: string,
     @Body(new ZodValidationPipe(creditBusinessAcceptanceSchema)) body: CreditBusinessAcceptanceDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
@@ -193,7 +197,10 @@ export class CreditOperationsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Solicitud + eventos, más recientes primero.' })
   @Get('applications/:applicationId')
-  getApplicationDetail(@CurrentTenant() tenantId: string, @Param('applicationId') applicationId: string) {
+  getApplicationDetail(
+    @CurrentTenant() tenantId: string,
+    @Param('applicationId', new ZodValidationPipe(numericIdParamSchema)) applicationId: string,
+  ) {
     return this.decisionService.getApplicationDetail(tenantId, applicationId);
   }
 }

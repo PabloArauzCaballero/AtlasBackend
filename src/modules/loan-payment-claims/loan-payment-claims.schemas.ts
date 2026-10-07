@@ -69,6 +69,9 @@ export const claimsQuerySchema = z.object({
 });
 export type ClaimsQueryDto = z.infer<typeof claimsQuerySchema>;
 
+/** Id numérico de una ruta (`:customerId`, `:partnerId`, `:installmentId`): si no lo es, 400 y no un 22P02 de PostgreSQL. */
+export const numericIdParamSchema = z.string().regex(/^[1-9][0-9]*$/u);
+
 export const claimIdParamsSchema = z.object({
   claimId: z.string().regex(/^[1-9][0-9]*$/u),
 });
