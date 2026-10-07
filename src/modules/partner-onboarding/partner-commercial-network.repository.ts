@@ -5,13 +5,14 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, Transaction } from 'sequelize';
+import { Op, Transaction, UniqueConstraintError } from 'sequelize';
 import {
   PartnerBranchModel,
   PartnerLegalRepresentativeModel,
   PartnerPosTerminalModel,
   PartnerQrCodeModel,
 } from '../../database/models/index.js';
+import { generatePosManualCode } from './application/pos-manual-code.js';
 
 type RepositoryOptions = { transaction?: Transaction };
 
@@ -233,6 +234,14 @@ export class PartnerCommercialNetworkRepository {
     });
   }
 
+  /** La caja que lleva este código manual, ya normalizado. Los retirados no cuentan, igual que en el serial. */
+  findPosByManualCode(tenantId: string, manualCode: string, options: RepositoryOptions = {}): Promise<PartnerPosTerminalModel | null> {
+    return this.posModel.findOne({
+      where: { tenantId, manualCode, status: { [Op.ne]: 'retired' } },
+      transaction: options.transaction,
+    });
+  }
+
   findPosById(
     tenantId: string,
     partnerProfileId: string,
@@ -245,7 +254,14 @@ export class PartnerCommercialNetworkRepository {
     });
   }
 
-  createPosTerminal(
+  /**
+   * Da de alta la caja y le asigna su código manual.
+   *
+   * El código sale al azar y el índice único decide si choca: ante una colisión (1 en ~10¹¹ por
+   * intento) se genera otro en vez de fallar el alta. Cualquier otro error de unicidad —el serial
+   * duplicado— se propaga tal cual.
+   */
+  async createPosTerminal(
     values: {
       tenantId: string;
       partnerProfileId: string;
@@ -257,7 +273,17 @@ export class PartnerCommercialNetworkRepository {
     },
     options: RepositoryOptions = {},
   ): Promise<PartnerPosTerminalModel> {
-    return this.posModel.create({ ...values, status: 'registered', createdAtValue: new Date() }, { transaction: options.transaction });
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await this.posModel.create(
+          { ...values, manualCode: generatePosManualCode(), status: 'registered', createdAtValue: new Date() },
+          { transaction: options.transaction },
+        );
+      } catch (error) {
+        const choqueDeCodigo = error instanceof UniqueConstraintError && JSON.stringify(error.fields ?? {}).includes('manual_code');
+        if (!choqueDeCodigo || attempt >= 5 || options.transaction) throw error;
+      }
+    }
   }
 
   updatePosStatus(terminal: PartnerPosTerminalModel, status: string, options: RepositoryOptions = {}): Promise<PartnerPosTerminalModel> {

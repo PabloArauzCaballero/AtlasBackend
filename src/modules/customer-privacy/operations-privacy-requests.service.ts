@@ -11,6 +11,7 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { decryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
 import { CustomerPrivacyRepository } from './customer-privacy.repository.js';
+import { MAX_ENGINE_ATTEMPTS } from './application/privacy-request-decision.service.js';
 import { allowedTransitions, DATA_SUBJECT_REQUEST_DUE_DAYS, evaluateTransition } from './data-subject-request.state.js';
 import type { OperationsPrivacyRequestsQueryDto, PrivacyRequestTransitionDto } from './operations-privacy-requests.schemas.js';
 import {
@@ -27,6 +28,39 @@ import {
 } from './operations-privacy-requests.queries.js';
 
 const DIA_MS = 86_400_000;
+/** Una solicitud abierta que lleva más de esto sin opinión del Motor (y sin haberse rendido) se señala. */
+const SHADOW_STALE_HOURS = 24;
+
+type ResumenFila = {
+  open: string;
+  overdue: string;
+  shadowCompared?: string;
+  shadowAgreed?: string;
+  shadowFalseAccept?: string;
+  shadowHandedToPerson?: string;
+  shadowGaveUp?: string;
+  shadowStale?: string;
+};
+
+/**
+ * La medida de la sombra. `agreement` es sobre las que el Motor decidió ACEPTAR o RECHAZAR y una persona ya cerró;
+ * las que el Motor mandó a una persona se cuentan aparte (`handedToPerson`) porque ahí no hay acuerdo que medir.
+ * Sin ninguna comparada es `null`, no 100 %: «sin datos» no es «de acuerdo».
+ */
+export function resumenDeSombra(fila: ResumenFila | undefined) {
+  const n = (valor?: string) => Number(valor ?? 0);
+  const compared = n(fila?.shadowCompared);
+  const agreed = n(fila?.shadowAgreed);
+  return {
+    compared,
+    agreed,
+    agreement: compared > 0 ? Math.round((agreed / compared) * 1000) / 1000 : null,
+    falseAccept: n(fila?.shadowFalseAccept),
+    handedToPerson: n(fila?.shadowHandedToPerson),
+    gaveUp: n(fila?.shadowGaveUp),
+    stale: n(fila?.shadowStale),
+  };
+}
 const BASE_WHERE = 'd._tenant_id = $tenantId AND COALESCE(d._deleted, false) = false';
 
 /**
@@ -77,9 +111,14 @@ export class OperationsPrivacyRequestsService {
         bind: { ...bind, limit: query.pageSize, offset: (query.page - 1) * query.pageSize },
       }),
       this.sequelize.query<{ total: string }>(SQL_CONTEO(where), { type: QueryTypes.SELECT, bind }),
-      this.sequelize.query<{ open: string; overdue: string }>(SQL_RESUMEN, {
+      this.sequelize.query<ResumenFila>(SQL_RESUMEN, {
         type: QueryTypes.SELECT,
-        bind: { tenantId, overdueCutoff },
+        bind: {
+          tenantId,
+          overdueCutoff,
+          maxEngineAttempts: MAX_ENGINE_ATTEMPTS,
+          shadowStaleCutoff: new Date(now.getTime() - SHADOW_STALE_HOURS * 3_600_000),
+        },
       }),
     ]);
 
@@ -91,6 +130,7 @@ export class OperationsPrivacyRequestsService {
         open: Number(resumen[0]?.open ?? 0),
         overdue: Number(resumen[0]?.overdue ?? 0),
         dueDays: DATA_SUBJECT_REQUEST_DUE_DAYS,
+        shadow: resumenDeSombra(resumen[0]),
       },
     };
   }

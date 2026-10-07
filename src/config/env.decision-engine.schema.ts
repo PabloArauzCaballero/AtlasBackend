@@ -154,6 +154,19 @@ export const decisionEngineEnvShape = {
    * trabajo en sombra no lee ni una fila. Asignarlo es encenderlo; quitarlo, apagarlo.
    */
   DECISION_ENGINE_PRIVACY_ARTIFACT: z.string().trim().max(120).default(''),
+  /* Qué decisiones APLICAN solas el veredicto del Motor (credit,risk,identity,partner); el resto
+     llega al Motor igual pero queda en revisión humana. Ver `decision-engine-auto-apply.ts`. */
+  DECISION_ENGINE_AUTO_APPLY: z
+    .string()
+    .trim()
+    .default('credit')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.enum(['credit', 'risk', 'identity', 'partner']))),
   DECISION_ENGINE_ENVIRONMENT_CODE: z
     .string()
     .trim()

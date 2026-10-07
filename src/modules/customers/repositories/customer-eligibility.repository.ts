@@ -27,7 +27,7 @@ import type { EligibilityFacts } from './customer-eligibility.facts.js';
 import { CustomerEligibilityPhasesRepository } from './customer-eligibility-phases.repository.js';
 import type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
 import { IDENTITY_ATTEMPT_LOOKBACK_LIMIT, pickIdentityAttemptForEligibility } from '../../../common/utils/identity/identity-result.util.js';
-import { env } from '../../../config/env.js';
+import { identityRequiresHumanReview } from '../../../config/decision-engine-auto-apply.js';
 
 export type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
 
@@ -237,7 +237,7 @@ export class CustomerEligibilityRepository {
       limit: IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
       transaction: options.transaction,
     } as FindOptions);
-    return pickIdentityAttemptForEligibility(attempts, { requireHumanReview: env.IDENTITY_REQUIRE_HUMAN_REVIEW })?.finalResult ?? null;
+    return pickIdentityAttemptForEligibility(attempts, { requireHumanReview: identityRequiresHumanReview() })?.finalResult ?? null;
   }
 
   /**

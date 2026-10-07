@@ -11,12 +11,15 @@ import { Sequelize } from 'sequelize-typescript';
 import { buildMigrationSequelizeOptions } from '../../../src/config/database.config.js';
 import { PrivacyRequestFactsRepository } from '../../../src/modules/customer-privacy/application/privacy-request-facts.repository.js';
 import { integrationSkipRequested } from '../support/database.js';
+import { OperationsPrivacyRequestsService } from '../../../src/modules/customer-privacy/operations-privacy-requests.service.js';
+import { operationsPrivacyRequestsQuerySchema } from '../../../src/modules/customer-privacy/operations-privacy-requests.schemas.js';
 import { requireIsolatedDatabase } from '../../support/isolated-database.guard.js';
 
 // Identificadores altos y propios: la transacción se deshace, pero mientras vive no debe pisar filas de otra prueba.
 const TENANT = '880001';
 const VIEJA = '880053';
 const NUEVA = '880054';
+const RECHAZADA = '880055';
 let db: Sequelize | null = null;
 let skipped = false;
 
@@ -24,7 +27,8 @@ const SIEMBRA = `
 SET LOCAL session_replication_role = replica;
 INSERT INTO iam.tenants (_id, _created_at) VALUES (${TENANT}, now());
 INSERT INTO customer.customers (_id, _tenant_id, lifecycle_status, _created_at) VALUES
-  (${VIEJA}, ${TENANT}, 'active', now() - interval '30 days'), (${NUEVA}, ${TENANT}, 'onboarding_in_progress', now() - interval '2 days');
+  (${VIEJA}, ${TENANT}, 'active', now() - interval '30 days'), (${NUEVA}, ${TENANT}, 'onboarding_in_progress', now() - interval '2 days'),
+  (${RECHAZADA}, ${TENANT}, 'under_review', now() - interval '20 days');
 INSERT INTO customer.customer_contact_methods (_tenant_id, customer_id, contact_type, _created_at) VALUES
   (${TENANT}, ${VIEJA}, 'email', now() - interval '30 days'), (${TENANT}, ${VIEJA}, 'phone', now() - interval '3 days'),
   (${TENANT}, ${NUEVA}, 'phone', now() - interval '2 days');
@@ -33,6 +37,25 @@ INSERT INTO telemetry.customer_sessions (_tenant_id, customer_id, device_id, sta
   (${TENANT}, ${VIEJA}, 8, now() - interval '2 days', now()), (${TENANT}, ${NUEVA}, 9, now() - interval '1 day', now());
 INSERT INTO case_management.fraud_cases (_tenant_id, customer_id, case_status, _created_at) VALUES
   (${TENANT}, ${VIEJA}, 'open', now()), (${TENANT}, ${NUEVA}, 'closed', now());
+-- «Necesita más investigación» deja el caso en in_progress CON closed_at puesto (fraud.service.ts): sigue abierto.
+INSERT INTO case_management.fraud_cases (_tenant_id, customer_id, case_status, closed_at, _created_at) VALUES
+  (${TENANT}, ${RECHAZADA}, 'in_progress', now(), now());
+-- La medida de la sombra: 4 cerradas con opinión (3 coinciden, 1 ACEPTAR que una persona rechazó), 1 derivada a persona,
+-- una abierta a la que el Motor se rindió (5 intentos) y otra sin opinión desde hace 2 días.
+INSERT INTO privacy.data_subject_requests (_id, _tenant_id, customer_id, request_type, status, engine_decision, engine_decided_at, engine_attempts, requested_at, resolved_at, _created_at) VALUES
+  (880061, ${TENANT}, ${RECHAZADA}, 'deletion', 'completed', 'ACEPTAR', now(), 1, now(), now(), now()),
+  (880062, ${TENANT}, ${RECHAZADA}, 'deletion', 'rejected', 'RECHAZAR', now(), 1, now(), now(), now()),
+  (880063, ${TENANT}, ${RECHAZADA}, 'rectification', 'completed', 'ACEPTAR', now(), 1, now(), now(), now()),
+  (880064, ${TENANT}, ${RECHAZADA}, 'rectification', 'rejected', 'ACEPTAR', now(), 1, now(), now(), now()),
+  (880065, ${TENANT}, ${RECHAZADA}, 'deletion', 'completed', 'REVISION_HUMANA', now(), 1, now(), now(), now());
+INSERT INTO privacy.data_subject_requests (_id, _tenant_id, customer_id, request_type, status, engine_attempts, requested_at, _created_at) VALUES
+  (880066, ${TENANT}, ${RECHAZADA}, 'deletion', 'received', 5, now(), now()),
+  (880067, ${TENANT}, ${RECHAZADA}, 'rectification', 'received', 1, now() - interval '2 days', now() - interval '2 days');
+-- PIN restablecido hace 2 días y una solicitud creada por el titular (880042) y otra por el equipo (880041).
+INSERT INTO audit.operational_audit_logs (_tenant_id, actor_type, action_code, target_type, target_id, occurred_at, _created_at) VALUES
+  (${TENANT}, 'customer', 'auth.password_reset.success', 'actor', '${VIEJA}', now() - interval '2 days', now()),
+  (${TENANT}, 'customer', 'privacy.data_subject_request.create', 'data_subject_request', '880042', now(), now()),
+  (${TENANT}, 'compliance_analyst', 'privacy.data_subject_request.create', 'data_subject_request', '880041', now(), now());
 INSERT INTO credit.loans (_id, _tenant_id, loan_code, customer_id, credit_application_id, credit_product_id, currency_code, principal_amount, term_months, status) VALUES
   (880500, ${TENANT}, 'IT-L-500', ${VIEJA}, 880001, 1, 'BOB', 900, 3, 'active'),
   (880501, ${TENANT}, 'IT-L-501', ${VIEJA}, 880002, 1, 'BOB', 300, 3, 'paid_off');
@@ -52,7 +75,8 @@ INSERT INTO privacy.data_subject_requests (_id, _tenant_id, customer_id, request
 INSERT INTO credit.bank_statement_reviews (_tenant_id, customer_id, promised_by, status, _created_at) VALUES
   (${TENANT}, ${VIEJA}, now() + interval '1 day', 'processing', now());
 INSERT INTO customer.identity_verification_attempts (_tenant_id, customer_id, final_result, _created_at) VALUES
-  (${TENANT}, ${VIEJA}, 'VERIFIED', now() - interval '10 days'), (${TENANT}, ${VIEJA}, 'PENDING', now());
+  (${TENANT}, ${VIEJA}, 'VERIFIED', now() - interval '10 days'), (${TENANT}, ${VIEJA}, 'PENDING', now()),
+  (${TENANT}, ${RECHAZADA}, 'REJECTED', now() - interval '5 days');
 `;
 
 beforeAll(async () => {
@@ -95,15 +119,18 @@ const hechos = (customerId: string, requestId: string, requestType: string, rect
 describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
   it('la cuenta vieja activa cada señal, con las cifras calculadas a mano', async () => {
     if (skipped) return;
-    expect(await hechos(VIEJA, '880041', 'deletion', null)).toEqual({
+    expect(await hechos(VIEJA, '880042', 'deletion', null)).toEqual({
       lifecycleStatus: 'active',
       // Un intento posterior todavía PENDING no tapa el VERIFIED anterior.
       identidadVerificada: true,
+      evidenciaIdentidad: true,
+      credencialRestablecida7d: true,
+      creadaPorTitular: true,
       contactoCambiado7d: true,
       dispositivoNuevo7d: true,
       fraudeAbierto: true,
       casoAbierto: false,
-      // La otra solicitud de borrado abierta; ésta no se cuenta a sí misma.
+      // La anterior (880041). Sólo cuentan las ANTERIORES: ésta no se cuenta a sí misma ni a la que llegó después.
       solicitudesIgualesAbiertas: 1,
       // Cuota 2: 300 + 10 + 2,5 − 100 = 212,5; cuota 3: 310. El préstamo pagado no suma.
       saldoPendiente: 522.5,
@@ -114,6 +141,12 @@ describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
       extractoEnRevision: true,
       cambiosDelCampo365d: 0,
     });
+  });
+
+  it('dos borrados a la vez no se rechazan entre sí: la primera no ve a la segunda', async () => {
+    if (skipped) return;
+    expect((await hechos(VIEJA, '880041', 'deletion', null))?.solicitudesIgualesAbiertas).toBe(0);
+    expect((await hechos(VIEJA, '880042', 'deletion', null))?.solicitudesIgualesAbiertas).toBe(1);
   });
 
   it('las correcciones del mismo dato cuentan sólo las cerradas en el último año', async () => {
@@ -128,12 +161,38 @@ describe('PrivacyRequestFactsRepository contra PostgreSQL', () => {
     expect(await hechos(NUEVA, '880045', 'rectification', 'zone')).toMatchObject({
       lifecycleStatus: 'onboarding_in_progress',
       identidadVerificada: false,
+      evidenciaIdentidad: false,
+      credencialRestablecida7d: false,
+      creadaPorTitular: false,
       contactoCambiado7d: false,
       dispositivoNuevo7d: false,
       fraudeAbierto: false,
       saldoPendiente: 0,
       tuvoCredito: false,
     });
+  });
+
+  it('quien subió evidencia y fue rechazado no está verificado pero SÍ tiene evidencia que se retiene (M-02)', async () => {
+    if (skipped) return;
+    expect(await hechos(RECHAZADA, '880098', 'deletion', null)).toMatchObject({
+      lifecycleStatus: 'under_review',
+      identidadVerificada: false,
+      evidenciaIdentidad: true,
+      // in_progress con closed_at: un caso «en más investigación» sigue abierto.
+      fraudeAbierto: true,
+    });
+  });
+
+  it('lo que creó alguien del equipo NO cuenta como pedido por el titular', async () => {
+    if (skipped) return;
+    expect((await hechos(VIEJA, '880041', 'deletion', null))?.creadaPorTitular).toBe(false);
+  });
+
+  it('el resumen de la cola mide la sombra: acuerdo, falsos ACEPTAR, derivadas, rendidas y atrasadas', async () => {
+    if (skipped) return;
+    const servicio = new OperationsPrivacyRequestsService({} as never, db!);
+    const { summary } = await servicio.list(TENANT, operationsPrivacyRequestsQuerySchema.parse({}));
+    expect(summary.shadow).toEqual({ compared: 4, agreed: 3, agreement: 0.75, falseAccept: 1, handedToPerson: 1, gaveUp: 1, stale: 1 });
   });
 
   it('un cliente que no existe devuelve null, no una cuenta vacía', async () => {

@@ -30,13 +30,17 @@ export class CreditProgressController {
     description:
       'El nivel Atlas (de «Nuevo» a «Preferente»), la puntuación de relación 0-100 y POR QUÉ se le asigna a esta persona ' +
       '(cada parte con su peso, los puntos que aporta y la razón, más los topes que de verdad la recortaron), los puntos ' +
-      'que faltan para el siguiente nivel, las misiones para subir, la experiencia (1 punto por cada boliviano pagado a ' +
-      'tiempo, rachas e insignias) y la evolución de la línea. Se calcula con datos de la base —antigüedad, pagos, compras ' +
+      'que faltan para el siguiente nivel, las misiones para subir, la experiencia (1 punto por cada boliviano comprado ' +
+      'con Atlas, rachas e insignias de pago) y la evolución de la línea. Se calcula con datos de la base —antigüedad, pagos, compras ' +
       'cerradas, identidad—, NO con el motor, así que existe aunque la línea de crédito todavía no se haya calculado. ' +
-      'Comprar no suma puntos: sólo pagar a tiempo.',
+      'La experiencia da el nivel; la calificación 1-100 mide qué tan buen pagador es la persona.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional para `customer` (se toma del token).' })
-  @ApiResponse({ status: 200, description: 'Nivel, puntos, componentes, misiones, señales e historial.' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Nivel, componentes, misiones, señales e historial. `rating` = Calificación de pagador de 1 a 100; `points` = Puntaje, los puntos ganados pagando a tiempo (1 por boliviano). Ninguno de los dos es el score 0-1000 del motor. `level`/`nextLevel`/`levelLadder` = Nivel Atlas medido en PUNTOS (Nuevo 0 · En construcción 500 · Establecido 2.000 · Consolidado 5.000 · Preferente 10.000); la tarjeta sigue a ese nivel. `tier` sigue siendo el escalón de la relación que usa la capacidad de pago.',
+  })
   @Get('progress')
   progressOf(
     @CurrentTenant() tenantId: string,

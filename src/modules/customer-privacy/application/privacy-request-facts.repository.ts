@@ -17,8 +17,17 @@ import type { HechosDeLaCuenta } from './privacy-request-features.js';
 
 const t = (tabla: string) => `${atlasSchemaFor(tabla)}.${tabla}`;
 
-/** Los mismos que `underwriting-signals.service.ts` cuenta como fraude abierto. */
-const FRAUDE_ABIERTO = ['open', 'in_review', 'pending', 'escalated'];
+/**
+ * «Igual en curso» sólo cuenta las ANTERIORES (`_id <`): con `<>`, dos solicitudes creadas a la vez (un doble toque) se
+ * veían la una a la otra y las dos salían rechazadas por «ya hay una en curso». Así sólo la posterior se rechaza.
+ */
+
+/**
+ * Un caso de fraude está abierto mientras NO esté cerrado, y se mira `case_status` y no `closed_at`: decidir
+ * «necesita más investigación» deja el caso en `in_progress` Y con `closed_at` puesto (`fraud.service.ts`), así que
+ * la lista de estados abiertos de antes (`open, in_review, pending, escalated`) y el filtro por `closed_at` lo
+ * daban por inexistente. Por exclusión, un estado nuevo cuenta como abierto: falla hacia la persona, no hacia ACEPTAR.
+ */
 /** Un caso de soporte cerrado ya no retiene nada; cualquier otro estado sí. */
 const SOPORTE_CERRADO = ['RESOLVED', 'CLOSED', 'DUPLICATE', 'CANCELLED'];
 /** Un préstamo castigado sigue siendo deuda: se cuenta en el saldo aunque ya no esté activo. */
@@ -40,6 +49,9 @@ type Fila = {
   pagos_en_conciliacion: number;
   tuvo_credito: boolean;
   extracto_en_revision: boolean;
+  evidencia_identidad: boolean;
+  credencial_restablecida: boolean;
+  creada_por_titular: boolean;
   cambios_del_campo: number;
 };
 
@@ -70,8 +82,8 @@ SELECT
   )) AS dispositivo_nuevo,
   EXISTS (
     SELECT 1 FROM ${t('fraud_cases')} f
-     WHERE f._tenant_id = c._tenant_id AND f.customer_id = c._id AND f.closed_at IS NULL
-       AND f.case_status IN (:fraudeAbierto) AND f._deleted = FALSE
+     WHERE f._tenant_id = c._tenant_id AND f.customer_id = c._id
+       AND COALESCE(f.case_status, '') <> 'closed' AND f._deleted = FALSE
   ) AS fraude_abierto,
   EXISTS (
     SELECT 1 FROM ${t('support_cases')} sc
@@ -80,7 +92,7 @@ SELECT
   ) AS caso_abierto,
   (SELECT COUNT(*)::int FROM ${t('data_subject_requests')} d
     WHERE d._tenant_id = c._tenant_id AND d.customer_id = c._id AND d.request_type = :requestType
-      AND d.status IN ('received', 'in_progress') AND d._id <> :requestId AND d._deleted = FALSE) AS iguales_abiertas,
+      AND d.status IN ('received', 'in_progress') AND d._id < :requestId AND d._deleted = FALSE) AS iguales_abiertas,
   (SELECT COALESCE(SUM(GREATEST(
             i.principal_amount + i.interest_amount + i.late_fee_amount - i.paid_principal - i.paid_interest - i.paid_late_fee, 0)), 0)
      FROM ${t('loan_installments')} i JOIN ${t('loans')} l ON l._id = i.loan_id AND l._tenant_id = i._tenant_id
@@ -100,8 +112,22 @@ SELECT
   ) AS tuvo_credito,
   EXISTS (
     SELECT 1 FROM ${t('bank_statement_reviews')} b
-     WHERE b._tenant_id = c._tenant_id AND b.customer_id = c._id AND b.status IN ('received', 'processing') AND b._deleted = FALSE
+     WHERE b._tenant_id = c._tenant_id AND b.customer_id = c._id AND COALESCE(b.status, '') NOT IN ('applied', 'rejected') AND b._deleted = FALSE
   ) AS extracto_en_revision,
+  (c._created_at < :hace7 AND EXISTS (
+     SELECT 1 FROM ${t('operational_audit_logs')} al
+      WHERE al._tenant_id = c._tenant_id AND al.target_type = 'actor' AND al.target_id = c._id::text
+        AND al.action_code IN ('auth.password_reset.success', 'auth.password_change.success') AND al.occurred_at >= :hace7
+  )) AS credencial_restablecida,
+  EXISTS (
+     SELECT 1 FROM ${t('operational_audit_logs')} al
+      WHERE al._tenant_id = c._tenant_id AND al.action_code = 'privacy.data_subject_request.create'
+        AND al.target_type = 'data_subject_request' AND al.target_id = :requestId::text AND al.actor_type = 'customer'
+  ) AS creada_por_titular,
+  EXISTS (
+    SELECT 1 FROM ${t('identity_verification_attempts')} iv
+     WHERE iv._tenant_id = c._tenant_id AND iv.customer_id = c._id
+  ) AS evidencia_identidad,
   (SELECT COUNT(*)::int FROM ${t('data_subject_requests')} d
     WHERE d._tenant_id = c._tenant_id AND d.customer_id = c._id AND d.request_type = 'rectification'
       AND d.rectification_field IS NOT DISTINCT FROM :campo AND :campo IS NOT NULL
@@ -134,7 +160,6 @@ export class PrivacyRequestFactsRepository {
         campo: input.rectificationField,
         hace7,
         hace365,
-        fraudeAbierto: FRAUDE_ABIERTO,
         soporteCerrado: SOPORTE_CERRADO,
         conSaldo: PRESTAMO_CON_SALDO,
         otorgado: PRESTAMO_OTORGADO,
@@ -157,6 +182,9 @@ export class PrivacyRequestFactsRepository {
       pagosEnConciliacion: Number(fila.pagos_en_conciliacion),
       tuvoCredito: Boolean(fila.tuvo_credito),
       extractoEnRevision: Boolean(fila.extracto_en_revision),
+      evidenciaIdentidad: Boolean(fila.evidencia_identidad),
+      credencialRestablecida7d: Boolean(fila.credencial_restablecida),
+      creadaPorTitular: Boolean(fila.creada_por_titular),
       cambiosDelCampo365d: Number(fila.cambios_del_campo),
     };
   }

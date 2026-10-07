@@ -16,6 +16,7 @@ import {
   CustomerCardTierOverrideModel,
   CreditProductModel,
   CustomerActivitySummaryModel,
+  FraudCaseModel,
   CustomerModel,
   IdentityVerificationAttemptModel,
   LoanInstallmentModel,
@@ -53,6 +54,8 @@ import { CreditOperationsController } from './credit-operations.controller.js';
 import { CreditReviewCallbackController } from './credit-review-callback.controller.js';
 import { CreditController } from './credit.controller.js';
 import { CreditProgressController } from './credit-progress.controller.js';
+import { BankStatementArchiveController } from './bank-statement-archive.controller.js';
+import { BankStatementArchiveService } from './application/bank-statement-archive.service.js';
 import { CreditProgressService } from './application/credit-progress.service.js';
 import { CardTierService } from './application/card-tier.service.js';
 import { CardTierOperationsController } from './card-tier-operations.controller.js';
@@ -96,6 +99,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
       LoanModel,
       LoanInstallmentModel,
       CustomerActivitySummaryModel,
+      FraudCaseModel,
       IdentityVerificationAttemptModel,
       // Sólo para saber a QUIÉN le falta línea. El expediente del cliente lo sigue gobernando
       // `CustomersModule`; aquí se lee su identidad y su estado de ciclo de vida, nada más.
@@ -115,6 +119,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
   controllers: [
     CreditController,
     CreditProgressController,
+    BankStatementArchiveController,
     CardTierOperationsController,
     CreditOperationsController,
     MerchantCreditController,
@@ -145,6 +150,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     CreditProgressService,
     CardTierService,
     BankStatementService,
+    BankStatementArchiveService,
     BankStatementReviewWorker,
     // A6: cierra el extracto que el Motor mandó a revisión humana (aviso del Motor y barrido del job).
     BankStatementHumanReviewSync,

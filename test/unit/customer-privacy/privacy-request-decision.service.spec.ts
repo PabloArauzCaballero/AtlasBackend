@@ -17,6 +17,9 @@ import {
 const hechos = {
   lifecycleStatus: 'active',
   identidadVerificada: true,
+  evidenciaIdentidad: true,
+  credencialRestablecida7d: false,
+  creadaPorTitular: true,
   contactoCambiado7d: false,
   dispositivoNuevo7d: false,
   fraudeAbierto: false,
@@ -159,7 +162,7 @@ describe('PrivacyRequestDecisionService.sweepShadow', () => {
     expect(subjects.register).toHaveBeenCalledWith({ tenantId: '1', customerId: '53', purposeCode: PRIVACY_DECISION_PURPOSE });
     const [artefacto, peticion] = client.execute.mock.calls[0] as [string, Record<string, unknown>];
     expect(artefacto).toBe('PRIVACIDAD_SOLICITUD_TITULAR');
-    expect(peticion).toMatchObject({ subjectReference: 'ref-opaca-abc', idempotencyKey: 'dsr-41', requestId: 'dsr-41-1' });
+    expect(peticion).toMatchObject({ subjectReference: 'ref-opaca-abc', idempotencyKey: 'dsr-41-1', requestId: 'dsr-41-1' });
     expect(JSON.stringify(peticion)).not.toContain('"53"');
   });
 
@@ -194,11 +197,11 @@ describe('PrivacyRequestDecisionService.sweepShadow', () => {
     expect(fila.update.mock.calls[0][0]).toMatchObject({ engineLastError: expect.stringContaining('no existe') });
   });
 
-  it('el segundo intento usa la misma clave de idempotencia y otro requestId', async () => {
+  it('cada intento lleva su propia clave: reusar la del primero daría 409 IDEMPOTENCY_PAYLOAD_MISMATCH en el Motor', async () => {
     const { service, client } = build({ filas: [solicitud({ engineAttempts: 2 })] });
     await service.sweepShadow({ tenantId: '1', limit: 25, now });
     const peticion = (client.execute.mock.calls[0] as [string, Record<string, unknown>])[1];
-    expect(peticion).toMatchObject({ idempotencyKey: 'dsr-41', requestId: 'dsr-41-3' });
+    expect(peticion).toMatchObject({ idempotencyKey: 'dsr-41-3', requestId: 'dsr-41-3' });
   });
 });
 
