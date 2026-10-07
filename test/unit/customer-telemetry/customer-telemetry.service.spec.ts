@@ -28,7 +28,6 @@ describe('CustomerTelemetryService.ingestBatch', () => {
       createCustomerObservation: asyncMock(),
       createOnDeviceRun: asyncMock(),
       createOnDeviceMetrics: jest.fn(async (values: unknown[]) => values),
-      createBehaviorSummary: asyncMock(),
       upsertActivitySummary: asyncMock(),
       createAudit: asyncMock(),
     };
@@ -205,8 +204,8 @@ describe('CustomerTelemetryService.ingestBatch', () => {
       );
 
       expect(telemetryRepository.createFormFieldEvent).toHaveBeenCalledTimes(1);
-      const behaviorSummaryArgs = (telemetryRepository.createBehaviorSummary as jest.Mock).mock.calls[0][0] as { formEventCount: number };
-      expect(behaviorSummaryArgs.formEventCount).toBe(1);
+      // El lote no escribe resumen de comportamiento: una fila vacía taparía la calculada.
+      expect((telemetryRepository as unknown as Record<string, unknown>).createBehaviorSummary).toBeUndefined();
     });
 
     it('routes permission_event to createPermissionEvent and infers "granted" from the event code when metadata omits it', async () => {

@@ -246,15 +246,6 @@ describe('CustomerTelemetryRepository', () => {
       });
     });
 
-    it('createBehaviorSummary fija permissionGrantScore según el conteo de permisos', async () => {
-      const { repo, models } = buildRepo();
-      await repo.createBehaviorSummary({ ...base, formEventCount: 0, permissionEventCount: 2, computedAt: base.occurredAt } as never, tx);
-      await repo.createBehaviorSummary({ ...base, formEventCount: 0, permissionEventCount: 0, computedAt: base.occurredAt } as never, tx);
-      const create = models.onboardingBehaviorSummary.create;
-      expect(callArg<CallArgRecord>(create, 0, 0).permissionGrantScore).toBe('1.0000');
-      expect(callArg<CallArgRecord>(create, 1, 0).permissionGrantScore).toBeNull();
-    });
-
     it('upsertActivitySummary crea si no existe, o actualiza (totalSessions+1) el existente', async () => {
       const creating = buildRepo();
       (creating.models.customerActivitySummary.findOne as jest.Mock).mockResolvedValue(null as never);

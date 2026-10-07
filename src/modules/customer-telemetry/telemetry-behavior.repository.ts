@@ -160,36 +160,4 @@ export class TelemetryBehaviorRepository {
       { transaction: options.transaction },
     );
   }
-
-  createBehaviorSummary(
-    values: {
-      tenantId: string;
-      customerId: string;
-      onboardingFlowId: string | null;
-      formEventCount: number;
-      permissionEventCount: number;
-      computedAt: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<OnboardingBehaviorSummaryModel> {
-    return this.onboardingBehaviorSummaryModel.create(
-      {
-        tenantId: values.tenantId,
-        customerId: values.customerId,
-        onboardingFlowId: values.onboardingFlowId,
-        completionTimeSeconds: null,
-        interScreenTimingJson: null,
-        formErrorRate: null,
-        ciCopyPasteDetected: null,
-        abandonmentCountPrior: null,
-        permissionGrantScore: values.permissionEventCount > 0 ? '1.0000' : null,
-        behaviorClusterCode: null,
-        botLikelihoodScore: null,
-        computationVersion: 'telemetry-batch-v1',
-        computedAt: values.computedAt,
-        createdAtValue: values.computedAt,
-      },
-      { transaction: options.transaction },
-    );
-  }
 }
