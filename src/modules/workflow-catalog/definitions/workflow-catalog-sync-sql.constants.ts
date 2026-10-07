@@ -26,7 +26,7 @@ INSERT INTO ${DEFINITIONS} (
 )
 ON CONFLICT (workflow_code, version) DO UPDATE SET
   name = EXCLUDED.name, description = EXCLUDED.description, process_type = EXCLUDED.process_type,
-  owner_domain = EXCLUDED.owner_domain, status = 'active', entry_stage_code = EXCLUDED.entry_stage_code,
+  owner_domain = EXCLUDED.owner_domain, status = 'active', is_default = true, entry_stage_code = EXCLUDED.entry_stage_code,
   terminal_stage_codes = EXCLUDED.terminal_stage_codes, success_criteria_json = EXCLUDED.success_criteria_json,
   failure_criteria_json = EXCLUDED.failure_criteria_json, metadata_json = EXCLUDED.metadata_json,
   source = 'code', updated_by = EXCLUDED.updated_by, narrative_json = EXCLUDED.narrative_json,
@@ -34,6 +34,14 @@ ON CONFLICT (workflow_code, version) DO UPDATE SET
   instance_entity_json = EXCLUDED.instance_entity_json, system_codes_json = EXCLUDED.system_codes_json,
   _updated_at = EXCLUDED._updated_at, _deleted = false
 RETURNING _id;`;
+
+/** Desmarca las demás versiones del código ANTES del upsert: el índice único parcial se comprueba en cada sentencia. */
+export const UNSET_OTHER_DEFAULTS_SQL = `UPDATE ${DEFINITIONS} SET is_default = false, _updated_at = NOW()
+  WHERE workflow_code = :code AND version <> :version AND is_default = true AND _deleted = false;`;
+
+/** Un proceso que el código ya no declara deja de ofrecerse: se depreca y pierde la marca de predeterminado. */
+export const RETIRE_UNDECLARED_DEFINITIONS_SQL = `UPDATE ${DEFINITIONS} SET status = 'deprecated', is_default = false, _updated_at = NOW()
+  WHERE source = 'code' AND _deleted = false AND status <> 'deprecated' AND workflow_code NOT IN (:codes);`;
 
 export const STAGE_UPSERT_SQL = `
 INSERT INTO ${STAGES} (
@@ -90,6 +98,8 @@ export const DEPENDENCY_INSERT_SQL = `INSERT INTO ${DEPENDENCIES} (workflow_defi
 export const TRANSITION_INSERT_SQL = `INSERT INTO ${TRANSITIONS} (workflow_definition_id, transition_code, from_step_id, to_step_id, condition_type,
     condition_expression_json, description, display_order, is_default_path, _created_at, _updated_at)
   VALUES (:definitionId, :code, :from, :to, :condition, CAST(:expression AS JSONB), :description, :order, :isDefault, NOW(), NOW());`;
+
+export const SYNC_RETIRE_SQL = `DELETE FROM ${SYNC} WHERE workflow_code NOT IN (:codes);`;
 
 export const SYNC_UPSERT_SQL = `INSERT INTO ${SYNC} (workflow_code, version, content_hash, applied_by, applied_at)
   VALUES (:code, :version, :hash, :appliedBy, NOW())

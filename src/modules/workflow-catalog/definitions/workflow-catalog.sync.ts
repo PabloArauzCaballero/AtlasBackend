@@ -6,7 +6,6 @@
 import { createHash } from 'node:crypto';
 import type { QueryInterface, Transaction } from 'sequelize';
 import {
-  DEFINITIONS,
   DEFINITION_UPSERT_SQL,
   DEPENDENCIES,
   STAGES,
@@ -17,6 +16,9 @@ import {
   DEPENDENCY_INSERT_SQL,
   TRANSITION_INSERT_SQL,
   SYNC_UPSERT_SQL,
+  SYNC_RETIRE_SQL,
+  UNSET_OTHER_DEFAULTS_SQL,
+  RETIRE_UNDECLARED_DEFINITIONS_SQL,
 } from './workflow-catalog-sync-sql.constants.js';
 export { endpointCodeFor, stepEndpointCode } from './workflow-catalog-sync.rows.js';
 import {
@@ -139,19 +141,24 @@ async function rewriteGraph(ctx: Ctx, stepIds: Map<string, string>): Promise<voi
 
 async function syncOne(sql: Query, fixture: WorkflowDefinitionFixture, appliedBy: string, transaction: Transaction): Promise<void> {
   const now = new Date().toISOString();
+  // Antes del upsert: al subir de versión, la anterior sigue marcada y el índice único de «una
+  // predeterminada por código» rechazaría el INSERT de la nueva.
+  await sql.query(UNSET_OTHER_DEFAULTS_SQL, { replacements: { code: fixture.code, version: fixture.version }, transaction });
   const definitionId = await idOf(sql, DEFINITION_UPSERT_SQL, definitionReplacements(fixture, appliedBy, now), transaction);
   const ctx: Ctx = { sql, transaction, definitionId, fixture };
-  // Una sola definición por defecto por código: si alguien dejó otra versión marcada, se desmarca.
-  await exec(
-    ctx,
-    `UPDATE ${DEFINITIONS} SET is_default = false WHERE workflow_code = :code AND _id <> :definitionId AND is_default = true;`,
-    { code: fixture.code },
-  );
   const stageIds = await upsertStages(ctx, now);
   const stepIds = await upsertSteps(ctx, stageIds, now);
   await retireMissing(ctx);
   await rewriteGraph(ctx, stepIds);
   await exec(ctx, SYNC_UPSERT_SQL, { code: fixture.code, version: fixture.version, hash: definitionHash(fixture), appliedBy });
+}
+
+/** Lo que el registro ya no declara (proceso fusionado o eliminado) deja de figurar como activo. */
+async function retireUndeclared(sql: Query, fixtures: readonly WorkflowDefinitionFixture[], transaction: Transaction): Promise<void> {
+  if (fixtures.length === 0) return;
+  const replacements = { codes: [...new Set(fixtures.map((fixture) => fixture.code))] };
+  await sql.query(RETIRE_UNDECLARED_DEFINITIONS_SQL, { replacements, transaction });
+  await sql.query(SYNC_RETIRE_SQL, { replacements, transaction });
 }
 
 /**
@@ -166,5 +173,6 @@ export async function syncWorkflowCatalog(
   const sql = queryInterface.sequelize;
   await sql.transaction(async (transaction) => {
     for (const fixture of fixtures) await syncOne(sql, fixture, appliedBy, transaction);
+    await retireUndeclared(sql, fixtures, transaction);
   });
 }

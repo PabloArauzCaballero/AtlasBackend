@@ -11,8 +11,12 @@ export type WorkflowStepDto = {
   name: string;
   description: string | null;
   endpointCode: string;
-  httpMethod: string;
-  routePath: string;
+  /** Nulos en los pasos que no son HTTP (`stepKind` distinto de `http`). */
+  httpMethod: string | null;
+  routePath: string | null;
+  stepKind: string;
+  systemCode: string;
+  jobCode: string | null;
   executionOrder: number;
   isMandatory: boolean;
   isRepeatable: boolean;
@@ -141,7 +145,13 @@ export type WorkflowStageProgressDto = {
   isOptional: boolean;
   status: WorkflowProgressStatus;
   reason: string | null;
-  steps: Array<{ stepCode: string; httpMethod: string; routePath: string; isMandatory: boolean; status: WorkflowProgressStatus }>;
+  steps: Array<{
+    stepCode: string;
+    httpMethod: string | null;
+    routePath: string | null;
+    isMandatory: boolean;
+    status: WorkflowProgressStatus;
+  }>;
 };
 
 export type WorkflowProgressDto = {
