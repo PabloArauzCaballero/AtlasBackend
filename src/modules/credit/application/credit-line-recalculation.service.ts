@@ -19,7 +19,7 @@ import { CreditRepository } from '../credit.repository.js';
 import { lineBaseRatePercent } from './credit-line-base-rate.js';
 import { pricedRateUnitToPercentNumber } from './credit-decision-pricing.mapper.js';
 import { PaymentCapacityService } from './payment-capacity.service.js';
-import { DEFAULT_CAPACITY_POLICY } from '../domain/payment-capacity.js';
+import { DEFAULT_CAPACITY_POLICY, floorToLimitStep } from '../domain/payment-capacity.js';
 import { affordabilityRatioFor } from '../../decision-engine/underwriting-income-basis.js';
 import { lineProbeAmount, lineRateWithinUsuryCap } from './credit-line-probe.js';
 
@@ -64,7 +64,8 @@ export function usableLimit(
   const raw = output.approved_credit_limit ?? response.limit;
   const limit = raw === null || raw === undefined ? null : num(raw);
   if (limit === null || limit < 0) return { write: false, reason: `INVALID_ECONOMIC_OUTPUT:approved_credit_limit=${String(raw)}` };
-  return { write: true, approvedLimit: limit };
+  // Segunda red: aunque la política publicada no redondee, la línea se escribe de 50 en 50, hacia abajo.
+  return { write: true, approvedLimit: floorToLimitStep(limit) };
 }
 
 /**
