@@ -370,7 +370,9 @@ describe('ExpedienteService', () => {
 
     it('pide sólo los expedientes sin purgar: uno purgado no tapa a los anteriores del sujeto', async () => {
       const { service, repository } = construir();
-      repository.findExpedientePorSujeto.mockResolvedValueOnce(expediente({ id: 'exp-1' } as Partial<ExpedienteModel>)).mockResolvedValueOnce(null);
+      repository.findExpedientePorSujeto
+        .mockResolvedValueOnce(expediente({ id: 'exp-1' } as Partial<ExpedienteModel>))
+        .mockResolvedValueOnce(null);
 
       await service.purgarPorSujeto({ tenantId: 't1', subjectType: 'customer', subjectId: 'c1', actor, motivo: 'gdpr' });
 
