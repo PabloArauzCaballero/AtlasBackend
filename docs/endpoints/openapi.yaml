@@ -5609,7 +5609,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: CUSTOMER_NOTIFICATION_ACCESS_DENIED.
+          description: CUSTOMER_NOTIFICATION_ACCESS_DENIED / DEVICE_TOKEN_OWNER_ONLY.
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -21575,7 +21575,9 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: >-
+            EVENT_RESERVED_FOR_SYSTEM: el evento dispara avisos y sólo lo
+            publica su productor.
         '409':
           $ref: '#/components/responses/Conflict'
         '429':

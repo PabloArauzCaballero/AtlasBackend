@@ -266,7 +266,7 @@
 | Método | Ruta | Acceso | Permiso fino | Handler | Notas |
 |---|---|---|---|---|---|
 | `GET` | `/operations/events` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `EventsController.listEvents` | guards: `TenantGuard` |
-| `POST` | `/operations/events` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `EventsController.createEvent` | guards: `TenantGuard` |
+| `POST` | `/operations/events` | `admin`, `platform_admin`, `system` | — | `EventsController.createEvent` | guards: `TenantGuard` |
 | `GET` | `/operations/events/:eventId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `EventsController.getEvent` | guards: `TenantGuard` |
 | `POST` | `/operations/events/:eventId/cancel` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `EventsController.cancelEvent` | guards: `TenantGuard` |
 | `POST` | `/operations/events/:eventId/retry` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `EventsController.retryEvent` | guards: `TenantGuard` |
@@ -489,7 +489,7 @@
 
 | Método | Ruta | Acceso | Permiso fino | Handler | Notas |
 |---|---|---|---|---|---|
-| `POST` | `/customers/:customerId/device-tokens` | `customer`, `internal_operator`, `admin`, `platform_admin`, `system` | — | `NotificationsController.upsertDeviceToken` | guards: `TenantGuard` |
+| `POST` | `/customers/:customerId/device-tokens` | `customer`, `system` | — | `NotificationsController.upsertDeviceToken` | guards: `TenantGuard` |
 | `DELETE` | `/customers/:customerId/device-tokens/:deviceTokenId` | `customer`, `internal_operator`, `admin`, `platform_admin`, `system` | — | `NotificationsController.deactivateDeviceToken` | guards: `TenantGuard` |
 | `GET` | `/customers/:customerId/notification-preferences` | `customer`, `internal_operator`, `admin`, `platform_admin`, `system` | — | `CustomerNotificationsController.getOwnPreferences` | guards: `TenantGuard` |
 | `PATCH` | `/customers/:customerId/notification-preferences` | `customer`, `internal_operator`, `admin`, `platform_admin`, `system` | — | `CustomerNotificationsController.updateOwnPreferences` | guards: `TenantGuard` |
