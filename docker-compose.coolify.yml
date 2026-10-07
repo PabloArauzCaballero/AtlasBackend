@@ -364,7 +364,7 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   DECISION_ENGINE_RISK_ARTIFACT: '${DECISION_ENGINE_RISK_ARTIFACT:-RIESGO_ONBOARDING_CLIENTE}'
   # Qué decisiones APLICA solas el veredicto del motor (credit,risk,identity,partner). El resto llega
   # igual al motor pero queda en revisión humana. Por omisión sólo crédito.
-  DECISION_ENGINE_AUTO_APPLY: '${DECISION_ENGINE_AUTO_APPLY:-credit}'
+  DECISION_ENGINE_AUTO_APPLY: '${DECISION_ENGINE_AUTO_APPLY:-none}'
   # Rechaza la cadena vacía y exige /^[A-Z0-9_-]{2,40}$/.
   DECISION_ENGINE_ENVIRONMENT_CODE: '${DECISION_ENGINE_ENVIRONMENT_CODE:-DEV}'
 
