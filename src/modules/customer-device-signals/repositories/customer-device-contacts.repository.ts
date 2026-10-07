@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction } from 'sequelize';
+import { isConsentInForce } from '../../../common/utils/consent/consent-in-force.util.js';
 import {
   CustomerConsentModel,
   CustomerDeviceContactModel,
@@ -83,8 +84,7 @@ export class CustomerDeviceContactsRepository {
       where: { tenantId, customerId, purposeCode },
       order: [['_id', 'DESC']],
     });
-    if (!ultima || ultima.granted !== true || ultima.revokedAt) return null;
-    return ultima;
+    return isConsentInForce(ultima) ? ultima : null;
   }
 
   /**
