@@ -15,7 +15,8 @@ import {
   OperationalAuditLogModel,
 } from '../../database/models/index.js';
 import { AuthModule } from '../auth/auth.module.js';
-import { InternalPermissionsGuard } from './guards/internal-permissions.guard.js';
+import { InternalPermissionsGuard } from '../../common/guards/internal-permissions.guard.js';
+import { INTERNAL_PERMISSIONS_CHECKER } from '../../common/guards/internal-permissions.port.js';
 import { InternalAccessCatalogController } from './internal-access-catalog.controller.js';
 import { InternalAccessCatalogRepository } from './internal-access-catalog.repository.js';
 import { InternalAccessCatalogService } from './internal-access-catalog.service.js';
@@ -50,8 +51,10 @@ import { InternalUserLockService } from './internal-user-lock.service.js';
     InternalPermissionHoldersRepository,
     InternalAccessCatalogRepository,
     InternalPermissionsGuard,
+    { provide: INTERNAL_PERMISSIONS_CHECKER, useExisting: InternalRbacRepository },
   ],
   exports: [
+    INTERNAL_PERMISSIONS_CHECKER,
     InternalUsersService,
     InternalAccessCatalogService,
     InternalRbacRepository,
