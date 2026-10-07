@@ -3,7 +3,7 @@
  * @business Esta pieza guarda los contactos que el cliente autorizó a compartir, para verificar referencias y detectar anillos de fraude.
  * @system cifra cada ficha, hashea sus números para poder cruzarlos, y actualiza en vez de duplicar.
  */
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { createHash } from 'node:crypto';
@@ -12,12 +12,16 @@ import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/
 import { DeviceSignalsJournalRepository } from '../repositories/device-signals-journal.repository.js';
 import { DeviceSignalsAccessService, type DeviceSignalContext } from './device-signals-access.service.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
+import { InternalRbacRepository } from '../../internal-users/internal-rbac.repository.js';
 import { CustomerDeviceContactsRepository, type ContactRow } from '../repositories/customer-device-contacts.repository.js';
 import { toContactRow } from './device-contact-row.js';
 import { type AddressBookSyncDto, type AddressBookSyncView } from '../customer-device-signals.schemas.js';
 
 /** La finalidad que ampara este tratamiento. Es el `document_code` del consentimiento sembrado. */
 export const ADDRESS_BOOK_PURPOSE = 'device_address_book';
+
+/** Lo que se le exige a un operador interno para borrar la agenda de un cliente. */
+const PURGE_PERMISSION = 'privacy.requests.manage';
 
 /**
  * La agenda del teléfono, guardada entera y cifrada.
@@ -45,6 +49,7 @@ export class CustomerAddressBookService {
     private readonly access: DeviceSignalsAccessService,
     private readonly journal: DeviceSignalsJournalRepository,
     private readonly contacts: CustomerDeviceContactsRepository,
+    private readonly rbac: InternalRbacRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -137,6 +142,10 @@ export class CustomerAddressBookService {
    * fila marcada como borrada sigue conteniendo el nombre y el teléfono de cada contacto. Se puede
    * llamar sin haber retirado el consentimiento —alguien puede querer limpiar y volver a
    * sincronizar— y no falla si no había nada que borrar.
+   *
+   * Borrar la agenda de un cliente es irreversible: el cliente puede hacerlo con la suya, pero un
+   * operador interno sólo con `privacy.requests.manage` —el permiso de quien atiende al titular—, no
+   * por el mero rol operativo.
    */
   async purge(input: {
     tenantId: string;
@@ -145,6 +154,7 @@ export class CustomerAddressBookService {
     ipAddress: string | null;
   }): Promise<{ customerId: string; deleted: number; purgedAt: string }> {
     assertOwnCustomerResourceOrInternalOperational(input.currentUser, input.customerId);
+    await this.assertMayPurge(input.tenantId, input.currentUser);
     const customer = await this.customersRepository.findById(input.tenantId, input.customerId);
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
@@ -169,6 +179,12 @@ export class CustomerAddressBookService {
     });
 
     return { customerId: input.customerId, deleted, purgedAt: now.toISOString() };
+  }
+
+  private async assertMayPurge(tenantId: string, user: AuthenticatedUser): Promise<void> {
+    if (user.role === 'customer') return;
+    const allowed = user.internalUserId ? await this.rbac.hasPermissions(tenantId, user.internalUserId, [PURGE_PERMISSION]) : false;
+    if (!allowed) throw new ForbiddenException(`El usuario interno no tiene los permisos requeridos para esta operación: ${PURGE_PERMISSION}.`);
   }
 
   /**
