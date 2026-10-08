@@ -5623,6 +5623,45 @@ paths:
       summary: Mi calificación crediticia
       tags:
         - credit-rating
+  /customers/{customerId}/credit-statement.pdf:
+    get:
+      description: >-
+        Compras, pagos, saldo y cuotas por pagar del cliente, compuesto por el
+        SERVIDOR con los datos de sus préstamos.
+      operationId: LoansController_creditStatement
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: customerId
+          in: path
+          required: true
+          description: Identificador de ruta `customerId`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: PDF del extracto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Extracto de crédito en PDF
+      tags:
+        - loans
   /customers/{customerId}/device-tokens:
     post:
       description: >-

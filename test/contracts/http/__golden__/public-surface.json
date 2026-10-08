@@ -1934,6 +1934,27 @@
     ],
     "body": false
   },
+  "GET /customers/{customerId}/credit-statement.pdf": {
+    "operationId": "LoansController_creditStatement",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
   "POST /customers/{customerId}/device-tokens": {
     "operationId": "NotificationsController_upsertDeviceToken",
     "responses": [

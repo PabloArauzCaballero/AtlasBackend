@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (131 controladores) | 608 |
+| Total montadas (131 controladores) | 609 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
-| Con `@Roles` | 550 |
+| Con `@Roles` | 551 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 85 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -437,6 +437,7 @@
 | Método | Ruta | Acceso | Permiso fino | Handler | Notas |
 |---|---|---|---|---|---|
 | `POST` | `/credit-applications/:applicationId/disbursement` | `internal_operator`, `admin`, `platform_admin` | `credit.loan.disburse` | `LoansController.disburse` | guards: `TenantGuard`, `InternalPermissionsGuard` |
+| `GET` | `/customers/:customerId/credit-statement.pdf` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.creditStatement` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `GET` | `/customers/:customerId/loans` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.listByCustomer` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `GET` | `/customers/:customerId/payment-calendar` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.paymentCalendar` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `GET` | `/customers/:customerId/spending-by-category` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `LoansController.spendingByCategory` | guards: `TenantGuard`, `InternalPermissionsGuard` |

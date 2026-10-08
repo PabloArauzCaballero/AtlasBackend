@@ -27,6 +27,7 @@ import { LoanQueryService } from './application/loan-query.service.js';
 import { LoanSpendingService } from './application/loan-spending.service.js';
 import { LoanCalendarService } from './application/loan-calendar.service.js';
 import { DelinquencyPolicyService } from './application/delinquency-policy.service.js';
+import { CreditStatementService } from './application/credit-statement.service.js';
 import { SpendingReportService } from './application/spending-report.service.js';
 import { SpendingReportLayoutService } from './application/spending-report.layout.service.js';
 import { LoanWriteOffService } from './application/loan-writeoff.service.js';
@@ -76,6 +77,7 @@ import { LoansRepository } from './loans.repository.js';
     LoanCalendarService,
     DelinquencyPolicyService,
     SpendingReportService,
+    CreditStatementService,
     SpendingReportLayoutService,
   ],
   // `LoanDelinquencyService` se exporta para que el planificador pueda correr el barrido de mora.

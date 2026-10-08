@@ -26,6 +26,7 @@ import { LoanSpendingService } from './application/loan-spending.service.js';
 import { LoanCalendarService } from './application/loan-calendar.service.js';
 import { DelinquencyPolicyService } from './application/delinquency-policy.service.js';
 import { SpendingReportService } from './application/spending-report.service.js';
+import { CreditStatementService } from './application/credit-statement.service.js';
 import { LoanWriteOffService } from './application/loan-writeoff.service.js';
 import {
   DisburseLoanDto,
@@ -59,6 +60,7 @@ export class LoansController {
     private readonly calendar: LoanCalendarService,
     private readonly policies: DelinquencyPolicyService,
     private readonly report: SpendingReportService,
+    private readonly statement: CreditStatementService,
   ) {}
 
   @Roles('internal_operator', 'admin', 'platform_admin')
@@ -176,6 +178,28 @@ export class LoansController {
      */
     response.setHeader('content-type', 'application/pdf');
     response.setHeader('content-disposition', `inline; filename="atlas-gastos-${params.customerId}.pdf"`);
+    response.setHeader('content-length', String(pdf.length));
+    response.end(pdf);
+  }
+
+  @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  @ApiOperation({
+    summary: 'Extracto de crédito en PDF',
+    description: 'Compras, pagos, saldo y cuotas por pagar del cliente, compuesto por el SERVIDOR con los datos de sus préstamos.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: 'PDF del extracto.' })
+  @Get('customers/:customerId/credit-statement.pdf')
+  async creditStatement(
+    @CurrentTenant() tenantId: string,
+    @Param(new ZodValidationPipe(loanCustomerParamsSchema)) params: LoanCustomerParamsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Res() response: Response,
+  ) {
+    assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
+    const pdf = await this.statement.pdf(tenantId, params.customerId);
+    response.setHeader('content-type', 'application/pdf');
+    response.setHeader('content-disposition', `inline; filename="atlas-extracto-${params.customerId}.pdf"`);
     response.setHeader('content-length', String(pdf.length));
     response.end(pdf);
   }
