@@ -54,7 +54,7 @@ export class CreditProgressService {
     } as FindOptions);
     return {
       loansEver: loans.length,
-      // La experiencia: 1 punto por boliviano comprado. Sólo compras concretadas y no castigadas (`domain/experience.ts`).
+      // Las compras que dan experiencia: sólo las concretadas y no castigadas (regla en `domain/experience.ts`).
       purchaseAmounts: loans
         .filter((loan) => COMPRAS_CON_EXPERIENCIA.has(String(loan.status)))
         .map((loan) => Number(loan.principalAmount ?? 0)),
