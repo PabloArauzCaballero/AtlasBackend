@@ -2285,6 +2285,95 @@
     ],
     "body": true
   },
+  "GET /customers/{customerId}/profile-photo": {
+    "operationId": "CustomerProfilePhotoController_read",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "PUT /customers/{customerId}/profile-photo": {
+    "operationId": "CustomerProfilePhotoController_confirm",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "422",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
+  "DELETE /customers/{customerId}/profile-photo": {
+    "operationId": "CustomerProfilePhotoController_remove",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
+  "POST /customers/{customerId}/profile-photo/upload-url": {
+    "operationId": "CustomerProfilePhotoController_createUploadUrl",
+    "responses": [
+      "201",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "422",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
   "GET /customers/{customerId}/progress": {
     "operationId": "CreditProgressController_progressOf",
     "responses": [

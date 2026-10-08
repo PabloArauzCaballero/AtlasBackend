@@ -33,6 +33,8 @@ export type CustomerMeResponseDto = {
     status: string | null;
     phoneLast4: string | null;
     emailDomain: string | null;
+    /** Cuándo cambió la foto de perfil; `null` = sin foto. */
+    profilePhotoUpdatedAt: string | null;
   };
   profile: {
     firstName: string | null;

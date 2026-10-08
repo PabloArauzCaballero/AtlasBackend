@@ -6672,6 +6672,252 @@ paths:
       summary: Crear solicitud de derechos ARCO/GDPR
       tags:
         - customer-privacy
+  /customers/{customerId}/profile-photo:
+    get:
+      description: >-
+        Los bytes de la foto, servidos por la API con el token: el teléfono
+        nunca recibe una URL del almacén.
+      operationId: CustomerProfilePhotoController_read
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: image/jpeg o image/png.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: PROFILE_PHOTO_NOT_FOUND — el cliente no tiene foto.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: La foto de perfil (imagen)
+      tags:
+        - customers
+    put:
+      description: >-
+        Comprueba el objeto (es una imagen JPEG/PNG, tamaño y antivirus), lo
+        fija como foto y borra la anterior.
+      operationId: CustomerProfilePhotoController_confirm
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                storageKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+              required:
+                - storageKey
+              additionalProperties: false
+      responses:
+        '200':
+          description: '`{ hasPhoto: true, updatedAt }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: >-
+            PROFILE_PHOTO_KEY_NOT_ALLOWED — la clave no es de la carpeta de
+            fotos de este cliente.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: >-
+            PROFILE_PHOTO_NOT_UPLOADED, PROFILE_PHOTO_NOT_AN_IMAGE,
+            PROFILE_PHOTO_TOO_LARGE o PROFILE_PHOTO_REJECTED.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Fijar la foto de perfil subida
+      tags:
+        - customers
+    delete:
+      description: Deja la cuenta sin foto y borra el objeto del almacén.
+      operationId: CustomerProfilePhotoController_remove
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: '`{ hasPhoto: false }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Quitar la foto de perfil
+      tags:
+        - customers
+  /customers/{customerId}/profile-photo/upload-url:
+    post:
+      description: >-
+        URL prefirmada de un solo uso (PUT) bajo la carpeta del propio cliente.
+        JPEG o PNG, máximo 5 MB.
+      operationId: CustomerProfilePhotoController_createUploadUrl
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Tenant sobre el que se opera. `TenantGuard` lo contrasta contra el
+            `tenantId` del token y responde 403 si no coinciden, así que no es
+            un selector libre.
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contentType:
+                  type: string
+                  enum:
+                    - image/jpeg
+                    - image/png
+                sizeBytes:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 5242880
+              required:
+                - contentType
+                - sizeBytes
+              additionalProperties: false
+      responses:
+        '201':
+          description: >-
+            Permiso de subida — `{ storageKey, uploadUrl, method,
+            requiredHeaders, expiresAt }`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: PROFILE_PHOTO_TOO_LARGE.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Permiso para subir la foto de perfil
+      tags:
+        - customers
   /customers/{customerId}/progress:
     get:
       description: >-

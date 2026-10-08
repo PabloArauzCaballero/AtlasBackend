@@ -70,6 +70,8 @@ export function toCustomerMeResponse(input: {
       status: input.customer.lifecycleStatus,
       phoneLast4: input.customer.primaryPhoneLast4,
       emailDomain: input.customer.primaryEmailDomain,
+      // La foto se pide aparte (`GET customers/:id/profile-photo`); aquí sólo si hay y cuándo cambió, para la caché.
+      profilePhotoUpdatedAt: input.customer.profilePhotoKey ? toIsoOrNull(input.customer.profilePhotoUpdatedAt) : null,
     },
     profile: input.profile
       ? {

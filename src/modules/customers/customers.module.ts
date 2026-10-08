@@ -44,6 +44,10 @@ import { CustomerEligibilityService } from './application/customer-eligibility.s
 import { CustomerLifecycleService } from './application/customer-lifecycle.service.js';
 import { CustomerEligibilityController } from './customer-eligibility.controller.js';
 import { CustomersController } from './customers.controller.js';
+import { CustomerProfilePhotoController } from './customer-profile-photo.controller.js';
+import { CustomerProfilePhotoService } from './application/customer-profile-photo.service.js';
+import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
+import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
 import { CustomersRepository } from './customers.repository.js';
 import { CustomersService } from './customers.service.js';
 import { CustomerEligibilityPhasesRepository } from './repositories/customer-eligibility-phases.repository.js';
@@ -82,7 +86,7 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
       OperationalAuditLogModel,
     ]),
   ],
-  controllers: [CustomersController, CustomerEligibilityController, CustomerRecipientDirectoryController],
+  controllers: [CustomersController, CustomerProfilePhotoController, CustomerEligibilityController, CustomerRecipientDirectoryController],
   providers: [
     CustomerEligibilityPhasesRepository,
     PiiKeyCanaryService,
@@ -92,6 +96,10 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
     CustomerStateAdapter,
     { provide: CUSTOMER_STATE_PORT, useExisting: CustomerStateAdapter },
     CustomersService,
+    // La foto de perfil: permiso de subida, verificación del objeto y lectura por la API.
+    CustomerProfilePhotoService,
+    DocumentStorageService,
+    MalwareScannerService,
     CustomersRepository,
     CustomerLifecycleService,
     CustomerLifecycleRepository,
