@@ -26,6 +26,7 @@ import {
   PENDIENTE,
 } from './payment-claims.shared.js';
 import type { AllowedEvidenceMimeType } from '../../common/storage/document-storage.service.js';
+import { assertComprobanteNoRepetido } from '../../common/storage/comprobante-repetido.js';
 
 @Injectable()
 export class LoanPaymentClaimsService {
@@ -169,6 +170,12 @@ export class LoanPaymentClaimsService {
        * para reutilizar una sola escritura.
        */
       const ahora = new Date();
+      await assertComprobanteNoRepetido(this.evidences, {
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        sha256Hex: metadata.sha256Hex,
+        transaction,
+      });
       const evidence = await this.evidences.create(
         {
           tenantId: input.tenantId,

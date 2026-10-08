@@ -27,13 +27,20 @@ function solicitud(extra: Record<string, unknown> = {}): Fila {
   } as Fila;
 }
 
-function build(app: Fila | null, opciones: { objeto?: unknown } = {}) {
+function build(app: Fila | null, opciones: { objeto?: unknown; imagenYaSubida?: boolean } = {}) {
   const sequelize = { transaction: async (fn: (t: unknown) => Promise<unknown>) => fn({ LOCK: { UPDATE: 'UPDATE' } }) };
   const applications = { findOne: jest.fn(async () => app), findAll: jest.fn(async () => (app ? [app] : [])) };
   const events = { create: jest.fn(async (..._a: unknown[]) => ({})) };
   const evidences = {
     create: jest.fn(async () => ({ id: '300' })),
-    findOne: jest.fn(async () => ({ s3Key: 'k/proof.jpg', mimeType: 'image/jpeg' })),
+    // Por huella: ¿ya subió el cliente esta misma imagen? Por id: el comprobante que se descarga.
+    findOne: jest.fn(async (consulta: { where: Record<string, unknown> }) =>
+      'fileHashSha256' in consulta.where
+        ? opciones.imagenYaSubida
+          ? { id: '12', documentType: 'bank_qr_proof' }
+          : null
+        : { s3Key: 'k/proof.jpg', mimeType: 'image/jpeg' },
+    ),
   };
   const storage = {
     readObjectMetadata: jest.fn(async () => ('objeto' in opciones ? opciones.objeto : { sha256Hex: 'a'.repeat(64), sizeBytes: 1234 })),
@@ -75,6 +82,24 @@ describe('CreditDownPaymentService.submit', () => {
     expect(app.downPaymentProofEvidenceId).toBe('300');
     expect(app.downPaymentPayerReference).toBe('OP-4839201');
     expect(events.create).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'down_payment_submitted' }), expect.anything());
+  });
+
+  it('una imagen que el cliente ya subió no es comprobante: lo dice con su código, sin violar el índice único', async () => {
+    const app = solicitud();
+    const { service, evidences } = build(app, { imagenYaSubida: true });
+    const error = await service
+      .submit({ tenantId: '1', customerId: '9', applicationId: '70', body: cuerpo, currentUser: cliente })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ConflictException);
+    expect((error as ConflictException).getResponse()).toMatchObject({
+      code: 'PAYMENT_PROOF_ALREADY_USED',
+      message: expect.stringMatching(/ya la subiste antes/),
+    });
+    expect(evidences.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { tenantId: '1', customerId: '9', fileHashSha256: 'a'.repeat(64) } }),
+    );
+    expect(evidences.create).not.toHaveBeenCalled();
+    expect(app.downPaymentStatus).not.toBe('submitted');
   });
 
   it('no deja avisar antes de que el comercio acepte la venta: antes no hay a quién pagarle', async () => {
