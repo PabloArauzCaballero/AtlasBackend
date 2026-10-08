@@ -27,7 +27,29 @@ export type CardTheme = {
   accent: string;
   /** Cómo se llama el acabado, para describirlo a un lector de pantalla. */
   finish: string;
+  /**
+   * Fulgor de la tarjeta, de 0 (mate) a 1 (el máximo): cuánto brilla y cuánto halo lleva. Opcional en el catálogo: si
+   * no está escrito, `glowOf` lo reparte de menos a más según el orden de las tarjetas. Lo que se PUBLICA siempre lo trae.
+   */
+  glow?: number;
 };
+
+/** El fulgor de la tarjeta más baja cuando el catálogo no lo escribe: brilla poco, pero no es mate. */
+export const GLOW_FLOOR = 0.2;
+
+/**
+ * Cuánto brilla una tarjeta (0-1). Pablo (2026-10-07): «las tarjetas silver, gold y así deben tener de menos a más
+ * fulgor». Manda lo que el catálogo escriba en `theme.glow`; si no, sube en pasos iguales con el orden de la tarjeta,
+ * de `GLOW_FLOOR` en la primera a 1 en la última. Lo decide el backend para que la app no tenga escrita ninguna escala.
+ */
+export function glowOf(tarjeta: CardTierDefinition, catalog: readonly CardTierDefinition[]): number {
+  const escrito = tarjeta.theme.glow;
+  if (typeof escrito === 'number' && Number.isFinite(escrito)) return Math.min(1, Math.max(0, escrito));
+  const ordenadas = [...catalog].sort((a, b) => a.displayOrder - b.displayOrder);
+  const posicion = ordenadas.findIndex((otra) => otra.code === tarjeta.code);
+  if (posicion < 0 || ordenadas.length < 2) return GLOW_FLOOR;
+  return Math.round((GLOW_FLOOR + ((1 - GLOW_FLOOR) * posicion) / (ordenadas.length - 1)) * 100) / 100;
+}
 
 export type CardTierDefinition = {
   code: CardTierCode;

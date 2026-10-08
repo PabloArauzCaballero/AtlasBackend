@@ -2,6 +2,8 @@ import { describe, expect, it } from '@jest/globals';
 import {
   DEFAULT_CARD_TIERS,
   effectiveCatalog,
+  glowOf,
+  GLOW_FLOOR,
   isOverrideActive,
   resolveCardTier,
   type CardTierCode,
@@ -45,6 +47,27 @@ describe('el catálogo de fábrica', () => {
       expect(t.theme.accent).toMatch(/^#[0-9A-F]{6}$/i);
       expect(t.theme.finish.length).toBeGreaterThan(0);
     }
+  });
+
+  it('el fulgor sube de menos a más con la tarjeta: Normal la que menos, Black la que más', () => {
+    const fulgores = DEFAULT_CARD_TIERS.map((t) => glowOf(t, DEFAULT_CARD_TIERS));
+    expect(fulgores).toEqual([0.2, 0.4, 0.6, 0.8, 1]);
+    expect(fulgores[0]).toBe(GLOW_FLOOR);
+    for (let i = 1; i < fulgores.length; i += 1) expect(fulgores[i]).toBeGreaterThan(fulgores[i - 1]!);
+  });
+
+  it('el fulgor sigue el ORDEN del catálogo, no el orden en que llegan las filas', () => {
+    const desordenado = [...DEFAULT_CARD_TIERS].reverse();
+    expect(glowOf(DEFAULT_CARD_TIERS[0]!, desordenado)).toBe(0.2);
+    expect(glowOf(DEFAULT_CARD_TIERS[4]!, desordenado)).toBe(1);
+  });
+
+  it('si el catálogo escribe el fulgor de una tarjeta, manda ése, acotado a 0-1', () => {
+    const gold = DEFAULT_CARD_TIERS[2]!;
+    const con = (glow: number) => ({ ...gold, theme: { ...gold.theme, glow } });
+    expect(glowOf(con(0.95), DEFAULT_CARD_TIERS)).toBe(0.95);
+    expect(glowOf(con(7), DEFAULT_CARD_TIERS)).toBe(1);
+    expect(glowOf(con(-1), DEFAULT_CARD_TIERS)).toBe(0);
   });
 
   it('no promete ventajas comerciales que el negocio no definió', () => {

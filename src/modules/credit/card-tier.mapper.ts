@@ -4,31 +4,32 @@
  * @system funciones puras de presentación.
  */
 import type { CustomerCardTierOverrideModel } from '../../database/models/index.js';
-import type { CardTierDefinition } from './domain/card-tier.js';
+import { glowOf, type CardTierDefinition } from './domain/card-tier.js';
 import type { CardTierView } from './application/card-tier.service.js';
 
-const definition = (tarjeta: CardTierDefinition, vigente: boolean) => ({
+const definition = (tarjeta: CardTierDefinition, vigente: boolean, catalog: readonly CardTierDefinition[]) => ({
   code: tarjeta.code,
   label: tarjeta.label,
   levelCode: tarjeta.levelCode,
   displayOrder: tarjeta.displayOrder,
   description: tarjeta.description,
   benefits: tarjeta.benefits,
-  theme: tarjeta.theme,
+  // El fulgor sale siempre: el escrito en el catálogo o, si no lo hay, el que le toca por su orden.
+  theme: { ...tarjeta.theme, glow: glowOf(tarjeta, catalog) },
   current: vigente,
 });
 
 /** Lo que ve el CLIENTE: su tarjeta, si es ganada o puesta por Atlas, y el escalón completo. Nunca el motivo del ajuste. */
 export function toCustomerCardResponse(view: CardTierView, catalog: readonly CardTierDefinition[]) {
   return {
-    ...definition(view.tier, true),
+    ...definition(view.tier, true, catalog),
     source: view.source,
     /** La que le correspondería por su nivel; si difiere de `code`, la app dice «tu nivel es X». */
     automatic: { code: view.automaticTier.code, label: view.automaticTier.label },
     manual: view.manual ? { since: view.manual.since, expiresAt: view.manual.expiresAt } : null,
     catalog: [...catalog]
       .sort((a, b) => a.displayOrder - b.displayOrder)
-      .map((tarjeta) => definition(tarjeta, tarjeta.code === view.tier.code)),
+      .map((tarjeta) => definition(tarjeta, tarjeta.code === view.tier.code, catalog)),
   };
 }
 
