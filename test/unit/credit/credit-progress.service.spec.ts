@@ -110,7 +110,7 @@ describe('CreditProgressService', () => {
     expect(Object.keys(capacity)).toEqual(['assessDetailed']);
   });
 
-  it('la experiencia sale de lo COMPRADO: 1 punto por boliviano de las compras activas o pagadas', async () => {
+  it('la experiencia sale de las compras activas o pagadas (1 por cada Bs 10) y de las cuotas a tiempo (50 cada una)', async () => {
     const { service } = armar({
       linea: null,
       historial: [],
@@ -131,7 +131,8 @@ describe('CreditProgressService', () => {
 
     const r = await service.get('1', '42');
 
-    expect(r.experience.xp).toBe(550);
+    // 350,60 → 35 y 200 → 20 de las compras; la cuota a tiempo, 50; la pagada tarde, nada.
+    expect(r.experience.xp).toBe(35 + 20 + 50);
     expect(r.experience.paidOnTime).toBe(100);
     expect(r.experience.onTimeInstallments).toBe(1);
     expect(r.experience.badges.find((b) => b.code === 'primera_compra')!.earned).toBe(true);
@@ -149,7 +150,7 @@ describe('CreditProgressService', () => {
     const r = await service.get('1', '42');
 
     expect(r.points).toEqual({ value: r.experience.xp, currentStreak: r.experience.currentStreak, bestStreak: r.experience.bestStreak });
-    expect(r.points.value).toBe(100);
+    expect(r.points.value).toBe(10 + 50);
     expect(r.rating.scale).toEqual({ min: 1, max: 100 });
     expect(r.rating.value).toBe(Math.max(1, Math.min(100, Math.round(r.score))));
   });
@@ -164,8 +165,9 @@ describe('CreditProgressService', () => {
 
     const r = await service.get('1', '42');
 
-    expect(r.experience.xp).toBeGreaterThanOrEqual(2_000);
-    expect(r.level).toMatchObject({ code: 'ESTABLECIDO', points: r.experience.xp });
+    // 2.100 comprados dan el tope de 100; la cuota a tiempo, 50: Explorador (escalón NUEVO), no tres niveles de golpe.
+    expect(r.experience.xp).toBe(150);
+    expect(r.level).toMatchObject({ id: 'EXPLORADOR', code: 'NUEVO', points: r.experience.xp });
     const [[, , nivelPedido]] = cards.resolveFor.mock.calls as unknown as [[string, string, string]];
     expect(nivelPedido).toBe(r.level.code);
     expect((r.card as unknown as { levelCode: string }).levelCode).toBe(r.level.code);
@@ -221,7 +223,8 @@ describe('CreditProgressService', () => {
 
     const nivel = await service.levelOf('1', '42');
 
-    expect(nivel.level.code).toBe('EN_CONSTRUCCION');
+    // 600 comprados → 60, más 50 de la cuota a tiempo: Explorador.
+    expect(nivel.level).toMatchObject({ id: 'EXPLORADOR', code: 'NUEVO' });
     expect(installments.findAll).toHaveBeenCalled();
     expect(lines.history).not.toHaveBeenCalled();
   });

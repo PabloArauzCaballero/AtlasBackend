@@ -1,9 +1,14 @@
 import { describe, expect, it } from '@jest/globals';
-import { buildExperience, type ExperienceInput, type InstallmentFact } from '../../../src/modules/credit/domain/experience.js';
+import {
+  buildExperience,
+  REGLA_DE_PUNTOS,
+  type ExperienceInput,
+  type InstallmentFact,
+} from '../../../src/modules/credit/domain/experience.js';
 
 /**
- * 1 punto de experiencia por cada boliviano COMPRADO. Las rachas y las insignias de pago siguen saliendo de las
- * cuotas pagadas a tiempo.
+ * Los puntos se ganan como en un programa de fidelidad, pero pesa más cumplir que comprar (Pablo, 2026-10-08):
+ * 1 por cada Bs 10 comprados con tope por compra, 50 por cuota a tiempo, 25 más con adelanto, 200 por compra terminada.
  */
 const HOY = '2026-10-03';
 const cuota = (dueDate: string, extra: Partial<InstallmentFact> = {}): InstallmentFact => ({
@@ -25,13 +30,41 @@ const base = (installments: InstallmentFact[], extra: Partial<ExperienceInput> =
 });
 const insignia = (r: ReturnType<typeof buildExperience>, code: string) => r.badges.find((b) => b.code === code)!;
 
-describe('puntos de experiencia por boliviano comprado', () => {
-  it('suma 1 por cada boliviano de cada compra', () => {
-    expect(buildExperience(base([], { purchaseAmounts: [120.4, 80.9] })).xp).toBe(201);
+describe('puntos de experiencia', () => {
+  it('cada compra da 1 punto por cada Bs 10', () => {
+    const r = buildExperience(base([], { purchaseAmounts: [120.4, 80.9] }));
+    expect(r.xp).toBe(12 + 8);
+    expect(r.xpBreakdown.purchases).toEqual({ count: 2, points: 20 });
   });
 
-  it('pagar no suma experiencia: sólo comprar', () => {
-    expect(buildExperience(base([cuota('2026-08-01'), cuota('2026-09-01')])).xp).toBe(0);
+  it('una compra grande no salta niveles: su aporte tiene tope', () => {
+    expect(buildExperience(base([], { purchaseAmounts: [1_200] })).xp).toBe(REGLA_DE_PUNTOS.topePorCompra);
+    expect(buildExperience(base([], { purchaseAmounts: [50_000] })).xp).toBe(REGLA_DE_PUNTOS.topePorCompra);
+  });
+
+  it('pagar bien pesa más que comprar: 50 por cuota a tiempo, nada por la que se pagó tarde', () => {
+    const r = buildExperience(base([cuota('2026-08-01'), cuota('2026-09-01', { daysPastDue: 6 })]));
+    expect(r.xpBreakdown.onTimeInstallments).toEqual({ count: 1, points: 50 });
+    expect(r.xp).toBe(50);
+  });
+
+  it('pagar con 3 días o más de adelanto suma 25 más', () => {
+    const r = buildExperience(base([cuota('2026-09-10', { paidOn: '2026-09-05' }), cuota('2026-08-10', { paidOn: '2026-08-09' })]));
+    expect(r.xpBreakdown.earlyInstallments).toEqual({ count: 1, points: 25 });
+    expect(r.xp).toBe(50 + 50 + 25);
+  });
+
+  it('terminar de pagar una compra suma 200', () => {
+    const r = buildExperience(base([], { loansSettled: 2 }));
+    expect(r.xpBreakdown.settledPurchases).toEqual({ count: 2, points: 400 });
+    expect(r.xp).toBe(400);
+  });
+
+  it('el total es exactamente la suma del desglose que ve la app', () => {
+    const r = buildExperience(base([cuota('2026-09-10', { paidOn: '2026-09-01' })], { purchaseAmounts: [480], loansSettled: 1 }));
+    const suma = Object.values(r.xpBreakdown).reduce((t, parte) => t + parte.points, 0);
+    expect(r.xp).toBe(suma);
+    expect(r.xp).toBe(48 + 50 + 25 + 200);
   });
 
   it('lo pagado a tiempo se cuenta aparte, para las insignias de pago; lo pagado tarde no', () => {
@@ -45,7 +78,7 @@ describe('puntos de experiencia por boliviano comprado', () => {
   });
 
   it('un importe negativo o corrupto no resta ni rompe la cuenta', () => {
-    expect(buildExperience(base([], { purchaseAmounts: [-50, Number.NaN, 40] })).xp).toBe(40);
+    expect(buildExperience(base([], { purchaseAmounts: [-50, Number.NaN, 40] })).xp).toBe(4);
     expect(buildExperience(base([cuota('2026-08-01', { paidAmount: -50 }), cuota('2026-09-01', { paidAmount: 40 })])).paidOnTime).toBe(40);
   });
 });

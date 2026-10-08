@@ -1,22 +1,26 @@
 /**
- * @file Dominio: la experiencia (puntos por boliviano COMPRADO), las rachas y las insignias de un cliente.
- * @business Pablo (2026-10-06): «una cosa son los puntos de calificación y otra los puntos de experiencia. En los de
- *   experiencia, cada peso comprado es un punto, y dan los niveles». La experiencia mide cuánto USA Atlas la persona;
- *   qué tan buen pagador es lo mide la Calificación 1-100 (`payer-rating.ts`), que es la que mira el crédito.
+ * @file Dominio: los puntos de experiencia, las rachas y las insignias de un cliente.
+ * @business Pablo (2026-10-08): «el sistema de puntos está totalmente mal, se consiguen de una; piensa en el de
+ *   Farmacorp». Con 1 punto por boliviano comprado, una sola compra de Bs 1.200 subía tres niveles de golpe y los
+ *   puntos premiaban endeudarse. Ahora se ganan como en un programa de fidelidad (Farmaclub da 1 punto por Bs 1 de
+ *   compra), pero en Atlas pesa más CUMPLIR que comprar: lo que se premia es pagar bien.
  * @system función pura sobre las compras y las cuotas del cliente; no lee base de datos ni llama al motor.
  *
- * ## La regla de los puntos
+ * ## La regla de los puntos (`REGLA_DE_PUNTOS`)
  *
- * 1 punto por cada boliviano (parte entera) del monto de cada compra hecha con Atlas: los créditos `active` y
- * `paid_off`. No cuentan los anulados ni los que aún esperan desembolso (la compra no se concretó), ni los castigados
- * (`written_off`): una compra que no se pagó no puede seguir dando nivel.
+ *  - Cada compra (créditos `active` y `paid_off`): 1 punto por cada Bs 10, con un TOPE por compra. Comprar mucho de
+ *    una vez no salta niveles.
+ *  - Cada cuota pagada a tiempo: 50 puntos.
+ *  - Cada cuota pagada con 3 días o más de adelanto: 25 puntos más.
+ *  - Cada compra terminada de pagar: 200 puntos.
+ *
+ * No cuentan los créditos anulados, los que esperan desembolso ni los castigados (`written_off`). Una cuota pagada tarde
+ * no da puntos. Los escalones del nivel (`points-level.ts`) no cambian: cambia cómo se llega a ellos.
  *
  * ## El nivel no toca el monto
  *
- * Antes la experiencia salía de lo pagado a tiempo, para no premiar el endeudarse. Ese riesgo no desaparece, pero
- * queda acotado: el nivel y la tarjeta Normal…Black son presentación y estatus (`points-level.ts`); el límite lo
- * decide el motor con la puntuación de relación, que sigue midiendo pagos a tiempo. Las rachas y las insignias de
- * pago siguen saliendo de las cuotas pagadas a tiempo.
+ * El nivel y la tarjeta Normal…Black son presentación y estatus (`points-level.ts`); el límite lo decide el motor con
+ * la puntuación de relación, que mide pagos a tiempo.
  */
 
 import { buildBadges, type Badge } from './experience-badges.js';
@@ -34,9 +38,31 @@ export type InstallmentFact = {
   paidOn?: string | null;
 };
 
+/** Cuánto vale cada cosa que hace el cliente. Se cambia aquí y la app la recibe en `xpBreakdown`. */
+export const REGLA_DE_PUNTOS = {
+  /** Bolivianos de compra por cada punto. */
+  bolivianosPorPunto: 10,
+  /** Puntos máximos que da UNA compra, por grande que sea. */
+  topePorCompra: 100,
+  cuotaATiempo: 50,
+  /** Extra por pagar con `diasDeAdelanto` días o más de anticipación. */
+  cuotaAdelantada: 25,
+  diasDeAdelanto: 3,
+  compraTerminada: 200,
+} as const;
+
+/** De dónde salen los puntos: lo que la app enseña en «Mis puntos». */
+export type XpBreakdown = {
+  purchases: { count: number; points: number };
+  onTimeInstallments: { count: number; points: number };
+  earlyInstallments: { count: number; points: number };
+  settledPurchases: { count: number; points: number };
+};
+
 export type Experience = {
-  /** Puntos de experiencia: 1 por cada boliviano comprado con Atlas. */
+  /** Puntos de experiencia: la suma de `xpBreakdown` (ver `REGLA_DE_PUNTOS`). */
   xp: number;
+  xpBreakdown: XpBreakdown;
   /** Bolivianos pagados a tiempo (capital + intereses): lo que miden las insignias de pago. */
   paidOnTime: number;
   onTimeInstallments: number;
@@ -106,12 +132,23 @@ export function buildExperience(input: ExperienceInput): Experience {
   // Un importe negativo o no numérico (nunca debería llegar) no resta ni rompe la cuenta.
   const positivo = (valor: number) => (Number.isFinite(valor) && valor > 0 ? valor : 0);
   const compras = input.purchaseAmounts.map(positivo);
-  const xp = Math.floor(compras.reduce((suma, monto) => suma + monto, 0));
+  const puntosDeCompra = compras.reduce(
+    (suma, monto) => suma + Math.min(REGLA_DE_PUNTOS.topePorCompra, Math.floor(monto / REGLA_DE_PUNTOS.bolivianosPorPunto)),
+    0,
+  );
   const pagadoATiempo = Math.floor(aTiempo.reduce((suma, c) => suma + positivo(c.paidAmount), 0));
   const { current, best, rebound } = streaks(input.installments, input.today);
   const mayorCompra = compras.reduce((mayor, monto) => Math.max(mayor, monto), 0);
   const adelantos = aTiempo.map(diasDeAdelanto).filter((d): d is number => d !== null);
-  const madrugadas = adelantos.filter((d) => d >= 3).length;
+  const madrugadas = adelantos.filter((d) => d >= REGLA_DE_PUNTOS.diasDeAdelanto).length;
+  const terminadas = Math.max(0, Math.floor(input.loansSettled));
+  const xpBreakdown: XpBreakdown = {
+    purchases: { count: compras.filter((monto) => monto > 0).length, points: puntosDeCompra },
+    onTimeInstallments: { count: aTiempo.length, points: aTiempo.length * REGLA_DE_PUNTOS.cuotaATiempo },
+    earlyInstallments: { count: madrugadas, points: madrugadas * REGLA_DE_PUNTOS.cuotaAdelantada },
+    settledPurchases: { count: terminadas, points: terminadas * REGLA_DE_PUNTOS.compraTerminada },
+  };
+  const xp = Object.values(xpBreakdown).reduce((suma, parte) => suma + parte.points, 0);
   const alFilo = adelantos.filter((d) => d === 0).length;
   const enDomingo = aTiempo.filter((c) => c.paidOn && esDomingo(c.paidOn)).length;
 
@@ -133,6 +170,7 @@ export function buildExperience(input: ExperienceInput): Experience {
 
   return {
     xp,
+    xpBreakdown,
     paidOnTime: pagadoATiempo,
     onTimeInstallments: aTiempo.length,
     currentStreak: current,
