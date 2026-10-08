@@ -56,6 +56,22 @@ ESTABLE_TRAS_S=600
 
 sql() { docker exec coolify-db psql -U coolify -d coolify -Atc "$1" 2>/dev/null; }
 
+# Contenedores de una app de Coolify. Coolify 4.4.2 (2026-10-07) dejó de poner `coolify.applicationId`
+# y sólo pone `coolify.applicationUuid`: con el filtro viejo el guardián dejó de VER las apps
+# desplegadas desde entonces, las dio por caídas y prestó `atlas-backend` y `motor` a sus respaldos sin
+# devolverlos (el nombre resolvía a las dos instancias y la mitad de las peticiones iban a la imagen
+# anterior, con otra configuración). Se buscan por las dos etiquetas: las de antes de la
+# actualización sólo traen la vieja.
+uuid_de() { sql "select uuid from applications where id=$1"; }
+ps_app() { # id_app [opciones de docker ps…] -> ids, uno por línea
+  a=$1; shift
+  u=$(uuid_de "$a")
+  {
+    docker ps "$@" --filter "label=coolify.applicationId=$a"
+    [ -n "$u" ] && docker ps "$@" --filter "label=coolify.applicationUuid=$u"
+  } | awk '!visto[$0]++'
+}
+
 despliegue_en_curso() {
   n=$(sql "select count(*) from application_deployment_queues where application_id='$1' and status in ('in_progress','queued')")
   [ "${n:-0}" != "0" ]
@@ -72,7 +88,7 @@ echo "$APPS" | while read -r app svc nombre; do
   [ -z "${app:-}" ] && continue
 
   # 1. Contenedores que un despliegue dejó creados sin arrancar.
-  for c in $(docker ps -aq --filter "label=coolify.applicationId=$app" --filter status=created); do
+  for c in $(ps_app "$app" -aq --filter status=created); do
     cn=$(docker inspect -f '{{.Name}}' "$c" | sed 's#^/##')
     case "$cn" in migrate-*|seed-*|*minio-init*|*minio-bucket*|*db-roles*|*kafka-topics*) continue ;; esac
     creado=$(date -d "$(docker inspect -f '{{.Created}}' "$c")" +%s 2>/dev/null || echo 0)
@@ -88,7 +104,7 @@ echo "$APPS" | while read -r app svc nombre; do
   done
 
   # 2. ¿Está vivo el servicio principal?
-  vivo=$(docker ps -q --filter "label=coolify.applicationId=$app" --filter "label=com.docker.compose.service=$svc" --filter status=running | head -n 1)
+  vivo=$(ps_app "$app" -q --filter "label=com.docker.compose.service=$svc" --filter status=running | head -n 1)
   if [ -n "$vivo" ]; then
     cambio "app-$app" OK "$nombre: RECUPERADO, el servicio principal vuelve a estar en marcha."
   elif despliegue_en_curso "$app"; then
@@ -114,7 +130,7 @@ reconectar() { # contenedor alias...
 echo "$RESPALDOS" | while read -r app svc imagen dir rsvc rcont prestado envf; do
   [ -z "${app:-}" ] && continue
   docker inspect "$rcont" >/dev/null 2>&1 || continue
-  p=$(docker ps -q --filter "label=coolify.applicationId=$app" --filter "label=com.docker.compose.service=$svc" --filter status=running | head -n 1)
+  p=$(ps_app "$app" -q --filter "label=com.docker.compose.service=$svc" --filter status=running | head -n 1)
   salud=none
   [ -n "$p" ] && salud=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$p")
   sana=no

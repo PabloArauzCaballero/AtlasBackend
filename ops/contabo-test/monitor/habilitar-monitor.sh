@@ -17,7 +17,10 @@ ENV=/opt/atlas/monitor/monitor.env
 mkdir -p /opt/atlas/monitor
 touch "$ENV"; chmod 600 "$ENV"
 
-api=$(docker ps -q --filter label=coolify.applicationId=1 --filter label=com.docker.compose.service=api --filter status=running | head -n 1)
+# Coolify 4.4.2 sólo pone `coolify.applicationUuid`; las de antes, sólo `coolify.applicationId`.
+uuid=$(docker exec coolify-db psql -U coolify -d coolify -Atc "select uuid from applications where id=1")
+api=$( { docker ps -q --filter label=coolify.applicationId=1 --filter label=com.docker.compose.service=api --filter status=running
+         docker ps -q --filter "label=coolify.applicationUuid=$uuid" --filter label=com.docker.compose.service=api --filter status=running; } | head -n 1)
 [ -n "$api" ] || { echo "No hay API de AtlasBackend en marcha: no se puede leer su emisor JWT."; exit 1; }
 tenant=$(docker exec atlas-postgres psql -U postgres -d atlas -Atc "select _id from iam.tenants order by _id limit 1")
 issuer=$(docker exec "$api" printenv JWT_ISSUER || true)

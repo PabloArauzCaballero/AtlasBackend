@@ -171,7 +171,10 @@ fi
 sanas=0; total=0; problemas=""; resp_ok=0; resp_total=0; apps_json=""
 echo "$APPS" > "$E/apps.lista"
 # Una sola llamada a docker para todas las apps: el estado y la salud salen de la columna Status.
-docker ps --format '{{.Names}}|{{.Label "coolify.applicationId"}}|{{.Label "com.docker.compose.service"}}|{{.Status}}' > "$E/ps.txt" 2>/dev/null
+# Coolify 4.4.2 sólo pone `coolify.applicationUuid` (ver el guardián): el id se deduce del uuid.
+docker exec coolify-db psql -U coolify -d coolify -Atc "select uuid||'|'||id from applications" > "$E/uuid-id.txt" 2>/dev/null
+docker ps --format '{{.Names}}|{{.Label "coolify.applicationId"}}|{{.Label "com.docker.compose.service"}}|{{.Status}}|{{.Label "coolify.applicationUuid"}}' 2>/dev/null |
+  awk -F'|' -v OFS='|' 'NR==FNR {id[$1]=$2; next} { if ($2 == "" && ($5 in id)) $2 = id[$5]; print $1, $2, $3, $4 }' "$E/uuid-id.txt" - > "$E/ps.txt"
 salud_de() { # texto de Status -> healthy|unhealthy|starting|none|ausente
   case "$1" in
     '') echo ausente ;;
