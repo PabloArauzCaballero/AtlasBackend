@@ -7,7 +7,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { ExpedientesRepository } from '../../expedientes/repositories/expedientes.repository.js';
 import type { PartnerProfileModel } from '../../../database/models/index.js';
-import { PartnerOnboardingRepository, EDITABLE_PARTNER_STATUSES } from '../partner-onboarding.repository.js';
+import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
+import { assertCommercialNetworkEditable, assertPaymentQrEditable, isProfileEditable } from './partner-profile.guards.js';
 import { startPartnerOnboardingSchema } from '../partner-onboarding.schemas.js';
 import { normalizeBusinessCategory } from '../partner-business-categories.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
@@ -180,22 +181,40 @@ export class ErpMerchantExpedienteService {
       }
     }
 
-    if (input.branch) {
-      const sucursales = await this.network.listBranches(tenantId, profile.id);
-      if (!sucursales.some((item) => item.branchCode === input.branch?.branchCode)) {
-        await this.commerce.registerBranch(tenantId, profile.id, input.branch);
-        loaded.push('branch');
-      }
+    if (await this.cargarSucursal(tenantId, profile, input.branch)) {
+      loaded.push('branch');
     }
 
-    if (input.bankQr) {
-      const vigente = await this.network.findLiveQr(tenantId, profile.id, 'bank', null);
-      if (!vigente) {
-        await this.qr.register(tenantId, profile.id, { ...input.bankQr, qrKind: 'bank' });
-        loaded.push('bank_qr');
-      }
+    if (await this.cargarQrBanco(tenantId, profile, input.bankQr)) {
+      loaded.push('bank_qr');
     }
     return { profile, loaded };
+  }
+
+  /** Registra la sucursal si su código aún no existe; devuelve si la cargó. */
+  private async cargarSucursal(
+    tenantId: string,
+    profile: PartnerProfileModel,
+    branch: ErpMerchantExpedienteDto['branch'],
+  ): Promise<boolean> {
+    if (!branch || !admite(assertCommercialNetworkEditable, profile)) return false;
+    const sucursales = await this.network.listBranches(tenantId, profile.id);
+    if (sucursales.some((item) => item.branchCode === branch.branchCode)) return false;
+    await this.commerce.registerBranch(tenantId, profile.id, branch);
+    return true;
+  }
+
+  /** Registra el QR bancario si no hay uno vigente; devuelve si lo cargó. */
+  private async cargarQrBanco(
+    tenantId: string,
+    profile: PartnerProfileModel,
+    bankQr: ErpMerchantExpedienteDto['bankQr'],
+  ): Promise<boolean> {
+    if (!bankQr || !admite(assertPaymentQrEditable, profile)) return false;
+    const vigente = await this.network.findLiveQr(tenantId, profile.id, 'bank', null);
+    if (vigente) return false;
+    await this.qr.register(tenantId, profile.id, { ...bankQr, qrKind: 'bank' });
+    return true;
   }
 
   private async buscar(tenantId: string, input: ErpMerchantExpedienteDto): Promise<PartnerProfileModel | null> {
@@ -210,9 +229,19 @@ export class ErpMerchantExpedienteService {
 }
 
 function esEditable(profile: PartnerProfileModel): boolean {
-  return EDITABLE_PARTNER_STATUSES.includes(profile.onboardingStatus as (typeof EDITABLE_PARTNER_STATUSES)[number]);
+  return isProfileEditable(profile);
 }
 
 function vacio(reason: ErpMerchantExpedienteResult['reason']): ErpMerchantExpedienteResult {
   return { partnerId: null, expedienteId: null, created: false, reason, loaded: [], gaps: [], onboardingStatus: null };
+}
+
+/** Pasa una compuerta del expediente en modo «saltar»: false en vez de lanzar, para no romper la carga. */
+function admite(compuerta: (profile: PartnerProfileModel) => void, profile: PartnerProfileModel): boolean {
+  try {
+    compuerta(profile);
+    return true;
+  } catch {
+    return false;
+  }
 }

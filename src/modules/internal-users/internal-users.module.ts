@@ -3,7 +3,7 @@
  * @business Esta pieza controla quién puede operar Atlas y deja evidencia de cada asignación de privilegios.
  * @system implementa identidad interna, RBAC, catálogo de permisos y guards de autorización granular.
  */
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
   AuthCredentialModel,
@@ -28,6 +28,12 @@ import { InternalUsersController } from './internal-users.controller.js';
 import { InternalUsersService } from './internal-users.service.js';
 import { InternalUserLockService } from './internal-user-lock.service.js';
 
+/**
+ * Global: el guard de permisos vive en `common` y pide `INTERNAL_PERMISSIONS_CHECKER`. Los módulos que lo usan
+ * (clientes…) no pueden importar este módulo —`AuthModule` importa `CustomersModule` y Nest no resuelve ese
+ * ciclo— ni registrar los modelos RBAC como propios.
+ */
+@Global()
 @Module({
   imports: [
     SequelizeModule.forFeature([

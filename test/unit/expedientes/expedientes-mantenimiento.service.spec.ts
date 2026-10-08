@@ -264,7 +264,38 @@ describe('ExpedientesMantenimientoService', () => {
     it('la papelera se mide con el plazo del entorno', async () => {
       await service.limpiar();
 
-      expect(repository.findPapeleraVencida).toHaveBeenCalledWith(env.EXPEDIENTES_TRASH_RETENTION_DAYS, 200);
+      expect(repository.findPapeleraVencida).toHaveBeenCalledWith(env.EXPEDIENTES_TRASH_RETENTION_DAYS, 200, 0);
+    });
+
+    /*
+     * Antes el fallo del almacén se tragaba y la fila se borraba igual: el carnet quedaba en el
+     * bucket sin puntero y ya nadie podía purgarlo ni encontrarlo.
+     */
+    it('si el almacén falla al borrar el objeto, la fila se CONSERVA para reintentarlo', async () => {
+      repository.findPapeleraVencida.mockResolvedValueOnce([nodoPapelera()] as never);
+      storage.deleteObject.mockRejectedValueOnce(new Error('DOCUMENT_STORAGE_DELETE_FAILED') as never);
+
+      const resultado = await service.limpiar();
+
+      expect(repository.borrarNodoDefinitivo).not.toHaveBeenCalled();
+      expect(resultado.nodosPurgados).toBe(0);
+    });
+
+    /*
+     * Los conservados siguen cumpliendo el filtro: sin salto, una página llena de ellos tapaba al
+     * resto en cada pasada.
+     */
+    it('una página llena de conservados no tapa al resto: la siguiente se pide saltándolos', async () => {
+      const llena = Array.from({ length: 200 }, (_, i) => nodoPapelera({ id: `c-${i}` }));
+      repository.findPapeleraVencida.mockResolvedValueOnce(llena as never).mockResolvedValueOnce([nodoPapelera({ id: 'n-201' })] as never);
+      refCounter.contar.mockImplementation(async (_k: unknown, id: unknown) => ({ id }) as never);
+      refCounter.puedeBorrarse.mockImplementation((ref: unknown) => (ref as { id: string }).id === 'n-201');
+
+      const resultado = await service.limpiar();
+
+      expect(repository.findPapeleraVencida).toHaveBeenNthCalledWith(2, env.EXPEDIENTES_TRASH_RETENTION_DAYS, 200, 200);
+      expect(repository.borrarNodoDefinitivo).toHaveBeenCalledWith('t1', 'n-201');
+      expect(resultado.nodosPurgados).toBe(1);
     });
 
     it('ANTE LA DUDA no borra: el nodo se queda y se reintenta en la vuelta siguiente', async () => {

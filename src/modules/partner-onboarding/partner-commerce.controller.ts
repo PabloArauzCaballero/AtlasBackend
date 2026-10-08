@@ -25,6 +25,8 @@ import {
   partnerIdParamsSchema,
   PosTerminalStatusDto,
   posTerminalStatusSchema,
+  QrIdParamsDto,
+  qrIdParamsSchema,
   QrUploadUrlDto,
   qrUploadUrlSchema,
   RegisterBranchDto,
@@ -195,11 +197,10 @@ export class PartnerCommerceController {
   @Header('Cache-Control', 'private, max-age=60')
   async qrContent(
     @CurrentTenant() tenantId: string,
-    @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
-    @Param('qrId') qrId: string,
+    @Param(new ZodValidationPipe(qrIdParamsSchema)) params: QrIdParamsDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
-    const imagen = await this.qr.readQrImage(tenantId, params.partnerId, qrId);
+    const imagen = await this.qr.readQrImage(tenantId, params.partnerId, params.qrId);
     response.setHeader('Content-Type', imagen.contentType);
     return new StreamableFile(imagen.bytes);
   }

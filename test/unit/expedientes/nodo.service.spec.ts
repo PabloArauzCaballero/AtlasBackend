@@ -173,6 +173,24 @@ describe('NodoService', () => {
         ConflictException,
       );
     });
+
+    it('una carpeta con un hijo congelado no se renombra ni se mueve: cambiaría la ruta del manifiesto', async () => {
+      nodos.push(nodo({ id: '1', ruta: '/otros', parentId: null }));
+      nodos.push(nodo({ id: '2', tipo: 'archivo', nombre: 'x.jpg', ruta: '/otros/x.jpg', parentId: '1', inmutable: true }));
+      nodos.push(nodo({ id: '3', nombre: 'destino', ruta: '/destino', parentId: null }));
+      const entrada = { tenantId: '1', expedienteId: '10', nodo: nodos[0], actor };
+      await expect(movimiento.renombrar({ ...entrada, nombre: 'varios' })).rejects.toBeInstanceOf(ConflictException);
+      await expect(movimiento.mover({ ...entrada, destinoId: '3' })).rejects.toBeInstanceOf(ConflictException);
+      expect(nodos[1].ruta).toBe('/otros/x.jpg');
+    });
+
+    it('no se mueve nada dentro de una carpeta congelada', async () => {
+      nodos.push(nodo({ id: '1', ruta: '/auth', parentId: null }));
+      nodos.push(nodo({ id: '2', nombre: 'sellada', ruta: '/sellada', parentId: null, inmutable: true }));
+      await expect(movimiento.mover({ tenantId: '1', expedienteId: '10', nodo: nodos[0], destinoId: '2', actor })).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+    });
   });
 
   describe('papelera', () => {

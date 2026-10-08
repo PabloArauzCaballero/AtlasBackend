@@ -42,16 +42,28 @@ function qr(partial: Partial<Qr>): Qr {
 }
 
 const PNG = qrPng();
+const TX = { id: 'tx' };
 
 function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr | null } = {}) {
   const network = {
     findLiveQr: jest.fn(async (..._args: unknown[]) => opciones.live ?? null),
     findActiveQr: jest.fn(async (..._args: unknown[]) => opciones.active ?? null),
     findQrById: jest.fn(async (..._args: unknown[]) => opciones.porId ?? null),
-    createQrCode: jest.fn(async (values: Record<string, unknown>) => ({ ...values, id: '99', status: 'pending_review' })),
+    createQrCode: jest.fn(async (values: Record<string, unknown>, ..._rest: unknown[]) => ({
+      ...values,
+      id: '99',
+      status: 'pending_review',
+    })),
     markQrReplaced: jest.fn(async (viejo: Qr, nuevoId: string) => ({ ...viejo, status: 'replaced', replacedById: nuevoId })),
+    inTransaction: jest.fn(async (work: (transaction: unknown) => Promise<unknown>) => work(TX)),
+    archiveLiveQrs: jest.fn(async (..._args: unknown[]) => (opciones.live ? 1 : 0)),
     markQrReviewed: jest.fn(async (target: Qr, review: Record<string, unknown>) => ({ ...target, ...review, verifiedAt: new Date() })),
-    markQrActive: jest.fn(async (target: Qr, note: string) => ({ ...target, status: 'active', reviewNote: note, verifiedAt: new Date() })),
+    markQrActive: jest.fn(async (target: Qr, note: string, ..._rest: unknown[]) => ({
+      ...target,
+      status: 'active',
+      reviewNote: note,
+      verifiedAt: new Date(),
+    })),
     findBranchById: jest.fn(async () => null),
     listQrCodes: jest.fn(async () => []),
     findPosById: jest.fn(async () => ({ id: '9', status: 'active', partnerProfileId: '7', branchId: '3' })),
@@ -274,37 +286,57 @@ describe('PartnerQrService · registrar un QR nuevo', () => {
     accountNumberMasked: '****1',
   };
 
-  it('nace ACTIVO sin revisión de Atlas, archiva el activo anterior ANTES de activar el nuevo, y avisa al comercio', async () => {
+  it('nace ACTIVO sin revisión de Atlas, archiva lo vivo del ámbito ANTES de activar el nuevo, y avisa al comercio', async () => {
     const activo = qr({ id: '3', status: 'active' });
     const { service, network, notice, profiles } = construir({ live: activo });
 
     const creado = await service.register('1', '7', dto);
 
     expect(creado.status).toBe('active');
-    expect(network.markQrReplaced).toHaveBeenCalledWith(activo, '99');
-    expect(network.markQrActive).toHaveBeenCalledWith(expect.objectContaining({ id: '99' }), expect.any(String));
-    // Orden: el viejo se archiva antes de que el nuevo quede activo (índice único de un activo por ámbito).
-    expect(network.markQrReplaced.mock.invocationCallOrder[0]).toBeLessThan(network.markQrActive.mock.invocationCallOrder[0] ?? 0);
+    const ambito = { tenantId: '1', partnerProfileId: '7', qrKind: 'bank', branchId: null };
+    expect(network.archiveLiveQrs).toHaveBeenCalledWith(ambito, '99', { transaction: TX });
+    expect(network.markQrActive).toHaveBeenCalledWith(expect.objectContaining({ id: '99' }), expect.any(String), { transaction: TX });
+    // Orden: lo viejo se archiva antes de que el nuevo quede activo (índice único de un activo por ámbito).
+    expect(network.archiveLiveQrs.mock.invocationCallOrder[0]).toBeLessThan(network.markQrActive.mock.invocationCallOrder[0] ?? 0);
     expect(notice.avisarCambioDeQrDeCobro).toHaveBeenCalledWith(
       await profiles.requireProfile(),
       expect.objectContaining({ id: '99', status: 'active' }),
     );
   });
 
-  it('también archiva un QR anterior que quedó en `pending_review` antes del 2026-10-02', async () => {
-    const pendiente = qr({ id: '4', status: 'pending_review' });
-    const { service, network } = construir({ live: pendiente });
+  /*
+   * Antes de #162 convivían un activo y un pendiente en el mismo ámbito, y la migración
+   * 20261002170000 dejó esos pendientes. `register` archivaba SÓLO el que devolvía `findLiveQr`
+   * (uno, sin orden): si salía el pendiente, el activo seguía en pie y activar el nuevo chocaba
+   * con el índice único, con el pendiente ya archivado y el nuevo huérfano. Ahora no elige uno:
+   * archiva todo lo vivo del ámbito, y lo hace con el nuevo en la MISMA transacción.
+   */
+  it('archiva TODO lo vivo del ámbito, no un QR elegido con `findLiveQr`, y todo en una transacción', async () => {
+    const { service, network } = construir({ live: qr({ id: '4', status: 'pending_review' }) });
 
     await service.register('1', '7', dto);
 
-    expect(network.markQrReplaced).toHaveBeenCalledWith(pendiente, '99');
+    expect(network.findLiveQr).not.toHaveBeenCalled();
+    expect(network.markQrReplaced).not.toHaveBeenCalled();
+    expect(network.inTransaction).toHaveBeenCalledTimes(1);
+    expect(network.createQrCode).toHaveBeenCalledWith(expect.objectContaining({ qrKind: 'bank' }), { transaction: TX });
+    expect(network.archiveLiveQrs).toHaveBeenCalledTimes(1);
   });
 
-  it('sin QR anterior no archiva nada y queda activo igual', async () => {
-    const { service, network } = construir({ live: null });
+  it('si la activación choca con el índice único, el error sale y no se avisa de un cambio que no ocurrió', async () => {
+    const { service, network, notice, hooks } = construir({ live: qr({ id: '3', status: 'active' }) });
+    network.markQrActive.mockRejectedValueOnce(new Error('partner_qr_codes_activo_por_ambito_key') as never);
+
+    await expect(service.register('1', '7', dto)).rejects.toThrow('partner_qr_codes_activo_por_ambito_key');
+
+    expect(notice.avisarCambioDeQrDeCobro).not.toHaveBeenCalled();
+    expect(hooks.alRegistrarArchivoDelComercio).not.toHaveBeenCalled();
+  });
+
+  it('sin QR anterior queda activo igual', async () => {
+    const { service } = construir({ live: null });
     const creado = await service.register('1', '7', dto);
     expect(creado.status).toBe('active');
-    expect(network.markQrReplaced).not.toHaveBeenCalled();
   });
 
   it('una clave fuera del expediente se rechaza antes de mirar el almacén', async () => {

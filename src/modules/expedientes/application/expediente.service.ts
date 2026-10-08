@@ -250,7 +250,11 @@ export class ExpedienteService {
     let objetosBorrados = 0;
     // Un sujeto puede tener varios expedientes (un alta por sesión); se purgan todos.
     for (;;) {
-      const expediente = await this.repository.findExpedientePorSujeto(input.tenantId, input.subjectType, input.subjectId);
+      // Sólo los no purgados: el más reciente, ya purgado, tapaba a los anteriores y la supresión
+      // dejaba vivos el carnet y la selfie de las primeras altas.
+      const expediente = await this.repository.findExpedientePorSujeto(input.tenantId, input.subjectType, input.subjectId, null, {
+        sinPurgar: true,
+      });
       if (!expediente || expediente.purgadoEn) break;
       const resultado = await this.purgar({
         tenantId: input.tenantId,

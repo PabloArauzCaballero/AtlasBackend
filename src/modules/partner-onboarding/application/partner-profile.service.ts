@@ -185,9 +185,13 @@ export class PartnerProfileService {
       throw new UnprocessableEntityException(`PARTNER_SUBMISSION_INCOMPLETE: faltan ${gaps.map((gap) => gap.requirement).join(', ')}.`);
     }
 
+    // Reenvío tras un rechazo del Motor: el veredicto anterior ya no vale y la clave del Motor
+    // cambia, porque con la misma devolvería la ejecución vieja sin volver a evaluar.
+    const reenvio = profile.onboardingStatus === 'rejected';
     const enviado = await this.repository.updateProfile(profile, {
       onboardingStatus: 'under_review',
       submittedAt: new Date(),
+      ...(reenvio ? { decidedAt: null, rejectionReason: null } : {}),
     });
     this.metrics.recordPartnerOnboardingStep({ step: 'submit', outcome: 'ok' });
     this.logger.log(`Expediente de partner enviado a revisión: partnerId=${partnerId} tenant=${tenantId}`);
@@ -199,7 +203,7 @@ export class PartnerProfileService {
      * habilita a un comercio a cobrar no estaba escrita en ninguna parte.
      */
     const { profile: evaluado } = await this.verification.evaluarConMotor(tenantId, enviado, {
-      idempotencyKey: `submit-${enviado.id}`,
+      idempotencyKey: reenvio ? `submit-${enviado.id}-${enviado.submittedAt?.getTime() ?? Date.now()}` : `submit-${enviado.id}`,
     });
     return { profile: evaluado, gaps: [] };
   }
@@ -231,15 +235,23 @@ export class PartnerProfileService {
     // el expediente `approved` aquí y el caso del ERP imposible de activar. `decision_execution_id` no se
     // toca: aquí no hubo ejecución.
     const decidedAt = new Date();
-    const updated = await this.repository.updateProfile(profile, {
-      onboardingStatus: input.approved ? 'approved' : 'rejected',
-      decidedAt,
-      decidedByInternalUserId: input.internalUserId,
-      rejectionReason: input.approved ? null : (input.rejectionReason ?? null),
-      decisionOutcome: input.approved ? 'APROBADO' : 'RECHAZADO',
-      decisionReason: input.approved ? 'DECISION_MANUAL_PORTAL' : (input.rejectionReason ?? 'DECISION_MANUAL_PORTAL'),
-      decisionEvaluatedAt: decidedAt,
-    });
+    // Con condición: si entre la lectura y la escritura el Motor decidió o abrió caso, no se pisa.
+    const updated = await this.repository.updateProfileIfStill(
+      profile,
+      { onboardingStatus: 'under_review', manualReviewCaseCode: null },
+      {
+        onboardingStatus: input.approved ? 'approved' : 'rejected',
+        decidedAt,
+        decidedByInternalUserId: input.internalUserId,
+        rejectionReason: input.approved ? null : (input.rejectionReason ?? null),
+        decisionOutcome: input.approved ? 'APROBADO' : 'RECHAZADO',
+        decisionReason: input.approved ? 'DECISION_MANUAL_PORTAL' : (input.rejectionReason ?? 'DECISION_MANUAL_PORTAL'),
+        decisionEvaluatedAt: decidedAt,
+      },
+    );
+    if (!updated) {
+      throw new ConflictException(`PARTNER_DECISION_CONFLICT: el expediente ${partnerId} cambió mientras se decidía.`);
+    }
 
     this.metrics.recordPartnerOnboardingStep({ step: 'decision', outcome: input.approved ? 'ok' : 'rejected' });
     this.logger.log(

@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { InternalPermissionsGuard } from '../../../src/modules/internal-users/guards/internal-permissions.guard.js';
+import { InternalRbacRepository } from '../../../src/modules/internal-users/internal-rbac.repository.js';
+import { INTERNAL_PERMISSIONS_CHECKER } from '../../../src/common/guards/internal-permissions.port.js';
 import { CustomerEligibilityController } from '../../../src/modules/customers/customer-eligibility.controller.js';
 import { CustomerEligibilityService } from '../../../src/modules/customers/application/customer-eligibility.service.js';
 import { CustomerEligibilityDecisionService } from '../../../src/modules/customers/application/customer-eligibility-decision.service.js';
@@ -23,12 +26,23 @@ describe('CustomerEligibilityController — decisión de operaciones (e2e/supert
     decide: jest.fn(async (..._args: unknown[]) => ({ previousStatus: 'under_review', newStatus: 'approved', blockers: [] })),
   };
 
+  // El permiso se concede por usuario interno: `usuario-con-permiso` lo tiene, `usuario-sin-permiso` no.
+  const rbacRepository = {
+    hasPermissions: jest.fn(
+      async (_tenantId: string, internalUserId: string, _permissions: string[]) => internalUserId === 'usuario-con-permiso',
+    ),
+  };
+  const conPermiso = { internalUserId: 'usuario-con-permiso', tenantId: '1' };
+
   beforeAll(async () => {
     app = await buildGenericTestApp(
       [CustomerEligibilityController],
       [
         { provide: CustomerEligibilityService, useValue: eligibilityService },
         { provide: CustomerEligibilityDecisionService, useValue: decisionService },
+        InternalPermissionsGuard,
+        { provide: InternalRbacRepository, useValue: rbacRepository },
+        { provide: INTERNAL_PERMISSIONS_CHECKER, useExisting: InternalRbacRepository },
       ],
     );
   });
@@ -67,10 +81,20 @@ describe('CustomerEligibilityController — decisión de operaciones (e2e/supert
     expect(decisionService.decide).not.toHaveBeenCalled();
   });
 
+  it('un internal_operator sin el permiso customers.eligibility.decide recibe 403 aunque su rol de aplicación pase', async () => {
+    await request(app.getHttpServer())
+      .post('/operations/customers/1/eligibility/decision')
+      .set(...authHeader('internal_operator', { internalUserId: 'usuario-sin-permiso', tenantId: '1' }))
+      .set(...TENANT_HEADER)
+      .send({ decision: 'approve', reasonCode: 'cumple' })
+      .expect(403);
+    expect(decisionService.decide).not.toHaveBeenCalled();
+  });
+
   it('rechazar sin nota se rechaza en el borde (400)', async () => {
     await request(app.getHttpServer())
       .post('/operations/customers/1/eligibility/decision')
-      .set(...authHeader('risk_analyst'))
+      .set(...authHeader('risk_analyst', conPermiso))
       .set(...TENANT_HEADER)
       .send({ decision: 'reject', reasonCode: 'no_cumple' })
       .expect(400);
@@ -80,7 +104,7 @@ describe('CustomerEligibilityController — decisión de operaciones (e2e/supert
   it('un risk_analyst aprueba y recibe 200 con el resultado del servicio', async () => {
     const response = await request(app.getHttpServer())
       .post('/operations/customers/1/eligibility/decision')
-      .set(...authHeader('risk_analyst'))
+      .set(...authHeader('risk_analyst', conPermiso))
       .set(...TENANT_HEADER)
       .send({ decision: 'approve', reasonCode: 'cumple_condiciones' })
       .expect(200);

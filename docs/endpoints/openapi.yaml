@@ -9025,18 +9025,16 @@ paths:
     post:
       operationId: ExpedientesNodosController_confirmarSubida
       parameters:
-        - name: ticketId
-          required: true
-          in: path
-          schema:
-            type: string
-          description: >-
-            Identificador de ruta `ticketId` del recurso direccionado por la
-            operación.
         - name: id
           in: path
           required: true
           description: Identificador de ruta `id`.
+          schema:
+            type: string
+        - name: ticketId
+          in: path
+          required: true
+          description: Identificador de ruta `ticketId`.
           schema:
             type: string
         - $ref: '#/components/parameters/CorrelationId'
@@ -19720,7 +19718,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Falta el permiso customers.eligibility.decide.
         '404':
           description: Cliente no encontrado.
         '409':
@@ -25741,7 +25739,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Falta el permiso partner.kyb.decide.
         '404':
           description: Expediente no encontrado.
         '409':
@@ -28441,14 +28439,6 @@ paths:
     get:
       operationId: PartnerCommerceController_qrContent
       parameters:
-        - name: qrId
-          required: true
-          in: path
-          schema:
-            type: string
-          description: >-
-            Identificador de ruta `qrId` del recurso direccionado por la
-            operación.
         - name: partnerId
           required: true
           in: path
@@ -28459,6 +28449,12 @@ paths:
             Identificador de ruta `partnerId` del recurso direccionado por la
             operación.
         - $ref: '#/components/parameters/TenantId'
+        - name: qrId
+          in: path
+          required: true
+          description: Identificador de ruta `qrId`.
+          schema:
+            type: string
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':

@@ -141,3 +141,27 @@ export type ActorExpediente = {
   /** Permisos del catálogo RBAC, para el nivel base. */
   permisos: readonly string[];
 };
+
+/** Valores con los que el repositorio crea un nodo del árbol del expediente. */
+export type NuevoNodo = {
+  tenantId: string;
+  expedienteId: string;
+  parentId: string | null;
+  tipo: string;
+  nombre: string;
+  ruta: string;
+  origen: string;
+  clase?: string | null;
+  storageKey?: string | null;
+  storageBucket?: string | null;
+  sha256?: string | null;
+  mimeType?: string | null;
+  sizeBytes?: string | null;
+  evidenceDocumentId?: string | null;
+  engineRequestId?: string | null;
+  /** Se compone desde la base al abrirlo; no tiene objeto en el almacén. */
+  virtual?: boolean;
+  inmutable?: boolean;
+  creadoPorTipo: string;
+  creadoPorId: string | null;
+};

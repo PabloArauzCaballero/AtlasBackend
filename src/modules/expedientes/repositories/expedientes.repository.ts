@@ -8,7 +8,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction } from 'sequelize';
 import { ExpedienteActividadModel, ExpedienteModel, ExpedienteNodoModel } from '../../../database/models/index.js';
 import { buscarPorMomento, type ConsultaPorMomento } from './expedientes-por-momento.query.js';
-import type { AccionActividad, EstadoExpediente } from '../expedientes.types.js';
+import type { AccionActividad, EstadoExpediente, NuevoNodo } from '../expedientes.types.js';
 import { busquedaDeExpedientes } from './expedientes-busqueda.js';
 
 /**
@@ -56,15 +56,25 @@ export class ExpedientesRepository {
    *
    * Es la consulta que hace la revisión humana: llega con un `customerId` y necesita la carpeta,
    * sin saber por qué sesión entró el cliente.
+   *
+   * Con `sinPurgar`, sólo los que aún conservan archivos: la purga por sujeto recorre así uno a uno
+   * los expedientes vivos; sin el filtro, el más reciente (ya purgado) tapaba a los anteriores.
    */
   findExpedientePorSujeto(
     tenantId: string,
     subjectType: string,
     subjectId: string,
     sessionId?: string | null,
+    opciones: { sinPurgar?: boolean } = {},
   ): Promise<ExpedienteModel | null> {
     return this.expedientes.findOne({
-      where: { tenantId, subjectType, subjectId, ...(sessionId ? { sessionId } : {}) },
+      where: {
+        tenantId,
+        subjectType,
+        subjectId,
+        ...(sessionId ? { sessionId } : {}),
+        ...(opciones.sinPurgar ? { purgadoEn: null } : {}),
+      },
       order: [['created_at', 'DESC']],
     });
   }
@@ -115,31 +125,7 @@ export class ExpedientesRepository {
 
   // ---------------------------------------------------------------- nodos
 
-  async crearNodo(
-    values: {
-      tenantId: string;
-      expedienteId: string;
-      parentId: string | null;
-      tipo: string;
-      nombre: string;
-      ruta: string;
-      origen: string;
-      clase?: string | null;
-      storageKey?: string | null;
-      storageBucket?: string | null;
-      sha256?: string | null;
-      mimeType?: string | null;
-      sizeBytes?: string | null;
-      evidenceDocumentId?: string | null;
-      engineRequestId?: string | null;
-      /** Se compone desde la base al abrirlo; no tiene objeto en el almacén. */
-      virtual?: boolean;
-      inmutable?: boolean;
-      creadoPorTipo: string;
-      creadoPorId: string | null;
-    },
-    transaction?: Transaction,
-  ): Promise<ExpedienteNodoModel> {
+  async crearNodo(values: NuevoNodo, transaction?: Transaction): Promise<ExpedienteNodoModel> {
     return this.nodos.create(values, { transaction });
   }
 
@@ -242,10 +228,24 @@ export class ExpedientesRepository {
     await this.nodos.destroy({ where: { tenantId, id: nodoId }, transaction });
   }
 
-  /** Lo que la papelera puede purgar: borrado hace más de `dias`. */
-  findPapeleraVencida(dias: number, limite: number): Promise<ExpedienteNodoModel[]> {
+  /**
+   * Lo que la papelera puede purgar: borrado hace más de `dias`.
+   *
+   * En orden estable y con `desplazamiento`: los nodos que la limpieza CONSERVA (referenciados o con
+   * el almacén caído) siguen cumpliendo el filtro, y sin orden ni salto la pasada leía siempre los
+   * mismos y nunca llegaba al resto.
+   */
+  findPapeleraVencida(dias: number, limite: number, desplazamiento = 0): Promise<ExpedienteNodoModel[]> {
     const corte = new Date(Date.now() - dias * 24 * 60 * 60 * 1000);
-    return this.nodos.findAll({ where: { borradoEn: { [Op.lt]: corte } }, limit: limite });
+    return this.nodos.findAll({
+      where: { borradoEn: { [Op.lt]: corte } },
+      order: [
+        ['borrado_en', 'ASC'],
+        ['_id', 'ASC'],
+      ],
+      limit: limite,
+      offset: desplazamiento,
+    });
   }
 
   listarPapelera(tenantId: string, limite: number): Promise<ExpedienteNodoModel[]> {

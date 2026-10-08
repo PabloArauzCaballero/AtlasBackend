@@ -68,7 +68,7 @@ export class NodoMovimientoService {
   }): Promise<void> {
     if (input.nodo.inmutable) throw new ConflictException('EXPEDIENTE_NODO_CONGELADO');
     const destino = input.destinoId ? await this.nodos.obtenerNodo(input.tenantId, input.expedienteId, input.destinoId) : null;
-    if (destino && destino.tipo !== 'carpeta') throw new BadRequestException('EXPEDIENTE_DESTINO_NO_ES_CARPETA');
+    assertDestinoAdmisible(destino);
 
     /*
      * Un nodo no puede moverse dentro de sí mismo.
@@ -123,6 +123,9 @@ export class NodoMovimientoService {
      */
     const rutaAnterior = nodo.ruta;
     const descendientes = (await this.repository.findSubarbol(tenantId, expedienteId, rutaAnterior)).filter((item) => item.id !== nodo.id);
+    // Igual que `borrar`: una carpeta sin congelar puede contener archivos congelados, y cambiarle la
+    // ruta cambiaría la de ellos y el manifiesto firmado dejaría de corresponder con el árbol.
+    if (descendientes.some((hijo) => hijo.inmutable)) throw new ConflictException('EXPEDIENTE_NODO_CONGELADO');
     // Las rutas de los hijos también se leen antes: el mismo motivo.
     const nuevasRutas = descendientes.map((hijo) => ({ id: hijo.id, ruta: `${cambios.ruta}${hijo.ruta.slice(rutaAnterior.length)}` }));
 
@@ -192,4 +195,11 @@ export class NodoMovimientoService {
       detalle: { ruta: this.nodos.rutaDe(padreVivo?.ruta ?? '', nombre), volvioALaRaiz: !padreVivo },
     });
   }
+}
+
+/** El destino de un movimiento debe ser una carpeta, y un nodo congelado no admite que le cuelguen cosas nuevas. */
+function assertDestinoAdmisible(destino: { tipo: string; inmutable?: boolean | null } | null): void {
+  if (!destino) return;
+  if (destino.tipo !== 'carpeta') throw new BadRequestException('EXPEDIENTE_DESTINO_NO_ES_CARPETA');
+  if (destino.inmutable) throw new ConflictException('EXPEDIENTE_NODO_CONGELADO');
 }

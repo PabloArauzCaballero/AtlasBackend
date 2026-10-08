@@ -173,6 +173,8 @@ export class ConcesionService {
     const concesion = await this.accesos.findConcesion(input.tenantId, input.concesionId);
     if (!concesion || concesion.nodoId !== input.nodoId) throw new NotFoundException('EXPEDIENTE_CONCESION_NO_ENCONTRADA');
     if (concesion.revocadoEn) throw new ConflictException('EXPEDIENTE_CONCESION_YA_REVOCADA');
+    // Igual que al conceder: quien comparte no puede quitar lo que sólo un nivel superior pudo dar.
+    if (!alcanza(input.nivelDelActor, concesion.nivel as Nivel)) throw new ForbiddenException('EXPEDIENTE_NIVEL_SUPERIOR_AL_PROPIO');
 
     /*
      * Nadie se quita a sí mismo la última administración.

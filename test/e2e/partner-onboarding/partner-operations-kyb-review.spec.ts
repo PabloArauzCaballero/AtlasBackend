@@ -106,4 +106,14 @@ describe('PartnerOperationsController — kyb-review (e2e/supertest)', () => {
     expect(tenantId).toBe('1');
     expect(partnerId).toBe('10');
   });
+
+  it('un partnerId que no es numérico recibe 400, no un 500 de la base', async () => {
+    await request(app.getHttpServer())
+      .post('/operations/partners/abc/kyb-review')
+      .set(...authHeader('internal_operator', { internalUserId: 'usuario-con-permiso', tenantId: '1' }))
+      .set(...TENANT_HEADER)
+      .send({})
+      .expect(400);
+    expect(verification.requestKybReview).not.toHaveBeenCalled();
+  });
 });

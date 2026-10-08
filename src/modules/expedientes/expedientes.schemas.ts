@@ -11,6 +11,9 @@ const idPositivo = z.string().regex(/^[1-9][0-9]*$/, 'Identificador inválido.')
 export const expedienteParamsSchema = z.object({ id: idPositivo }).strict();
 export type ExpedienteParamsDto = z.infer<typeof expedienteParamsSchema>;
 
+export const subidaParamsSchema = z.object({ id: idPositivo, ticketId: idPositivo }).strict();
+export type SubidaParamsDto = z.infer<typeof subidaParamsSchema>;
+
 export const nodoParamsSchema = z.object({ id: idPositivo, nodoId: idPositivo }).strict();
 export type NodoParamsDto = z.infer<typeof nodoParamsSchema>;
 

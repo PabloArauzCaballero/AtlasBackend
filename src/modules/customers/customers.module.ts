@@ -4,6 +4,7 @@
  * @system expone casos de uso de cliente, evaluación de condiciones y transiciones de estado persistidas.
  */
 import { Module } from '@nestjs/common';
+import { InternalPermissionsGuard } from '../../common/guards/internal-permissions.guard.js';
 import { CustomerRecipientDirectoryAdapter } from './infrastructure/customer-recipient-directory.adapter.js';
 import { CustomerCampaignAudienceAdapter } from './infrastructure/customer-campaign-audience.adapter.js';
 import { CustomerRecipientDirectoryController } from './customer-recipient-directory.controller.js';
@@ -33,6 +34,7 @@ import {
   IdentityVerificationAttemptModel,
   ManualReviewCaseModel,
   OnboardingFlowModel,
+  OperationalAuditLogModel,
   OutboxEventModel,
   RiskAssessmentResultModel,
   WatchlistMatchModel,
@@ -76,8 +78,8 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
       OnboardingFlowModel,
       CustomerConsumerSurveyAnswerModel,
       OutboxEventModel,
-      OutboxEventModel,
       FraudCaseModel,
+      OperationalAuditLogModel,
     ]),
   ],
   controllers: [CustomersController, CustomerEligibilityController, CustomerRecipientDirectoryController],
@@ -98,6 +100,7 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
     CustomerEligibilityRiskRepository,
     CustomerContactsRepository,
     CustomerEligibilityDecisionService,
+    InternalPermissionsGuard,
   ],
   exports: [
     CUSTOMER_STATE_PORT,

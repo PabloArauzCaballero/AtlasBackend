@@ -11,7 +11,7 @@ import { PartnerCommercialNetworkRepository } from '../partner-commercial-networ
 import { PartnerOnboardingRepository } from '../partner-onboarding.repository.js';
 import { PartnerContractTemplateService } from './partner-contract-template.service.js';
 import { buildKybDossier } from './partner-kyb-dossier.js';
-import { PartnerKybDecisionService, type KybDecision } from './partner-kyb-decision.service.js';
+import { PartnerKybDecisionService, escribirDecision, type KybDecision } from './partner-kyb-decision.service.js';
 
 /** Un requisito que le falta al expediente para poder verificarse. */
 export interface SubmissionGap {
@@ -147,7 +147,7 @@ export class PartnerVerificationService {
     };
 
     if (decision.outcome === 'APROBADO') {
-      const updated = await this.repository.updateProfile(profile, {
+      const updated = await escribirDecision(this.repository, profile, {
         ...comun,
         onboardingStatus: 'approved',
         decidedAt: decision.evaluatedAt,
@@ -161,7 +161,7 @@ export class PartnerVerificationService {
     }
 
     if (decision.outcome === 'RECHAZADO') {
-      const updated = await this.repository.updateProfile(profile, {
+      const updated = await escribirDecision(this.repository, profile, {
         ...comun,
         onboardingStatus: 'rejected',
         decidedAt: decision.evaluatedAt,
@@ -175,7 +175,7 @@ export class PartnerVerificationService {
 
     // REVISION_MANUAL —o cualquier desenlace que el artefacto añada mañana y este código no
     // conozca—: se queda esperando a una persona. Un desenlace desconocido NUNCA habilita a cobrar.
-    const updated = await this.repository.updateProfile(profile, { ...comun, onboardingStatus: 'under_review' });
+    const updated = await escribirDecision(this.repository, profile, { ...comun, onboardingStatus: 'under_review' });
     return { profile: updated, decision };
   }
 

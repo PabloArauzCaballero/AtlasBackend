@@ -244,6 +244,16 @@ describe('ErpMerchantExpedienteService', () => {
       expect(profileService.submit).not.toHaveBeenCalled();
     });
 
+    it('un expediente en revisión salta la sucursal y el QR en vez de romper la llamada', async () => {
+      const { service, commerce, qr } = build({ porCuenta: { ...perfil, onboardingStatus: 'under_review' } });
+
+      await expect(service.asegurar('1', { ...completo, submitWhenComplete: false })).resolves.toMatchObject({
+        loaded: expect.not.arrayContaining(['branch', 'bank_qr']),
+      });
+      expect(commerce.registerBranch).not.toHaveBeenCalled();
+      expect(qr.register).not.toHaveBeenCalled();
+    });
+
     it('sin `submitWhenComplete` carga pero deja el envío al comercio', async () => {
       const { service, profileService } = build({ porCuenta: perfil });
       const resultado = await service.asegurar('1', { ...completo, submitWhenComplete: false });

@@ -19,13 +19,28 @@ import {
  */
 
 /**
+ * ¿Puede el comercio tocar su expediente?
+ *
+ * Además de los estados abiertos, el comercio RECHAZADO POR EL MOTOR puede corregir y reenviar: el
+ * motivo que el Motor guarda en `rejectionReason` «dice qué corregir», y sin esta salida el NIT
+ * quedaba ocupado por un expediente que ni se editaba ni se podía reabrir (un segundo expediente lo
+ * impide el índice único del NIT). Un rechazo FIRMADO POR UNA PERSONA (`decidedByInternalUserId`)
+ * sigue siendo definitivo: reenviarlo devolvería la decisión a una máquina que la persona ya
+ * descartó, y revertirla pasa por un caso nuevo, que deja rastro.
+ */
+export function isProfileEditable(profile: PartnerProfileModel): boolean {
+  if (EDITABLE_PARTNER_STATUSES.includes(profile.onboardingStatus as (typeof EDITABLE_PARTNER_STATUSES)[number])) return true;
+  return profile.onboardingStatus === 'rejected' && !profile.decidedByInternalUserId;
+}
+
+/**
  * Un expediente ya enviado o resuelto no admite cambios del comercio.
  *
  * Sin esta puerta, un comercio podría cambiar su QR bancario mientras un analista mira el
  * expediente, y la aprobación quedaría firmada sobre datos que ya no son los que se revisaron.
  */
 export function assertEditable(profile: PartnerProfileModel): void {
-  if (!EDITABLE_PARTNER_STATUSES.includes(profile.onboardingStatus as (typeof EDITABLE_PARTNER_STATUSES)[number])) {
+  if (!isProfileEditable(profile)) {
     throw new UnprocessableEntityException(`PARTNER_NOT_EDITABLE_IN_STATUS: ${profile.onboardingStatus}`);
   }
 }

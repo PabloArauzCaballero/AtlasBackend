@@ -224,7 +224,7 @@ describe('ExpedientesNodosController', () => {
     });
 
     it('confirmar devuelve el nodo ya en el expediente, con el nivel de quien pregunta', async () => {
-      const dto = await controller.confirmarSubida('t1', { id: 'exp-1' } as never, 'tk-1', peticion('administrar'));
+      const dto = await controller.confirmarSubida('t1', { id: 'exp-1', ticketId: 'tk-1' } as never, peticion('administrar'));
 
       expect(subidas.confirmar).toHaveBeenCalledWith(expect.objectContaining({ ticketId: 'tk-1', expedienteId: 'exp-1' }));
       expect(dto.nivelEfectivo).toBe('administrar');

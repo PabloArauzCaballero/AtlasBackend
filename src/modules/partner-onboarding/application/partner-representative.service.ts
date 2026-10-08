@@ -39,10 +39,13 @@ export class PartnerRepresentativeService {
    * prefijo del tenant y del partner, y se firman tipo y tamaño. Si el cliente eligiera la ruta,
    * podría escribir sobre la evidencia de otro expediente.
    */
-  createDocumentUploadTicket(tenantId: string, partnerId: string, dto: PartnerDocumentUploadUrlDto) {
+  async createDocumentUploadTicket(tenantId: string, partnerId: string, dto: PartnerDocumentUploadUrlDto) {
     if (!this.storage.isConfigured()) {
       throw new ServiceUnavailableException('DOCUMENT_STORAGE_NOT_CONFIGURED');
     }
+    // El guard de propiedad deja pasar un partner sin perfil: sin esta lectura cualquier comercio
+    // pediría permisos de subida bajo la carpeta de un expediente que aún no existe.
+    await this.profiles.requireProfile(tenantId, partnerId);
     return this.storage.createUploadTicket({
       tenantId,
       subjectId: `partner-${partnerId}`,

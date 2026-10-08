@@ -19,7 +19,14 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { PartnerProfileService } from './application/partner-profile.service.js';
 import { PartnerQrReviewService } from './application/partner-qr-review.service.js';
 import { PartnerVerificationService } from './application/partner-verification.service.js';
-import { partnerIdParamsSchema, qrIdParamsSchema, QrIdParamsDto, reviewQrSchema, ReviewQrDto } from './partner-onboarding.schemas.js';
+import {
+  partnerIdParamsSchema,
+  PartnerIdParamsDto,
+  qrIdParamsSchema,
+  QrIdParamsDto,
+  reviewQrSchema,
+  ReviewQrDto,
+} from './partner-onboarding.schemas.js';
 import {
   FindPartnerQueryDto,
   findPartnerQuerySchema,
@@ -39,28 +46,19 @@ import { toPartnerProfileDto, toPartnerQrDto } from './partner-onboarding.mapper
 /**
  * Quien firma que un comercio es de fiar.
  *
- * El expediente llegaba a `under_review` y **se quedaba ahí para siempre**: no había un solo camino
- * que escribiera `decided_at`. Sin esta decisión ningún comercio quedaba verificado, así que ningún
- * QR de caja resolvía y ninguna compra podía atribuirse a un comercio — el vínculo que sostiene la
- * categoría del gasto no tenía dónde empezar.
- *
- * NO admite el rol `merchant`, y es la diferencia con todo el resto del módulo: el onboarding es
- * autoservicio hasta el envío, y desde ahí en adelante es verificación. Un comercio que pudiera
- * aprobarse a sí mismo convertiría el trámite en un formulario.
+ * Sin esta decisión el expediente se quedaba en `under_review` para siempre: ningún QR de caja
+ * resolvía. NO admite el rol `merchant`: el onboarding es autoservicio hasta el envío y desde ahí
+ * es verificación; un comercio que pudiera aprobarse a sí mismo convertiría el trámite en formulario.
  */
 @ApiTags('partner-onboarding')
 @ApiBearerAuth('access-token')
 @Controller('operations/partners')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, InternalPermissionsGuard)
 /*
- * El ERP llega por PERMISO, no por rol de aplicación.
- *
- * `operations_manager` es un rol interno del RBAC (`internal_rbac.roles`), no uno de los roles de
- * aplicación que `@Roles` entiende, así que la puerta del ERP se abre con `partner.kyb.request` en
- * las dos rutas que necesita —pedir la verificación y enlazar su cuenta—, mientras `@Roles` de la
- * clase sigue gobernando el resto. El ERP pide y NO decide: `POST :partnerId/decision` no lleva ese
- * permiso, la misma separación que ya rige el alta de identidades de comercio
- * (`merchant.users.request` frente a `merchant.users.manage`).
+ * El ERP llega por PERMISO, no por rol de aplicación: `operations_manager` es un rol interno del
+ * RBAC que `@Roles` no entiende, así que `partner.kyb.request` abre las dos rutas que necesita
+ * (pedir la verificación y enlazar su cuenta). El ERP pide y NO decide: `POST :partnerId/decision`
+ * exige `partner.kyb.decide` (como `merchant.users.request` frente a `merchant.users.manage`).
  */
 @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
 export class PartnerOperationsController {
@@ -120,8 +118,8 @@ export class PartnerOperationsController {
   /**
    * Una persona aprueba o rechaza el QR de cobro de un comercio.
    *
-   * Es el único camino por el que un QR pasa a `active` y, con ello, el único por el que un cliente
-   * llega a verlo en la app. Se corta en el servicio (409 si no está pendiente) y no en la pantalla.
+   * Un QR nace `active` (`markQrActive`); esta ruta sólo resuelve los que quedaron en
+   * `pending_review` tras retirarse la revisión (2026-10-02). 409 en el servicio si no lo está.
    */
   @InternalPermissions('partner.qr.review')
   @ApiOperation({
@@ -215,7 +213,7 @@ export class PartnerOperationsController {
   @HttpCode(HttpStatus.OK)
   async linkErpAccount(
     @CurrentTenant() tenantId: string,
-    @Param('partnerId') partnerId: string,
+    @Param(new ZodValidationPipe(partnerIdParamsSchema)) { partnerId }: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(linkErpAccountSchema)) body: LinkErpAccountDto,
   ) {
     return toPartnerProfileDto(await this.verification.linkErpAccount(tenantId, partnerId, body.erpAccountId));
@@ -241,7 +239,7 @@ export class PartnerOperationsController {
   @HttpCode(HttpStatus.OK)
   async requestKybReview(
     @CurrentTenant() tenantId: string,
-    @Param('partnerId') partnerId: string,
+    @Param(new ZodValidationPipe(partnerIdParamsSchema)) { partnerId }: PartnerIdParamsDto,
     @Headers('x-idempotency-key') idempotencyKey: string | undefined,
     @Body(new ZodValidationPipe(requestKybReviewSchema)) body: RequestKybReviewDto,
   ) {
@@ -255,6 +253,8 @@ export class PartnerOperationsController {
   }
 
   @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
+  // `internal_operator` lo comparten soporte y cobranza, y aprobar habilita al comercio a cobrar.
+  @InternalPermissions('partner.kyb.decide')
   @ApiOperation({
     summary: 'Aprobar o rechazar el expediente de un comercio',
     description:
@@ -267,12 +267,13 @@ export class PartnerOperationsController {
   @ApiBody({ schema: zodToApiSchema(partnerDecisionSchema) })
   @ApiResponse({ status: 200, description: 'Expediente decidido.' })
   @ApiResponse({ status: 404, description: 'Expediente no encontrado.' })
+  @ApiResponse({ status: 403, description: 'Falta el permiso partner.kyb.decide.' })
   @ApiResponse({ status: 409, description: 'PARTNER_NOT_UNDER_REVIEW | PARTNER_DECISION_DELEGADA_AL_MOTOR.' })
   @Post(':partnerId/decision')
   @HttpCode(HttpStatus.OK)
   async decide(
     @CurrentTenant() tenantId: string,
-    @Param('partnerId') partnerId: string,
+    @Param(new ZodValidationPipe(partnerIdParamsSchema)) { partnerId }: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(partnerDecisionSchema)) body: PartnerDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {

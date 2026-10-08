@@ -3,7 +3,7 @@
  * @business Traslada a una política versionada y auditable la decisión que habilita a un comercio a cobrar.
  * @system mapea el expediente a las variables del artefacto PARTNER_KYB_REVIEW y persiste su veredicto.
  */
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { DecisionArtifactBindingService } from '../../decision-engine/decision-artifact-binding.service.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
@@ -13,6 +13,7 @@ import type { DecisionResponse } from '../../decision-engine/decision-engine.typ
 import { env } from '../../../config/env.js';
 import { PartnerProfileModel } from '../../../database/models/index.js';
 import type { SubmissionGap } from './partner-verification.service.js';
+import type { PartnerOnboardingRepository, PartnerProfilePatch } from '../partner-onboarding.repository.js';
 
 /** Los desenlaces que publica el artefacto. Cualquier otro se trata como «no concluyente». */
 export const KYB_OUTCOMES = ['APROBADO', 'RECHAZADO', 'REVISION_MANUAL'] as const;
@@ -230,4 +231,23 @@ function holdForManualReview(decision: KybDecision): KybDecision {
 function numero(value: unknown): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * El veredicto se escribe sólo si el expediente sigue en `under_review`.
+ *
+ * `profile` se leyó ANTES de la llamada al Motor; si mientras tanto una persona lo decidió a mano
+ * (o la sincronización trajo el caso resuelto), escribir sobre esa instancia pisaba la decisión
+ * firme. Responde 409 y deja el expediente como lo dejó quien llegó primero.
+ */
+export async function escribirDecision(
+  repository: PartnerOnboardingRepository,
+  profile: PartnerProfileModel,
+  values: PartnerProfilePatch,
+): Promise<PartnerProfileModel> {
+  const updated = await repository.updateProfileIfStill(profile, { onboardingStatus: 'under_review' }, values);
+  if (!updated) {
+    throw new ConflictException(`PARTNER_DECISION_CONFLICT: el expediente ${profile.id} cambió mientras se verificaba.`);
+  }
+  return updated;
 }

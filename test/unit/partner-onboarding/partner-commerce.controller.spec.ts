@@ -168,7 +168,7 @@ describe('PartnerCommerceController', () => {
       const cabeceras: Record<string, string> = {};
       const res = { setHeader: (k: string, v: string) => (cabeceras[k] = v) } as unknown as Response;
 
-      const archivo = await controller.qrContent('t1', { partnerId: 'pp-1' } as never, 'qr-1', res);
+      const archivo = await controller.qrContent('t1', { partnerId: 'pp-1', qrId: 'qr-1' } as never, res);
 
       expect(archivo).toBeInstanceOf(StreamableFile);
       expect(cabeceras['Content-Type']).toBe('image/png');
@@ -180,7 +180,7 @@ describe('PartnerCommerceController', () => {
       const cabeceras: Record<string, string> = {};
       const res = { setHeader: (k: string, v: string) => (cabeceras[k] = v) } as unknown as Response;
 
-      await controller.qrContent('t1', { partnerId: 'pp-1' } as never, 'qr-1', res);
+      await controller.qrContent('t1', { partnerId: 'pp-1', qrId: 'qr-1' } as never, res);
 
       expect(cabeceras['Content-Type']).toBe('image/jpeg');
     });

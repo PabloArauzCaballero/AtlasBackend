@@ -245,6 +245,7 @@ describe('PartnerProfileService', () => {
         { qrKind: 'bank', status: 'active' },
       ]),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'REVISION_MANUAL', manualReviewCaseCode: 'MRC-7' });
     const service = new PartnerProfileService(
@@ -274,6 +275,7 @@ describe('PartnerProfileService', () => {
         { qrKind: 'bank', status: 'active' },
       ]),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'APROBADO', reason: 'KYB_COMPLETO' });
     const service = new PartnerProfileService(
@@ -294,6 +296,57 @@ describe('PartnerProfileService', () => {
     expect(updated.decidedByInternalUserId).toBeNull();
   });
 
+  it('un comercio rechazado por el Motor puede corregir y reenviar: se limpia el veredicto y la clave del Motor cambia', async () => {
+    const profile = profileDouble({
+      onboardingStatus: 'rejected',
+      rejectionReason: 'KYB_CORREO_SIN_VERIFICAR',
+      decidedAt: new Date('2026-09-08T00:00:00.000Z'),
+      decidedByInternalUserId: null,
+    });
+    const repository = {
+      findProfileById: jest.fn(async () => profile),
+      listRepresentatives: jest.fn(async () => [{ powerOfAttorneyKey: 'k' }]),
+      listBranches: jest.fn(async () => [{ id: '1' }]),
+      listQrCodes: jest.fn(async () => [
+        { qrKind: 'business', status: 'active' },
+        { qrKind: 'bank', status: 'active' },
+      ]),
+      updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), submittedAt: new Date(5), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
+    };
+    const kyb = kybDouble({ outcome: 'REVISION_MANUAL' });
+    const service = new PartnerProfileService(
+      repository as never,
+      repository as never,
+      metricsDouble(),
+      verificationCon(repository, kyb),
+      hooksDouble() as never,
+    );
+
+    const { profile: updated } = await service.submit('1', '10');
+
+    expect(updated.onboardingStatus).toBe('under_review');
+    expect(repository.updateProfile.mock.calls[0]?.[1]).toMatchObject({
+      onboardingStatus: 'under_review',
+      decidedAt: null,
+      rejectionReason: null,
+    });
+    expect((kyb.evaluate.mock.calls[0] as unknown as [{ idempotencyKey: string }])[0].idempotencyKey).toMatch(/^submit-10-\d+$/);
+  });
+
+  it('un rechazo firmado por una persona sigue siendo definitivo: no se reenvía', async () => {
+    const profile = profileDouble({ onboardingStatus: 'rejected', decidedByInternalUserId: '9' });
+    const repository = { findProfileById: jest.fn(async () => profile) };
+    const service = new PartnerProfileService(
+      repository as never,
+      repository as never,
+      metricsDouble(),
+      {} as never,
+      hooksDouble() as never,
+    );
+    await expect(service.submit('1', '10')).rejects.toThrow(UnprocessableEntityException);
+  });
+
   it('un desenlace que este código no conoce NUNCA habilita a cobrar', async () => {
     const profile = profileDouble();
     const repository = {
@@ -305,6 +358,7 @@ describe('PartnerProfileService', () => {
         { qrKind: 'bank', status: 'active' },
       ]),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const kyb = kybDouble({ outcome: 'DESENLACE_NUEVO_DEL_ARTEFACTO' });
     const service = new PartnerProfileService(
@@ -331,6 +385,7 @@ describe('PartnerProfileService', () => {
         { qrKind: 'bank', status: 'active' },
       ]),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const kyb = {
       evaluate: jest.fn(async () => {
@@ -377,6 +432,7 @@ describe('PartnerProfileService', () => {
     const repository = {
       findProfileById: jest.fn(async () => profile),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const service = new PartnerProfileService(
       repository as never,
@@ -398,8 +454,10 @@ describe('PartnerProfileService', () => {
     expect(updated.decisionOutcome).toBe('APROBADO');
     expect(updated.decisionReason).toBe('DECISION_MANUAL_PORTAL');
     expect(updated.decisionEvaluatedAt).toBeInstanceOf(Date);
-    const [, patch] = repository.updateProfile.mock.calls[0] as [unknown, AnyRecord];
+    const [, expected, patch] = repository.updateProfileIfStill.mock.calls[0] as [unknown, AnyRecord, AnyRecord];
     expect(patch).not.toHaveProperty('decisionExecutionId');
+    // Con condición: si el Motor decidió o abrió caso entre la lectura y la escritura, no se pisa.
+    expect(expected).toEqual({ onboardingStatus: 'under_review', manualReviewCaseCode: null });
   });
 
   it('el rechazo manual también se publica como veredicto, con el motivo que verá el ERP', async () => {
@@ -407,6 +465,7 @@ describe('PartnerProfileService', () => {
     const repository = {
       findProfileById: jest.fn(async () => profile),
       updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[2] as AnyRecord) })),
     };
     const service = new PartnerProfileService(
       repository as never,
@@ -421,6 +480,59 @@ describe('PartnerProfileService', () => {
     expect(updated.onboardingStatus).toBe('rejected');
     expect(updated.decisionOutcome).toBe('RECHAZADO');
     expect(updated.decisionReason).toBe('NIT sin vigencia');
+  });
+
+  /*
+   * Entre leer el expediente y escribir el veredicto hay una llamada al Motor. Si en ese hueco una
+   * persona lo decidió a mano, el APROBADO del Motor no puede pisar el rechazo humano.
+   */
+  it('el veredicto del Motor no pisa un expediente que cambió mientras se verificaba: 409', async () => {
+    const profile = profileDouble();
+    const repository = {
+      findProfileById: jest.fn(async () => profile),
+      listRepresentatives: jest.fn(async () => [{ powerOfAttorneyKey: 'k' }]),
+      listBranches: jest.fn(async () => [{ id: '1' }]),
+      listQrCodes: jest.fn(async () => [{ qrKind: 'bank', status: 'active' }]),
+      updateProfile: jest.fn(async (...args: unknown[]) => ({ ...profileDouble(), ...(args[1] as AnyRecord) })),
+      updateProfileIfStill: jest.fn(async () => null),
+    };
+    const service = new PartnerProfileService(
+      repository as never,
+      repository as never,
+      metricsDouble(),
+      verificationCon(repository, kybDouble({ outcome: 'APROBADO' })),
+      hooksDouble() as never,
+    );
+
+    await expect(service.submit('1', '10')).rejects.toThrow(/PARTNER_DECISION_CONFLICT/);
+    const [, expected] = repository.updateProfileIfStill.mock.calls[0] as unknown as [unknown, AnyRecord];
+    expect(expected).toEqual({ onboardingStatus: 'under_review' });
+  });
+
+  it('la firma manual no pisa un expediente que el Motor decidió en el mismo instante: 409', async () => {
+    const profile = profileDouble({ onboardingStatus: 'under_review', manualReviewCaseCode: null });
+    const repository = {
+      findProfileById: jest.fn(async () => profile),
+      updateProfileIfStill: jest.fn(async () => null),
+    };
+    const service = new PartnerProfileService(
+      repository as never,
+      repository as never,
+      metricsDouble(),
+      verificationCon(repository, kybDouble()),
+      hooksDouble() as never,
+    );
+
+    await expect(service.decide('1', '10', { approved: false, rejectionReason: 'x', internalUserId: '3' })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
+  it('un expediente rechazado por el Motor se puede corregir; el rechazado por una persona, no', () => {
+    expect(() => assertEditable(profileDouble({ onboardingStatus: 'rejected', decidedByInternalUserId: null }) as never)).not.toThrow();
+    expect(() => assertEditable(profileDouble({ onboardingStatus: 'rejected', decidedByInternalUserId: '9' }) as never)).toThrow(
+      UnprocessableEntityException,
+    );
   });
 
   it('un expediente ya en revisión no admite más cambios', () => {
@@ -463,6 +575,15 @@ describe('PartnerRepresentativeService · poder del representante', () => {
     documentType: 'ci' as const,
     documentNumber: '1234567',
     ...(powerOfAttorneyKey ? { powerOfAttorneyKey } : {}),
+  });
+
+  it('no emite permiso de subida para un expediente que no existe', async () => {
+    const { service, storage, repository } = build();
+    repository.findProfileById.mockResolvedValueOnce(null as never);
+    const dto = { documentKind: 'power_of_attorney', contentType: 'application/pdf', sizeBytes: 1000 } as never;
+
+    await expect(service.createDocumentUploadTicket('1', '999', dto)).rejects.toBeInstanceOf(NotFoundException);
+    expect(storage.createUploadTicket).not.toHaveBeenCalled();
   });
 
   it('acepta al representante sin poder: el papel puede llegar después', async () => {
@@ -535,6 +656,8 @@ describe('PartnerQrService', () => {
       findLiveQr: jest.fn(async (..._a: unknown[]) => null as AnyRecord | null),
       createQrCode: jest.fn(async (..._a: unknown[]) => ({ id: '99' })),
       markQrReplaced: jest.fn(async (..._a: unknown[]) => ({})),
+      inTransaction: jest.fn(async (work: (transaction: unknown) => Promise<unknown>) => work(undefined)),
+      archiveLiveQrs: jest.fn(async (..._a: unknown[]) => 1),
       markQrActive: jest.fn(async (target: AnyRecord, note: string) => ({ ...target, status: 'active', reviewNote: note })),
       findBranchById: jest.fn(async (..._a: unknown[]) => ({ id: '5' }) as AnyRecord | null),
       ...repositoryOverrides,
@@ -630,7 +753,11 @@ describe('PartnerQrService', () => {
       accountNumberMasked: '****7890',
     });
 
-    expect(repository.markQrReplaced).toHaveBeenCalledWith(previous, '99');
+    expect(repository.archiveLiveQrs).toHaveBeenCalledWith(
+      expect.objectContaining({ partnerProfileId: '10', qrKind: 'bank' }),
+      '99',
+      expect.anything(),
+    );
   });
 
   /*
@@ -652,7 +779,11 @@ describe('PartnerQrService', () => {
       accountNumberMasked: '****7890',
     });
 
-    expect(repository.markQrReplaced).toHaveBeenCalledWith(activo, '99');
+    expect(repository.archiveLiveQrs).toHaveBeenCalledWith(
+      expect.objectContaining({ partnerProfileId: '10', qrKind: 'bank' }),
+      '99',
+      expect.anything(),
+    );
     expect(creado.status).toBe('active');
     expect(notice.avisarCambioDeQrDeCobro).toHaveBeenCalledTimes(1);
   });
@@ -666,6 +797,7 @@ describe('PartnerQrService', () => {
 
     expect(repository.createQrCode).toHaveBeenCalledWith(
       expect.objectContaining({ contentType: 'image/jpeg', sizeBytes: 4096, sha256: 'c'.repeat(64) }),
+      expect.anything(),
     );
   });
 
@@ -806,6 +938,13 @@ describe('PartnerCommerceService', () => {
     expect(profiles.assertEditable).not.toHaveBeenCalled();
   });
 
+  it('no reactiva un terminal retirado: se da de baja para siempre', async () => {
+    const { service, repository } = build({ findPosById: jest.fn(async () => ({ id: '7', status: 'retired' })) });
+
+    await expect(service.changePosStatus('1', '10', '7', { status: 'active' })).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.updatePosStatus).not.toHaveBeenCalled();
+  });
+
   it('rechaza el código de sucursal repetido', async () => {
     const { service } = build({ listBranches: jest.fn(async () => [{ branchCode: 'SC-01' }]) });
 
@@ -908,6 +1047,33 @@ describe('PartnerContactVerificationService', () => {
     await service.request('1', '10');
 
     expect(mail.sendContactVerificationCode).toHaveBeenCalledWith(expect.objectContaining({ to: 'comercio@atlas.test' }));
+  });
+
+  /*
+   * Pedir un código nuevo no devuelve los intentos a cero: si lo hiciera, alternar «pedir» y cinco
+   * fallos cada 30 s dejaría probar códigos sin techo.
+   */
+  it('un código nuevo hereda los intentos fallidos de la ventana', async () => {
+    const { service, updates } = build({ contactCodeAttempts: 3, contactCodeSentAt: new Date(Date.now() - 60_000) });
+
+    await service.request('1', '10');
+
+    expect(updates[0]).toMatchObject({ contactCodeAttempts: 3 });
+  });
+
+  it('con los intentos agotados dentro de la ventana no emite otro código', async () => {
+    const { service, mail } = build({ contactCodeAttempts: 5, contactCodeSentAt: new Date(Date.now() - 60_000) });
+
+    await expect(service.request('1', '10')).rejects.toBeInstanceOf(ConflictException);
+    expect(mail.sendContactVerificationCode).not.toHaveBeenCalled();
+  });
+
+  it('pasada la ventana los intentos se reinician', async () => {
+    const { service, updates } = build({ contactCodeAttempts: 5, contactCodeSentAt: new Date(Date.now() - 2 * 3_600_000) });
+
+    await service.request('1', '10');
+
+    expect(updates[0]).toMatchObject({ contactCodeAttempts: 0 });
   });
 
   /* El código se guarda HASHEADO: quien lea la base no puede verificar por él. */
@@ -1014,6 +1180,8 @@ describe('PartnerQrService · clave de objeto', () => {
       createQrCode: jest.fn(async (values: AnyRecord) => ({ id: '1', ...values })),
       markQrActive: jest.fn(async (target: AnyRecord, note: string) => ({ ...target, status: 'active', reviewNote: note })),
       markQrReplaced: jest.fn(async () => undefined),
+      inTransaction: jest.fn(async (work: (transaction: unknown) => Promise<unknown>) => work(undefined)),
+      archiveLiveQrs: jest.fn(async () => 0),
       findBranchById: jest.fn(async () => ({ id: '5' })),
     };
     const profiles = {

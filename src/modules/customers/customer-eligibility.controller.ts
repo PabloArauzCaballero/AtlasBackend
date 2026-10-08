@@ -14,6 +14,8 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { InternalPermissionsGuard } from '../../common/guards/internal-permissions.guard.js';
+import { InternalPermissions } from '../../common/decorators/internal-permissions.decorator.js';
 import { EligibilityDecisionDto, eligibilityDecisionSchema } from './customer-eligibility.schemas.js';
 import { CustomerEligibilityDecisionService } from './application/customer-eligibility-decision.service.js';
 import { CustomerEligibilityService } from './application/customer-eligibility.service.js';
@@ -30,7 +32,7 @@ import { CustomerIdParamsDto, customerIdParamsSchema } from './customers.schemas
 @ApiTags('customer-eligibility')
 @ApiBearerAuth('access-token')
 @Controller()
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, InternalPermissionsGuard)
 export class CustomerEligibilityController {
   constructor(
     private readonly eligibilityService: CustomerEligibilityService,
@@ -60,6 +62,9 @@ export class CustomerEligibilityController {
   }
 
   @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
+  // El rol de aplicación no basta: `internal_operator` lo comparten soporte y cobranza, y aprobar con
+  // bloqueadores habilita a un cliente a pedir crédito.
+  @InternalPermissions('customers.eligibility.decide')
   @ApiOperation({
     summary: 'Decidir la habilitación de un cliente (operaciones)',
     description:
@@ -71,6 +76,7 @@ export class CustomerEligibilityController {
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(customerIdParamsSchema.shape.customerId) })
   @ApiBody({ schema: zodToApiSchema(eligibilityDecisionSchema) })
   @ApiResponse({ status: 200, description: 'Decisión aplicada — estado anterior, estado nuevo y bloqueadores vigentes.' })
+  @ApiResponse({ status: 403, description: 'Falta el permiso customers.eligibility.decide.' })
   @ApiResponse({ status: 404, description: 'Cliente no encontrado.' })
   @ApiResponse({ status: 422, description: 'INVALID_STATUS_TRANSITION — la máquina de estados no permite esa transición.' })
   @Post('operations/customers/:customerId/eligibility/decision')
