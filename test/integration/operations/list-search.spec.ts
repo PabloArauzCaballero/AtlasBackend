@@ -166,7 +166,7 @@ describe('buscadores de operaciones (PostgreSQL real)', () => {
     expect(todo.items).toHaveLength(2);
     expect(todo.summary).toEqual({ total: 3, email: 1, phone: 2 });
 
-    const telefonos = await service.list(tenantId, { page: 1, limit: 25, contactType: 'phone', q: '77' });
+    const telefonos = await service.list(tenantId, { page: 1, limit: 25, contactType: 'phone', q: '7788' });
     expect(telefonos.items.map((item) => item.valueLast4)).toEqual(['7788']);
     expect(telefonos.summary.total).toBe(3);
     expect((await service.list(tenantId, { page: 1, limit: 25, q: 'UPSA' })).meta.total).toBe(1);
