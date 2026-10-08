@@ -8,6 +8,7 @@ import { CreditLineService } from '../../../src/modules/credit/application/credi
 import { CreditProductService } from '../../../src/modules/credit/application/credit-product.service.js';
 import { CreditProductStatusService } from '../../../src/modules/credit/application/credit-product-status.service.js';
 import { authHeader, buildGenericTestApp, TENANT_HEADER } from '../support/generic-test-app.js';
+import { ExposureReservationService } from '../../../src/modules/credit/application/exposure-reservation.service.js';
 
 /**
  * Contrato HTTP de la consola de operaciones de crédito:
@@ -43,6 +44,7 @@ describe('CreditOperationsController (e2e/supertest)', () => {
         { provide: CreditDecisionService, useValue: decisionService },
         { provide: CreditBusinessAcceptanceService, useValue: businessAcceptance },
         { provide: CreditLineService, useValue: creditLines },
+        { provide: ExposureReservationService, useValue: { exposureOf: jest.fn(async () => 0) } },
         { provide: CreditProductStatusService, useValue: productStatus },
       ],
     );

@@ -18,6 +18,7 @@ import { denialError } from '../../../src/modules/credit/application/use-cases/s
 import { CreditController } from '../../../src/modules/credit/credit.controller.js';
 import { toHttpException } from '../../../src/platform/contracts/application-error.js';
 import { bearer, buildJourneyApp, type Revocation } from './support/journey-app.js';
+import { ExposureReservationService } from '../../../src/modules/credit/application/exposure-reservation.service.js';
 
 const CUSTOMER_T1 = '501';
 const CUSTOMER_T2 = '777';
@@ -50,6 +51,7 @@ describe('AT-052 · recorrido crítico por HTTP (contrato)', () => {
         { provide: CreditApplicationService, useValue: applications },
         { provide: CreditProductService, useValue: { listOfferable: jest.fn(async () => ({ items: [] })) } },
         { provide: CreditLineService, useValue: {} },
+        { provide: ExposureReservationService, useValue: { exposureOf: jest.fn(async () => 0) } },
         { provide: BankStatementService, useValue: {} },
       ],
     ));

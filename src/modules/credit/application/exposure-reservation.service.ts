@@ -76,6 +76,27 @@ export class ExposureReservationService {
    * además el índice único parcial). Una reserva vencida de la misma solicitud se libera primero, y
    * la nueva se evalúa contra el límite de HOY.
    */
+  /**
+   * Lo ya comprometido de la línea: saldo de capital de los préstamos vivos + reservas vigentes. Es la MISMA cuenta
+   * que usa `reserve` para decidir si un importe cabe, así «disponible» en la app y el cupo real no pueden discrepar.
+   *
+   * Existe porque `GET credit-line` devolvía `used: 0` siempre (nadie le pasaba lo usado): con un préstamo de Bs 480
+   * vivo sobre Bs 900, la app decía «Disponible Bs 900» y «Por pagar Bs 0» (Pablo, 2026-10-08).
+   */
+  async exposureOf(tenantId: string, customerId: string, now: Date = new Date()): Promise<number> {
+    const rows = await this.sequelize.query<{ total: string }>(
+      `SELECT (
+         (SELECT COALESCE(SUM(outstanding_principal), 0) FROM ${atlasSchemaFor('loans')}.loans
+           WHERE _tenant_id = $tenantId AND customer_id = $customerId AND _deleted = false AND status = ANY($liveStatuses))
+       + (SELECT COALESCE(SUM(amount), 0) FROM ${atlasSchemaFor('credit_exposure_reservations')}.credit_exposure_reservations
+           WHERE _tenant_id = $tenantId AND customer_id = $customerId AND status = 'reserved' AND expires_at > $now)
+       )::text AS total`,
+      { type: QueryTypes.SELECT, bind: { tenantId, customerId, now, liveStatuses: LIVE_LOAN_STATUSES } },
+    );
+    const total = Number(rows[0]?.total ?? 0);
+    return Number.isFinite(total) ? total : 0;
+  }
+
   async reserve(input: ReserveExposureInput, transaction: Transaction): Promise<CreditExposureReservationModel> {
     await this.lockCustomer(input.tenantId, input.customerId, transaction);
     if (input.expiresAt.getTime() <= input.now.getTime()) throw new ConflictException('CREDIT_DECISION_EXPIRED');

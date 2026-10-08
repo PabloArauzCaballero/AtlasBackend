@@ -31,7 +31,13 @@ describe('CreditController', () => {
       applicationService,
       creditLines,
       bankStatements,
-      controller: new CreditController(productService as never, applicationService as never, creditLines as never, bankStatements as never),
+      controller: new CreditController(
+        productService as never,
+        applicationService as never,
+        creditLines as never,
+        bankStatements as never,
+        { exposureOf: jest.fn(async () => 0) } as never,
+      ),
     };
   }
 
@@ -93,6 +99,7 @@ describe('CreditOperationsController', () => {
         businessAcceptance as never,
         creditLines as never,
         productStatus as never,
+        { exposureOf: jest.fn(async () => 0) } as never,
       ),
     };
   }

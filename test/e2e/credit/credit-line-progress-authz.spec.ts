@@ -9,6 +9,7 @@ import { CreditLineService } from '../../../src/modules/credit/application/credi
 import { CreditProductService } from '../../../src/modules/credit/application/credit-product.service.js';
 import { CreditProgressService } from '../../../src/modules/credit/application/credit-progress.service.js';
 import { authHeader, buildGenericTestApp, TENANT_HEADER } from '../support/generic-test-app.js';
+import { ExposureReservationService } from '../../../src/modules/credit/application/exposure-reservation.service.js';
 
 /**
  * Matriz de autorización negativa de lo que pinta Inicio: `GET customers/:id/credit-line` (el crédito habilitado que
@@ -28,6 +29,7 @@ describe('Crédito habilitado y progreso: autorización (e2e/supertest)', () => 
         { provide: CreditApplicationService, useValue: {} },
         { provide: BankStatementService, useValue: {} },
         { provide: CreditLineService, useValue: creditLines },
+        { provide: ExposureReservationService, useValue: { exposureOf: jest.fn(async () => 0) } },
         { provide: CreditProgressService, useValue: progress },
       ],
     );
