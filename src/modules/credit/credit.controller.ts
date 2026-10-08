@@ -29,6 +29,7 @@ import {
   SubmitBankStatementDto,
   submitBankStatementSchema,
 } from './credit.schemas.js';
+import { ExposureReservationService } from './application/exposure-reservation.service.js';
 
 /**
  * Cara de cliente del dominio de crédito: qué productos hay y cómo se solicita uno.
@@ -46,6 +47,7 @@ export class CreditController {
     private readonly applicationService: CreditApplicationService,
     private readonly creditLines: CreditLineService,
     private readonly bankStatements: BankStatementService,
+    private readonly exposure: ExposureReservationService,
   ) {}
 
   @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
@@ -76,7 +78,8 @@ export class CreditController {
     assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
     // Un cliente activo sin línea la pide al motor ahora mismo: ver `CreditLineService.currentOrRequest`.
     const line = await this.creditLines.currentOrRequest(tenantId, params.customerId);
-    return toCreditLineResponse(line);
+    // Con lo ya comprometido: sin esto «disponible» era siempre el límite entero.
+    return toCreditLineResponse(line, await this.exposure.exposureOf(tenantId, params.customerId));
   }
 
   @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')

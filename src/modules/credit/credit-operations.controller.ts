@@ -35,6 +35,7 @@ import {
   creditProductStatusSchema,
   numericIdParamSchema,
 } from './credit.schemas.js';
+import { ExposureReservationService } from './application/exposure-reservation.service.js';
 
 /**
  * Administración del catálogo crediticio y decisión sobre las solicitudes.
@@ -55,6 +56,7 @@ export class CreditOperationsController {
     private readonly businessAcceptance: CreditBusinessAcceptanceService,
     private readonly creditLines: CreditLineService,
     private readonly productStatus: CreditProductStatusService,
+    private readonly exposure: ExposureReservationService,
   ) {}
 
   @ApiOperation({
@@ -77,7 +79,8 @@ export class CreditOperationsController {
     if (!line) {
       throw new ServiceUnavailableException('DECISION_ENGINE_UNAVAILABLE');
     }
-    return toCreditLineResponse(line);
+    // Con lo ya comprometido: sin esto «disponible» era siempre el límite entero.
+    return toCreditLineResponse(line, await this.exposure.exposureOf(tenantId, customerId));
   }
 
   @ApiOperation({ summary: 'Listar los productos vigentes (operaciones)' })
