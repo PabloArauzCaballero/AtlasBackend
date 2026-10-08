@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (131 controladores) | 609 |
+| Total montadas (132 controladores) | 613 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
-| Con `@Roles` | 551 |
+| Con `@Roles` | 555 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 85 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -226,6 +226,10 @@
 |---|---|---|---|---|---|
 | `GET` | `/customers/:customerId/eligibility` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `CustomerEligibilityController.getEligibility` | guards: `TenantGuard`, `InternalPermissionsGuard` |
 | `GET` | `/customers/:customerId/me` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `CustomersController.getCustomerMe` | guards: `TenantGuard` |
+| `DELETE` | `/customers/:customerId/profile-photo` | `customer` | — | `CustomerProfilePhotoController.remove` | guards: `TenantGuard` |
+| `GET` | `/customers/:customerId/profile-photo` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | — | `CustomerProfilePhotoController.read` | guards: `TenantGuard` |
+| `PUT` | `/customers/:customerId/profile-photo` | `customer` | — | `CustomerProfilePhotoController.confirm` | guards: `TenantGuard` |
+| `POST` | `/customers/:customerId/profile-photo/upload-url` | `customer` | — | `CustomerProfilePhotoController.createUploadUrl` | guards: `TenantGuard` |
 | `GET` | `/internal/contexts/customers/recipient-directory/addresses` | identidad de servicio `{"scope":"customers:recipient-directory","audienceContext":"customers","allowedServices":["messaging-worker"]}` | — | `CustomerRecipientDirectoryController.addresses` | guards: `ServiceTokenGuard` |
 | `GET` | `/internal/contexts/customers/recipient-directory/resolve` | identidad de servicio `{"scope":"customers:recipient-directory","audienceContext":"customers","allowedServices":["messaging-worker"]}` | — | `CustomerRecipientDirectoryController.resolve` | guards: `ServiceTokenGuard` |
 | `POST` | `/operations/customers/:customerId/eligibility/decision` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `admin`, `platform_admin` | `customers.eligibility.decide` | `CustomerEligibilityController.decideEligibility` | guards: `TenantGuard`, `InternalPermissionsGuard` |

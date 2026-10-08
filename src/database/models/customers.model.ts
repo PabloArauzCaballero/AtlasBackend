@@ -59,6 +59,13 @@ export class CustomerModel extends Model {
   @Column({ field: 'closed_at', type: DataType.DATE })
   declare closedAt: Date | null;
 
+  /** La foto de perfil: clave del objeto en el almacén (`tenant/cliente/profile-photo/uuid.jpg`); `null` = sin foto. */
+  @Column({ field: 'profile_photo_key', type: DataType.STRING(300) })
+  declare profilePhotoKey: string | null;
+
+  @Column({ field: 'profile_photo_updated_at', type: DataType.DATE })
+  declare profilePhotoUpdatedAt: Date | null;
+
   @Column({ field: '_created_at', type: DataType.DATE, allowNull: false })
   declare createdAtValue: Date;
 

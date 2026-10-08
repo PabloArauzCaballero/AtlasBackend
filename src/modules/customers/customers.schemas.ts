@@ -10,3 +10,22 @@ export const customerIdParamsSchema = z.object({
 });
 
 export type CustomerIdParamsDto = z.infer<typeof customerIdParamsSchema>;
+
+/** El permiso de subida de la foto de perfil: sólo JPEG o PNG y de 5 MB como mucho (la app la comprime antes). */
+export const profilePhotoUploadUrlSchema = z.object({
+  contentType: z.enum(['image/jpeg', 'image/png']),
+  sizeBytes: z
+    .number()
+    .int()
+    .positive()
+    .max(5 * 1024 * 1024),
+});
+
+export type ProfilePhotoUploadUrlDto = z.infer<typeof profilePhotoUploadUrlSchema>;
+
+/** Fijar como foto el objeto recién subido. La clave la impuso el servidor al emitir el permiso. */
+export const profilePhotoConfirmSchema = z.object({
+  storageKey: z.string().min(1).max(300),
+});
+
+export type ProfilePhotoConfirmDto = z.infer<typeof profilePhotoConfirmSchema>;
