@@ -59,8 +59,9 @@ sigue en 200 (sirve el respaldo, `"version":"unknown"`) en ≤10 s → `docker s
 ## Actualizar el respaldo tras un despliegue sano
 
 ```
-FE=$(docker ps -q --filter label=coolify.applicationId=6 --filter label=com.docker.compose.service=frontend --filter status=running)
-API=$(docker ps -q --filter label=coolify.applicationId=3 --filter label=com.docker.compose.service=api --filter status=running)
+# Coolify 4.4.2 etiqueta por uuid (`coolify.applicationUuid`); antes, por id (app 6 y app 3).
+FE=$(docker ps -q --filter label=coolify.applicationUuid=boffxwlo9x4gmqhhvfno2mnx --filter label=com.docker.compose.service=frontend --filter status=running)
+API=$(docker ps -q --filter label=coolify.applicationUuid=cpzbl0hojfjtzg2ym4tk4shr --filter label=com.docker.compose.service=api --filter status=running)
 docker tag "$(docker inspect -f '{{.Image}}' $FE)" atlas-erp-frontend:estable
 docker tag "$(docker inspect -f '{{.Image}}' $API)" atlas-erp-backend:estable
 cd /opt/atlas/respaldo-erp && docker compose up -d

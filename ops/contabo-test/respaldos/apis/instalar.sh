@@ -14,9 +14,16 @@ TABLA="
 1 atlas-backend atlas-backend
 2 atlas-decision motor
 "
+# Coolify 4.4.2 sólo pone `coolify.applicationUuid`; lo desplegado antes, sólo `coolify.applicationId`.
+principal_de() { # app_id servicio -> contenedor en marcha
+  u=$(docker exec coolify-db psql -U coolify -d coolify -Atc "select uuid from applications where id=$1")
+  { docker ps -q --filter "label=coolify.applicationId=$1" --filter "label=com.docker.compose.service=$2" --filter status=running
+    [ -n "$u" ] && docker ps -q --filter "label=coolify.applicationUuid=$u" --filter "label=com.docker.compose.service=$2" --filter status=running
+  } | head -n 1
+}
 echo "$TABLA" | while read -r app imagen nombre; do
   [ -z "${app:-}" ] && continue
-  p=$(docker ps -q --filter "label=coolify.applicationId=$app" --filter "label=com.docker.compose.service=api" --filter status=running | head -n 1)
+  p=$(principal_de "$app" api)
   if [ -z "$p" ]; then echo "  app $app: sin principal en marcha, se salta"; continue; fi
   salud=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$p")
   if [ "$salud" != healthy ]; then echo "  app $app: principal $salud, se salta"; continue; fi
