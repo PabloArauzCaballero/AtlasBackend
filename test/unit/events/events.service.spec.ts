@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock } from '../../support/jest-mocks.js';
+import { ForbiddenException } from '@nestjs/common';
 import { EventsService } from '../../../src/modules/events/events.service.js';
 
 /**
@@ -187,6 +188,19 @@ describe('EventsService', () => {
       expect(event.save).not.toHaveBeenCalled();
     });
 
+    it('retryEvent y cancelEvent rechazan un evento que un worker está procesando, salvo bloqueo vencido', async () => {
+      const { service, repository } = buildService();
+      const enVuelo = () => fakeOutboxEvent({ status: 'processing', lockedAt: new Date(), lockedBy: 'w1' });
+      (repository.getById as jest.Mock).mockResolvedValueOnce(enVuelo() as never);
+      await expect(service.retryEvent('t1', '1')).rejects.toMatchObject({ status: 409, message: 'PROCESSING_EVENT_CANNOT_BE_RETRIED' });
+      (repository.getById as jest.Mock).mockResolvedValueOnce(enVuelo() as never);
+      await expect(service.cancelEvent('t1', '1')).rejects.toMatchObject({ status: 409, message: 'PROCESSING_EVENT_CANNOT_BE_CANCELLED' });
+
+      const varado = fakeOutboxEvent({ status: 'processing', lockedAt: new Date(Date.now() - 60 * 60_000), lockedBy: 'muerto' });
+      (repository.getById as jest.Mock).mockResolvedValueOnce(varado as never);
+      await expect(service.retryEvent('t1', '1')).resolves.toMatchObject({ status: 'pending' });
+    });
+
     it('cancelEvent moves a pending event to cancelled', async () => {
       const { service, repository } = buildService();
       const event = fakeOutboxEvent({ status: 'pending' });
@@ -297,6 +311,19 @@ describe('EventsService', () => {
       const result = await service.publish({ tenantId: 't1', eventCode: 'user.registered', aggregateType: 'customer' } as never);
 
       expect(result).toMatchObject({ id: '2', tenantId: '5', priority: 9, attempts: 2, maxAttempts: 7 });
+    });
+
+    it('publishFromDto rechaza con 403 EVENT_RESERVED_FOR_SYSTEM un evento que avisa a un cliente u operaciones', async () => {
+      const { service, repository } = buildService();
+      for (const eventCode of ['kyc.approved', 'customer.lifecycle.active', 'payment.confirmed', 'support.sla.breached']) {
+        const attempt = service.publishFromDto({
+          tenantId: 't1',
+          body: { eventCode, aggregateType: 'customer', payload: { customerId: '123', html: '<a>x</a>', bcc: ['v@x.com'] } } as never,
+        });
+        await expect(attempt).rejects.toBeInstanceOf(ForbiddenException);
+        await expect(attempt).rejects.toThrow('EVENT_RESERVED_FOR_SYSTEM');
+      }
+      expect(repository.createEvent).not.toHaveBeenCalled();
     });
 
     it('publishFromDto sin opcionales usa los fallbacks (origen operations_api/publish_event, ids en null)', async () => {

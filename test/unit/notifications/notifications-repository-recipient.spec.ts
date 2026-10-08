@@ -92,6 +92,20 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
       });
     });
 
+    it('la bandeja no lista avisos pendientes, cancelados ni fallidos, ni siquiera pidiéndolos por status', async () => {
+      const messageModel = { findAndCountAll: jest.fn(async (..._args: unknown[]) => ({ rows: [], count: 0 })) };
+      const repository = buildRepository(messageModel);
+
+      await repository.listRecipientMessages('t1', 'customer', 'c1', { page: 1, limit: 20 } as never);
+      await repository.listRecipientMessages('t1', 'customer', 'c1', { status: 'cancelled', page: 1, limit: 20 } as never);
+      await repository.listRecipientMessages('t1', 'customer', 'c1', { status: 'delivered', page: 1, limit: 20 } as never);
+
+      const wheres = (messageModel.findAndCountAll as jest.Mock).mock.calls.map((c) => (c[0] as { where: Record<string, unknown> }).where);
+      expect(wheres[0].status).toEqual({ [Op.notIn]: ['pending', 'cancelled', 'failed'] });
+      expect(wheres[1].status).toEqual({ [Op.in]: [] });
+      expect(wheres[2].status).toBe('delivered');
+    });
+
     it('listCustomerMessages (regression) delegates to listRecipientMessages with recipientType: customer', async () => {
       const messageModel = { findAndCountAll: jest.fn(async (..._args: unknown[]) => ({ rows: [], count: 0 })) };
       const repository = buildRepository(messageModel);
@@ -130,6 +144,7 @@ describe('NotificationsRepository — generalized recipient inbox methods', () =
       ];
       expect(values).toMatchObject({ status: 'read' });
       expect(options.where).toMatchObject({ tenantId: 't1', recipientType: 'internal_user', recipientId: 'iu1', readAt: null });
+      expect(options.where.status).toEqual({ [Op.notIn]: ['pending', 'cancelled', 'failed'] });
     });
   });
 

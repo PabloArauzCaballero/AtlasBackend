@@ -56,9 +56,16 @@ export class NotificationPreferencesRepository {
     const now = new Date();
     const mandatory = await this.policies.mandatoryKeys(tenantId);
 
+    // Se valida TODO el lote antes de escribir nada: si la tercera entrada es un aviso obligatorio, las
+    // dos primeras no pueden haberse guardado ya cuando la respuesta es un 400.
+    for (const preference of body.preferences) {
+      if (mandatory.has(`${preference.eventCode}:${preference.channel}`) && !preference.isEnabled) {
+        throw new BadRequestException('REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED');
+      }
+    }
+
     for (const preference of body.preferences) {
       const isRequired = mandatory.has(`${preference.eventCode}:${preference.channel}`);
-      if (isRequired && !preference.isEnabled) throw new BadRequestException('REQUIRED_NOTIFICATION_CANNOT_BE_DISABLED');
 
       const existing = await this.preferenceModel.findOne({
         where: { tenantId, customerId, eventCode: preference.eventCode, channel: preference.channel },

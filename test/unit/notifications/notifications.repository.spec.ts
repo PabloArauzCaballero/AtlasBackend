@@ -26,6 +26,7 @@ describe('NotificationsRepository — núcleo', () => {
       findAll: jest.fn(async (..._args: unknown[]) => []),
     };
     const deviceTokenModel = {
+      update: jest.fn(async (..._args: unknown[]) => [0]),
       findOne: jest.fn(),
       create: jest.fn(async (v: unknown) => ({ id: 'dt1', ...(v as object) })),
       findAll: jest.fn(async (..._args: unknown[]) => []),
@@ -159,13 +160,44 @@ describe('NotificationsRepository — núcleo', () => {
     expect(where.where.createdAtValue).toBeDefined();
   });
 
-  it('markMessageSending fija status sending y queuedAt (solo la primera vez)', async () => {
-    const { repo } = build();
+  it('markMessageSending reclama con compare-and-set sobre el estado leído y fija sending y queuedAt', async () => {
+    const { repo, messageModel } = build();
+    (messageModel.update as jest.Mock).mockResolvedValueOnce([1] as never);
     const message = baseMessage();
-    await repo.markMessageSending(message as never);
+    const previousStatus = (message as { status: string }).status;
+    await expect(repo.markMessageSending(message as never)).resolves.toBe(true);
+    const [values, options] = (messageModel.update as jest.Mock).mock.calls[0] as [
+      Record<string, unknown>,
+      { where: Record<string, unknown> },
+    ];
+    expect(values.status).toBe('sending');
+    expect(options.where).toEqual({ id: (message as { id: unknown }).id, status: previousStatus });
     expect((message as { status: string }).status).toBe('sending');
     expect((message as { queuedAt: Date | null }).queuedAt).not.toBeNull();
-    expect(message.save).toHaveBeenCalled();
+  });
+
+  it('markMessageRetrying sólo reabre mensajes failed o retrying del tenant', async () => {
+    const { repo, messageModel } = build();
+    (messageModel.update as jest.Mock).mockResolvedValueOnce([1] as never).mockResolvedValueOnce([0] as never);
+    const message = baseMessage({ status: 'failed' });
+    await expect(repo.markMessageRetrying(message as never)).resolves.toBe(true);
+    const [values, options] = (messageModel.update as jest.Mock).mock.calls[0] as [
+      Record<string, unknown>,
+      { where: { status: Record<symbol, string[]> } },
+    ];
+    expect(values).toMatchObject({ status: 'retrying', failedAt: null });
+    const statuses = Object.getOwnPropertySymbols(options.where.status).map((symbol) => options.where.status[symbol])[0];
+    expect(statuses).toEqual(['failed', 'retrying']);
+    await expect(repo.markMessageRetrying(baseMessage({ status: 'delivered' }) as never)).resolves.toBe(false);
+  });
+
+  it('markMessageSending devuelve false y no toca el mensaje si otra tanda ya lo reclamó', async () => {
+    const { repo, messageModel } = build();
+    (messageModel.update as jest.Mock).mockResolvedValueOnce([0] as never);
+    const message = baseMessage();
+    const previousStatus = (message as { status: string }).status;
+    await expect(repo.markMessageSending(message as never)).resolves.toBe(false);
+    expect((message as { status: string }).status).toBe(previousStatus);
   });
 
   describe('recordDelivery — cuenta el intento y transiciona el estado del mensaje', () => {
@@ -237,6 +269,20 @@ describe('NotificationsRepository — núcleo', () => {
       expect(created.isActive).toBe(true);
       expect(created.tokenLast4).toBe('abcd');
     });
+  });
+
+  it('upsertDeviceToken apaga el mismo token en los OTROS clientes del tenant antes de dejarlo activo aquí', async () => {
+    const { repo, deviceTokenModel } = build();
+    (deviceTokenModel.findOne as jest.Mock).mockResolvedValueOnce(null as never);
+    await repo.upsertDeviceToken('t1', 'c2', { token: 'telefono-compartido', platform: 'android' } as never);
+    const [values, options] = (deviceTokenModel.update as jest.Mock).mock.calls[0] as [
+      Record<string, unknown>,
+      { where: Record<string, unknown> },
+    ];
+    expect(values).toMatchObject({ isActive: false });
+    expect(options.where).toMatchObject({ tenantId: 't1', isActive: true, customerId: { [Op.ne]: 'c2' } });
+    const created = (deviceTokenModel.create as jest.Mock).mock.calls[0][0] as { tokenHash: string };
+    expect(options.where.tokenHash).toBe(created.tokenHash);
   });
 
   it('getMessageDeliveryTargets descifra los targets del mensaje (round-trip)', async () => {
@@ -464,6 +510,16 @@ describe('NotificationsRepository — núcleo', () => {
       expect(statuses).toEqual(['pending', 'sending']);
       expect(call.order).toEqual([['createdAtValue', 'ASC']]);
       expect(call.limit).toBe(50);
+    });
+
+    it('el job de pendientes puede pedir sólo pending: un sending reciente es una entrega en vuelo', async () => {
+      const { repo, messageModel } = build();
+
+      await repo.listStuckMessages({ tenantId: 't1', olderThanMinutes: 0, limit: 50, statuses: ['pending'] });
+
+      const call = (messageModel.findAll as jest.Mock).mock.calls[0][0] as { where: { status: Record<symbol, string[]> } };
+      const statuses = Object.getOwnPropertySymbols(call.where.status).map((symbol) => call.where.status[symbol])[0];
+      expect(statuses).toEqual(['pending']);
     });
 
     it('el corte por antigüedad no recoge lo que acaba de crearse', async () => {

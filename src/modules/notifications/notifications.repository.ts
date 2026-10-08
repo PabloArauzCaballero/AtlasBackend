@@ -8,10 +8,9 @@ import { InjectModel } from '@nestjs/sequelize';
 import { LocalRecipientDirectoryAdapter } from './infrastructure/directory/local-recipient-directory.adapter.js';
 import { legacyCustomerContactTargets } from './infrastructure/directory/legacy-contact-targets.js';
 import { Op, UniqueConstraintError } from 'sequelize';
-import { lastCharacters } from '../../common/utils/crypto/hash.util.js';
-import { decryptSecretEnvelope, encryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
+import { decryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { redactSensitiveObject } from '../../common/utils/privacy/redaction.util.js';
-import { deviceTokenFingerprint } from './infrastructure/persistence/device-token-fingerprint.js';
+import { upsertDeviceTokenRow } from './infrastructure/persistence/device-token-upsert.js';
 import {
   CustomerContactMethodModel,
   DeviceTokenModel,
@@ -43,7 +42,7 @@ import {
 } from './notification-types.js';
 import { buildEncryptedDeliveryTargets, decryptDeliveryTargets } from './notification-delivery-targets.util.js';
 import { notExpired, ownedByGenericJobs } from './campaigns/notification-visibility.util.js';
-import { withCreatedBetween, withTextSearch } from './notification-list.filters.js';
+import { HIDDEN_INBOX_STATUSES, withCreatedBetween, withInboxStatus, withTextSearch } from './notification-list.filters.js';
 
 // Tamaño de lote para insertar mensajes de broadcast. Un único bulkCreate con decenas de miles de
 // filas produce una sentencia SQL gigante; trocear acota memoria del driver/servidor por INSERT.
@@ -273,7 +272,7 @@ export class NotificationsRepository {
 
   async listRecipientMessages(tenantId: string, recipientType: RecipientType, recipientId: string, query: CustomerNotificationsQueryDto) {
     const where: Record<string | symbol, unknown> = { tenantId, recipientType, recipientId, channel: 'in_app', ...notExpired() };
-    if (query.status) where.status = query.status;
+    withInboxStatus(where, query.status);
     if (query.channel) where.channel = query.channel;
     withCreatedBetween(where, query);
     withTextSearch(where, query.q, ['title', 'subject', 'body']);
@@ -300,7 +299,7 @@ export class NotificationsRepository {
         recipientId,
         channel: 'in_app',
         readAt: null,
-        status: { [Op.notIn]: ['cancelled', 'failed'] },
+        status: { [Op.notIn]: HIDDEN_INBOX_STATUSES },
         ...notExpired(),
       } as never,
     });
@@ -310,13 +309,19 @@ export class NotificationsRepository {
    * Mensajes a medio entregar que nadie va a retomar (A-03). `sending` entra junto a `pending`: lo deja
    * `markMessageSending` si el proceso muere entre marcar y entregar. El corte por antigüedad evita
    * competir con una entrega en vuelo; los avisos de campaña y los programados a futuro no son suyos.
+   * El job de pendientes (sin corte) pide sólo `pending`: un `sending` reciente va en vuelo.
    */
-  listStuckMessages(input: { tenantId: string; olderThanMinutes: number; limit: number }): Promise<NotificationMessageModel[]> {
+  listStuckMessages(input: {
+    tenantId: string;
+    olderThanMinutes: number;
+    limit: number;
+    statuses?: readonly string[];
+  }): Promise<NotificationMessageModel[]> {
     const cutoff = new Date(Date.now() - input.olderThanMinutes * 60_000);
     return this.messageModel.findAll({
       where: {
         tenantId: input.tenantId,
-        status: { [Op.in]: ['pending', 'sending'] },
+        status: { [Op.in]: input.statuses ?? ['pending', 'sending'] },
         createdAtValue: { [Op.lt]: cutoff },
         ...ownedByGenericJobs(),
       } as never,
@@ -325,12 +330,31 @@ export class NotificationsRepository {
     });
   }
 
-  async markMessageSending(message: NotificationMessageModel): Promise<void> {
+  /**
+   * Reabre para reintentar sólo un mensaje fallido (compare-and-set): un entregado o cancelado no se reenvía.
+   */
+  async markMessageRetrying(message: NotificationMessageModel): Promise<boolean> {
+    const [reopened] = await this.messageModel.update({ status: 'retrying', failedAt: null, updatedAtValue: new Date() } as never, {
+      where: { id: message.id, tenantId: message.tenantId, status: { [Op.in]: ['failed', 'retrying'] } } as never,
+    });
+    return reopened === 1;
+  }
+
+  /**
+   * Reclama el mensaje para entregarlo (compare-and-set sobre el estado leído): si otra tanda (pendientes,
+   * varados, reintento manual) llegó antes, el UPDATE no toca filas y quien llega segundo no envía.
+   */
+  async markMessageSending(message: NotificationMessageModel): Promise<boolean> {
     const now = new Date();
+    const queuedAt = message.queuedAt ?? now;
+    const [claimed] = await this.messageModel.update({ status: 'sending', queuedAt, updatedAtValue: now } as never, {
+      where: { id: message.id, status: message.status } as never,
+    });
+    if (claimed !== 1) return false;
     message.status = 'sending';
-    message.queuedAt = message.queuedAt ?? now;
+    message.queuedAt = queuedAt;
     message.updatedAtValue = now;
-    await message.save();
+    return true;
   }
 
   async recordDelivery(
@@ -406,7 +430,14 @@ export class NotificationsRepository {
     const [count] = await this.messageModel.update(
       { status: 'read', readAt: new Date(), updatedAtValue: new Date() },
       {
-        where: { tenantId, recipientType, recipientId, channel: 'in_app', readAt: null } as never,
+        where: {
+          tenantId,
+          recipientType,
+          recipientId,
+          channel: 'in_app',
+          readAt: null,
+          status: { [Op.notIn]: HIDDEN_INBOX_STATUSES },
+        } as never,
       },
     );
     return count;
@@ -439,33 +470,8 @@ export class NotificationsRepository {
     return this.preferencesRepository.isChannelEnabled(input);
   }
 
-  async upsertDeviceToken(tenantId: string, customerId: string, body: UpsertDeviceTokenDto): Promise<DeviceTokenModel> {
-    const tokenHash = deviceTokenFingerprint(body.token);
-    const now = new Date();
-    const existing = await this.deviceTokenModel.findOne({ where: { tenantId, customerId, platform: body.platform, tokenHash } });
-    if (existing) {
-      existing.isActive = true;
-      existing.lastSeenAt = now;
-      existing.tokenEncrypted = await encryptSecretEnvelope(body.token);
-      existing.tokenLast4 = lastCharacters(body.token, 4);
-      existing.deviceId = body.deviceId ?? existing.deviceId;
-      existing.updatedAtValue = now;
-      await existing.save();
-      return existing;
-    }
-    return this.deviceTokenModel.create({
-      tenantId,
-      customerId,
-      platform: body.platform,
-      tokenHash,
-      tokenEncrypted: await encryptSecretEnvelope(body.token),
-      tokenLast4: lastCharacters(body.token, 4),
-      deviceId: body.deviceId ?? null,
-      isActive: true,
-      lastSeenAt: now,
-      createdAtValue: now,
-      updatedAtValue: now,
-    });
+  upsertDeviceToken(tenantId: string, customerId: string, body: UpsertDeviceTokenDto): Promise<DeviceTokenModel> {
+    return upsertDeviceTokenRow(this.deviceTokenModel, tenantId, customerId, body);
   }
 
   getMessageDeliveryTargets(message: NotificationMessageModel): Promise<DeliveryTarget[]> {

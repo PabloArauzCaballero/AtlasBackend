@@ -3,7 +3,7 @@
  * @business Esta pieza desacopla procesos de negocio y permite reintentos auditables sin perder eventos.
  * @system registra definiciones, outbox y procesamiento idempotente de eventos de dominio.
  */
-import { BadRequestException, ConflictException, Injectable, Logger, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
 import type { Transaction } from 'sequelize';
 import { env } from '../../config/env.js';
 import { OutboxRelayService } from '../../platform/events/outbox-relay.service.js';
@@ -14,6 +14,15 @@ import { eventStatusSchema, ListEventsQueryDto, PublishEventDto } from './events
 import { ProcessEventsInput, ProcessEventsResult, PublishEventInput } from './event-types.js';
 import { OutboxEventModel } from '../../database/models/index.js';
 import { NotificationOrchestratorService } from '../notifications/notification-orchestrator.service.js';
+import { hasNotificationRule } from '../notifications/notification-rules.service.js';
+
+/** Un bloqueo más viejo que esto es de un proceso que murió: el evento ya no está en vuelo. */
+const PROCESSING_LOCK_STALE_MS = 15 * 60_000;
+
+function isBeingProcessed(event: OutboxEventModel): boolean {
+  if (event.status !== 'processing') return false;
+  return !event.lockedAt || Date.now() - new Date(event.lockedAt).getTime() < PROCESSING_LOCK_STALE_MS;
+}
 
 function addBackoff(now: Date, attempts: number): Date {
   const minutes = Math.min(60, Math.max(1, attempts * attempts));
@@ -80,7 +89,15 @@ export class EventsService {
     return eventToResponse(event);
   }
 
+  /**
+   * Publicación MANUAL (`POST /operations/events`). Un evento con regla de aviso queda fuera: quien lo
+   * publicara a mano mandaría a un cliente un «KYC aprobado» o un «pago confirmado» que nadie aprobó,
+   * por push, correo y SMS, con el `customerId` que eligiera en el payload.
+   */
   async publishFromDto(input: { tenantId: string; body: PublishEventDto; idempotencyKey?: string | null }) {
+    if (hasNotificationRule(input.body.eventCode)) {
+      throw new ForbiddenException(`EVENT_RESERVED_FOR_SYSTEM: ${input.body.eventCode} sólo lo publica su productor`);
+    }
     return this.publish({
       tenantId: input.tenantId,
       eventCode: input.body.eventCode,
@@ -146,6 +163,9 @@ export class EventsService {
      * distinguiera «me equivoqué en la llamada» de «llegué tarde» no acertaba nunca.
      */
     if (event.status === 'processed') throw new ConflictException('PROCESSED_EVENT_CANNOT_BE_RETRIED');
+    // Un worker lo está entregando: devolverlo a `pending` deja que otro lo reclame y lo entregue
+    // en paralelo. Sólo si el bloqueo venció (el proceso murió) se puede reabrir a mano.
+    if (isBeingProcessed(event)) throw new ConflictException('PROCESSING_EVENT_CANNOT_BE_RETRIED');
     const now = new Date();
     event.status = 'pending';
     event.availableAt = now;
@@ -199,6 +219,8 @@ export class EventsService {
     const event = await this.repository.getById(tenantId, eventId);
     if (event.status === 'processed') throw new ConflictException('PROCESSED_EVENT_CANNOT_BE_CANCELLED');
     if (event.status === 'cancelled') throw new ConflictException('EVENT_ALREADY_CANCELLED');
+    // El worker cerraría el evento como `processed` y el aviso saldría igual: la cancelación se perdería.
+    if (isBeingProcessed(event)) throw new ConflictException('PROCESSING_EVENT_CANNOT_BE_CANCELLED');
     const now = new Date();
     event.status = 'cancelled';
     event.updatedAtValue = now;

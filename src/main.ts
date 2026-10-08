@@ -28,6 +28,7 @@ import { OpenApiDocumentRegistry } from './modules/systems-ops/openapi-document.
 import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encryption.util.js';
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
+import { internalMailBodyParser, internalMailRoutes } from './bootstrap/internal-mail-body-parser.js';
 import { assertDecoratorMetadataIsAvailable } from './common/bootstrap/decorator-metadata.guard.js';
 import { malwareScannerStartupNotice } from './common/storage/malware-scanner-startup-notice.js';
 
@@ -92,12 +93,12 @@ async function bootstrap(): Promise<void> {
    * para ESA ruta y no para todas porque el cuerpo puede llegar hasta `API_JSON_BODY_LIMIT` y
    * retener una copia de cada petición del backend es memoria regalada.
    */
-  app.useBodyParser('json', {
-    limit: env.API_JSON_BODY_LIMIT,
-    verify: (request: IncomingMessage & { rawBody?: Buffer }, _response: unknown, buffer: Buffer) => {
-      if (RAW_BODY_PATHS.some((path) => request.url?.includes(path))) request.rawBody = Buffer.from(buffer);
-    },
-  });
+  const keepRawBody = (request: IncomingMessage & { rawBody?: Buffer }, _response: unknown, buffer: Buffer) => {
+    if (RAW_BODY_PATHS.some((path) => request.url?.includes(path))) request.rawBody = Buffer.from(buffer);
+  };
+  // El correo interno admite adjuntos de hasta 7 MB en base64: va primero, con su propio límite.
+  app.use(internalMailRoutes(env.API_PREFIX), internalMailBodyParser(keepRawBody));
+  app.useBodyParser('json', { limit: env.API_JSON_BODY_LIMIT, verify: keepRawBody });
   app.useBodyParser('urlencoded', { limit: env.API_JSON_BODY_LIMIT, extended: true });
 
   // Trust first proxy so req.ip resolves correctly behind a load balancer

@@ -32,7 +32,7 @@ export function renderMailTemplate(template: MailTemplateName, variables: Record
   return {
     subject: render(definition.emailAsunto, variables),
     text: render(definition.emailTextBody, variables),
-    html: render(definition.emailHtmlBody, variables),
+    html: render(definition.emailHtmlBody, variables, escapeHtml),
   };
 }
 
@@ -51,7 +51,18 @@ function assertVariablesPresent(definition: MailTemplateDefinition, variables: R
   }
 }
 
-/** Sustitución de `{{clave}}`. Lo que no esté declarado se deja tal cual, nunca como `undefined`. */
-function render(template: string, variables: Record<string, string>): string {
-  return template.replace(PLACEHOLDER, (original, name: string) => variables[name] ?? original);
+/**
+ * Sustitución de `{{clave}}`. Lo que no esté declarado se deja tal cual, nunca como `undefined`.
+ * En el HTML el valor se escapa: `empresa` es la razón social que escribe el comercio, y con
+ * `</p><a href=...>` salía un enlace de suplantación desde el remitente legítimo de ATLAS.
+ */
+function render(template: string, variables: Record<string, string>, escape: (value: string) => string = (value) => value): string {
+  return template.replace(PLACEHOLDER, (original, name: string) => {
+    const value = variables[name];
+    return value === undefined ? original : escape(value);
+  });
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }

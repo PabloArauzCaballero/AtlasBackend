@@ -19,3 +19,15 @@ export function withCreatedBetween(where: Where, range: { from?: Date; to?: Date
     ...(range.to ? { [Op.lte]: range.to } : {}),
   };
 }
+
+/** Estados de un in_app que la bandeja del destinatario no muestra, no cuenta ni marca como leídos. */
+export const HIDDEN_INBOX_STATUSES: string[] = ['pending', 'cancelled', 'failed'];
+
+/**
+ * El `status` de la bandeja: un pendiente (campaña escalonada que aún no le toca), cancelado o fallido no
+ * es un aviso del destinatario, ni se lista ni se puede pedir por `status`.
+ */
+export function withInboxStatus(where: Where, status?: string): void {
+  if (!status) where.status = { [Op.notIn]: HIDDEN_INBOX_STATUSES };
+  else where.status = HIDDEN_INBOX_STATUSES.includes(status) ? { [Op.in]: [] } : status;
+}

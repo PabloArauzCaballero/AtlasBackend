@@ -3,7 +3,7 @@
  * @business Esta pieza pone la voz de la marca en el momento en que alguien entra a la app.
  * @system pide la locución al worker del motor y la re-sirve bajo la sesión de quien entra.
  */
-import { ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { env } from '../../config/env.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { EngineAudioClient } from './engine-audio.client.js';
@@ -60,7 +60,7 @@ export class MobileWelcomeAudioService {
    * termine de escribirse. El precio es que un reinicio del proceso pierde las anotaciones vivas y
    * esas descargas contestan 404; el desenlace es que alguien no oye un saludo, y eso es aceptable.
    */
-  private readonly duenos = new Map<string, { customerId: string; expira: number }>();
+  private readonly duenos = new Map<string, { customerIds: Set<string>; expira: number }>();
 
   constructor(
     private readonly engine: EngineAudioClient,
@@ -172,23 +172,22 @@ export class MobileWelcomeAudioService {
     for (const [clave, valor] of this.duenos) {
       if (valor.expira <= ahora) this.duenos.delete(clave);
     }
-    this.duenos.set(requestId, { customerId, expira: ahora + VIGENCIA_MS });
+    // El motor devuelve la MISMA ejecución para la misma frase («misma frase, misma voz»): dos clientes
+    // con el mismo nombre comparten requestId, así que el identificador tiene un conjunto de dueños.
+    const vigente = this.duenos.get(requestId);
+    const customerIds = vigente && vigente.expira > ahora ? vigente.customerIds : new Set<string>();
+    customerIds.add(customerId);
+    this.duenos.set(requestId, { customerIds, expira: ahora + VIGENCIA_MS });
   }
 
   private exigirDueno(requestId: string, customerId: string): void {
     const anotado = this.duenos.get(requestId);
-    if (!anotado || anotado.expira <= Date.now()) {
+    if (!anotado || anotado.expira <= Date.now() || !anotado.customerIds.has(customerId)) {
       // 404 y no 403: un 403 confirmaría que ese identificador existe, que es justo lo que no debe
       // poder averiguarse probando.
       throw new NotFoundException({
         code: 'WELCOME_AUDIO_NOT_FOUND',
         message: 'No hay ninguna locución de bienvenida con ese identificador.',
-      });
-    }
-    if (anotado.customerId !== customerId) {
-      throw new ForbiddenException({
-        code: 'WELCOME_AUDIO_FORBIDDEN',
-        message: 'Esa locución no es tuya.',
       });
     }
   }

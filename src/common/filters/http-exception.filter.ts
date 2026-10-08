@@ -9,6 +9,7 @@ import { normalizePostgresError, type NormalizedPostgresError } from '../databas
 import { isApplicationError, toHttpException } from '../../platform/contracts/application-error.js';
 import { recordHttpFailure } from '../observability/trace-error.js';
 import { publishTraceIdHeader } from '../observability/trace-id-header.js';
+import { redactPathSecrets } from '../utils/privacy/path-secret-redaction.util.js';
 
 type HttpResponse = {
   status: (statusCode: number) => HttpResponse;
@@ -114,9 +115,9 @@ function extractValidationIssues(exception: unknown): ValidationIssue[] | undefi
 export function sanitizeUrlForLog(url: string | undefined): string {
   if (!url) return 'unknown';
   const separator = url.indexOf('?');
-  if (separator === -1) return url;
+  if (separator === -1) return redactPathSecrets(url);
 
-  const path = url.slice(0, separator);
+  const path = redactPathSecrets(url.slice(0, separator));
   const parameterNames = url
     .slice(separator + 1)
     .split('&')

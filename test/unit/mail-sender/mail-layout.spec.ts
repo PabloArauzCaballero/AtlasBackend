@@ -81,6 +81,21 @@ describe('armazón de marca de los correos', () => {
     expect(subject).toContain('ATLAS');
   });
 
+  it('escapa el HTML de los valores en el cuerpo HTML y deja el texto plano tal cual', () => {
+    const empresa = 'ACME</p><a href="https://phish">Confirma</a> & Cía';
+    const { html, text } = renderMailTemplate('atlas-qr-cobro-cambiado', {
+      empresa,
+      entidad: 'Banco',
+      cuenta: '123',
+      fecha: '2026-10-05',
+      producto: 'ATLAS',
+    });
+
+    expect(html).not.toContain('<a href="https://phish">');
+    expect(html).toContain('ACME&lt;/p&gt;&lt;a href=&quot;https://phish&quot;&gt;Confirma&lt;/a&gt; &amp; Cía');
+    expect(text).toContain(empresa);
+  });
+
   it('el preheader distingue un correo de otro en la bandeja', () => {
     /*
      * Sin preheader el cliente resume con las primeras palabras del cuerpo

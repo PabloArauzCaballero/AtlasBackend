@@ -91,6 +91,18 @@ describe('AppContentService', () => {
       ]);
     });
 
+    it('un link guardado que no es https no se sirve; uno https sí', async () => {
+      entries.findAll.mockResolvedValueOnce([
+        fila({ actionKind: 'link', actionLabel: 'Ver', actionValue: 'javascript:alert(1)' }),
+        fila({ actionKind: 'link', actionLabel: 'Ver', actionValue: 'https://atlas.example/a' }),
+      ] as never);
+
+      const { items } = await service.listPublic('t1', { locale: 'es-BO' });
+
+      expect(items[0].action).toBeNull();
+      expect(items[1].action?.url).toBe('https://atlas.example/a');
+    });
+
     it('las listas y los metadatos ausentes salen vacíos, no nulos: la app no comprueba', async () => {
       entries.findAll.mockResolvedValueOnce([fila()] as never);
 

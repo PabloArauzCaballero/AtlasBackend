@@ -66,7 +66,19 @@ describe('MobileWelcomeAudioService', () => {
     const { service } = montar();
     const { requestId } = await service.start('1', '23');
 
-    await expect(service.audio('1', requestId, '99')).rejects.toMatchObject({ status: 403 });
+    await expect(service.audio('1', requestId, '99')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('dos clientes con la misma frase comparten ejecución y los dos pueden oírla', async () => {
+    // El motor deduplica por frase: «misma frase, misma voz, misma ejecución».
+    const { service } = montar();
+    const a = await service.start('1', '23');
+    const b = await service.start('1', '24');
+
+    expect(b.requestId).toBe(a.requestId);
+    await expect(service.audio('1', a.requestId, '23')).resolves.toBeDefined();
+    await expect(service.audio('1', a.requestId, '24')).resolves.toBeDefined();
+    await expect(service.audio('1', a.requestId, '99')).rejects.toMatchObject({ status: 404 });
   });
 
   it('contesta 404 —no 403— para un identificador que nadie encargó', async () => {

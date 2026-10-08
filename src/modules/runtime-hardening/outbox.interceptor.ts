@@ -7,6 +7,7 @@ import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nes
 import { Observable, catchError, from, mergeMap, of, throwError } from 'rxjs';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { firstHeader } from '../../common/utils/http/headers.util.js';
+import { redactPathSecrets } from '../../common/utils/privacy/path-secret-redaction.util.js';
 import { markCommittedResult } from './application/committed-result.js';
 import { RuntimeHardeningService } from './runtime-hardening.service.js';
 
@@ -40,6 +41,8 @@ export class ApiCommandOutboxInterceptor implements NestInterceptor {
         // tipo de evento, y con ids tenía cardinalidad ilimitada. Sin plantilla, la URL sin query.
         const routeTemplate = typeof request.route?.path === 'string' ? request.route.path : pathNoQuery;
         const tenantId = request.user?.tenantId ?? tenantFromHeader(request.headers['x-tenant-id']);
+        // La ruta que se guarda en el evento va sin query y sin secretos (tokens/códigos en el path).
+        const path = redactPathSecrets(pathNoQuery);
         // Antes era fire-and-forget con `void`: si fallaba la escritura del outbox, el cliente
         // recibía OK pero el sistema perdía trazabilidad/eventual processing. Ahora se espera la
         // persistencia del evento antes de devolver la respuesta de mutación.
@@ -51,7 +54,7 @@ export class ApiCommandOutboxInterceptor implements NestInterceptor {
             eventCode: `${request.method.toLowerCase()}_${routeTemplate.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '')}_completed`,
             payload: {
               method: request.method,
-              path: pathNoQuery,
+              path,
               actorRole: request.user?.role ?? 'public_or_unknown',
               resultType: body && typeof body === 'object' ? 'object' : typeof body,
             },

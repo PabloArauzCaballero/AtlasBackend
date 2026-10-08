@@ -55,6 +55,15 @@ const OPERATIONS_EVENTS: Record<string, string[]> = {
  */
 export const POLICY_EVENT_CODES_WITHOUT_SENDER: readonly string[] = ['cuota_por_vencer', 'cuota_vencida'];
 
+/**
+ * ¿Este evento dispara un aviso a una persona? Lo consulta la publicación MANUAL de eventos
+ * (`POST /operations/events`): un hecho que avisa a un cliente («KYC aprobado», «pago confirmado») sólo
+ * puede nacer de su productor, en la transacción del cambio que describe, nunca de un formulario.
+ */
+export function hasNotificationRule(eventCode: string): boolean {
+  return Object.hasOwn(CUSTOMER_EVENTS, eventCode) || Object.hasOwn(OPERATIONS_EVENTS, eventCode);
+}
+
 @Injectable()
 export class NotificationRulesService {
   /** Los códigos de evento con regla: lo que el guardián de productores compara con `src/`. */
