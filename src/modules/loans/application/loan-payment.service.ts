@@ -14,6 +14,7 @@ import { allocatePayment, type AllocatableInstallment } from '../domain/loan-all
 import { clampToZero, fromCents, toCents } from '../domain/money.util.js';
 import { RegisterPaymentDto, ReversePaymentDto } from '../loans.schemas.js';
 import { LoansRepository } from '../loans.repository.js';
+import { statusAfterReversal } from './loan-installment-status.js';
 
 function outstandingOf(installment: LoanInstallmentModel): AllocatableInstallment {
   return {
@@ -211,6 +212,8 @@ export class LoanPaymentService {
       const payment = await this.loans.findPaymentForUpdate(input.tenantId, input.paymentId, transaction);
       if (!payment || payment.loanId !== loan.id) throw new NotFoundException('LOAN_PAYMENT_NOT_FOUND');
       if (payment.status === 'reversed') throw new ConflictException('LOAN_PAYMENT_ALREADY_REVERSED');
+      // Con el castigo las cuotas son `written_off`: reversar un cobro anterior las reabriría y desuadraría `writtenOffAmount`.
+      if (loan.status === 'written_off') throw new ConflictException('LOAN_WRITTEN_OFF_PAYMENT_NOT_REVERSIBLE');
 
       // ATL-09: se captura ANTES de mutar. `applyTotalsToLoan` reabre un préstamo `paid_off`, y leer
       // el estado después dejaba el evento como `active → active`, sin rastro de la reapertura.
@@ -226,7 +229,7 @@ export class LoanPaymentService {
         installment.paidPrincipal = fromCents(clampToZero(toCents(installment.paidPrincipal) - toCents(allocation.principalApplied)));
         installment.paidInterest = fromCents(clampToZero(toCents(installment.paidInterest) - toCents(allocation.interestApplied)));
         installment.paidLateFee = fromCents(clampToZero(toCents(installment.paidLateFee) - toCents(allocation.lateFeeApplied)));
-        installment.status = isFullyPaid(installment) ? 'paid' : 'partially_paid';
+        installment.status = statusAfterReversal(installment, now, isFullyPaid(installment));
         if (installment.status !== 'paid') installment.settledAt = null;
         installment.updatedAtValue = now;
         await installment.save({ transaction });

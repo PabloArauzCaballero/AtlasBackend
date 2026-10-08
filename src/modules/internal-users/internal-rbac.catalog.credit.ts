@@ -23,4 +23,51 @@ export const CREDIT_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
     riskLevel: 'HIGH',
     requiresReason: true,
   }),
+  /*
+   * Las operaciones de dinero ya no se abren con el rol grueso del token. Todo usuario interno sin
+   * rol especializado —soporte, cobranza, operaciones de comercios— recibe `internal_operator`, y
+   * con ese rol bastaba para aprobar una solicitud, desembolsarla y registrarle un cobro en
+   * efectivo sin evidencia. Cada ruta exige ahora su permiso, y el permiso lo concede el rol.
+   */
+  permission({
+    code: 'credit.application.decide',
+    module: 'credit',
+    resource: 'application',
+    action: 'decide',
+    description: 'Aprobar, rechazar o pedir información sobre una solicitud de crédito en revisión manual.',
+    riskLevel: 'HIGH',
+  }),
+  permission({
+    code: 'credit.product.manage',
+    module: 'credit',
+    resource: 'product',
+    action: 'manage',
+    description: 'Crear productos crediticios y cambiar su estado (activar, suspender, retirar).',
+    riskLevel: 'HIGH',
+  }),
+  permission({
+    code: 'credit.loan.disburse',
+    module: 'credit',
+    resource: 'loan',
+    action: 'disburse',
+    description: 'Desembolsar una solicitud aprobada: crea el préstamo y su cronograma y consume el cupo.',
+    riskLevel: 'CRITICAL',
+  }),
+  permission({
+    code: 'loans.payment.register',
+    module: 'loans',
+    resource: 'payment',
+    action: 'register',
+    description: 'Registrar un cobro sobre un préstamo: baja la deuda del cliente.',
+    riskLevel: 'HIGH',
+  }),
+  permission({
+    code: 'loans.payment.reverse',
+    module: 'loans',
+    resource: 'payment',
+    action: 'reverse',
+    description: 'Reversar un cobro ya aplicado (cheque devuelto, error de imputación): la deuda vuelve.',
+    riskLevel: 'CRITICAL',
+    requiresReason: true,
+  }),
 ];

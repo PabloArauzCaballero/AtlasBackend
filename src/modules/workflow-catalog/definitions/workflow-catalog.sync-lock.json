@@ -48,6 +48,6 @@
   },
   "rbac": {
     "migration": "20261007181000-sync-internal-rbac-catalog-b04-grants",
-    "hash": "b26079d3f5bedf7b"
+    "hash": "b459b27951adae6a"
   }
 }

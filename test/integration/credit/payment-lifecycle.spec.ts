@@ -42,7 +42,7 @@ async function report(h: LoanBookHarness, loan: Loan, installmentIndex = 0, amou
       installmentId: String(loan.installments[installmentIndex]!.id),
       amount,
       contentType: 'image/jpeg',
-      storageKey: `files/${h.tenantId}/${loan.customerId}/payment_proof/${Date.now()}.jpg`,
+      storageKey: `${h.tenantId}/customer-${loan.customerId}/PAYMENT_PROOF/${Date.now()}.jpg`,
       sizeBytes: 1024,
     } as never,
     currentUser: customerUser(loan.customerId),

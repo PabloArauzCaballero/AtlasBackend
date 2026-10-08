@@ -47,6 +47,11 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   OPERATIONS_MANAGER: [
     'auth.internal.me.read',
+    // Dinero: antes lo abría el rol grueso `internal_operator`; ahora es permiso explícito.
+    // `credit.product.manage` y `credit.loan.disburse` quedan SOLO para SUPER_ADMIN (decisión 2026-10-07).
+    'credit.application.decide',
+    'loans.payment.register',
+    'loans.payment.reverse',
     // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
     'workflows.read',
     'expedientes.leer',
@@ -86,6 +91,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   RISK_MANAGER: [
     'auth.internal.me.read',
+    // Decidir solicitudes (antes `risk_analyst` entraba por el rol del token). Gobernar productos es sólo de SUPER_ADMIN.
+    'credit.application.decide',
     // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
     'workflows.read',
     'expedientes.leer',
@@ -102,6 +109,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   RISK_ANALYST: [
     'auth.internal.me.read',
+    // Decidir solicitudes de crédito (decisión de mínimo privilegio, 2026-10-07).
+    'credit.application.decide',
     'workflows.read',
     'expedientes.leer',
     'expedientes.escribir',
@@ -156,6 +165,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
   ],
   COLLECTIONS_MANAGER: [
     'auth.internal.me.read',
+    // Registrar cobros de cartera.
+    'loans.payment.register',
     // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).
     'workflows.read',
     'expedientes.leer',
@@ -163,8 +174,24 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'operations.definitions.read',
     'reporting.read',
   ],
-  COLLECTIONS_AGENT: ['auth.internal.me.read', 'workflows.read', 'operations.catalogs.read', 'operations.definitions.read'],
-  FINANCE_MANAGER: ['auth.internal.me.read', 'workflows.read', 'reporting.read', 'reporting.execute', 'audit.events.read'],
+  COLLECTIONS_AGENT: [
+    'auth.internal.me.read',
+    // Registrar y revertir cobros (decisión de mínimo privilegio, 2026-10-07).
+    'loans.payment.register',
+    'loans.payment.reverse',
+    'workflows.read',
+    'operations.catalogs.read',
+    'operations.definitions.read',
+  ],
+  FINANCE_MANAGER: [
+    'auth.internal.me.read',
+    'loans.payment.register',
+    'loans.payment.reverse',
+    'workflows.read',
+    'reporting.read',
+    'reporting.execute',
+    'audit.events.read',
+  ],
   MERCHANT_OPERATIONS: [
     'auth.internal.me.read',
     // Procesos: la ficha de negocio de lo que opera este rol (plan de procesos 2026-09-26).

@@ -14,6 +14,7 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
 import {
   type PaymentProofTicketDto,
+  numericIdParamSchema,
   paymentProofTicketSchema,
   type SubmitPaymentClaimDto,
   submitPaymentClaimSchema,
@@ -54,8 +55,8 @@ export class MobilePaymentClaimsController {
   @Get('instructions/:installmentId')
   instruction(
     @CurrentTenant() tenantId: string,
-    @Param('customerId') customerId: string,
-    @Param('installmentId') installmentId: string,
+    @Param('customerId', new ZodValidationPipe(numericIdParamSchema)) customerId: string,
+    @Param('installmentId', new ZodValidationPipe(numericIdParamSchema)) installmentId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.instrucciones.paymentInstruction({
@@ -72,7 +73,7 @@ export class MobilePaymentClaimsController {
   @Post('proof-tickets')
   createTicket(
     @CurrentTenant() tenantId: string,
-    @Param('customerId') customerId: string,
+    @Param('customerId', new ZodValidationPipe(numericIdParamSchema)) customerId: string,
     @Body(new ZodValidationPipe(paymentProofTicketSchema)) body: PaymentProofTicketDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
@@ -93,7 +94,7 @@ export class MobilePaymentClaimsController {
   @HttpCode(HttpStatus.OK)
   submit(
     @CurrentTenant() tenantId: string,
-    @Param('customerId') customerId: string,
+    @Param('customerId', new ZodValidationPipe(numericIdParamSchema)) customerId: string,
     @Body(new ZodValidationPipe(submitPaymentClaimSchema)) body: SubmitPaymentClaimDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {

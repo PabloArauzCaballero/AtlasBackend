@@ -90,10 +90,25 @@ describe('CreditRatingRepository', () => {
       await expect(repository.findCustomerIdsWithExposure('t1', 50)).resolves.toEqual(['7', '9']);
 
       expect(firstArg(models.loan.findAll as jest.Mock)).toMatchObject({
-        group: ['customer_id'],
-        order: [['customer_id', 'ASC']],
+        group: ['_tenant_id', 'customer_id'],
         limit: 50,
       });
+    });
+
+    /**
+     * Sin cursor y ordenado sólo por `customer_id`, cada pasada tomaba los mismos N primeros: el resto
+     * de la cartera nunca se recalificaba. Primero van los nunca calificados y los de calificación
+     * más vieja.
+     */
+    it('el lote empieza por la calificación vigente más vieja, no por los mismos N de siempre', async () => {
+      const { repository, models } = build();
+      await repository.findCustomerIdsWithExposure('t1', 50);
+      const { order } = firstArg(models.loan.findAll as jest.Mock) as { order: [{ val: string }, string][] };
+      expect(order[0][1]).toBe('ASC NULLS FIRST');
+      expect(order[0][0].val).toContain('customer_risk_ratings');
+      expect(order[0][0].val).toContain('r.is_current = true');
+      expect(order[0][0].val).toContain('"LoanModel".customer_id');
+      expect(order[1]).toEqual(['customer_id', 'ASC']);
     });
 
     it('sin tenant, el barrido recorre toda la plataforma', async () => {

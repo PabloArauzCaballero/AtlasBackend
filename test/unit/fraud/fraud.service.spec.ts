@@ -263,6 +263,104 @@ describe('FraudService.decideFraudCase', () => {
 
     expect(result.caseStatus).toBe('in_progress');
     expect(repo.createWatchlistEntry).not.toHaveBeenCalled();
+    // No cierra: sin fecha de cierre, o la decisión final recibiría 409 CASE_ALREADY_CLOSED.
+    expect(repo.closeFraudCase).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ closedAt: null, nextStatus: 'in_progress', decidedAt: expect.any(Date) }),
+      expect.anything(),
+    );
+  });
+
+  it('tras needs_more_investigation el caso admite la decisión final', async () => {
+    // El repositorio falso aplica lo que el real escribe, para que la segunda lectura vea el efecto de la primera.
+    const row: Record<string, unknown> = {
+      id: '1',
+      closedAt: null,
+      caseStatus: 'open',
+      resolution: null,
+      customerId: '10',
+      severity: 'medium',
+    };
+    const repo = buildFraudRepositoryMock();
+    repo.findFraudCaseById.mockImplementation(async () => row);
+    repo.closeFraudCase.mockImplementation(async (...args: unknown[]) => {
+      const values = args[1] as { closedAt: Date | null; nextStatus: string; resolution: string };
+      Object.assign(row, { closedAt: values.closedAt, caseStatus: values.nextStatus, resolution: values.resolution });
+      return row;
+    });
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      buildLifecycleMock() as never,
+      buildSequelizeMock() as never,
+    );
+    const decide = (decision: 'needs_more_investigation' | 'confirmed_fraud', idempotencyKey: string) =>
+      service.decideFraudCase({
+        tenantId: '1',
+        params: { caseId: '1' },
+        body: { decision, reasonCode: 'pending_docs', applyWatchlist: false },
+        currentUser: { sub: '1', role: 'fraud_analyst' },
+        idempotencyKey,
+      });
+
+    await decide('needs_more_investigation', 'idem-a');
+    expect(row.closedAt).toBeNull();
+    const final = await decide('confirmed_fraud', 'idem-b');
+
+    expect(final.caseStatus).toBe('closed');
+    expect(row.closedAt).toBeInstanceOf(Date);
+    await expect(decide('confirmed_fraud', 'idem-c')).rejects.toThrow(ConflictException);
+  });
+
+  it('un caso que quedó «en investigación» con fecha de cierre (dato anterior al arreglo) se puede decidir', async () => {
+    const repo = buildFraudRepositoryMock();
+    repo.findFraudCaseById.mockResolvedValue({
+      id: '1',
+      closedAt: new Date('2026-09-01T00:00:00.000Z'),
+      caseStatus: 'in_progress',
+      resolution: 'needs_more_investigation',
+      customerId: '10',
+      severity: 'medium',
+    });
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      buildLifecycleMock() as never,
+      buildSequelizeMock() as never,
+    );
+
+    const result = await service.decideFraudCase({
+      tenantId: '1',
+      params: { caseId: '1' },
+      body: { decision: 'false_positive', applyWatchlist: false },
+      currentUser: { sub: '1', role: 'fraud_analyst' },
+      idempotencyKey: 'idem-legacy',
+    });
+
+    expect(result.caseStatus).toBe('closed');
+  });
+
+  it('lee el caso dentro de la transacción y con cerrojo, para que dos decisiones simultáneas no pasen las dos la guarda', async () => {
+    const repo = buildFraudRepositoryMock();
+    repo.findFraudCaseById.mockResolvedValue({ id: '1', closedAt: null, caseStatus: 'open', customerId: '10', severity: 'low' });
+    const transaction = { LOCK: { UPDATE: 'UPDATE' } };
+    const sequelize = { transaction: jest.fn((callback: (t: unknown) => Promise<unknown>) => callback(transaction)) };
+    const service = new FraudService(
+      repo as never,
+      buildCustomersRepositoryMock() as never,
+      buildLifecycleMock() as never,
+      sequelize as never,
+    );
+
+    await service.decideFraudCase({
+      tenantId: '1',
+      params: { caseId: '1' },
+      body: { decision: 'false_positive', applyWatchlist: false },
+      currentUser: { sub: '1', role: 'fraud_analyst' },
+      idempotencyKey: 'idem-lock',
+    });
+
+    expect(repo.findFraudCaseById).toHaveBeenCalledWith('1', '1', { transaction, lock: true });
   });
 
   it('aplica la transición real del cliente (no sólo el historial) y devuelve el estado aplicado', async () => {

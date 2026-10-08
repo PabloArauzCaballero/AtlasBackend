@@ -11,6 +11,8 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
+import { InternalPermissions } from '../../common/decorators/internal-permissions.decorator.js';
+import { InternalPermissionsGuard } from '../../common/guards/internal-permissions.guard.js';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
@@ -31,6 +33,7 @@ import {
   creditBusinessAcceptanceSchema,
   creditProductIdParamsSchema,
   creditProductStatusSchema,
+  numericIdParamSchema,
 } from './credit.schemas.js';
 
 /**
@@ -43,7 +46,7 @@ import {
 @ApiTags('credit')
 @ApiBearerAuth('access-token')
 @Controller('operations/credit')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard, InternalPermissionsGuard)
 @Roles('internal_operator', 'risk_analyst', 'admin', 'platform_admin')
 export class CreditOperationsController {
   constructor(
@@ -66,7 +69,10 @@ export class CreditOperationsController {
   @ApiResponse({ status: 503, description: 'DECISION_ENGINE_UNAVAILABLE — no se cambió nada.' })
   @Post('customers/:customerId/credit-line/recalculate')
   @HttpCode(HttpStatus.OK)
-  async recalculateCreditLine(@CurrentTenant() tenantId: string, @Param('customerId') customerId: string) {
+  async recalculateCreditLine(
+    @CurrentTenant() tenantId: string,
+    @Param('customerId', new ZodValidationPipe(numericIdParamSchema)) customerId: string,
+  ) {
     const line = await this.creditLines.recalculate({ tenantId, customerId, trigger: 'manual' });
     if (!line) {
       throw new ServiceUnavailableException('DECISION_ENGINE_UNAVAILABLE');
@@ -91,6 +97,7 @@ export class CreditOperationsController {
   @ApiBody({ schema: zodToApiSchema(createCreditProductSchema) })
   @ApiResponse({ status: 201, description: 'Producto creado en estado `draft`.' })
   @ApiResponse({ status: 409, description: 'CREDIT_PRODUCT_CODE_ALREADY_EXISTS.' })
+  @InternalPermissions('credit.product.manage')
   @Post('products')
   @HttpCode(HttpStatus.CREATED)
   createProduct(
@@ -114,6 +121,7 @@ export class CreditOperationsController {
   @ApiResponse({ status: 200, description: 'Estado actualizado.' })
   @ApiResponse({ status: 404, description: 'CREDIT_PRODUCT_NOT_FOUND.' })
   @ApiResponse({ status: 409, description: 'CREDIT_PRODUCT_STATUS_TRANSITION_NOT_ALLOWED.' })
+  @InternalPermissions('credit.product.manage')
   @Patch('products/:productId/status')
   @HttpCode(HttpStatus.OK)
   changeProductStatus(
@@ -142,11 +150,12 @@ export class CreditOperationsController {
   @ApiResponse({ status: 200, description: 'Decisión aplicada.' })
   @ApiResponse({ status: 404, description: 'CREDIT_APPLICATION_NOT_FOUND.' })
   @ApiResponse({ status: 409, description: 'CREDIT_APPLICATION_ALREADY_DECIDED.' })
+  @InternalPermissions('credit.application.decide')
   @Post('applications/:applicationId/decision')
   @HttpCode(HttpStatus.OK)
   decideApplication(
     @CurrentTenant() tenantId: string,
-    @Param('applicationId') applicationId: string,
+    @Param('applicationId', new ZodValidationPipe(numericIdParamSchema)) applicationId: string,
     @Body(new ZodValidationPipe(creditApplicationDecisionSchema)) body: CreditApplicationDecisionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
@@ -177,7 +186,7 @@ export class CreditOperationsController {
   @HttpCode(HttpStatus.OK)
   decideBusinessAcceptance(
     @CurrentTenant() tenantId: string,
-    @Param('applicationId') applicationId: string,
+    @Param('applicationId', new ZodValidationPipe(numericIdParamSchema)) applicationId: string,
     @Body(new ZodValidationPipe(creditBusinessAcceptanceSchema)) body: CreditBusinessAcceptanceDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
@@ -188,7 +197,10 @@ export class CreditOperationsController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Solicitud + eventos, más recientes primero.' })
   @Get('applications/:applicationId')
-  getApplicationDetail(@CurrentTenant() tenantId: string, @Param('applicationId') applicationId: string) {
+  getApplicationDetail(
+    @CurrentTenant() tenantId: string,
+    @Param('applicationId', new ZodValidationPipe(numericIdParamSchema)) applicationId: string,
+  ) {
     return this.decisionService.getApplicationDetail(tenantId, applicationId);
   }
 }

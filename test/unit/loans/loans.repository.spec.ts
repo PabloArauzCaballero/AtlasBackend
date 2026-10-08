@@ -15,6 +15,7 @@ describe('LoansRepository', () => {
       findOne: jest.fn(async (..._args: unknown[]) => null),
       findAll: jest.fn(async (..._args: unknown[]) => []),
       create: jest.fn(async (..._args: unknown[]) => ({ id: 'x' })),
+      update: jest.fn(async (..._args: unknown[]) => [1]),
       bulkCreate: jest.fn(async (..._args: unknown[]) => []),
     });
     const models = {
@@ -147,7 +148,30 @@ describe('LoansRepository', () => {
       const args = firstArg(models.loan.findAll as jest.Mock) as { where: Record<string, unknown>; limit: number };
       expect(args.limit).toBe(25);
       expect(args.where).toMatchObject({ tenantId: 't1', deleted: false });
-      expect(args.where.status).toEqual({ [Op.in]: ['active', 'paid_off', 'written_off'] });
+    });
+
+    /**
+     * Un cerrado entra sólo mientras le deba una cosecha al Motor. Antes entraban todos los
+     * cancelados y castigados, para siempre, y se comían el lote de los activos.
+     */
+    it('barre los activos y, de los cerrados, sólo los que aún deben su última cosecha', async () => {
+      const { repository, models } = build();
+      await repository.findActiveLoansForSweep('t1', 25);
+      const args = firstArg(models.loan.findAll as jest.Mock) as { where: Record<symbol, unknown> };
+      const [activos, cerrados] = args.where[Op.or] as [Record<string, unknown>, Record<string, { [key: symbol]: unknown }>];
+      expect(activos).toEqual({ status: 'active' });
+      expect(cerrados.status).toEqual({ [Op.in]: ['paid_off', 'written_off'] });
+      expect(cerrados.decisionExecutionId).toEqual({ [Op.ne]: null });
+      const subconsulta = String((cerrados.id[Op.notIn] as { val: string }).val);
+      expect(subconsulta).toContain('loan_outcome_reports');
+      expect(subconsulta).toContain('window_days = 180');
+    });
+
+    it('avanza sólo la marca del barrido del préstamo que falló', async () => {
+      const { repository, models } = build();
+      const when = new Date('2026-10-05T12:00:00.000Z');
+      await repository.markDelinquencyEvaluated('t1', 'loan-1', when);
+      expect(models.loan.update).toHaveBeenCalledWith({ delinquencyEvaluatedAt: when }, { where: { id: 'loan-1', tenantId: 't1' } });
     });
 
     it('sin tenant no filtra por tenant: el barrido es de toda la plataforma', async () => {

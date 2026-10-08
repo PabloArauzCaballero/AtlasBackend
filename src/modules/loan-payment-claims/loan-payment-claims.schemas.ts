@@ -9,7 +9,9 @@ import { z } from 'zod';
 const amount = z
   .string()
   .trim()
-  .regex(/^\d{1,16}(\.\d{1,2})?$/u, 'Importe inválido.');
+  .regex(/^\d{1,16}(\.\d{1,2})?$/u, 'Importe inválido.')
+  // «0» y «0.00» pasaban el formato: un aviso por nada bloqueaba la cuota hasta que el comercio lo rechazara.
+  .refine((value) => Number(value) > 0, 'El importe debe ser mayor que cero.');
 
 /**
  * El ticket para subir el comprobante.
@@ -66,6 +68,9 @@ export const claimsQuerySchema = z.object({
     .transform((valor) => valor === 'true'),
 });
 export type ClaimsQueryDto = z.infer<typeof claimsQuerySchema>;
+
+/** Id numérico de una ruta (`:customerId`, `:partnerId`, `:installmentId`): si no lo es, 400 y no un 22P02 de PostgreSQL. */
+export const numericIdParamSchema = z.string().regex(/^[1-9][0-9]*$/u);
 
 export const claimIdParamsSchema = z.object({
   claimId: z.string().regex(/^[1-9][0-9]*$/u),

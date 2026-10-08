@@ -95,7 +95,9 @@ describe('BankStatementReviewWorker', () => {
     const resultado = await correr(worker);
 
     expect(resultado).toMatchObject({ failed: 1, unreadable: 0 });
-    expect(fila.save).not.toHaveBeenCalled();
+    // Sigue `received` (no se rechaza), pero queda marcada: cede el turno a las que no se probaron.
+    expect(fila.status).toBeUndefined();
+    expect(fila.updatedAtValue).toBe(AHORA);
     expect(statements.applyReview).not.toHaveBeenCalled();
   });
 
@@ -104,7 +106,8 @@ describe('BankStatementReviewWorker', () => {
     const { worker } = montar({ pendientes: [fila], analisis: { kind: 'engineUnavailable', reason: 'ECONNREFUSED' } });
 
     expect(await correr(worker)).toMatchObject({ failed: 1, unreadable: 0 });
-    expect(fila.save).not.toHaveBeenCalled();
+    expect(fila.status).toBeUndefined();
+    expect(fila.updatedAtValue).toBe(AHORA);
   });
 
   /* Sin objeto declarado no hay nada que leer, y eso sí es del documento: se cierra como ilegible. */
@@ -230,7 +233,7 @@ describe('BankStatementReviewWorker', () => {
     await worker.processPending({ tenantId: '1', limit: 5, now: AHORA });
 
     const consulta = reviews.findAll.mock.calls[0][0] as unknown as { order: unknown; limit: number; where: Record<string, unknown> };
-    expect(consulta.order).toEqual([['_created_at', 'ASC']]);
+    expect(consulta.order).toEqual([['_updated_at', 'ASC']]);
     expect(consulta.limit).toBe(5);
     expect(consulta.where.status).toBe('received');
   });
@@ -245,6 +248,8 @@ describe('BankStatementReviewWorker', () => {
     const resultado = await correr(worker);
 
     expect(resultado).toMatchObject({ picked: 2, failed: 1, applied: 1 });
+    expect(malo.updatedAtValue).toBe(AHORA);
+    expect(bueno.updatedAtValue).toBeUndefined();
   });
 
   /* Un compromiso que se incumple en silencio es indistinguible de uno que nunca se hizo. */

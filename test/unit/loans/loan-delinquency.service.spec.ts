@@ -58,6 +58,7 @@ describe('LoanDelinquencyService.sweep', () => {
       createEvent: jest.fn(async (..._args: unknown[]) => undefined),
       findOutcomeReport: jest.fn(async (..._args: unknown[]) => null),
       createOutcomeReport: jest.fn(async (..._args: unknown[]) => undefined),
+      markDelinquencyEvaluated: jest.fn(async (..._args: unknown[]) => undefined),
     };
     const sequelize = { transaction: jest.fn(async (callback: (t: unknown) => Promise<unknown>) => callback({})) };
     /*
@@ -124,6 +125,80 @@ describe('LoanDelinquencyService.sweep', () => {
     await service.sweep({ tenantId: 't1', limit: 10, now: NOW });
 
     expect(loan.delinquencyBucket).toBe('written_off');
+  });
+
+  /**
+   * El castigo deja las cuotas impagas en `written_off` con su saldo intacto. El barrido las volvía
+   * `overdue` y el castigo desaparecía del calendario y de las cuotas cobrables.
+   */
+  it('no devuelve a «vencida» la cuota de un préstamo castigado', async () => {
+    const castigada = installment({ status: 'written_off' });
+    const { service } = build({ loan: { status: 'written_off' }, installments: [castigada] });
+
+    await service.sweep({ tenantId: 't1', limit: 10, now: NOW });
+
+    expect(castigada.status).toBe('written_off');
+    expect(castigada.save).not.toHaveBeenCalled();
+  });
+
+  it('tampoco toca una cuota castigada aunque el préstamo siga activo', async () => {
+    const castigada = installment({ status: 'written_off' });
+    const { service } = build({ installments: [castigada] });
+
+    await service.sweep({ tenantId: 't1', limit: 10, now: NOW });
+
+    expect(castigada.status).toBe('written_off');
+  });
+
+  /** El atraso por cuota se quedaba en el valor del primer barrido: una cuota de 45 días decía 1. */
+  it('recalcula en cada pasada el atraso de la cuota ya vencida', async () => {
+    // NOW es 2026-08-17 a las 20:00 en Bolivia: 44 días después del 4 de julio.
+    const vencida = installment({ status: 'overdue', dueDate: '2026-07-04', daysPastDue: 1 });
+    const { service } = build({ installments: [vencida] });
+
+    await service.sweep({ tenantId: 't1', limit: 10, now: NOW });
+
+    expect(vencida.daysPastDue).toBe(44);
+    expect(vencida.save).toHaveBeenCalled();
+  });
+
+  /**
+   * La cuota vence al final del día en BOLIVIA. A las 20:00 de La Paz ya es mañana en UTC, y el
+   * barrido de esa noche la daba por vencida a un cliente que todavía estaba en plazo.
+   */
+  it('cuenta el vencimiento en hora de Bolivia, no en UTC', async () => {
+    const deHoy = installment({ dueDate: '2026-10-05' });
+    const enPlazo = build({ installments: [deHoy] });
+    await enPlazo.service.sweep({ tenantId: 't1', limit: 10, now: new Date('2026-10-06T02:00:00.000Z') });
+    expect(deHoy.status).toBe('pending');
+    expect(enPlazo.loan.delinquencyBucket).toBe('current');
+
+    const alDiaSiguiente = installment({ dueDate: '2026-10-05' });
+    const vencida = build({ installments: [alDiaSiguiente] });
+    await vencida.service.sweep({ tenantId: 't1', limit: 10, now: new Date('2026-10-06T04:00:00.000Z') });
+    expect(alDiaSiguiente.status).toBe('overdue');
+    expect(vencida.loan.delinquencyBucket).toBe('dpd_1_29');
+  });
+
+  /**
+   * Un préstamo que falla siempre conservaba la marca más antigua y volvía al principio de cada
+   * lote: con tantos rotos como el límite, nadie más se evaluaba.
+   */
+  it('avanza la marca del préstamo que falló para que no bloquee el lote', async () => {
+    const { service, loans } = build();
+    (loans.findInstallments as jest.Mock).mockRejectedValueOnce(new Error('dato roto') as never);
+
+    await service.sweep({ tenantId: 't1', limit: 10, now: NOW });
+
+    expect(loans.markDelinquencyEvaluated).toHaveBeenCalledWith('t1', 'loan-1', NOW);
+  });
+
+  it('si ni la marca se puede avanzar, el barrido sigue', async () => {
+    const { service, loans } = build();
+    (loans.findInstallments as jest.Mock).mockRejectedValueOnce(new Error('dato roto') as never);
+    (loans.markDelinquencyEvaluated as jest.Mock).mockRejectedValueOnce(new Error('base caída') as never);
+
+    await expect(service.sweep({ tenantId: 't1', limit: 10, now: NOW })).resolves.toMatchObject({ evaluated: 0, total: 1 });
   });
 
   /** El dato de hoy no se recupera mañana: un préstamo roto no puede detener la cartera. */

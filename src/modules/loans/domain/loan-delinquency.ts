@@ -16,7 +16,32 @@ export type OpenInstallment = {
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
- * Días de atraso entre dos fechas, contados por DÍA DE CALENDARIO en UTC.
+ * Zona del calendario en el que vencen las cuotas. Bolivia no tiene horario de verano: UTC-4 todo
+ * el año.
+ */
+export const LOAN_CALENDAR_TIME_ZONE = 'America/La_Paz';
+
+const civilDateFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: LOAN_CALENDAR_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+/**
+ * Fecha civil (`YYYY-MM-DD`) de un instante en el calendario del cliente, no en UTC.
+ *
+ * Con `toISOString()` la cuota que vence hoy pasaba a vencida a las 20:00 de Bolivia —ahí ya es
+ * mañana en UTC—: el barrido de esa noche la marcaba en mora, movía el tramo y bajaba la línea a
+ * un cliente que todavía estaba en plazo.
+ */
+export function civilDateOf(instant: Date): string {
+  const parts = Object.fromEntries(civilDateFormatter.formatToParts(instant).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+/**
+ * Días de atraso entre dos fechas, contados por DÍA DE CALENDARIO en Bolivia (`civilDateOf`).
  *
  * Restar milisegundos y dividir parece equivalente y no lo es: con horas distintas, un vencimiento
  * de ayer a las 23:00 mirado hoy a las 08:00 da 0 días y no 1. La mora se cuenta en días del
@@ -24,7 +49,7 @@ const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
  */
 export function daysBetween(dueDate: string, asOf: Date): number {
   const due = Date.parse(`${dueDate}T00:00:00.000Z`);
-  const today = Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate());
+  const today = Date.parse(`${civilDateOf(asOf)}T00:00:00.000Z`);
   if (!Number.isFinite(due)) throw new Error(`Fecha de vencimiento inválida: ${dueDate}`);
   return Math.floor((today - due) / MILLISECONDS_PER_DAY);
 }

@@ -9,8 +9,9 @@ import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize';
 import { LoanInstallmentModel, LoanModel } from '../../../database/models/index.js';
 import { bucketForDaysPastDue, loanDaysPastDue } from '../domain/loan-delinquency.js';
-import { clampToZero, toCents } from '../domain/money.util.js';
+import { toCents } from '../domain/money.util.js';
 import { amountForLabel, labelForLoan, OUTCOME_WINDOW_DAYS, windowIsMature, type InstallmentHistory } from '../domain/loan-outcome.js';
+import { markOverdueInstallments, outstandingCentsOf } from './loan-installment-status.js';
 import { CreditLineService } from '../../credit/application/credit-line.service.js';
 import { LoansRepository } from '../loans.repository.js';
 
@@ -45,17 +46,6 @@ type EvaluationResult = {
   enqueued: number;
   bucketChange: { tenantId: string; customerId: string; worsened: boolean } | null;
 };
-
-function outstandingCentsOf(installment: LoanInstallmentModel): number {
-  return clampToZero(
-    toCents(installment.principalAmount) +
-      toCents(installment.interestAmount) +
-      toCents(installment.lateFeeAmount) -
-      toCents(installment.paidPrincipal) -
-      toCents(installment.paidInterest) -
-      toCents(installment.paidLateFee),
-  );
-}
 
 @Injectable()
 export class LoanDelinquencyService {
@@ -108,11 +98,28 @@ export class LoanDelinquencyService {
         // Un préstamo que falla no puede detener el barrido: el resto de la cartera sigue sin
         // evaluar y el dato de hoy no se recupera mañana.
         this.logger.error(`No se pudo evaluar el préstamo ${loan.id}: ${(error as Error).message}`);
+        await this.markEvaluationAttempt(loan, now);
       }
     }
 
     const recalculated = await this.refreshCreditLines(affected);
     return { evaluated, enqueued, total: loans.length, recalculated };
+  }
+
+  /**
+   * Avanza la marca del préstamo que falló, fuera de su transacción ya revertida.
+   *
+   * El lote se elige por `delinquency_evaluated_at` más antigua: un préstamo que falla siempre
+   * conservaba la suya y volvía al principio de cada pasada, y con tantos rotos como el límite del
+   * lote ningún otro préstamo se volvía a evaluar. Así va al final de la cola y se reintenta en su
+   * turno. Si esto también falla, sólo queda el log: no puede tumbar el barrido.
+   */
+  private async markEvaluationAttempt(loan: LoanModel, now: Date): Promise<void> {
+    try {
+      await this.loans.markDelinquencyEvaluated(loan.tenantId, loan.id, now);
+    } catch (error) {
+      this.logger.error(`No se pudo avanzar la marca del préstamo ${loan.id}: ${(error as Error).message}`);
+    }
   }
 
   /**
@@ -164,16 +171,8 @@ export class LoanDelinquencyService {
     locked.updatedAtValue = now;
     await locked.save({ transaction });
 
-    // La cuota vencida e impaga se marca como tal: cobranza pregunta por estado, no por fecha.
-    for (const installment of installments) {
-      const outstanding = outstandingCentsOf(installment);
-      if (outstanding > 0 && installment.dueDate < now.toISOString().slice(0, 10) && installment.status !== 'overdue') {
-        installment.status = 'overdue';
-        installment.daysPastDue = loanDaysPastDue([{ dueDate: installment.dueDate, outstandingCents: outstanding }], now);
-        installment.updatedAtValue = now;
-        await installment.save({ transaction });
-      }
-    }
+    // La cuota vencida e impaga se marca como tal (sólo en préstamos activos): cobranza pregunta por estado, no por fecha.
+    if (locked.status === 'active') await markOverdueInstallments(installments, now, transaction);
 
     if (previousBucket !== locked.delinquencyBucket) {
       await this.loans.createEvent(

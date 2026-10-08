@@ -42,6 +42,7 @@ function buildRiskRepositoryMock() {
     createContribution: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
     createRiskResult: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
     createAudit: jest.fn(async (..._args: unknown[]) => ({ id: nextId() })),
+    findOwnedDeviceReferences: jest.fn(async (..._args: unknown[]) => ({ deviceOwned: true, sessionOwned: true })),
     findRiskRun: asyncMock(),
     findRiskResultByRun: asyncMock(),
     findRulesByRun: jest.fn(async (..._args: unknown[]): Promise<Record<string, unknown>[]> => []),
@@ -278,6 +279,35 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     expect(revisionManualRepository.createDataQualityIssue).not.toHaveBeenCalled();
     // Auditoría siempre debe registrarse, resuelva lo que resuelva la decisión.
     expect(riskRepository.createAudit).toHaveBeenCalledTimes(1);
+  });
+
+  it('un deviceId o sessionId ajeno al cliente se rechaza y no se evalúa ni se escribe nada', async () => {
+    for (const [owned, codigo] of [
+      [{ deviceOwned: false, sessionOwned: true }, 'RISK_DEVICE_NOT_OWNED_BY_CUSTOMER'],
+      [{ deviceOwned: true, sessionOwned: false }, 'RISK_SESSION_NOT_OWNED_BY_CUSTOMER'],
+    ] as const) {
+      const riskRepository = buildRiskRepositoryMock();
+      riskRepository.findOwnedDeviceReferences.mockResolvedValue(owned);
+      const service = new RiskService(
+        riskRepository as never,
+        buildRevisionManualRepositoryMock() as never,
+        buildCustomersRepositoryMock() as never,
+        buildPolicyDecisionServiceMock(POLITICA_APRUEBA) as never,
+        buildSequelizeMock() as never,
+      );
+
+      await expect(
+        service.createRiskAssessment({
+          tenantId: 't1',
+          customerId: 'customer-1',
+          body: buildBody({ deviceId: '99', sessionId: '77' }),
+          currentUser: buildUser(),
+          idempotencyKey: 'idem-1',
+        }),
+      ).rejects.toThrow(codigo);
+      expect(riskRepository.findOwnedDeviceReferences).toHaveBeenCalledWith('t1', 'customer-1', { deviceId: '99', sessionId: '77' });
+      expect(riskRepository.createAudit).not.toHaveBeenCalled();
+    }
   });
 
   it('con todo en orden pero SIN política (ni Motor ni ruleset) ya no se aprueba: va a revisión y abre caso', async () => {
