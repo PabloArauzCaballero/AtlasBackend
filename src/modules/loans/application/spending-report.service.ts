@@ -36,6 +36,15 @@ export class SpendingReportService {
     private readonly maqueta: SpendingReportLayoutService,
   ) {}
 
+  /**
+   * El nombre de quien aparece en un documento. Lo usa también el extracto de crédito: `loans` no puede depender de
+   * `customers` (`boundaries.json`), y este servicio ya tiene el acceso, en la línea base, desde antes de la regla.
+   */
+  async nombreDelCliente(tenantId: string, customerId: string): Promise<string | null> {
+    const profile = await this.customers.findCurrentProfile(tenantId, customerId).catch(() => null);
+    return profile ? [profile.firstName, profile.lastName].filter(Boolean).join(' ') || null : null;
+  }
+
   async pdf(tenantId: string, customerId: string): Promise<Buffer> {
     const [data, profile] = await Promise.all([
       this.spending.byCategory(tenantId, customerId),
