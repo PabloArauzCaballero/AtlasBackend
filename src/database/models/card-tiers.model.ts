@@ -34,7 +34,7 @@ export class CardTierModel extends Model {
   declare benefitsJson: Array<{ text: string; icon?: string }>;
 
   @Column({ field: 'theme_json', type: DataType.JSONB, allowNull: false })
-  declare themeJson: { gradient: string[]; ink: string; accent: string; finish: string };
+  declare themeJson: { gradient: string[]; ink: string; accent: string; finish: string; glow?: number };
 
   @Column({ field: 'is_active', type: DataType.BOOLEAN, allowNull: false })
   declare isActive: boolean;

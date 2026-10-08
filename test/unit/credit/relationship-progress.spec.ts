@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { assessPaymentCapacity } from '../../../src/modules/credit/domain/payment-capacity.js';
 import type { RelationshipInput, StatementCapacityInput } from '../../../src/modules/credit/domain/payment-capacity.types.js';
-import { buildRelationshipProgress } from '../../../src/modules/credit/domain/relationship-progress.js';
+import { buildRelationshipProgress, creditCeilingOf } from '../../../src/modules/credit/domain/relationship-progress.js';
 
 /**
  * El nivel de un cliente como lo ve en la app: en qué escalón está, cuántos puntos le faltan para el siguiente
@@ -51,6 +51,20 @@ describe('buildRelationshipProgress', () => {
     expect(p.ladder.map((e) => e.code)).toEqual(['NUEVO', 'EN_CONSTRUCCION', 'ESTABLECIDO', 'CONSOLIDADO', 'PREFERENTE']);
     expect(p.ladder.map((e) => e.from)).toEqual([0, 25, 50, 70, 85]);
     expect(p.ladder.filter((e) => e.reached).map((e) => e.code)).toEqual(p.ladder.slice(0, p.tier.index).map((e) => e.code));
+  });
+
+  it('cada escalón publica su tope de crédito: el de quien empieza por su multiplicador', () => {
+    const p = progreso(NUEVO);
+    // La app dice «hasta Bs X» con estas cifras; no tiene escrito ningún importe.
+    expect(p.ladder.map((e) => e.creditCeiling)).toEqual([1500, 2250, 3750, 6000, 9000]);
+    expect(p.tier.creditCeiling).toBe(1500);
+    expect(p.nextTier?.creditCeiling).toBe(2250);
+    for (const e of p.ladder) expect(e.creditCeiling).toBe(1500 * e.multiplier);
+  });
+
+  it('el tope de un escalón nunca pasa del techo del producto', () => {
+    expect(creditCeilingOf(6)).toBe(9000);
+    expect(creditCeilingOf(100)).toBe(20_000);
   });
 
   it('quien ya paga a tiempo, verificó su identidad y lleva un año sube de nivel', () => {

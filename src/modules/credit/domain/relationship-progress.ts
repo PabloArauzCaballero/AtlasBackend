@@ -3,7 +3,7 @@
  * @business Convierte la puntuación de relación (0-100) en algo que la persona entiende y puede mover: un nivel, los puntos que le faltan para el siguiente y las acciones que se los dan.
  * @system función pura sobre `PaymentCapacityAssessment` y `RelationshipInput`; no lee base de datos ni llama al motor.
  */
-import { RELATIONSHIP_TIERS } from './payment-capacity.js';
+import { DEFAULT_CAPACITY_POLICY, RELATIONSHIP_TIERS, round2 } from './payment-capacity.js';
 import type { PaymentCapacityAssessment, RelationshipInput } from './payment-capacity.types.js';
 
 export type TierCode = PaymentCapacityAssessment['relationshipTier'];
@@ -28,10 +28,16 @@ export type ProgressMission = { code: string; label: string; detail: string; don
 
 export type RelationshipProgress = {
   score: number;
-  tier: { code: TierCode; label: string; index: number; of: number; multiplier: number };
-  nextTier: { code: TierCode; label: string; from: number; pointsMissing: number; multiplier: number } | null;
+  /**
+   * `creditCeiling`: hasta cuánto crédito admite ese escalón, en dinero. Es el TOPE por confianza (`starterCap` ×
+   * `multiplier`, sin pasar del techo del producto), el mismo que usa `assessPaymentCapacity`; NO es el límite, que es
+   * además lo que la persona puede pagar y lo decide el motor. Se publica para que la app pueda decir «hasta Bs X» sin
+   * tener escrito ningún importe: antes sólo llegaba el multiplicador y la pantalla no podía decir cuánto crece el crédito.
+   */
+  tier: { code: TierCode; label: string; index: number; of: number; multiplier: number; creditCeiling: number };
+  nextTier: { code: TierCode; label: string; from: number; pointsMissing: number; multiplier: number; creditCeiling: number } | null;
   /** De menor a mayor, con la marca de cuáles ya se alcanzaron. */
-  ladder: Array<{ code: TierCode; label: string; from: number; multiplier: number; reached: boolean }>;
+  ladder: Array<{ code: TierCode; label: string; from: number; multiplier: number; creditCeiling: number; reached: boolean }>;
   /**
    * La cuenta de ESTA persona: cada parte con su valor 0-100, su peso, los puntos que aporta (valor × peso) y la razón
    * en una frase. Los `points` suman `rawScore`; si un tope recortó el resultado, `score` es menor y `caps` dice cuál.
@@ -46,6 +52,11 @@ export type RelationshipProgress = {
 
 /** Los escalones de menor a mayor. `RELATIONSHIP_TIERS` está al revés porque se busca con `find`. */
 const ASCENDING = [...RELATIONSHIP_TIERS].reverse();
+
+/** El tope de crédito de un escalón con la política vigente: la misma cuenta que `byRelationship`, acotada al producto. */
+export function creditCeilingOf(multiplier: number): number {
+  return Math.min(DEFAULT_CAPACITY_POLICY.productCeiling, round2(DEFAULT_CAPACITY_POLICY.starterCap * multiplier));
+}
 
 /**
  * Las acciones que dan puntos, con su estado según la conducta real. Aparte de `buildRelationshipProgress`
@@ -185,6 +196,7 @@ export function buildRelationshipProgress(assessment: PaymentCapacityAssessment,
       index: index + 1,
       of: ASCENDING.length,
       multiplier: current.multiplier,
+      creditCeiling: creditCeilingOf(current.multiplier),
     },
     nextTier: next
       ? {
@@ -193,6 +205,7 @@ export function buildRelationshipProgress(assessment: PaymentCapacityAssessment,
           from: next.from,
           pointsMissing: Math.max(0, next.from - score),
           multiplier: next.multiplier,
+          creditCeiling: creditCeilingOf(next.multiplier),
         }
       : null,
     ladder: ASCENDING.map((step) => ({
@@ -200,6 +213,7 @@ export function buildRelationshipProgress(assessment: PaymentCapacityAssessment,
       label: TIER_LABELS[step.tier],
       from: step.from,
       multiplier: step.multiplier,
+      creditCeiling: creditCeilingOf(step.multiplier),
       reached: score >= step.from,
     })),
     components,
