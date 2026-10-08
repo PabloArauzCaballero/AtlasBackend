@@ -8,6 +8,7 @@ import { LoanSpendingService } from '../../../src/modules/loans/application/loan
 import { LoanCalendarService } from '../../../src/modules/loans/application/loan-calendar.service.js';
 import { DelinquencyPolicyService } from '../../../src/modules/loans/application/delinquency-policy.service.js';
 import { SpendingReportService } from '../../../src/modules/loans/application/spending-report.service.js';
+import { CreditStatementService } from '../../../src/modules/loans/application/credit-statement.service.js';
 import { LoanWriteOffService } from '../../../src/modules/loans/application/loan-writeoff.service.js';
 import { LoanPaymentsController } from '../../../src/modules/loans/loan-payments.controller.js';
 import { LoansController } from '../../../src/modules/loans/loans.controller.js';
@@ -83,6 +84,7 @@ describe('LoansController (e2e/supertest)', () => {
         { provide: LoanCalendarService, useValue: calendar },
         { provide: DelinquencyPolicyService, useValue: policies },
         { provide: SpendingReportService, useValue: report },
+        { provide: CreditStatementService, useValue: { pdf: jest.fn() } },
       ],
     );
   });
