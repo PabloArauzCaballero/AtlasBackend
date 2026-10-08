@@ -42,7 +42,10 @@ function construir() {
       getBucket: () => 'atlas-evidencias',
       readObjectMetadata: jest.fn(async () => ({ sha256Hex: 'abc123', sizeBytes: 4096 })),
     } as never,
-    /* evidences */ { create: jest.fn(async (valores: never) => ({ ...(valores as object), id: '77' })) } as never,
+    /* evidences */ {
+      findOne: jest.fn(async () => null),
+      create: jest.fn(async (valores: never) => ({ ...(valores as object), id: '77' })),
+    } as never,
     /* events */ { publish: jest.fn(async (e: never) => void eventos.push(e as Registro)) } as never,
     /* contexto */ {
       requireOwnInstallment: jest.fn(async () => ({

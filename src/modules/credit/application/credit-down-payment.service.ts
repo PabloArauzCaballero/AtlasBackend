@@ -14,6 +14,7 @@ import { CreditApplicationEventModel, CreditApplicationModel, EvidenceDocumentMo
 import { PartnerDirectoryService } from '../../partner-onboarding/application/partner-directory.service.js';
 import { PartnerProfileService } from '../../partner-onboarding/application/partner-profile.service.js';
 import { ALLOWED_EVIDENCE_MIME_TYPES, type AllowedEvidenceMimeType } from '../../../common/storage/document-storage.service.js';
+import { assertComprobanteNoRepetido } from '../../../common/storage/comprobante-repetido.js';
 import type { DecideDownPaymentDto, SubmitDownPaymentDto } from '../credit.schemas.js';
 
 /** Los tres estados del pago inicial (`credit.credit_applications.down_payment_status`); nulo = aún no avisó. */
@@ -74,6 +75,12 @@ export class CreditDownPaymentService {
 
     return this.sequelize.transaction(async (transaction) => {
       const now = new Date();
+      await assertComprobanteNoRepetido(this.evidences, {
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        sha256Hex: metadata.sha256Hex,
+        transaction,
+      });
       const evidence = await this.evidences.create(
         {
           tenantId: input.tenantId,
