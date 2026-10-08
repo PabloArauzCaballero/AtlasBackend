@@ -11,8 +11,12 @@ DEST=/opt/atlas/respaldo-tableros
 mkdir -p "$DEST"
 cp docker-compose.yml "$DEST/"
 
-principal() { # app_id servicio
-  docker ps -q --filter "label=coolify.applicationId=$1" --filter "label=com.docker.compose.service=$2" --filter status=running | head -n 1
+# Coolify 4.4.2 sólo pone `coolify.applicationUuid`; lo desplegado antes, sólo `coolify.applicationId`.
+principal() { # app_id servicio -> contenedor en marcha
+  u=$(docker exec coolify-db psql -U coolify -d coolify -Atc "select uuid from applications where id=$1")
+  { docker ps -q --filter "label=coolify.applicationId=$1" --filter "label=com.docker.compose.service=$2" --filter status=running
+    [ -n "$u" ] && docker ps -q --filter "label=coolify.applicationUuid=$u" --filter "label=com.docker.compose.service=$2" --filter status=running
+  } | head -n 1
 }
 
 volcar() { # contenedor fichero
