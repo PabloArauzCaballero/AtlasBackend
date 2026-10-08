@@ -96,7 +96,7 @@ describe('CreditSubmittedReconciliationService', () => {
 describe('buildCreditScheduledJobs', () => {
   it('reconcile_submitted_credit_applications recoge las atascadas del tenant que le toca, con gracia y tope de la configuración', async () => {
     const creditReconciliation = { reconcile: jest.fn(async (..._args: unknown[]) => ({ scanned: 0, resolved: 0, failed: 0 })) };
-    const jobs = buildCreditScheduledJobs({ creditReconciliation: creditReconciliation as never });
+    const jobs = buildCreditScheduledJobs({ creditReconciliation: creditReconciliation as never, purchaseDisbursement: {} as never });
 
     const job = jobs.find((entry) => entry.jobCode === 'reconcile_submitted_credit_applications');
     expect(job).toBeDefined();

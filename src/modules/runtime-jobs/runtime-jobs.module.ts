@@ -43,6 +43,7 @@ import { BankStatementReviewWorker } from '../credit/application/bank-statement-
 import { CreditLineRefreshService } from '../credit/application/credit-line-refresh.service.js';
 import { CreditUnderwritingService } from '../credit/application/credit-underwriting.service.js';
 import { LoanDelinquencyService } from '../loans/application/loan-delinquency.service.js';
+import { PurchaseDisbursementService } from '../loans/application/purchase-disbursement.service.js';
 import { OnboardingAbandonmentService } from '../customer-onboarding/application/onboarding-abandonment.service.js';
 import { CreditSubmittedReconciliationService } from '../credit/application/credit-submitted-reconciliation.service.js';
 import { buildScheduledJobs, SCHEDULED_JOBS, SCHEDULER_ACTOR } from './scheduled-jobs.catalog.js';
@@ -134,6 +135,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         qaConsumer: QaJourneyConsumerService,
         creditReconciliation: CreditSubmittedReconciliationService,
         privacyDecisions: PrivacyRequestDecisionService,
+        purchaseDisbursement: PurchaseDisbursementService,
       ) => [
         ...buildScheduledJobs({
           runtimeJobs,
@@ -175,7 +177,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
           qaRuns: { drain: () => qaConsumer.drain() },
         }),
         // El barrido de solicitudes de crédito atascadas va aparte del catálogo general (ver el archivo).
-        ...buildCreditScheduledJobs({ creditReconciliation }),
+        ...buildCreditScheduledJobs({ creditReconciliation, purchaseDisbursement }),
         ...buildPrivacyScheduledJobs({ privacyDecisions }),
       ],
       inject: [
@@ -197,6 +199,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         QaJourneyConsumerService,
         CreditSubmittedReconciliationService,
         PrivacyRequestDecisionService,
+        PurchaseDisbursementService,
       ],
     },
   ],

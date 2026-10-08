@@ -149,6 +149,9 @@ export const runtimeJobsEnvShape = {
   RUNTIME_JOBS_CREDIT_RECONCILE_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
   RUNTIME_JOBS_CREDIT_SUBMITTED_GRACE_MINUTES: z.coerce.number().int().min(5).max(1_440).default(15),
   RUNTIME_JOBS_CREDIT_RECONCILE_LIMIT: z.coerce.number().int().min(1).max(200).default(20),
+  // Compras con el pago inicial confirmado por el comercio y sin préstamo todavía: se desembolsan
+  // solas (decisión de Pablo, 2026-10-08). Cada 30 s para que el cliente vea sus cuotas casi al momento.
+  RUNTIME_JOBS_PURCHASE_DISBURSE_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
 
   // Vigilancia de los compromisos de atención del soporte (`support_sla_clocks`). Mismo defecto que
   // tuvo la mora: `sweepBreaches` estaba completo y colgaba EXCLUSIVAMENTE de

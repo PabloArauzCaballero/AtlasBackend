@@ -21,6 +21,7 @@ import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboardin
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { LoanDelinquencyService } from './application/loan-delinquency.service.js';
 import { LoanDisbursementService } from './application/loan-disbursement.service.js';
+import { PurchaseDisbursementService } from './application/purchase-disbursement.service.js';
 import { LoanPaymentService } from './application/loan-payment.service.js';
 import { LoanQueryService } from './application/loan-query.service.js';
 import { LoanSpendingService } from './application/loan-spending.service.js';
@@ -66,6 +67,7 @@ import { LoansRepository } from './loans.repository.js';
   providers: [
     LoansRepository,
     LoanDisbursementService,
+    PurchaseDisbursementService,
     LoanPaymentService,
     LoanWriteOffService,
     LoanDelinquencyService,
@@ -84,6 +86,7 @@ import { LoansRepository } from './loans.repository.js';
    * quien controla la idempotencia: duplicar ese reparto fuera crearia una segunda forma de cobrar
    * que se desincroniza de esta en cuanto una de las dos cambie.
    */
-  exports: [LoansRepository, LoanDelinquencyService, LoanPaymentService],
+  // `PurchaseDisbursementService`: el planificador convierte en préstamo las compras con el inicial confirmado.
+  exports: [LoansRepository, LoanDelinquencyService, LoanPaymentService, PurchaseDisbursementService],
 })
 export class LoansModule {}

@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op, Transaction } from 'sequelize';
+import { FindOptions, literal, Op, Transaction } from 'sequelize';
 import { CreditApplicationEventModel, CreditApplicationModel, CreditProductModel } from '../../database/models/index.js';
 
 type RepositoryOptions = { transaction?: Transaction };
@@ -209,6 +209,30 @@ export class CreditRepository {
         deleted: false,
       },
       order: [['submittedAt', 'ASC']],
+      limit: input.limit,
+    } as FindOptions);
+  }
+
+  /**
+   * Compras listas para convertirse en préstamo: aprobadas, aceptadas por el comercio y con el pago
+   * inicial CONFIRMADO por él, y todavía sin préstamo.
+   */
+  findApplicationsWithConfirmedDownPayment(input: { tenantId: string; limit: number }): Promise<CreditApplicationModel[]> {
+    return this.applicationModel.findAll({
+      where: {
+        tenantId: input.tenantId,
+        status: 'approved',
+        businessAcceptance: 'accepted',
+        downPaymentStatus: 'confirmed',
+        deleted: false,
+        // Sin esto las más antiguas, ya desembolsadas, ocuparían el lote entero en cada pasada.
+        id: {
+          [Op.notIn]: literal(
+            '(SELECT credit_application_id FROM credit.loans WHERE credit_application_id IS NOT NULL AND _deleted = false)',
+          ),
+        },
+      },
+      order: [['downPaymentDecidedAt', 'ASC']],
       limit: input.limit,
     } as FindOptions);
   }
