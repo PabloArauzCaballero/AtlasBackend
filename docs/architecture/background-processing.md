@@ -15,7 +15,7 @@ Obtenido de `setInterval` / `OnApplicationBootstrap` / entregas *fire-and-forget
 
 | # | Pieza | Archivo | Disparo actual | ¿Necesita worker? |
 |---|---|---|---|---|
-| 1 | Planificador de trabajos programados (<!-- fig:jobs.always -->21<!-- /fig --> siempre + <!-- fig:jobs.optional -->5<!-- /fig --> opcionales, ver abajo) | [runtime-jobs-scheduler.service.ts](../../src/modules/runtime-jobs/runtime-jobs-scheduler.service.ts) | `setInterval` por job, líder por Redis `SET NX PX`, opt-in `RUNTIME_JOBS_SCHEDULER_ENABLED` | **Sí** — es trabajo de fondo puro |
+| 1 | Planificador de trabajos programados (<!-- fig:jobs.always -->22<!-- /fig --> siempre + <!-- fig:jobs.optional -->5<!-- /fig --> opcionales, ver abajo) | [runtime-jobs-scheduler.service.ts](../../src/modules/runtime-jobs/runtime-jobs-scheduler.service.ts) | `setInterval` por job, líder por Redis `SET NX PX`, opt-in `RUNTIME_JOBS_SCHEDULER_ENABLED` | **Sí** — es trabajo de fondo puro |
 | 2 | Entrega de broadcasts de notificación | [notification-broadcast.service.ts](../../src/modules/notifications/notification-broadcast.service.ts) | *fire-and-forget* dentro del proceso que atendió el `POST` | **Sí** — hoy compite con la latencia del request |
 | 3 | Monitor de salud de herramientas críticas | [systems-health-monitor.service.ts](../../src/modules/systems-ops/systems-health-monitor.service.ts) | `setInterval`, opt-in `SYSTEM_HEALTH_MONITOR_ENABLED` | **Sí** — es un observador global, no per-instancia |
 | 4 | Seeding idempotente al arrancar | [startup-seed.service.ts](../../src/database/startup-seed.service.ts) | `OnApplicationBootstrap`, opt-in `DATABASE_SEED_ON_STARTUP` | **Sí** — mutación de datos, no debe correr en N réplicas de API |
@@ -82,6 +82,7 @@ con trabajo de fondo:
 | `reclaim_stuck_events` | `RUNTIME_JOBS_STUCK_EVENTS_INTERVAL_MS` · 5 min | `scheduled-jobs.catalog.ts` |
 | `run_notification_campaigns` | `RUNTIME_JOBS_NOTIFICATION_CAMPAIGNS_INTERVAL_MS` · 30 s | `scheduled-jobs.catalog.ts` |
 | `reconcile_submitted_credit_applications` | `RUNTIME_JOBS_CREDIT_RECONCILE_INTERVAL_MS` · 5 min | `scheduled-jobs.credit.ts` |
+| `disburse_confirmed_purchases` | `RUNTIME_JOBS_PURCHASE_DISBURSE_INTERVAL_MS` · 30 s | `scheduled-jobs.credit.ts` |
 <!-- /gen:jobs-always -->
 
 **Opcionales**: sólo existen si se cumple la condición (el mismo `if` que los crea en

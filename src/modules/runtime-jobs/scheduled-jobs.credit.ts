@@ -17,6 +17,8 @@ import type { ScheduledJob } from './scheduled-jobs.catalog.js';
 export function buildCreditScheduledJobs(deps: {
   /** Llega estructural desde la composición para no importar internos de crédito (`check:architecture`). */
   creditReconciliation: { reconcile: (input: { tenantId: string; graceMinutes: number; limit: number }) => Promise<unknown> };
+  /** Igual de estructural: el desembolso vive en `loans`. */
+  purchaseDisbursement: { disburseConfirmedPurchases: (input: { tenantId: string; limit: number }) => Promise<unknown> };
 }): ScheduledJob[] {
   return [
     /*
@@ -35,6 +37,15 @@ export function buildCreditScheduledJobs(deps: {
           graceMinutes: env.RUNTIME_JOBS_CREDIT_SUBMITTED_GRACE_MINUTES,
           limit: env.RUNTIME_JOBS_CREDIT_RECONCILE_LIMIT,
         }),
+    },
+    /*
+     * Compras con el pago inicial confirmado por el comercio y todavía sin préstamo
+     * (`PurchaseDisbursementService`). Sin este paso la compra no tenía cuotas ni cartera.
+     */
+    {
+      jobCode: 'disburse_confirmed_purchases',
+      intervalMs: env.RUNTIME_JOBS_PURCHASE_DISBURSE_INTERVAL_MS,
+      run: (tenantId) => deps.purchaseDisbursement.disburseConfirmedPurchases({ tenantId, limit: env.RUNTIME_JOBS_CREDIT_RECONCILE_LIMIT }),
     },
   ];
 }
