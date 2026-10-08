@@ -28,7 +28,7 @@ import { OpenApiDocumentRegistry } from './modules/systems-ops/openapi-document.
 import { setActiveEncryptionProvider } from './common/utils/crypto/envelope-encryption.util.js';
 import { KmsKeyProvider } from './common/utils/crypto/kms-key-provider.js';
 import { AppFileLogger } from './common/logging/app-file-logger.service.js';
-import { internalMailBodyParser, internalMailRoutes } from './modules/notifications/internal-mail-body-parser.js';
+import { internalMailBodyParser, internalMailRoutes } from './bootstrap/internal-mail-body-parser.js';
 import { assertDecoratorMetadataIsAvailable } from './common/bootstrap/decorator-metadata.guard.js';
 import { malwareScannerStartupNotice } from './common/storage/malware-scanner-startup-notice.js';
 

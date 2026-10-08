@@ -1,7 +1,7 @@
 import { describe, it } from '@jest/globals';
 import express from 'express';
 import request from 'supertest';
-import { internalMailBodyParser, internalMailRoutes } from '../../../src/modules/notifications/internal-mail-body-parser.js';
+import { internalMailBodyParser, internalMailRoutes } from '../../../src/bootstrap/internal-mail-body-parser.js';
 
 describe('internalMailBodyParser', () => {
   function buildApp() {
