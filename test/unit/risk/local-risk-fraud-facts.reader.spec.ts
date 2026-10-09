@@ -95,6 +95,40 @@ describe('LocalRiskFraudFactsReader.read', () => {
     expect(await reader.read('1', '10', NOW)).toMatchObject({ contactSignals: [], contactsAvailable: false, contactsTotal: null });
   });
 
+  it('APP-03: 25 fichas de la captura 2.0.0 con banderas: correo marcado no es agenda uniforme; todo en falso sí', async () => {
+    const fila = (hasEmail: boolean) => ({
+      phoneHashes: [`h${Math.random()}`],
+      emailCount: 0,
+      hasEmail,
+      hasBirthday: false,
+      hasCompany: false,
+      isFavorite: false,
+      birthday: null,
+      contactType: 'person',
+      createdAtValue: hace(1),
+    });
+    const conCorreo = build({ contacts: { findAll: async () => Array.from({ length: 25 }, (_, i) => fila(i === 3)) } });
+    expect((await conCorreo.reader.read('1', '10', NOW)).contactSignals).toEqual([]);
+    const uniforme = build({ contacts: { findAll: async () => Array.from({ length: 25 }, () => fila(false)) } });
+    expect((await uniforme.reader.read('1', '10', NOW)).contactSignals).toEqual(['AGENDA_UNIFORME']);
+  });
+
+  it('APP-03: 25 fichas 2.0.0 SIN banderas no se juzgan uniformes: «no consta» no es «no tiene»', async () => {
+    const filas = Array.from({ length: 25 }, (_, i) => ({
+      phoneHashes: [`h${i}`],
+      emailCount: 0,
+      isFavorite: false,
+      birthday: null,
+      contactType: 'person',
+      createdAtValue: hace(1),
+    }));
+    const findAll = jest.fn(async (..._a: unknown[]) => filas);
+    const { reader } = build({ contacts: { findAll } });
+    expect((await reader.read('1', '10', NOW)).contactSignals).toEqual([]);
+    const [opciones] = findAll.mock.calls[0] as [{ attributes: string[] }];
+    expect(opciones.attributes).toEqual(expect.arrayContaining(['hasEmail', 'hasBirthday', 'hasCompany']));
+  });
+
   it('snapshots sin dato dejan emulador y root en «no se sabe»', async () => {
     const { reader } = build({ snapshots: { findAll: async () => [{ isRooted: null, isEmulator: null }] } });
     expect(await reader.read('1', '10', NOW)).toMatchObject({ emulator: null, rooted: null });

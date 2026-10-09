@@ -16,6 +16,8 @@ import { PartnerProfileService } from '../../partner-onboarding/application/part
 import { ALLOWED_EVIDENCE_MIME_TYPES, type AllowedEvidenceMimeType } from '../../../common/storage/document-storage.service.js';
 import { assertComprobanteNoRepetido } from '../../../common/storage/comprobante-repetido.js';
 import type { DecideDownPaymentDto, SubmitDownPaymentDto } from '../credit.schemas.js';
+import { expectedDownPaymentAmount } from '../domain/down-payment.js';
+import { assertExpectedDownPaymentAmount } from './down-payment-amount.js';
 
 /** Los tres estados del pago inicial (`credit.credit_applications.down_payment_status`); nulo = aún no avisó. */
 export const DOWN_PAYMENT_SUBMITTED = 'submitted';
@@ -68,6 +70,7 @@ export class CreditDownPaymentService {
     }
     if (application.downPaymentStatus === DOWN_PAYMENT_CONFIRMED) throw new ConflictException('DOWN_PAYMENT_ALREADY_CONFIRMED');
     if (application.downPaymentStatus === DOWN_PAYMENT_SUBMITTED) throw new ConflictException('DOWN_PAYMENT_ALREADY_PENDING');
+    const amount = assertExpectedDownPaymentAmount(input.body.amount, application);
 
     const metadata = await this.storage.readObjectMetadata(input.body.storageKey);
     if (!metadata) throw new UnprocessableEntityException('EVIDENCE_OBJECT_NOT_FOUND');
@@ -102,7 +105,7 @@ export class CreditDownPaymentService {
 
       const previous = application.downPaymentStatus;
       Object.assign(application, {
-        downPaymentAmount: input.body.amount,
+        downPaymentAmount: amount,
         downPaymentStatus: DOWN_PAYMENT_SUBMITTED,
         downPaymentProofEvidenceId: String(evidence.id),
         downPaymentPayerReference: input.body.payerReference ?? null,
@@ -119,13 +122,13 @@ export class CreditDownPaymentService {
         eventType: 'down_payment_submitted',
         previousDownPaymentStatus: previous,
         actor: input.currentUser,
-        payload: { amount: input.body.amount },
+        payload: { amount },
         notes: null,
         happenedAt: now,
         transaction,
       });
 
-      this.logger.log(`Pago inicial avisado: solicitud=${application.id} cliente=${input.customerId} importe=${input.body.amount}`);
+      this.logger.log(`Pago inicial avisado: solicitud=${application.id} cliente=${input.customerId} importe=${amount}`);
       return this.describe(application);
     });
   }
@@ -192,6 +195,9 @@ export class CreditDownPaymentService {
       }
       const now = new Date();
       const verified = input.body.verified;
+      // Un aviso guardado antes de que el servidor calculara el importe (o uno manipulado en la base) no se
+      // confirma a ciegas: el comercio confirma el pago inicial DE ESTA COMPRA, no un número cualquiera.
+      if (verified) assertExpectedDownPaymentAmount(application.downPaymentAmount ?? '', application);
       Object.assign(application, {
         downPaymentStatus: verified ? DOWN_PAYMENT_CONFIRMED : DOWN_PAYMENT_REJECTED,
         downPaymentDecidedAt: now,
@@ -247,6 +253,7 @@ export class CreditDownPaymentService {
       applicationId: String(application.id),
       downPaymentStatus: application.downPaymentStatus,
       downPaymentAmount: application.downPaymentAmount,
+      expectedDownPaymentAmount: expectedDownPaymentAmount(application.requestedAmount),
       submittedAt: application.downPaymentSubmittedAt?.toISOString() ?? null,
       decidedAt: application.downPaymentDecidedAt?.toISOString() ?? null,
       rejectionReason: application.downPaymentRejectionReason,

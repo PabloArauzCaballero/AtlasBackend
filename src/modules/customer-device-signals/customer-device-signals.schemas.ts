@@ -67,8 +67,23 @@ export const deviceContactSchema = z.object({
   contactType: z.enum(['person', 'company', 'unknown']).default('person'),
   isFavorite: z.boolean().default(false),
   phones: z.array(telefonoDeContacto).max(20).default([]),
-  emails: z.array(correoDeContacto).max(20).default([]),
-  addresses: z.array(direccionDeContacto).max(10).default([]),
+  /*
+   * Correos y direcciones SIN valor por defecto: ausente (`undefined`) es «esta captura no lo manda» y no «la ficha
+   * no tiene ninguno». Con `default([])` una resincronización 2.0.0 borraba lo que guardó una 1.x y vaciaba la forma
+   * de la agenda. Una lista vacía explícita sí significa «no tiene» y se guarda como tal.
+   */
+  emails: z.array(correoDeContacto).max(20).optional(),
+  addresses: z.array(direccionDeContacto).max(10).optional(),
+  /**
+   * Banderas de presencia, sin el dato (captura `contacts-address-book-2.0.0`, minimización ISO 27701).
+   *
+   * La app 2.0.0 deja de subir correos, cumpleaños, empresa, cargo y direcciones de terceros; para que la forma de
+   * la agenda (`AGENDA_UNIFORME`) siga midiendo algo, manda sólo SI existían. Si viene la bandera, manda sobre lo que
+   * se deduciría de la lista; si no viene, se deduce del dato como en 1.x. Booleanos estrictos: `"false"` no es falso.
+   */
+  hasEmail: z.boolean().optional(),
+  hasBirthday: z.boolean().optional(),
+  hasCompany: z.boolean().optional(),
 });
 
 export type DeviceContactDto = z.infer<typeof deviceContactSchema>;

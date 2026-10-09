@@ -20,30 +20,41 @@ export type ContactRowContext = {
   receivedAt: Date;
 };
 
+/** `undefined` = «esta captura no lo manda»: la fila guardada conserva lo que tenía (ver `repository.update`). */
+const siVino = <T, R>(valor: T | undefined, convertir: (v: T) => R): R | undefined => (valor === undefined ? undefined : convertir(valor));
+
 /**
  * De la ficha que manda el teléfono a la fila que se guarda.
  *
- * Todo lo que identifica a una persona sale cifrado; lo que queda en claro son hashes y
- * recuentos. `primaryPhone` es el PRIMER número de la ficha y no el «mejor»: elegir por criterio
- * —el móvil sobre el fijo, por ejemplo— daría un primario distinto según el país y rompería la
- * comparación entre expedientes.
+ * Todo lo que identifica a una persona sale cifrado; lo que queda en claro son hashes, recuentos y banderas.
+ * `primaryPhone` es el PRIMER número de la ficha y no el «mejor»: elegir por criterio —el móvil sobre el fijo,
+ * por ejemplo— daría un primario distinto según el país y rompería la comparación entre expedientes.
+ *
+ * ## Lo que la captura no trae no se borra
+ *
+ * La 2.0.0 (minimización) ya no manda correos, cumpleaños, empresa, cargo, nombres sueltos ni direcciones. Un
+ * campo AUSENTE sale `undefined` y el repositorio no lo toca; uno presente —aunque sea `null` o `[]`— sí se
+ * sobrescribe, porque eso es la agenda diciendo «ya no lo tiene». Las banderas `hasEmail`/`hasBirthday`/`hasCompany`
+ * se guardan siempre que se puedan saber: de la bandera si vino, del dato si vino el dato.
  */
 export async function toContactRow(contacto: DeviceContactDto, contexto: ContactRowContext): Promise<ContactRow> {
   const numeros = contacto.phones
     .map((telefono) => ({ ...telefono, normalized: normalizePhoneForHash(telefono.number) }))
     .filter((telefono): telefono is typeof telefono & { normalized: string } => telefono.normalized !== null);
   const correos = contacto.emails
-    .map((correo) => ({ ...correo, normalized: normalizeEmailForHash(correo.email) }))
+    ?.map((correo) => ({ ...correo, normalized: normalizeEmailForHash(correo.email) }))
     .filter((correo): correo is typeof correo & { normalized: string } => correo.normalized !== null);
 
   // Distintos y en orden estable: el mismo contacto leído dos veces tiene que dar el mismo array,
   // o cada sincronización parecería un cambio.
   const phoneHashes = [...new Set(numeros.map((telefono) => hashSensitiveText(telefono.normalized)))].sort();
-  const emailHashes = [...new Set(correos.map((correo) => hashSensitiveText(correo.normalized)))].sort();
+  const emailHashes = correos && [...new Set(correos.map((correo) => hashSensitiveText(correo.normalized)))].sort();
   const primario = numeros[0] ?? null;
 
-  const cifrar = (valor: string | null | undefined): Promise<string> | null =>
-    valor === null || valor === undefined || valor === '' ? null : encryptSecretEnvelope(valor);
+  const cifrar = (valor: string | null | undefined): Promise<string | null> | undefined =>
+    valor === undefined ? undefined : valor === null || valor === '' ? Promise.resolve(null) : encryptSecretEnvelope(valor);
+  const cifrarLista = (lista: readonly unknown[] | undefined): Promise<string | null> | undefined =>
+    lista === undefined ? undefined : lista.length > 0 ? encryptSecretEnvelope(JSON.stringify(lista)) : Promise.resolve(null);
 
   const [displayName, givenName, familyName, company, jobTitle, phones, emails, addresses] = await Promise.all([
     cifrar(contacto.displayName),
@@ -52,8 +63,8 @@ export async function toContactRow(contacto: DeviceContactDto, contexto: Contact
     cifrar(contacto.company),
     cifrar(contacto.jobTitle),
     contacto.phones.length > 0 ? encryptSecretEnvelope(JSON.stringify(contacto.phones)) : null,
-    contacto.emails.length > 0 ? encryptSecretEnvelope(JSON.stringify(contacto.emails)) : null,
-    contacto.addresses.length > 0 ? encryptSecretEnvelope(JSON.stringify(contacto.addresses)) : null,
+    cifrarLista(contacto.emails),
+    cifrarLista(contacto.addresses),
   ]);
 
   return {
@@ -72,15 +83,18 @@ export async function toContactRow(contacto: DeviceContactDto, contexto: Contact
     phonesEncrypted: phones,
     emailsEncrypted: emails,
     addressesEncrypted: addresses,
-    displayNameHash: contacto.displayName ? hashSensitiveText(contacto.displayName) : null,
+    displayNameHash: siVino(contacto.displayName, (nombre) => (nombre ? hashSensitiveText(nombre) : null)),
     primaryPhoneHash: primario ? hashSensitiveText(primario.normalized) : null,
     primaryPhoneLast4: primario ? lastCharacters(primario.normalized, 4) : null,
     phoneHashes,
     emailHashes,
     phoneCount: phoneHashes.length,
-    emailCount: emailHashes.length,
-    addressCount: contacto.addresses.length,
-    birthday: contacto.birthday ?? null,
+    emailCount: emailHashes?.length,
+    addressCount: contacto.addresses?.length,
+    birthday: siVino(contacto.birthday, (fecha) => fecha ?? null),
+    hasEmail: contacto.hasEmail ?? siVino(emailHashes, (hashes) => hashes.length > 0),
+    hasBirthday: contacto.hasBirthday ?? siVino(contacto.birthday, (fecha) => fecha !== null && fecha !== undefined),
+    hasCompany: contacto.hasCompany ?? siVino(contacto.company, (empresa) => Boolean(empresa)),
     isFavorite: contacto.isFavorite,
     contactType: contacto.contactType,
     capturedAt: contexto.capturedAt,

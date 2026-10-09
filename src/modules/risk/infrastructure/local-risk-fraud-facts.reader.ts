@@ -18,7 +18,11 @@ import {
   OnboardingBehaviorSummaryModel,
 } from '../../../database/models/index.js';
 import { ADDRESS_BOOK_PURPOSE, LOCATION_TRACKING_PURPOSE, isConsentInForce } from '../../../common/utils/consent/consent-in-force.util.js';
-import { calcularFormaDeLaAgenda } from '../../../common/utils/contact/contact-book-shape.util.js';
+import {
+  ATRIBUTOS_DE_FORMA,
+  calcularFormaDeLaAgenda,
+  fichaObservadaDeFila,
+} from '../../../common/utils/contact/contact-book-shape.util.js';
 import { SIN_HECHOS_DE_FRAUDE, type RiskFraudFacts } from '../application/risk-fraud-flags.js';
 
 type HechosDeAgenda = Pick<RiskFraudFacts, 'contactSignals' | 'contactsAvailable' | 'contactsTotal' | 'contactsDaysSinceLastNew'>;
@@ -192,19 +196,12 @@ export class LocalRiskFraudFactsReader {
     if (!(await this.vigente(tenantId, customerId, ADDRESS_BOOK_PURPOSE))) return SIN_AGENDA;
     const filas = await this.contacts.findAll({
       where: { tenantId, customerId, deleted: { [Op.ne]: true } },
-      attributes: ['phoneHashes', 'emailCount', 'isFavorite', 'birthday', 'contactType', 'createdAtValue'],
+      attributes: [...ATRIBUTOS_DE_FORMA],
       limit: 10_000,
     } as FindOptions);
     if (filas.length === 0) return SIN_AGENDA;
     const forma = calcularFormaDeLaAgenda(
-      filas.map((f) => ({
-        phoneHashes: f.phoneHashes ?? [],
-        emailCount: f.emailCount ?? 0,
-        isFavorite: f.isFavorite === true,
-        hasBirthday: f.birthday !== null,
-        isCompany: f.contactType === 'company',
-        firstSeenAt: f.createdAtValue,
-      })),
+      filas.map((f) => fichaObservadaDeFila(f, now)),
       now,
     );
     return {

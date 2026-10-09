@@ -2979,7 +2979,10 @@
       "500"
     ],
     "headers": [],
-    "query": [],
+    "query": [
+      "motivo",
+      "revelar"
+    ],
     "path": [
       "id"
     ],
@@ -2987,6 +2990,28 @@
       "access-token"
     ],
     "body": false
+  },
+  "POST /expedientes/{id}/contactos/revelar": {
+    "operationId": "ExpedientesContactosController_revelarContactos",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "id"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
   },
   "GET /expedientes/{id}/nodos": {
     "operationId": "ExpedientesNodosController_listar",
@@ -5596,6 +5621,7 @@
       "403",
       "404",
       "409",
+      "422",
       "429",
       "500"
     ],

@@ -125,5 +125,15 @@ export const contactosQuerySchema = z
   .strict();
 export type ContactosQueryDto = z.infer<typeof contactosQuerySchema>;
 
+/**
+ * El cuerpo de `POST /expedientes/:id/contactos/revelar` (ADM-10).
+ *
+ * El motivo va en el CUERPO y no en la URL: en la query acababa en los registros de acceso del proxy, del
+ * balanceador y del navegador, que no tienen los controles de la bitácora. La longitud mínima la comprueba el
+ * servicio (`EXPEDIENTE_MOTIVO_REQUERIDO`), igual que en el GET, para que los dos caminos fallen con el mismo código.
+ */
+export const revelarContactosBodySchema = z.object({ motivo: z.string().trim().max(500) }).strict();
+export type RevelarContactosBodyDto = z.infer<typeof revelarContactosBodySchema>;
+
 export const actividadQuerySchema = z.object({ ...paginaSchema, nodoId: idPositivo.optional() }).strict();
 export type ActividadQueryDto = z.infer<typeof actividadQuerySchema>;

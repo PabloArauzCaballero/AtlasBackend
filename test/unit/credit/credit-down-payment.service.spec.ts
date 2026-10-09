@@ -14,6 +14,8 @@ function solicitud(extra: Record<string, unknown> = {}): Fila {
     status: 'approved',
     applicationCode: 'CA-70',
     currencyCode: 'BOB',
+    // Financiado (40 %) de una compra de Bs 250: el inicial (60 %) es Bs 150, el `amount` de `cuerpo`.
+    requestedAmount: '100.00',
     businessAcceptance: 'accepted',
     downPaymentStatus: null,
     downPaymentAmount: null,
@@ -151,6 +153,63 @@ describe('CreditDownPaymentService.submit', () => {
     ).rejects.toThrow(/APPLICATION_WITHOUT_PARTNER/);
   });
 
+  it('APP-04: un importe que no es el inicial de la compra se rechaza con 422 y dice cuál es, sin tocar nada', async () => {
+    const app = solicitud();
+    const { service, evidences, storage } = build(app);
+    const error = await service
+      .submit({ tenantId: '1', customerId: '9', applicationId: '70', body: { ...cuerpo, amount: '1.00' }, currentUser: cliente })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(UnprocessableEntityException);
+    expect((error as UnprocessableEntityException).getResponse()).toMatchObject({
+      code: 'DOWN_PAYMENT_AMOUNT_MISMATCH',
+      expectedAmount: '150.00',
+      currencyCode: 'BOB',
+    });
+    // Se rechaza ANTES de mirar el almacén o crear el comprobante.
+    expect(storage.readObjectMetadata).not.toHaveBeenCalled();
+    expect(evidences.create).not.toHaveBeenCalled();
+    expect(app.downPaymentStatus).toBeNull();
+  });
+
+  it('APP-04: tampoco vale pagar DE MÁS ni cero', async () => {
+    for (const [amount, code] of [
+      ['150.02', 'DOWN_PAYMENT_AMOUNT_MISMATCH'],
+      ['250.00', 'DOWN_PAYMENT_AMOUNT_MISMATCH'],
+      ['0', 'DOWN_PAYMENT_AMOUNT_INVALID'],
+      ['0.00', 'DOWN_PAYMENT_AMOUNT_INVALID'],
+    ] as const) {
+      const { service } = build(solicitud());
+      const error = await service
+        .submit({ tenantId: '1', customerId: '9', applicationId: '70', body: { ...cuerpo, amount }, currentUser: cliente })
+        .catch((e: unknown) => e);
+      expect((error as UnprocessableEntityException).getResponse()).toMatchObject({ code });
+    }
+  });
+
+  it('APP-04: sin financiado no hay de dónde calcular el inicial, y no se acepta ninguno', async () => {
+    const { service } = build(solicitud({ requestedAmount: '0.00' }));
+    const error = await service
+      .submit({ tenantId: '1', customerId: '9', applicationId: '70', body: cuerpo, currentUser: cliente })
+      .catch((e: unknown) => e);
+    expect((error as UnprocessableEntityException).getResponse()).toMatchObject({
+      code: 'DOWN_PAYMENT_EXPECTED_UNKNOWN',
+      expectedAmount: null,
+    });
+  });
+
+  it('APP-04: guarda el importe normalizado a dos decimales', async () => {
+    const app = solicitud();
+    const { service } = build(app);
+    const r = await service.submit({
+      tenantId: '1',
+      customerId: '9',
+      applicationId: '70',
+      body: { ...cuerpo, amount: '150' },
+      currentUser: cliente,
+    });
+    expect(r).toMatchObject({ downPaymentAmount: '150.00', expectedDownPaymentAmount: '150.00' });
+  });
+
   it('si el objeto no está en el almacén no se cree el aviso', async () => {
     const { service } = build(solicitud(), { objeto: null });
     await expect(
@@ -161,7 +220,7 @@ describe('CreditDownPaymentService.submit', () => {
 
 describe('CreditDownPaymentService.decide', () => {
   it('el comercio confirma: queda «confirmed» con quién y cuándo', async () => {
-    const app = solicitud({ downPaymentStatus: 'submitted' });
+    const app = solicitud({ downPaymentStatus: 'submitted', downPaymentAmount: '150.00' });
     const { service, events } = build(app);
     const r = await service.decide({
       tenantId: '1',
@@ -186,6 +245,25 @@ describe('CreditDownPaymentService.decide', () => {
       currentUser: comercio,
     });
     expect(r).toMatchObject({ downPaymentStatus: 'rejected', rejectionReason: 'No veo la transferencia' });
+  });
+
+  it('APP-04: el comercio no confirma un aviso cuyo importe no es el inicial de la compra (aviso viejo o alterado)', async () => {
+    const app = solicitud({ downPaymentStatus: 'submitted', downPaymentAmount: '10.00' });
+    const { service, events } = build(app);
+    await expect(
+      service.decide({ tenantId: '1', partnerProfileId: '5', applicationId: '70', body: { verified: true }, currentUser: comercio }),
+    ).rejects.toThrow(UnprocessableEntityException);
+    expect(app.downPaymentStatus).toBe('submitted');
+    expect(events.create).not.toHaveBeenCalled();
+    // Rechazarlo sí se puede: así el cliente vuelve a avisar con el importe correcto.
+    const r = await service.decide({
+      tenantId: '1',
+      partnerProfileId: '5',
+      applicationId: '70',
+      body: { verified: false, reason: 'El importe no es el inicial' },
+      currentUser: comercio,
+    });
+    expect(r.downPaymentStatus).toBe('rejected');
   });
 
   it('sólo se decide lo que está en espera', async () => {

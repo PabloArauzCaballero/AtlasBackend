@@ -5,16 +5,70 @@
  * @system función pura sobre recuentos y fechas; no descifra ninguna ficha ni lee un solo nombre.
  */
 
-/** Lo que el cálculo necesita de cada ficha guardada: sólo recuentos, banderas y cuándo la vimos por primera vez. */
+/**
+ * Lo que el cálculo necesita de cada ficha guardada: sólo banderas y cuándo la vimos por primera vez.
+ *
+ * `hasEmail` y `hasBirthday` admiten `null` = «no consta». Desde la captura `contacts-address-book-2.0.0` la app ya
+ * no manda correos ni cumpleaños (minimización, auditoría 2026-10-09 APP-03); manda, a lo sumo, si existían. Sin
+ * esa distinción «esta versión ya no los manda» se leía como «esta agenda no tiene ninguno» y `AGENDA_UNIFORME`
+ * saltaba a clientes reales.
+ */
 export type FichaObservada = {
   phoneHashes: readonly string[];
-  emailCount: number;
+  hasEmail: boolean | null;
   isFavorite: boolean;
-  hasBirthday: boolean;
+  hasBirthday: boolean | null;
   isCompany: boolean;
   /** Cuándo el servidor guardó la ficha por PRIMERA vez (`_created_at`). */
   firstSeenAt: Date;
 };
+
+/** Las columnas de `customer_device_contacts` que hacen falta para la forma. Ninguna cifrada. */
+export const ATRIBUTOS_DE_FORMA = [
+  'phoneHashes',
+  'emailCount',
+  'hasEmail',
+  'isFavorite',
+  'birthday',
+  'hasBirthday',
+  'contactType',
+  'hasCompany',
+  'createdAtValue',
+] as const;
+
+/** Una fila guardada, tal como la devuelven esas columnas (las nuevas son nulas en filas anteriores a 2.0.0). */
+export type FilaDeAgenda = {
+  phoneHashes?: readonly string[] | null;
+  emailCount?: number | null;
+  hasEmail?: boolean | null;
+  isFavorite?: boolean | null;
+  birthday?: string | null;
+  hasBirthday?: boolean | null;
+  contactType?: string | null;
+  hasCompany?: boolean | null;
+  createdAtValue?: Date | null;
+};
+
+/**
+ * De la fila a la ficha observada. La bandera, si se guardó, manda; si no, sólo el dato PRESENTE prueba algo.
+ *
+ * `email_count = 0` o `birthday` nulo sin bandera no dicen «no tiene»: dicen «no lo sabemos», porque una captura
+ * 2.0.0 sin banderas y una fila 1.x anterior a las banderas se ven igual (la columna tiene `DEFAULT 0`). Desde este
+ * cambio, toda sincronización —1.x o 2.0.0— escribe las banderas, así que la incertidumbre dura hasta la siguiente
+ * resincronización (diaria) de cada cliente.
+ */
+export function fichaObservadaDeFila(fila: FilaDeAgenda, now: Date): FichaObservada {
+  const conCorreo = (fila.emailCount ?? 0) > 0;
+  const conCumple = fila.birthday !== null && fila.birthday !== undefined;
+  return {
+    phoneHashes: fila.phoneHashes ?? [],
+    hasEmail: fila.hasEmail ?? (conCorreo ? true : null),
+    isFavorite: fila.isFavorite === true,
+    hasBirthday: fila.hasBirthday ?? (conCumple ? true : null),
+    isCompany: fila.contactType === 'company' || fila.hasCompany === true,
+    firstSeenAt: fila.createdAtValue ?? now,
+  };
+}
 
 /** Por debajo de esto una agenda con acceso completo es la de un teléfono recién estrenado… o preparado. */
 export const AGENDA_MINIMA = 10;
@@ -65,7 +119,9 @@ const ratio = (parte: number, total: number): number | null => (total === 0 ? nu
  * ## Señales (todas de partida, sin cortes medidos: derivan a una persona, no rechazan)
  * - `AGENDA_MINIMA`: menos de `AGENDA_MINIMA` contactos.
  * - `AGENDA_REPETIDA`: menos de la mitad de los teléfonos son distintos.
- * - `AGENDA_UNIFORME`: 20 o más fichas y ninguna con correo, cumpleaños, favorito ni empresa — todas iguales.
+ * - `AGENDA_UNIFORME`: 20 o más fichas y ninguna con correo, cumpleaños, favorito ni empresa — todas iguales. Sólo
+ *   se juzga con 20 o más fichas en las que consta si tienen correo y cumpleaños: una captura que no lo dice no es
+ *   una agenda uniforme, es una agenda de la que no sabemos eso.
  * - `AGENDA_CARGADA_DE_GOLPE`: 50 o más fichas nuevas en 7 días y más de la mitad de la agenda.
  */
 export function calcularFormaDeLaAgenda(fichas: readonly FichaObservada[], now: Date): FormaDeLaAgenda {
@@ -77,9 +133,12 @@ export function calcularFormaDeLaAgenda(fichas: readonly FichaObservada[], now: 
   const addedLast7d = despues.filter((f) => f.firstSeenAt.getTime() >= hace(7)).length;
   const ultima = despues.length === 0 ? null : Math.max(...despues.map((f) => f.firstSeenAt.getTime()));
 
-  const conCorreo = fichas.filter((f) => f.emailCount > 0).length;
+  const conCorreo = fichas.filter((f) => f.hasEmail === true).length;
   const favoritos = fichas.filter((f) => f.isFavorite).length;
-  const conCumple = fichas.filter((f) => f.hasBirthday).length;
+  const conCumple = fichas.filter((f) => f.hasBirthday === true).length;
+  const sabemosCorreo = fichas.filter((f) => f.hasEmail !== null).length;
+  const sabemosCumple = fichas.filter((f) => f.hasBirthday !== null).length;
+  const juzgables = fichas.filter((f) => f.hasEmail !== null && f.hasBirthday !== null).length;
   const empresas = fichas.filter((f) => f.isCompany).length;
   const uniquePhoneRatio = ratio(new Set(telefonos).size, telefonos.length);
 
@@ -87,16 +146,17 @@ export function calcularFormaDeLaAgenda(fichas: readonly FichaObservada[], now: 
   if (total < AGENDA_MINIMA) senales.push('AGENDA_MINIMA');
   if (uniquePhoneRatio !== null && telefonos.length >= AGENDA_MINIMA && uniquePhoneRatio < RATIO_MINIMO_DE_UNICOS)
     senales.push('AGENDA_REPETIDA');
-  if (total >= MINIMO_PARA_JUZGAR_FORMA && conCorreo + favoritos + conCumple + empresas === 0) senales.push('AGENDA_UNIFORME');
+  if (juzgables >= MINIMO_PARA_JUZGAR_FORMA && conCorreo + favoritos + conCumple + empresas === 0) senales.push('AGENDA_UNIFORME');
   if (addedLast7d >= CRECIMIENTO_BRUSCO_MINIMO && addedLast7d > total / 2) senales.push('AGENDA_CARGADA_DE_GOLPE');
 
   return {
     total,
     withPhone: fichas.filter((f) => f.phoneHashes.length > 0).length,
     uniquePhoneRatio,
-    withEmailRatio: ratio(conCorreo, total),
+    // Sobre las fichas en las que consta: contar «no consta» como «no tiene» bajaría la proporción en silencio.
+    withEmailRatio: ratio(conCorreo, sabemosCorreo),
     favoritesRatio: ratio(favoritos, total),
-    withBirthdayRatio: ratio(conCumple, total),
+    withBirthdayRatio: ratio(conCumple, sabemosCumple),
     companyRatio: ratio(empresas, total),
     firstSyncAgeDays: primera === null ? null : Math.floor((now.getTime() - primera) / DIA_MS),
     addedAfterFirstSync: despues.length,

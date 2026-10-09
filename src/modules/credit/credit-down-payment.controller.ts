@@ -49,8 +49,19 @@ export class CreditDownPaymentCustomerController {
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Aviso registrado, esperando la confirmación del comercio.' })
   @ApiResponse({ status: 404, description: 'CREDIT_APPLICATION_NOT_FOUND.' })
-  @ApiResponse({ status: 409, description: 'DOWN_PAYMENT_NOT_ALLOWED_YET, DOWN_PAYMENT_ALREADY_PENDING o DOWN_PAYMENT_ALREADY_CONFIRMED.' })
-  @ApiResponse({ status: 422, description: 'EVIDENCE_OBJECT_NOT_FOUND o APPLICATION_WITHOUT_PARTNER.' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'DOWN_PAYMENT_NOT_ALLOWED_YET, DOWN_PAYMENT_ALREADY_PENDING, DOWN_PAYMENT_ALREADY_CONFIRMED o IDEMPOTENCY_CONFLICT ' +
+      '(la misma `x-idempotency-key` con otro cuerpo; con el mismo cuerpo se devuelve la respuesta original).',
+  })
+  @ApiHeader({ name: 'x-idempotency-key', required: false })
+  @ApiResponse({
+    status: 422,
+    description:
+      'EVIDENCE_OBJECT_NOT_FOUND, APPLICATION_WITHOUT_PARTNER o DOWN_PAYMENT_AMOUNT_MISMATCH (el importe no es el inicial ' +
+      'de la compra; `error.details.expectedAmount` dice cuál es).',
+  })
   @Post()
   @HttpCode(HttpStatus.OK)
   submit(
@@ -120,6 +131,8 @@ export class MerchantDownPaymentController {
   @ApiResponse({ status: 200, description: 'Decisión registrada; el cliente la ve en su app.' })
   @ApiResponse({ status: 403, description: 'La compra no nació en este comercio.' })
   @ApiResponse({ status: 409, description: 'DOWN_PAYMENT_NOT_PENDING.' })
+  @ApiResponse({ status: 422, description: 'DOWN_PAYMENT_AMOUNT_MISMATCH: el importe avisado no es el inicial de la compra.' })
+  @ApiHeader({ name: 'x-idempotency-key', required: false })
   @Post(':applicationId/verification')
   @HttpCode(HttpStatus.OK)
   decide(
