@@ -88,6 +88,19 @@ describe('UnderwritingDeviceSignalsService.signalsFor', () => {
     expect(modelos.watchlist.count).not.toHaveBeenCalled();
   });
 
+  it('APP-03: la forma de la agenda lee las banderas de la captura 2.0.0', async () => {
+    const query = jest.fn(async (..._args: unknown[]) => [{ n: '0' }]);
+    const filas = Array.from({ length: 25 }, (_, i) => ({ phoneHashes: [`h${i}`], emailCount: 0, hasEmail: false, hasBirthday: i === 7 }));
+    const findAll = jest.fn(async (..._args: unknown[]) => filas);
+    const { service } = build({ contacts: { findAll, getTableName: () => 'customer_device_contacts', sequelize: { query } } });
+    const señales = await service.signalsFor('1', '10', NOW);
+    // Un cumpleaños marcado (sin la fecha) basta para que no sea una agenda uniforme.
+    expect(señales?.contacts.shape?.senales).toEqual([]);
+    expect(señales?.contacts.shape?.withBirthdayRatio).toBe(0.04);
+    const [opciones] = findAll.mock.calls[0] as [{ attributes: string[] }];
+    expect(opciones.attributes).toEqual(expect.arrayContaining(['hasEmail', 'hasBirthday', 'hasCompany', 'emailCount', 'birthday']));
+  });
+
   it('sin dispositivos vinculados no cuenta compartidos', async () => {
     const links = { findAll: jest.fn(async () => []), count: jest.fn() };
     const { service } = build({ links });

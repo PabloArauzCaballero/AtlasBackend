@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (132 controladores) | 614 |
+| Total montadas (132 controladores) | 615 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
-| Con `@Roles` | 556 |
+| Con `@Roles` | 557 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 85 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -289,6 +289,7 @@
 | `GET` | `/expedientes/:id/actividad` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesController.actividad` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |
 | `POST` | `/expedientes/:id/carpetas` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesNodosController.crearCarpeta` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |
 | `GET` | `/expedientes/:id/contactos` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesContactosController.obtenerContactos` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |
+| `POST` | `/expedientes/:id/contactos/revelar` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesContactosController.revelarContactos` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |
 | `GET` | `/expedientes/:id/nodos` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesNodosController.listar` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |
 | `DELETE` | `/expedientes/:id/nodos/:nodoId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesNodosController.borrar` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |
 | `PATCH` | `/expedientes/:id/nodos/:nodoId` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin` | — | `ExpedientesNodosController.actualizar` | guards: `TenantGuard`, `ExpedienteAccesoGuard` |

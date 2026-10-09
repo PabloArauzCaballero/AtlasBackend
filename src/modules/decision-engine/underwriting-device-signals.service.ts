@@ -19,7 +19,7 @@ import {
 } from '../../database/models/index.js';
 import { env } from '../../config/env.js';
 import { ADDRESS_BOOK_PURPOSE, LOCATION_TRACKING_PURPOSE, isConsentInForce } from '../../common/utils/consent/consent-in-force.util.js';
-import { calcularFormaDeLaAgenda } from '../../common/utils/contact/contact-book-shape.util.js';
+import { ATRIBUTOS_DE_FORMA, calcularFormaDeLaAgenda, fichaObservadaDeFila } from '../../common/utils/contact/contact-book-shape.util.js';
 import {
   calcularSeñalesDelTelefono,
   UMBRAL_ANILLO_CONTACTOS,
@@ -149,19 +149,12 @@ export class UnderwritingDeviceSignalsService {
     if (!(await this.vigente(tenantId, customerId, ADDRESS_BOOK_PURPOSE))) return sinAgenda;
     const filas = await this.contacts.findAll({
       where: { tenantId, customerId, deleted: { [Op.ne]: true } },
-      attributes: ['phoneHashes', 'emailCount', 'isFavorite', 'birthday', 'contactType', 'createdAtValue'],
+      attributes: [...ATRIBUTOS_DE_FORMA],
     } as FindOptions);
     if (filas.length === 0) return sinAgenda;
 
     const shape = calcularFormaDeLaAgenda(
-      filas.map((f) => ({
-        phoneHashes: f.phoneHashes ?? [],
-        emailCount: f.emailCount ?? 0,
-        isFavorite: f.isFavorite === true,
-        hasBirthday: f.birthday !== null && f.birthday !== undefined,
-        isCompany: f.contactType === 'company',
-        firstSeenAt: f.createdAtValue ?? now,
-      })),
+      filas.map((f) => fichaObservadaDeFila(f, now)),
       now,
     );
     const hashes = [...new Set(filas.flatMap((f) => f.phoneHashes ?? []))].slice(0, MAX_HASHES);

@@ -227,6 +227,55 @@ describe('CustomerDeviceContactsRepository', () => {
       expect(opciones.where).toEqual({ id: 'n-1' });
     });
 
+    it('APP-03: lo que la captura 2.0.0 NO trae (undefined) no se toca; lo que trae en null sí se borra', async () => {
+      await repo.update(
+        'n-1',
+        ficha({
+          // Lo que la 2.0.0 ya no manda:
+          givenNameEncrypted: undefined,
+          familyNameEncrypted: undefined,
+          companyEncrypted: undefined,
+          jobTitleEncrypted: undefined,
+          emailsEncrypted: undefined,
+          addressesEncrypted: undefined,
+          emailHashes: undefined,
+          emailCount: undefined,
+          addressCount: undefined,
+          birthday: undefined,
+          // Lo que sí manda, aunque sea para decir «ya no»:
+          hasEmail: false,
+          displayNameEncrypted: null,
+        }),
+      );
+
+      const [values] = contacts.update.mock.calls.at(-1) as [Record<string, unknown>];
+      for (const campo of [
+        'givenNameEncrypted',
+        'familyNameEncrypted',
+        'companyEncrypted',
+        'jobTitleEncrypted',
+        'emailsEncrypted',
+        'addressesEncrypted',
+        'emailHashes',
+        'emailCount',
+        'addressCount',
+        'birthday',
+      ]) {
+        expect(values).not.toHaveProperty(campo);
+      }
+      expect(values.hasEmail).toBe(false);
+      expect(values.displayNameEncrypted).toBeNull();
+      expect(values.phoneHashes).toEqual(['h-tel']);
+    });
+
+    it('APP-03: una ficha nueva sin correos ni cumpleaños deja que la base ponga sus valores por defecto', async () => {
+      await repo.create(ficha({ emailHashes: undefined, emailCount: undefined, birthday: undefined }));
+      const [values] = contacts.create.mock.calls.at(-1) as [Record<string, unknown>];
+      expect(values).not.toHaveProperty('emailHashes');
+      expect(values).not.toHaveProperty('emailCount');
+      expect(values).not.toHaveProperty('birthday');
+    });
+
     it('actualizar NO reescribe la identidad de la fila: tenant, cliente ni hash de origen', async () => {
       await repo.update('n-1', ficha());
 

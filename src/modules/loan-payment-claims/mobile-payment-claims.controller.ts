@@ -88,7 +88,13 @@ export class MobilePaymentClaimsController {
   @ApiOperation({ summary: 'Avisar que se pagó una cuota por transferencia' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiResponse({ status: 200, description: 'Reclamo creado, esperando verificación del comercio.' })
-  @ApiResponse({ status: 409, description: 'PAYMENT_CLAIM_ALREADY_PENDING o INSTALLMENT_ALREADY_PAID.' })
+  @ApiHeader({ name: 'x-idempotency-key', required: false })
+  @ApiResponse({
+    status: 409,
+    description:
+      'PAYMENT_CLAIM_ALREADY_PENDING, INSTALLMENT_ALREADY_PAID o IDEMPOTENCY_CONFLICT (la misma `x-idempotency-key` con ' +
+      'otro cuerpo; con el mismo cuerpo se devuelve la respuesta original).',
+  })
   @ApiResponse({ status: 422, description: 'EVIDENCE_OBJECT_NOT_FOUND o LOAN_WITHOUT_PARTNER (sin comercio nadie verificaría el aviso).' })
   @Post()
   @HttpCode(HttpStatus.OK)

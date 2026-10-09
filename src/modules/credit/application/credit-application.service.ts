@@ -18,6 +18,7 @@ import { PartnerProfileService } from '../../partner-onboarding/application/part
 import { CreditUnderwritingService } from './credit-underwriting.service.js';
 import { CreateCreditApplicationDto } from '../credit.schemas.js';
 import { CreditRepository } from '../credit.repository.js';
+import { expectedDownPaymentAmount } from '../domain/down-payment.js';
 
 /**
  * Creación de la solicitud de crédito.
@@ -118,6 +119,8 @@ export class CreditApplicationService {
          */
         downPaymentStatus: application.downPaymentStatus ?? null,
         downPaymentAmount: application.downPaymentAmount ?? null,
+        // Lo que el servidor exige avisar (60/40 sobre el financiado). Sólo si hay comercio: sin él no hay inicial.
+        expectedDownPaymentAmount: application.partnerProfileId ? expectedDownPaymentAmount(application.requestedAmount) : null,
         downPaymentRejectionReason: application.downPaymentRejectionReason ?? null,
       })),
     };

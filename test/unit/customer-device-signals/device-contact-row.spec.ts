@@ -180,4 +180,71 @@ describe('toContactRow', () => {
     expect(fila.primaryPhoneHash).toBeNull();
     expect(fila.phoneHashes).toEqual([]);
   });
+
+  it('una ficha 1.x deja escritas las banderas que se deducen de sus datos', async () => {
+    const toContactRow = await cargar();
+    const fila = await toContactRow(
+      {
+        externalId: 'v1',
+        displayName: 'Ana',
+        company: 'Ferretería Sur',
+        birthday: null,
+        contactType: 'person',
+        isFavorite: false,
+        phones: [{ number: '76500122' }],
+        emails: [{ email: 'ana@sur.bo' }],
+        addresses: [],
+      },
+      contexto,
+    );
+    expect(fila).toMatchObject({ hasEmail: true, hasBirthday: false, hasCompany: true, emailCount: 1, birthday: null, addressCount: 0 });
+  });
+
+  it('APP-03: la ficha MÍNIMA de la captura 2.0.0 no borra lo que no trae y guarda sus banderas', async () => {
+    const toContactRow = await cargar();
+    // Exactamente lo que manda la app 2.0.0: id, nombre visible, tipo, favorito, números sin etiqueta y banderas.
+    const fila = await toContactRow(
+      {
+        externalId: 'v2',
+        displayName: 'María Quispe',
+        contactType: 'person',
+        isFavorite: true,
+        phones: [{ number: '+591 76500122' }],
+        hasEmail: true,
+        hasBirthday: false,
+        hasCompany: true,
+      },
+      contexto,
+    );
+    expect(fila).toMatchObject({ hasEmail: true, hasBirthday: false, hasCompany: true, phoneCount: 1, isFavorite: true });
+    expect(fila.displayNameEncrypted).toBe('cifrado(María Quispe)');
+    // `undefined` = «esta captura no lo dice»: el repositorio no lo toca en el UPDATE.
+    for (const campo of [
+      'givenNameEncrypted',
+      'familyNameEncrypted',
+      'companyEncrypted',
+      'jobTitleEncrypted',
+      'emailsEncrypted',
+      'addressesEncrypted',
+      'emailHashes',
+      'emailCount',
+      'addressCount',
+      'birthday',
+    ] as const) {
+      expect(fila[campo]).toBeUndefined();
+    }
+  });
+
+  it('APP-03: sin banderas ni datos, la presencia queda sin saberse (undefined), no en falso', async () => {
+    const toContactRow = await cargar();
+    const fila = await toContactRow(
+      { externalId: 'v2b', contactType: 'person', isFavorite: false, phones: [{ number: '76500122' }] },
+      contexto,
+    );
+    expect(fila.hasEmail).toBeUndefined();
+    expect(fila.hasBirthday).toBeUndefined();
+    expect(fila.hasCompany).toBeUndefined();
+    expect(fila.displayNameEncrypted).toBeUndefined();
+    expect(fila.displayNameHash).toBeUndefined();
+  });
 });

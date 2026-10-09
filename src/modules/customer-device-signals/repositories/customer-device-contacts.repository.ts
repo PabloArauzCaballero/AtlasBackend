@@ -15,7 +15,12 @@ import {
   OnDeviceComputationRunModel,
 } from '../../../database/models/index.js';
 
-/** Los valores de una ficha, ya cifrados y hasheados por el servicio. */
+/**
+ * Los valores de una ficha, ya cifrados y hasheados por el servicio.
+ *
+ * Los opcionales son los que una captura puede NO traer (la 2.0.0 ya no manda correos, cumpleaños, empresa, cargo,
+ * nombres sueltos ni direcciones): `undefined` = «no se sabe, deja lo que haya»; `null` = «ya no lo tiene».
+ */
 export type ContactRow = {
   tenantId: string;
   customerId: string;
@@ -24,28 +29,36 @@ export type ContactRow = {
   sessionId: string | null;
   consentId: string | null;
   contactExternalIdHash: string;
-  displayNameEncrypted: string | null;
-  givenNameEncrypted: string | null;
-  familyNameEncrypted: string | null;
-  companyEncrypted: string | null;
-  jobTitleEncrypted: string | null;
+  displayNameEncrypted?: string | null;
+  givenNameEncrypted?: string | null;
+  familyNameEncrypted?: string | null;
+  companyEncrypted?: string | null;
+  jobTitleEncrypted?: string | null;
   phonesEncrypted: string | null;
-  emailsEncrypted: string | null;
-  addressesEncrypted: string | null;
-  displayNameHash: string | null;
+  emailsEncrypted?: string | null;
+  addressesEncrypted?: string | null;
+  displayNameHash?: string | null;
   primaryPhoneHash: string | null;
   primaryPhoneLast4: string | null;
   phoneHashes: string[];
-  emailHashes: string[];
+  emailHashes?: string[];
   phoneCount: number;
-  emailCount: number;
-  addressCount: number;
-  birthday: string | null;
+  emailCount?: number;
+  addressCount?: number;
+  birthday?: string | null;
+  hasEmail?: boolean;
+  hasBirthday?: boolean;
+  hasCompany?: boolean;
   isFavorite: boolean;
   contactType: string;
   capturedAt: Date;
   receivedAt: Date;
 };
+
+/** Sin las claves `undefined`: en un UPDATE, lo que la captura no trajo no se toca. */
+function soloLoQueVino<T extends object>(valores: T): Partial<T> {
+  return Object.fromEntries(Object.entries(valores).filter(([, valor]) => valor !== undefined)) as Partial<T>;
+}
 
 @Injectable()
 export class CustomerDeviceContactsRepository {
@@ -154,7 +167,13 @@ export class CustomerDeviceContactsRepository {
 
   create(values: ContactRow, options: { transaction?: Transaction } = {}): Promise<CustomerDeviceContactModel> {
     return this.contactModel.create(
-      { ...values, source: 'device_address_book', createdAtValue: values.receivedAt, updatedAtValue: values.receivedAt, deleted: false },
+      {
+        ...soloLoQueVino(values),
+        source: 'device_address_book',
+        createdAtValue: values.receivedAt,
+        updatedAtValue: values.receivedAt,
+        deleted: false,
+      },
       { transaction: options.transaction },
     );
   }
@@ -162,12 +181,17 @@ export class CustomerDeviceContactsRepository {
   /**
    * Reescribe una ficha existente.
    *
-   * Se sobrescriben todos los campos y no sólo los que cambiaron: la agenda es un espejo, y una
-   * actualización parcial dejaría el teléfono que la persona borró ayer vivo en nuestra copia.
+   * Se sobrescribe todo lo que la captura TRAJO, cambiara o no: la agenda es un espejo, y una actualización
+   * parcial dejaría el teléfono que la persona borró ayer vivo en nuestra copia. Lo que la captura no trajo
+   * (`undefined`: una 2.0.0 no manda correos ni cumpleaños) se queda como estaba; escribirlo a `null` borraba
+   * lo que guardó la 1.x y hacía saltar `AGENDA_UNIFORME` al cliente en su siguiente sincronización.
    */
   update(id: string, values: ContactRow, options: { transaction?: Transaction } = {}): Promise<[number]> {
     const { tenantId: _tenantId, customerId: _customerId, contactExternalIdHash: _hash, ...mutable } = values;
-    return this.contactModel.update({ ...mutable, updatedAtValue: values.receivedAt }, { where: { id }, transaction: options.transaction });
+    return this.contactModel.update(
+      { ...soloLoQueVino(mutable), updatedAtValue: values.receivedAt },
+      { where: { id }, transaction: options.transaction },
+    );
   }
 
   countFor(tenantId: string, customerId: string, options: { transaction?: Transaction } = {}): Promise<number> {
