@@ -1896,6 +1896,16 @@ paths:
         consecutivos (`AUTH_LOCKOUT_MINUTES`).
       operationId: AuthController_login
       parameters:
+        - name: x-atlas-session-mode
+          in: header
+          description: >-
+            `cookie` (sólo la web del cliente): el refresh token viaja en la
+            cookie HttpOnly `atlas_customer_refresh` (SameSite=Strict,
+            Path=/api/v1/auth/refresh y /api/v1/auth/logout) y no en el cuerpo.
+            Exige `Origin` permitido.
+          required: false
+          schema:
+            type: string
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       requestBody:
@@ -1961,6 +1971,16 @@ paths:
         el par access+refresh token definitivo.
       operationId: AuthController_verifyLoginPin
       parameters:
+        - name: x-atlas-session-mode
+          in: header
+          description: >-
+            `cookie` (sólo la web del cliente): el refresh token viaja en la
+            cookie HttpOnly `atlas_customer_refresh` (SameSite=Strict,
+            Path=/api/v1/auth/refresh y /api/v1/auth/logout) y no en el cuerpo.
+            Exige `Origin` permitido.
+          required: false
+          schema:
+            type: string
         - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
@@ -2010,6 +2030,16 @@ paths:
         no falla.
       operationId: AuthController_logout
       parameters:
+        - name: x-atlas-session-mode
+          in: header
+          description: >-
+            `cookie` (sólo la web del cliente): el refresh token viaja en la
+            cookie HttpOnly `atlas_customer_refresh` (SameSite=Strict,
+            Path=/api/v1/auth/refresh y /api/v1/auth/logout) y no en el cuerpo.
+            Exige `Origin` permitido.
+          required: false
+          schema:
+            type: string
         - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
@@ -2025,7 +2055,6 @@ paths:
                   default: false
                   type: boolean
               required:
-                - refreshToken
                 - allDevices
               additionalProperties: false
       responses:
@@ -2502,6 +2531,16 @@ paths:
         (rotación en cada uso — el refresh token anterior queda revocado).
       operationId: AuthController_refresh
       parameters:
+        - name: x-atlas-session-mode
+          in: header
+          description: >-
+            `cookie` (sólo la web del cliente): el refresh token viaja en la
+            cookie HttpOnly `atlas_customer_refresh` (SameSite=Strict,
+            Path=/api/v1/auth/refresh y /api/v1/auth/logout) y no en el cuerpo.
+            Exige `Origin` permitido.
+          required: false
+          schema:
+            type: string
         - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
@@ -2513,8 +2552,6 @@ paths:
                 refreshToken:
                   type: string
                   minLength: 20
-              required:
-                - refreshToken
               additionalProperties: false
       responses:
         '200':

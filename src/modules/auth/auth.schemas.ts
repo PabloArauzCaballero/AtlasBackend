@@ -18,14 +18,17 @@ export const loginSchema = z.object({
 
 export type LoginDto = z.infer<typeof loginSchema>;
 
+// `refreshToken` es opcional en el ESQUEMA porque en modo cookie (`x-atlas-session-mode: cookie`, la web
+// del cliente) llega en la cookie HttpOnly y no en el cuerpo. Sin modo cookie sigue siendo obligatorio:
+// lo exige `resolveRefreshToken` con el mismo 400 de siempre.
 export const refreshSchema = z.object({
-  refreshToken: z.string().trim().min(20),
+  refreshToken: z.string().trim().min(20).optional(),
 });
 
 export type RefreshDto = z.infer<typeof refreshSchema>;
 
 export const logoutSchema = z.object({
-  refreshToken: z.string().trim().min(20),
+  refreshToken: z.string().trim().min(20).optional(),
   allDevices: z.boolean().optional().default(false),
 });
 

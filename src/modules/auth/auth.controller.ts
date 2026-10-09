@@ -3,7 +3,7 @@
  * @business Esta pieza protege el acceso de clientes y operadores, la recuperación de cuenta y la continuidad segura de sesiones.
  * @system resuelve actores, credenciales, JWT, códigos de un solo uso y rotación/revocación de refresh tokens.
  */
-import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
@@ -16,6 +16,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { RequestWithNetwork, userAgentFrom } from '../../common/utils/http/headers.util.js';
+import { ResponseWithCookies } from '../../common/utils/http/auth-cookies.util.js';
 import { AuthService } from './auth.service.js';
 import {
   LoginDto,
@@ -36,14 +37,10 @@ import {
   refreshSchema,
 } from './auth.schemas.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
-
-/**
- * Endpoints públicos de autenticación y endpoints administrativos de provisión de credenciales.
- *
- * `login`, `refresh` y `logout` son públicos por diseño: son la puerta de entrada antes de tener
- * access token y operan sobre credenciales/refresh tokens.
- */
+import * as sesionWeb from './customer-session-cookie.js';
 import { AuthCredentialsService } from './auth-credentials.service.js';
+
+/** Login/refresh/logout públicos (la web del cliente, en modo cookie: `customer-session-cookie.ts`) y provisión de credenciales. */
 @ApiTags('auth')
 @Controller('auth')
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
@@ -74,15 +71,17 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'x-tenant-id ausente o no es un entero positivo válido.' })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas, o cuenta bloqueada temporalmente por intentos fallidos.' })
+  @sesionWeb.ApiCustomerSessionMode()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(@CurrentTenant() tenantId: string, @Body(new ZodValidationPipe(loginSchema)) body: LoginDto, @Req() request: RequestWithNetwork) {
-    return this.authService.login({
-      tenantId,
-      dto: body,
-      ip: request.ip ?? null,
-      userAgent: userAgentFrom(request),
-    });
+  login(
+    @CurrentTenant() tenantId: string,
+    @Body(new ZodValidationPipe(loginSchema)) body: LoginDto,
+    @Req() request: RequestWithNetwork,
+    @Res({ passthrough: true }) response: ResponseWithCookies,
+  ) {
+    const net = { ip: request.ip ?? null, userAgent: userAgentFrom(request) };
+    return sesionWeb.withCustomerSessionMode(request, response, () => this.authService.login({ tenantId, dto: body, ...net }));
   }
 
   // 10 verificaciones de PIN por minuto por IP — el PIN tiene 6 dígitos; sin throttle sería fuerza-bruteable.
@@ -98,15 +97,16 @@ export class AuthController {
   @ApiBody({ schema: zodToApiSchema(loginPinVerifySchema) })
   @ApiResponse({ status: 200, description: 'PIN correcto — access token + refresh token.' })
   @ApiResponse({ status: 401, description: 'PIN inválido, expirado, agotó intentos, o el actor ya no está disponible.' })
+  @sesionWeb.ApiCustomerSessionMode()
   @Post('login/pin')
   @HttpCode(HttpStatus.OK)
-  verifyLoginPin(@Body(new ZodValidationPipe(loginPinVerifySchema)) body: LoginPinVerifyDto, @Req() request: RequestWithNetwork) {
-    return this.authService.verifyLoginPin({
-      challengeToken: body.challengeToken,
-      pin: body.pin,
-      ip: request.ip ?? null,
-      userAgent: userAgentFrom(request),
-    });
+  verifyLoginPin(
+    @Body(new ZodValidationPipe(loginPinVerifySchema)) body: LoginPinVerifyDto,
+    @Req() request: RequestWithNetwork,
+    @Res({ passthrough: true }) response: ResponseWithCookies,
+  ) {
+    const net = { ip: request.ip ?? null, userAgent: userAgentFrom(request) };
+    return sesionWeb.withCustomerSessionMode(request, response, () => this.authService.verifyLoginPin({ ...body, ...net }));
   }
 
   // 5 solicitudes por minuto por IP — cada request dispara un correo real; complementa el cooldown por destino del servicio.
@@ -180,14 +180,18 @@ export class AuthController {
   @ApiBody({ schema: zodToApiSchema(refreshSchema) })
   @ApiResponse({ status: 200, description: 'Rotación exitosa — nuevo access token + refresh token.' })
   @ApiResponse({ status: 401, description: 'Refresh token inválido, expirado, o el actor asociado ya no está disponible.' })
+  @sesionWeb.ApiCustomerSessionMode()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  refresh(@Body(new ZodValidationPipe(refreshSchema)) body: RefreshDto, @Req() request: RequestWithNetwork) {
-    return this.authService.refresh({
-      refreshToken: body.refreshToken,
-      ip: request.ip ?? null,
-      userAgent: userAgentFrom(request),
-    });
+  refresh(
+    @Body(new ZodValidationPipe(refreshSchema)) body: RefreshDto,
+    @Req() request: RequestWithNetwork,
+    @Res({ passthrough: true }) response: ResponseWithCookies,
+  ) {
+    const net = { ip: request.ip ?? null, userAgent: userAgentFrom(request) };
+    return sesionWeb.withCustomerSessionMode(request, response, () =>
+      this.authService.refresh({ refreshToken: sesionWeb.refreshTokenFor(request, body.refreshToken), ...net }),
+    );
   }
 
   @Public()
@@ -199,19 +203,22 @@ export class AuthController {
   })
   @ApiBody({ schema: zodToApiSchema(logoutSchema) })
   @ApiResponse({ status: 200, description: 'Logout procesado (siempre, incluso si el token ya estaba revocado o no existía).' })
+  @sesionWeb.ApiCustomerSessionMode()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@Body(new ZodValidationPipe(logoutSchema)) body: LogoutDto) {
-    return this.authService.logout({ refreshToken: body.refreshToken, allDevices: body.allDevices });
+  logout(
+    @Body(new ZodValidationPipe(logoutSchema)) body: LogoutDto,
+    @Req() request: RequestWithNetwork,
+    @Res({ passthrough: true }) response: ResponseWithCookies,
+  ) {
+    return sesionWeb.logoutWithCustomerSessionMode(request, response, body.refreshToken, (refreshToken) =>
+      this.authService.logout({ refreshToken, allDevices: body.allDevices }),
+    );
   }
 
   /**
-   * Identidad del actor autenticado (N15).
-   *
-   * El frontend necesita el `customerId` para llamar a cualquier endpoint `:customerId`, y hasta
-   * ahora la única forma de obtenerlo era decodificar el JWT en el cliente: `POST /auth/login`
-   * devuelve solo los tokens, y `GET /internal-auth/me` existe únicamente para actores internos.
-   * Decodificar el token en el frontend funciona, pero acopla la app al formato interno del claim.
+   * Identidad del actor autenticado (N15): el frontend obtiene su `customerId` sin decodificar el JWT
+   * (`POST /auth/login` sólo devuelve tokens; decodificarlo acoplaría la app al formato del claim).
    */
   @ApiBearerAuth('access-token')
   @ApiOperation({
@@ -233,11 +240,7 @@ export class AuthController {
     };
   }
 
-  /**
-   * Fase 4.2: MFA opt-in del cliente. Requiere un access token vigente del propio cliente
-   * (`customer`); activa/desactiva su segundo factor por correo para futuros logins. No aplica a
-   * actores internos (su 2FA es obligatorio, no configurable aquí).
-   */
+  // Fase 4.2: MFA opt-in del cliente (sólo `customer`; el 2FA de los internos es obligatorio, no se configura aquí).
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Activar/desactivar MFA (cliente)',
@@ -263,15 +266,10 @@ export class AuthController {
   }
 
   /**
-   * No es `@Public()`: requiere un access token vigente de un actor con rol `admin` o
-   * `platform_admin` (verificado también dentro de `AuthService.provisionCredentials`, en
-   * defensa en profundidad — el chequeo de rol no debe vivir solo en el decorador).
-   *
-   * ATLAS-SEC-007: se propaga el `tenantId` del token, no solo el rol. `TenantGuard` no puede
-   * proteger este endpoint —el actor destino viaja en el CUERPO (`actorId`), no en `x-tenant-id`—,
-   * así que la contención por tenant tiene que decidirla el servicio con la identidad real del
-   * solicitante. Pasar solo el rol dejaba a un `admin` del tenant A fijar la contraseña inicial de
-   * un usuario interno del tenant B y luego entrar como él.
+   * No es `@Public()`: rol `admin`/`platform_admin`, verificado también en el servicio (defensa en
+   * profundidad). ATLAS-SEC-007: se propaga el `tenantId` del token, no solo el rol: el actor destino
+   * viaja en el CUERPO y `TenantGuard` no lo cubre, así que la contención por tenant la decide el
+   * servicio. Sin eso, un `admin` del tenant A fijaba la contraseña inicial de un usuario del tenant B.
    */
   @ApiBearerAuth('access-token')
   @ApiOperation({
