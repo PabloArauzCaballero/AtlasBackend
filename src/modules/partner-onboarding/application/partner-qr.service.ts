@@ -4,16 +4,17 @@
  * @system emite el permiso de subida del QR, comprueba el objeto realmente subido y lo registra como evidencia.
  */
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
-import { leerQrDeImagen } from '../../../common/images/qr-image-reader.js';
 import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
 import { MetricsService } from '../../../common/observability/metrics.service.js';
 import { PartnerQrCodeModel } from '../../../database/models/index.js';
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { PartnerCommercialNetworkRepository } from '../partner-commercial-network.repository.js';
+import { PartnerQrAuditRepository, PartnerQrChangeActor, snapshotQrForAudit } from '../partner-qr-audit.repository.js';
 import { PaymentQrForPosResponse, QrUploadUrlDto, RegisterQrDto } from '../partner-onboarding.schemas.js';
 import { PartnerProfileService } from './partner-profile.service.js';
 import { PartnerQrNoticeService } from './partner-qr-notice.service.js';
 import { assertPaymentQrEditable } from './partner-profile.guards.js';
+import { assertImagenContieneQr } from './partner-qr-image.guard.js';
 
 /**
  * Los dos QR del comercio: el suyo y el de su cuenta bancaria.
@@ -58,6 +59,7 @@ export class PartnerQrService {
     private readonly metrics: MetricsService,
     private readonly expedienteHooks: ExpedienteHooksService,
     private readonly notice: PartnerQrNoticeService,
+    private readonly audit: PartnerQrAuditRepository,
   ) {}
 
   /**
@@ -91,8 +93,18 @@ export class PartnerQrService {
    * el cliente declaró dejaría entrar en el expediente una fila que afirma «QR en PNG de 40 KB»
    * sobre un objeto que puede no existir siquiera — y el expediente vale justamente por lo que
    * afirma.
+   *
+   * `context` lo pasa el borde HTTP: quién cambia el QR (para la auditoría) y, si es un comercio, el
+   * canje de su prueba de reautenticación. El canje va JUSTO antes de escribir, después de todas las
+   * validaciones: si la imagen no lleva QR, el comercio corrige y reintenta sin volver a teclear la
+   * contraseña. Sin `context` (carga del ERP con credencial de servicio) se audita como `system`.
    */
-  async register(tenantId: string, partnerId: string, dto: RegisterQrDto): Promise<PartnerQrCodeModel> {
+  async register(
+    tenantId: string,
+    partnerId: string,
+    dto: RegisterQrDto,
+    context: { actor?: PartnerQrChangeActor; beforeWrite?: () => Promise<void> } = {},
+  ): Promise<PartnerQrCodeModel> {
     const profile = await this.profiles.requireProfile(tenantId, partnerId);
     assertPaymentQrEditable(profile);
 
@@ -110,7 +122,17 @@ export class PartnerQrService {
       throw new UnprocessableEntityException(`QR_OBJECT_NOT_AN_IMAGE: ${metadata.contentType}`);
     }
 
-    await this.assertImagenContieneQr(dto.qrKind, dto.storageKey, metadata.contentType);
+    await assertImagenContieneQr({ storage: this.storage, metrics: this.metrics, logger: this.logger }, dto, metadata.contentType);
+
+    await context.beforeWrite?.();
+    const actor: PartnerQrChangeActor = context.actor ?? {
+      actorType: 'system',
+      merchantUserId: null,
+      internalUserId: null,
+      reauthenticated: false,
+      ip: null,
+      userAgent: null,
+    };
 
     /*
      * El nuevo QR reemplaza a TODO lo vivo del ámbito —el activo y los `pending_review` de antes del
@@ -135,8 +157,24 @@ export class PartnerQrService {
         },
         { transaction },
       );
+      // El que veían los clientes hasta ahora: el «antes» de la auditoría.
+      const anterior = await this.network.findActiveQr(tenantId, partnerId, dto.qrKind, branchId, { transaction });
       reemplazados = await this.network.archiveLiveQrs(ambito, created.id, { transaction });
-      return this.network.markQrActive(created, 'Confirmado por el comercio al registrarlo.', { transaction });
+      const activado = await this.network.markQrActive(created, 'Confirmado por el comercio al registrarlo.', { transaction });
+      await this.audit.recordQrChange(
+        {
+          tenantId,
+          partnerId,
+          qrKind: dto.qrKind,
+          branchId,
+          previous: anterior ? snapshotQrForAudit(anterior) : null,
+          next: snapshotQrForAudit(activado),
+          actor,
+          occurredAt: new Date(),
+        },
+        { transaction },
+      );
+      return activado;
     });
 
     /*
@@ -160,45 +198,6 @@ export class PartnerQrService {
     );
     await this.notice.avisarCambioDeQrDeCobro(profile, activo);
     return activo;
-  }
-
-  /**
-   * La imagen tiene que LLEVAR un código QR. No basta con que sea una imagen.
-   *
-   * Ésta era la puerta abierta: se comprobaba el tipo, el tamaño y el hash del objeto —todo cierto
-   * y todo insuficiente—, así que una foto del local, una captura de pantalla o un archivo en
-   * blanco entraban igual y el expediente quedaba afirmando que el comercio tiene QR de cobro. El
-   * fallo no se veía aquí: se veía en la caja, con el cliente delante intentando escanear una
-   * fotografía. Por eso se rechaza en el registro y no sólo en el navegador: el navegador se puede
-   * saltar, y quien sube el QR de cobro está declarando a qué cuenta va el dinero de sus clientes.
-   *
-   * El contenido decodificado NO se guarda ni se registra: en el QR bancario es un número de
-   * cuenta. Sólo se usa para responder si hay código o no.
-   */
-  private async assertImagenContieneQr(qrKind: string, storageKey: string, contentType: string): Promise<void> {
-    const contenido = await this.storage.readObject(storageKey);
-    if (!contenido) {
-      this.metrics.recordPartnerOnboardingStep({ step: `qr_${qrKind}`, outcome: 'rejected' });
-      throw new UnprocessableEntityException('QR_OBJECT_NOT_READABLE: no se pudo leer el objeto subido.');
-    }
-
-    const lectura = leerQrDeImagen(contenido, contentType);
-    if (lectura.ok) return;
-
-    this.metrics.recordPartnerOnboardingStep({ step: `qr_${qrKind}`, outcome: 'rejected' });
-    this.logger.warn(`Imagen rechazada como QR: tipo=${qrKind} motivo=${lectura.motivo} clave=${storageKey}`);
-
-    if (lectura.motivo === 'SIN_CODIGO') {
-      throw new UnprocessableEntityException(
-        'QR_IMAGE_HAS_NO_CODE: la imagen no contiene ningún código QR legible. Sube la imagen del código, no una foto del local ni una captura de pantalla.',
-      );
-    }
-    if (lectura.motivo === 'IMAGEN_DEMASIADO_GRANDE') {
-      throw new UnprocessableEntityException(
-        'QR_IMAGE_TOO_LARGE: la imagen tiene demasiados píxeles para poder leerla. Vuelve a fotografiar el código más de cerca o reduce su tamaño.',
-      );
-    }
-    throw new UnprocessableEntityException(`QR_IMAGE_UNREADABLE: no se pudo interpretar la imagen (${lectura.motivo}).`);
   }
 
   /**

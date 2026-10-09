@@ -654,6 +654,7 @@ describe('PartnerQrService', () => {
   function build(repositoryOverrides: AnyRecord = {}, metadata: AnyRecord | null = null) {
     const repository = {
       findLiveQr: jest.fn(async (..._a: unknown[]) => null as AnyRecord | null),
+      findActiveQr: jest.fn(async (..._a: unknown[]) => null as AnyRecord | null),
       createQrCode: jest.fn(async (..._a: unknown[]) => ({ id: '99' })),
       markQrReplaced: jest.fn(async (..._a: unknown[]) => ({})),
       inTransaction: jest.fn(async (work: (transaction: unknown) => Promise<unknown>) => work(undefined)),
@@ -689,6 +690,7 @@ describe('PartnerQrService', () => {
       metricsDouble(),
       hooks as never,
       notice as never,
+      { recordQrChange: jest.fn(async (..._a: unknown[]) => ({})) } as never,
     );
     return { service, repository, storage, hooks, notice };
   }
@@ -1177,6 +1179,7 @@ describe('PartnerQrService · clave de objeto', () => {
   function build() {
     const repository = {
       findLiveQr: jest.fn(async () => null),
+      findActiveQr: jest.fn(async () => null),
       createQrCode: jest.fn(async (values: AnyRecord) => ({ id: '1', ...values })),
       markQrActive: jest.fn(async (target: AnyRecord, note: string) => ({ ...target, status: 'active', reviewNote: note })),
       markQrReplaced: jest.fn(async () => undefined),
@@ -1203,6 +1206,7 @@ describe('PartnerQrService · clave de objeto', () => {
       metricsDouble(),
       hooks as never,
       notice as never,
+      { recordQrChange: jest.fn(async (..._a: unknown[]) => ({})) } as never,
     );
     return { service, repository, storage, hooks };
   }

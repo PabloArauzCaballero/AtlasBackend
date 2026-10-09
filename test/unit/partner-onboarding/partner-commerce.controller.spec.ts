@@ -32,7 +32,11 @@ describe('PartnerCommerceController', () => {
     changePosStatus: jest.Mock;
   };
   let qr: { createUploadTicket: jest.Mock; register: jest.Mock; list: jest.Mock; readQrImage: jest.Mock };
+  let reauth: { assertValid: jest.Mock; consume: jest.Mock };
   let controller: PartnerCommerceController;
+  const interno = { sub: 'u-1', internalUserId: '8', role: 'internal_operator' } as never;
+  const comercio = { sub: 'm-1', merchantUserId: '55', role: 'merchant' } as never;
+  const peticion = { ip: '10.0.0.1', headers: { 'user-agent': 'jest' } } as never;
 
   const sucursal = {
     id: 'b-1',
@@ -86,7 +90,12 @@ describe('PartnerCommerceController', () => {
       list: jest.fn(async () => [codigoQr]),
       readQrImage: jest.fn(async () => ({ contentType: 'image/png', bytes: Buffer.from('png') })),
     };
-    controller = new PartnerCommerceController(commerce as unknown as PartnerCommerceService, qr as unknown as PartnerQrService);
+    reauth = { assertValid: jest.fn(async () => undefined), consume: jest.fn(async () => undefined) };
+    controller = new PartnerCommerceController(
+      commerce as unknown as PartnerCommerceService,
+      qr as unknown as PartnerQrService,
+      reauth as never,
+    );
   });
 
   describe('sucursales', () => {
@@ -144,7 +153,14 @@ describe('PartnerCommerceController', () => {
     });
 
     it('un QR registrado sale con SÓLO el prefijo del hash, nunca el hash entero', async () => {
-      const dto = await controller.registerQr('t1', { partnerId: 'pp-1' } as never, { qrKind: 'payment' } as never);
+      const dto = await controller.registerQr(
+        't1',
+        interno,
+        { partnerId: 'pp-1' } as never,
+        { qrKind: 'payment' } as never,
+        undefined,
+        peticion,
+      );
 
       expect(dto.fingerprint).toBe('abcdef012345');
       expect(dto.fingerprint).toHaveLength(12);
@@ -152,10 +168,58 @@ describe('PartnerCommerceController', () => {
     });
 
     it('nace en revisión y sin fecha de verificación', async () => {
-      const dto = await controller.registerQr('t1', { partnerId: 'pp-1' } as never, {} as never);
+      const dto = await controller.registerQr('t1', interno, { partnerId: 'pp-1' } as never, {} as never, undefined, peticion);
 
       expect(dto.status).toBe('pending_review');
       expect(dto.verifiedAt).toBeNull();
+    });
+
+    /*
+     * ERP-03: el login del comercio no lleva segundo factor obligatorio, así que cambiar su cuenta de
+     * cobro exige la contraseña repetida (`x-reauth-token`). Sin ella, ni se mira la imagen.
+     */
+    it('un comercio SIN prueba de reautenticación no llega a registrar nada', async () => {
+      reauth.assertValid.mockRejectedValueOnce(new Error('REAUTH_REQUIRED') as never);
+
+      await expect(
+        controller.registerQr('t1', comercio, { partnerId: 'pp-1' } as never, { qrKind: 'bank' } as never, undefined, peticion),
+      ).rejects.toThrow('REAUTH_REQUIRED');
+
+      expect(reauth.assertValid).toHaveBeenCalledWith({ actorType: 'merchant_user', actorId: '55', reauthToken: undefined });
+      expect(qr.register).not.toHaveBeenCalled();
+    });
+
+    it('un comercio CON prueba registra, la gasta justo antes de escribir y queda auditado como él', async () => {
+      await controller.registerQr('t1', comercio, { partnerId: 'pp-1' } as never, { qrKind: 'bank' } as never, 'prueba', peticion);
+
+      const prueba = { actorType: 'merchant_user', actorId: '55', reauthToken: 'prueba' };
+      expect(reauth.assertValid).toHaveBeenCalledWith(prueba);
+      const [, , , contexto] = qr.register.mock.calls[0] as [
+        string,
+        string,
+        unknown,
+        { actor: unknown; beforeWrite?: () => Promise<void> },
+      ];
+      expect(contexto.actor).toEqual({
+        actorType: 'merchant_user',
+        merchantUserId: '55',
+        internalUserId: null,
+        reauthenticated: true,
+        ip: '10.0.0.1',
+        userAgent: 'jest',
+      });
+      expect(reauth.consume).not.toHaveBeenCalled();
+      await contexto.beforeWrite?.();
+      expect(reauth.consume).toHaveBeenCalledWith(prueba);
+    });
+
+    it('el personal interno (segundo factor obligatorio en su login) no necesita la prueba', async () => {
+      await controller.registerQr('t1', interno, { partnerId: 'pp-1' } as never, { qrKind: 'bank' } as never, undefined, peticion);
+
+      expect(reauth.assertValid).not.toHaveBeenCalled();
+      const [, , , contexto] = qr.register.mock.calls[0] as [string, string, unknown, { actor: unknown; beforeWrite?: unknown }];
+      expect(contexto.beforeWrite).toBeUndefined();
+      expect(contexto.actor).toMatchObject({ actorType: 'internal_user', internalUserId: '8', reauthenticated: false });
     });
 
     it('el listado también recorta el hash de cada uno', async () => {

@@ -14907,6 +14907,55 @@ paths:
       summary: Perfil del comercio autenticado
       tags:
         - merchant-auth
+  /merchant/auth/reauthenticate:
+    post:
+      description: >-
+        Valida la contraseña del comercio AUTENTICADO y devuelve una prueba de
+        un solo uso, válida 300 s y ligada a ese usuario, que se envía en la
+        cabecera `x-reauth-token` de la operación sensible (registrar o
+        reemplazar un QR de cobro). Cada contraseña errada cuenta en el bloqueo
+        del login.
+      operationId: MerchantAuthController_reauthenticate
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+              required:
+                - password
+              additionalProperties: false
+      responses:
+        '200':
+          description: '`{ reauthToken, expiresInSeconds, expiresAt }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: 'REAUTH_INVALID_PASSWORD: la contraseña no es correcta.'
+        '401':
+          description: Sin sesión de comercio, o la identidad ya no está activa.
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          description: ACCOUNT_LOCKED (con `lockedUntil`) o demasiadas peticiones.
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Reautenticación del comercio
+      tags:
+        - merchant-auth
   /merchant/auth/refresh:
     post:
       description: Rota el refresh token de una sesión de comercio.
@@ -28624,7 +28673,9 @@ paths:
       description: >-
         Descarga el objeto, comprueba que es una imagen y guarda su hash. Si ya
         había un QR vigente del mismo tipo y ámbito, queda como `replaced`
-        apuntando al nuevo: nunca se sobrescribe.
+        apuntando al nuevo: nunca se sobrescribe. Un usuario de comercio debe
+        enviar `x-reauth-token` (de `POST /merchant/auth/reauthenticate`); se
+        gasta al registrar.
       operationId: PartnerCommerceController_registerQr
       parameters:
         - name: partnerId
@@ -28636,6 +28687,12 @@ paths:
           description: >-
             Identificador de ruta `partnerId` del recurso direccionado por la
             operación.
+        - name: x-reauth-token
+          in: header
+          description: Prueba de reautenticación; obligatoria para comercios.
+          required: false
+          schema:
+            type: string
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       requestBody:
@@ -28670,7 +28727,7 @@ paths:
               additionalProperties: false
       responses:
         '201':
-          description: QR registrado, en `pending_review`.
+          description: QR registrado y activo.
           content:
             application/json:
               schema:
@@ -28680,7 +28737,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'REAUTH_REQUIRED: falta la prueba, venció o ya se usó.'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':

@@ -89,6 +89,7 @@ function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr 
   const metrics = { recordPartnerOnboardingStep: jest.fn() };
   const hooks = { alRegistrarArchivoDelComercio: jest.fn(async (..._args: unknown[]) => undefined) };
   const notice = { avisarCambioDeQrDeCobro: jest.fn(async (..._args: unknown[]) => undefined) };
+  const audit = { recordQrChange: jest.fn(async (..._args: unknown[]) => ({})) };
   const service = new PartnerQrService(
     network as never,
     profiles as never,
@@ -96,9 +97,10 @@ function construir(opciones: { live?: Qr | null; active?: Qr | null; porId?: Qr 
     metrics as never,
     hooks as never,
     notice as never,
+    audit as never,
   );
   const revision = new PartnerQrReviewService(network as never, cola as never, profiles as never, metrics as never);
-  return { service, revision, network, cola, profiles, storage, metrics, hooks, notice };
+  return { service, revision, network, cola, profiles, storage, metrics, hooks, notice, audit };
 }
 
 describe('PartnerQrReviewService · cola de QR pendientes', () => {
@@ -337,6 +339,84 @@ describe('PartnerQrService · registrar un QR nuevo', () => {
     const { service } = construir({ live: null });
     const creado = await service.register('1', '7', dto);
     expect(creado.status).toBe('active');
+  });
+
+  /*
+   * ERP-03: cambiar el QR bancario cambia a qué cuenta pagan los clientes. Queda en la auditoría
+   * operativa quién, desde dónde y de qué cuenta a cuál —enmascaradas aunque el cliente mandara el
+   * número entero—, en la MISMA transacción que el cambio.
+   */
+  it('audita el cambio con la cuenta anterior y la nueva ENMASCARADAS, quién lo hizo y dentro de la transacción', async () => {
+    const anterior = qr({ id: '3', status: 'active', accountNumberMasked: '1234567890', sha256: 'c'.repeat(64) });
+    const { service, audit } = construir({ active: anterior });
+    const actor = {
+      actorType: 'merchant_user',
+      merchantUserId: '55',
+      internalUserId: null,
+      reauthenticated: true,
+      ip: '10.0.0.1',
+      userAgent: 'jest',
+    };
+
+    await service.register('1', '7', { ...dto, accountNumberMasked: 'cuenta 9876543210' }, { actor });
+
+    expect(audit.recordQrChange).toHaveBeenCalledTimes(1);
+    const [valores, opciones] = audit.recordQrChange.mock.calls[0] as [Record<string, unknown>, unknown];
+    expect(opciones).toEqual({ transaction: TX });
+    expect(valores).toMatchObject({
+      tenantId: '1',
+      partnerId: '7',
+      qrKind: 'bank',
+      branchId: null,
+      actor,
+      previous: { qrId: '3', bankInstitutionCode: 'BNB', accountNumberMasked: '****7890', fingerprint: 'c'.repeat(12) },
+      next: { qrId: '99', accountNumberMasked: '****3210' },
+    });
+    expect(JSON.stringify(valores)).not.toContain('9876543210');
+  });
+
+  it('sin QR activo anterior, el «antes» es null; sin contexto (carga del ERP) el actor es `system`', async () => {
+    const { service, audit } = construir({ active: null });
+
+    await service.register('1', '7', dto);
+
+    expect(audit.recordQrChange).toHaveBeenCalledWith(
+      expect.objectContaining({ previous: null, actor: expect.objectContaining({ actorType: 'system', reauthenticated: false }) }),
+      { transaction: TX },
+    );
+  });
+
+  it('la prueba de reautenticación se gasta DESPUÉS de validar la imagen y ANTES de escribir', async () => {
+    const { service, network } = construir();
+    const beforeWrite = jest.fn(async () => undefined);
+
+    await service.register('1', '7', dto, { beforeWrite });
+
+    expect(beforeWrite).toHaveBeenCalledTimes(1);
+    expect(beforeWrite.mock.invocationCallOrder[0]).toBeLessThan(network.inTransaction.mock.invocationCallOrder[0] ?? 0);
+  });
+
+  it('si la prueba no vale, no se escribe nada ni se avisa', async () => {
+    const { service, network, notice, audit } = construir();
+    const beforeWrite = jest.fn(async () => {
+      throw new Error('REAUTH_REQUIRED');
+    });
+
+    await expect(service.register('1', '7', dto, { beforeWrite })).rejects.toThrow('REAUTH_REQUIRED');
+
+    expect(network.createQrCode).not.toHaveBeenCalled();
+    expect(audit.recordQrChange).not.toHaveBeenCalled();
+    expect(notice.avisarCambioDeQrDeCobro).not.toHaveBeenCalled();
+  });
+
+  it('una imagen sin QR se rechaza sin gastar la prueba: el comercio corrige y reintenta sin volver a teclear', async () => {
+    const { service, storage } = construir();
+    storage.readObject.mockResolvedValueOnce(Buffer.from('no es una imagen con qr') as never);
+    const beforeWrite = jest.fn(async () => undefined);
+
+    await expect(service.register('1', '7', dto, { beforeWrite })).rejects.toBeInstanceOf(UnprocessableEntityException);
+
+    expect(beforeWrite).not.toHaveBeenCalled();
   });
 
   it('una clave fuera del expediente se rechaza antes de mirar el almacén', async () => {

@@ -8,6 +8,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
 import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
 import {
+  OperationalAuditLogModel,
   PartnerBranchModel,
   PartnerLegalRepresentativeModel,
   PartnerPosTerminalModel,
@@ -30,6 +31,10 @@ import { InternalUsersModule } from '../internal-users/internal-users.module.js'
 import { PartnerQrService } from './application/partner-qr.service.js';
 import { PartnerQrNoticeService } from './application/partner-qr-notice.service.js';
 import { PARTNER_QR_NOTICE_MAIL } from './application/partner-qr-notice.port.js';
+import { PAYMENT_QR_REAUTH } from './application/payment-qr-reauth.port.js';
+import { AuthModule } from '../auth/auth.module.js';
+import { AuthReauthenticationService } from '../auth/auth-reauthentication.service.js';
+import { PartnerQrAuditRepository } from './partner-qr-audit.repository.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { PartnerQrReviewService } from './application/partner-qr-review.service.js';
 import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
@@ -64,6 +69,8 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
       PartnerBranchModel,
       PartnerQrCodeModel,
       PartnerPosTerminalModel,
+      // La auditoría de cada cambio de QR (`PartnerQrAuditRepository`).
+      OperationalAuditLogModel,
     ]),
     // El canal de correo, que es lo que hace posible probar el contacto declarado.
     MailSenderModule,
@@ -75,6 +82,8 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     InternalUsersModule,
     // Los ganchos del expediente de archivos: el comercio también tiene carpeta en Operaciones › Archivos.
     ExpedientesModule,
+    // La reautenticación del comercio antes de cambiar su cuenta de cobro (`PAYMENT_QR_REAUTH`).
+    AuthModule,
   ],
   controllers: [
     PartnerOnboardingController,
@@ -105,6 +114,9 @@ import { PartnerOwnershipGuard } from './partner-ownership.guard.js';
     // El aviso de cambio de QR sale por el remitente de correo, pero `partner-onboarding` no puede
     // depender de `mail-sender` (fronteras): el módulo —raíz de composición— hace el enlace.
     { provide: PARTNER_QR_NOTICE_MAIL, useExisting: MailSenderService },
+    // Igual con la reautenticación: `partner-onboarding` no depende de `auth`, el módulo enlaza.
+    { provide: PAYMENT_QR_REAUTH, useExisting: AuthReauthenticationService },
+    PartnerQrAuditRepository,
     PartnerQrReviewService,
     PartnerContactVerificationService,
     DocumentStorageService,

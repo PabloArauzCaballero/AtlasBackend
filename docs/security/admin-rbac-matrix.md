@@ -24,13 +24,13 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (132 controladores) | 614 |
+| Total montadas (132 controladores) | 615 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
 | Con `@Roles` | 556 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 85 |
-| Cualquier sesión autenticada (sin `@Roles`) | 24 |
+| Cualquier sesión autenticada (sin `@Roles`) | 25 |
 
 ## `app-content`
 
@@ -470,6 +470,7 @@
 | `POST` | `/merchant/auth/login` | **sin sesión** (`@Public`) | — | `MerchantAuthController.login` | — |
 | `POST` | `/merchant/auth/logout` | **sin sesión** (`@Public`) | — | `MerchantAuthController.logout` | — |
 | `GET` | `/merchant/auth/me` | cualquier sesión autenticada | — | `MerchantAuthController.me` | — |
+| `POST` | `/merchant/auth/reauthenticate` | cualquier sesión autenticada | — | `MerchantAuthController.reauthenticate` | — |
 | `POST` | `/merchant/auth/refresh` | **sin sesión** (`@Public`) | — | `MerchantAuthController.refresh` | — |
 | `GET` | `/merchant/users` | cualquier sesión autenticada | `merchant.users.read` | `MerchantUsersController.list` | guards: `InternalPermissionsGuard` |
 | `GET` | `/merchant/users/:merchantUserId` | cualquier sesión autenticada | `merchant.users.read` | `MerchantUsersController.get` | guards: `InternalPermissionsGuard` |
