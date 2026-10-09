@@ -54,8 +54,9 @@ function montar(
   const partners = { requireProfile: jest.fn(async () => ({ ownerMerchantUserId: 'm1', mdrRatePercent: opciones.mdr ?? '0' })) };
   const claims = { count: jest.fn(async () => opciones.pendientesDeVerificar ?? 0) };
 
-  const service = new PartnerPortfolioService(loans as never, credit as never, partners as never, claims as never);
-  return { service, loans, credit, partners, claims };
+  const posOrigin = { origenes: jest.fn(async (..._a: unknown[]) => new Map()) };
+  const service = new PartnerPortfolioService(loans as never, credit as never, partners as never, claims as never, posOrigin as never);
+  return { service, loans, credit, partners, claims, posOrigin };
 }
 
 const usuario = { role: 'merchant', merchantUserId: 'm1' } as never;

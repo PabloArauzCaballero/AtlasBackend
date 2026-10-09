@@ -5,7 +5,7 @@
  */
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { EvidenceDocumentModel, LoanPaymentClaimModel } from '../../database/models/index.js';
+import { EvidenceDocumentModel, LoanInstallmentModel, LoanModel, LoanPaymentClaimModel } from '../../database/models/index.js';
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
 import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
 import { CreditModule } from '../credit/credit.module.js';
@@ -16,6 +16,7 @@ import { PartnerOnboardingModule } from '../partner-onboarding/partner-onboardin
 import { LoanPaymentClaimsService } from './loan-payment-claims.service.js';
 import { PartnerPaymentClaimsService } from './partner-payment-claims.service.js';
 import { PartnerPortfolioService } from './partner-portfolio.service.js';
+import { PosHistoryService } from './pos-history.service.js';
 import { PaymentInstructionService } from './payment-instruction.service.js';
 import { PaymentClaimsContextService } from './payment-claims.shared.js';
 import { MerchantPaymentClaimsController } from './merchant-payment-claims.controller.js';
@@ -25,7 +26,7 @@ import { OperationsPaymentClaimsService } from './operations-payment-claims.serv
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([LoanPaymentClaimModel, EvidenceDocumentModel]),
+    SequelizeModule.forFeature([LoanPaymentClaimModel, EvidenceDocumentModel, LoanInstallmentModel, LoanModel]),
     CreditModule,
     EventsModule,
     ExpedientesModule,
@@ -42,6 +43,8 @@ import { OperationsPaymentClaimsService } from './operations-payment-claims.serv
     LoanPaymentClaimsService,
     PartnerPaymentClaimsService,
     PartnerPortfolioService,
+    // El historial del POS (sucursal, caja, fechas, páginas) y el origen de cada comprobante.
+    PosHistoryService,
     PaymentInstructionService,
     PaymentClaimsContextService,
     OperationsPaymentClaimsService,

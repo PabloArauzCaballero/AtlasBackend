@@ -52,6 +52,7 @@ import { CreditProductUsuryCheckService } from './application/credit-product-usu
 import { PaymentCapacityService } from './application/payment-capacity.service.js';
 import { MerchantCreditController } from './merchant-credit.controller.js';
 import { CreditDownPaymentService } from './application/credit-down-payment.service.js';
+import { CreditPosOriginService } from './application/credit-pos-origin.service.js';
 import { CreditDownPaymentCustomerController, MerchantDownPaymentController } from './credit-down-payment.controller.js';
 import { CreditUnderwritingService } from './application/credit-underwriting.service.js';
 import { CreditOperationsController } from './credit-operations.controller.js';
@@ -149,6 +150,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     CreditProductService,
     // El pago inicial de una compra: aviso del cliente con su comprobante y confirmación del comercio.
     CreditDownPaymentService,
+    // Sucursal y caja de cada compra, y los movimientos de caja para el historial del POS.
+    CreditPosOriginService,
     CreditProductStatusService,
     CreditProductAuditRepository,
     CreditApplicationService,
@@ -179,6 +182,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     CreditProductUsuryCheckService,
   ],
   exports: [
+    CreditPosOriginService,
     CreditRepository,
     CreditUnderwritingService,
     CreditSubmittedReconciliationService,

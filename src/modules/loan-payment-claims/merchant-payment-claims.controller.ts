@@ -19,9 +19,12 @@ import {
   type DecidePaymentClaimDto,
   decidePaymentClaimSchema,
   numericIdParamSchema,
+  type PosHistoryQueryDto,
+  posHistoryQuerySchema,
 } from './loan-payment-claims.schemas.js';
 import { PartnerPaymentClaimsService } from './partner-payment-claims.service.js';
 import { PartnerPortfolioService } from './partner-portfolio.service.js';
+import { PosHistoryService } from './pos-history.service.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 
 /**
@@ -43,6 +46,7 @@ export class MerchantPaymentClaimsController {
   constructor(
     private readonly service: PartnerPaymentClaimsService,
     private readonly cartera: PartnerPortfolioService,
+    private readonly historial: PosHistoryService,
   ) {}
 
   @ApiOperation({ summary: 'Comprobantes que esperan mi confirmación' })
@@ -61,6 +65,24 @@ export class MerchantPaymentClaimsController {
       onlyPending: query.onlyPending,
       currentUser,
     });
+  }
+
+  @ApiOperation({
+    summary: 'Historial del POS: solicitudes respondidas y pagos verificados',
+    description:
+      'Una sola lista, de lo más reciente a lo más antiguo, con la sucursal y la caja de cada fila. Filtros: sucursal, caja y ' +
+      'días (hora de Bolivia). Paginada; `totals` es del filtro entero, no de la página. `filters` trae las sucursales y cajas.',
+  })
+  @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiResponse({ status: 200, description: '`{ items, page, pageSize, total, pages, totals, filters }`.' })
+  @Get('pos-history')
+  posHistory(
+    @CurrentTenant() tenantId: string,
+    @Param('partnerId', new ZodValidationPipe(numericIdParamSchema)) partnerId: string,
+    @Query(new ZodValidationPipe(posHistoryQuerySchema)) query: PosHistoryQueryDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.historial.history({ tenantId, partnerProfileId: partnerId, currentUser, filtro: query });
   }
 
   @ApiOperation({ summary: 'Mi cartera: qué me deben, quién y cuándo' })

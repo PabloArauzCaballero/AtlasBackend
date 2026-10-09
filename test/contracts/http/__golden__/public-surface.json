@@ -5633,6 +5633,27 @@
     ],
     "body": false
   },
+  "GET /merchant/partners/{partnerId}/payment-claims/pos-history": {
+    "operationId": "MerchantPaymentClaimsController_posHistory",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "partnerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": false
+  },
   "GET /merchant/partners/{partnerId}/payment-claims/{claimId}/proof": {
     "operationId": "MerchantPaymentClaimsController_proof",
     "responses": [
