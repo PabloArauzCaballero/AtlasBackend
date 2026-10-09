@@ -33,13 +33,16 @@ describe('AuthController', () => {
   it('login delega con tenant, ip y user-agent', async () => {
     const { controller, authService } = build();
     const dto = { actorType: 'customer', identifier: 'a@x.com', password: 'pw' } as never;
-    await controller.login('1', dto, request);
+    await controller.login('1', dto, request, { cookie: jest.fn(), clearCookie: jest.fn() });
     expect(authService.login).toHaveBeenCalledWith({ tenantId, dto, ip, userAgent });
   });
 
   it('verifyLoginPin delega el challengeToken + pin con ip/user-agent', async () => {
     const { controller, authService } = build();
-    await controller.verifyLoginPin({ challengeToken: 'ct', pin: '123456' } as never, request);
+    await controller.verifyLoginPin({ challengeToken: 'ct', pin: '123456' } as never, request, {
+      cookie: jest.fn(),
+      clearCookie: jest.fn(),
+    });
     expect(authService.verifyLoginPin).toHaveBeenCalledWith({ challengeToken: 'ct', pin: '123456', ip, userAgent });
   });
 
@@ -71,9 +74,13 @@ describe('AuthController', () => {
 
   it('refresh y logout delegan (logout pasa allDevices)', async () => {
     const { controller, authService } = build();
-    await controller.refresh({ refreshToken: 'rt' } as never, request);
+    const response = { cookie: jest.fn(), clearCookie: jest.fn() };
+    await controller.refresh({ refreshToken: 'rt' } as never, request, response);
     expect(authService.refresh).toHaveBeenCalledWith({ refreshToken: 'rt', ip, userAgent });
-    await controller.logout({ refreshToken: 'rt', allDevices: true } as never);
+    await controller.logout({ refreshToken: 'rt', allDevices: true } as never, request, response);
+    // Sin la cabecera de modo (el teléfono) no se toca ninguna cookie.
+    expect(response.cookie).not.toHaveBeenCalled();
+    expect(response.clearCookie).not.toHaveBeenCalled();
     expect(authService.logout).toHaveBeenCalledWith({ refreshToken: 'rt', allDevices: true });
   });
 
