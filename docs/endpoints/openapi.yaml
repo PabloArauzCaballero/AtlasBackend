@@ -8850,12 +8850,18 @@ paths:
           required: false
           in: query
           deprecated: true
+          description: >-
+            OBSOLETO: en la URL acaba en los registros de acceso. Va en el
+            cuerpo del POST `revelar`.
           schema:
             type: string
         - name: revelar
           required: false
           in: query
           deprecated: true
+          description: >-
+            OBSOLETO: usar `POST /expedientes/:id/contactos/revelar`. `true`
+            devuelve los datos sin tapar.
           schema:
             enum:
               - 'true'

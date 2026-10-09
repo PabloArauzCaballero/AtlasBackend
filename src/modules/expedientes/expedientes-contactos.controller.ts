@@ -56,8 +56,20 @@ export class ExpedientesContactosController {
       'Enmascarados. `revelar=true` con `motivo` en la query sigue funcionando por compatibilidad, pero está ' +
       'OBSOLETO: el motivo acaba en los registros de acceso. Para revelar, `POST /expedientes/:id/contactos/revelar`.',
   })
-  @ApiQuery({ name: 'revelar', required: false, enum: ['true', 'false'], deprecated: true })
-  @ApiQuery({ name: 'motivo', required: false, type: String, deprecated: true })
+  @ApiQuery({
+    name: 'revelar',
+    required: false,
+    enum: ['true', 'false'],
+    deprecated: true,
+    description: 'OBSOLETO: usar `POST /expedientes/:id/contactos/revelar`. `true` devuelve los datos sin tapar.',
+  })
+  @ApiQuery({
+    name: 'motivo',
+    required: false,
+    type: String,
+    deprecated: true,
+    description: 'OBSOLETO: en la URL acaba en los registros de acceso. Va en el cuerpo del POST `revelar`.',
+  })
   @ApiOkResponse({ description: 'El JSON de contactos. Con `revelar=true` exige permiso y motivo.' })
   @Header('Cache-Control', 'private, no-store')
   @NivelRequerido('leer')
