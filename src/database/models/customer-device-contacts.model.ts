@@ -91,6 +91,19 @@ export class CustomerDeviceContactModel extends Model {
   @Column({ field: 'birthday', type: DataType.DATEONLY })
   declare birthday: string | null;
 
+  /**
+   * Si la ficha tiene correo / cumpleaños / empresa, sin el dato. Las manda la captura `contacts-address-book-2.0.0`,
+   * que ya no sube correos, cumpleaños ni razón social. `null` = la captura no lo dijo (las 1.x se leen por sus datos).
+   */
+  @Column({ field: 'has_email', type: DataType.BOOLEAN })
+  declare hasEmail: boolean | null;
+
+  @Column({ field: 'has_birthday', type: DataType.BOOLEAN })
+  declare hasBirthday: boolean | null;
+
+  @Column({ field: 'has_company', type: DataType.BOOLEAN })
+  declare hasCompany: boolean | null;
+
   @Column({ field: 'is_favorite', type: DataType.BOOLEAN })
   declare isFavorite: boolean;
 

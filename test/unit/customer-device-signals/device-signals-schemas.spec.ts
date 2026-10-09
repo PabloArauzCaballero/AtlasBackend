@@ -28,3 +28,39 @@ describe('identificadores de dispositivo y sesión', () => {
     expect(locationPingBatchSchema.safeParse(lote('15')).success).toBe(true);
   });
 });
+
+describe('la ficha mínima de la captura contacts-address-book-2.0.0 (APP-03)', () => {
+  const minima = {
+    externalId: 'abc-123',
+    displayName: 'María Quispe',
+    contactType: 'person',
+    isFavorite: true,
+    phones: [{ number: '+591 76500122' }],
+    hasEmail: true,
+    hasBirthday: false,
+    hasCompany: true,
+  };
+
+  it('se acepta tal cual y conserva las banderas; correos y direcciones quedan AUSENTES, no vacíos', () => {
+    const r = addressBookSyncSchema.safeParse(
+      agenda({ deviceId: '15', algorithmVersion: 'contacts-address-book-2.0.0', contacts: [minima] }),
+    );
+    expect(r.success).toBe(true);
+    const ficha = r.success ? r.data.contacts[0] : undefined;
+    expect(ficha).toMatchObject({ hasEmail: true, hasBirthday: false, hasCompany: true });
+    expect(ficha?.emails).toBeUndefined();
+    expect(ficha?.addresses).toBeUndefined();
+    expect(ficha?.birthday).toBeUndefined();
+  });
+
+  it('sin banderas también se acepta (compatibilidad 1.x y 2.0.0 sin banderas)', () => {
+    const { hasEmail: _e, hasBirthday: _b, hasCompany: _c, ...sinBanderas } = minima;
+    expect(addressBookSyncSchema.safeParse(agenda({ deviceId: '15', contacts: [sinBanderas] })).success).toBe(true);
+  });
+
+  it('las banderas son booleanos de verdad: "true" o 1 no pasan', () => {
+    for (const malo of ['true', 1, null]) {
+      expect(addressBookSyncSchema.safeParse(agenda({ deviceId: '15', contacts: [{ ...minima, hasEmail: malo }] })).success).toBe(false);
+    }
+  });
+});

@@ -4900,7 +4900,6 @@ paths:
                             - number
                           additionalProperties: false
                       emails:
-                        default: []
                         maxItems: 20
                         type: array
                         items:
@@ -4918,7 +4917,6 @@ paths:
                             - email
                           additionalProperties: false
                       addresses:
-                        default: []
                         maxItems: 10
                         type: array
                         items:
@@ -4950,13 +4948,17 @@ paths:
                                   maxLength: 120
                                 - type: 'null'
                           additionalProperties: false
+                      hasEmail:
+                        type: boolean
+                      hasBirthday:
+                        type: boolean
+                      hasCompany:
+                        type: boolean
                     required:
                       - externalId
                       - contactType
                       - isFavorite
                       - phones
-                      - emails
-                      - addresses
                     additionalProperties: false
               required:
                 - deviceId
@@ -5392,6 +5394,15 @@ paths:
           description: >-
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
+        - name: x-idempotency-key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
         - $ref: '#/components/parameters/TenantId'
         - name: applicationId
           in: path
@@ -5417,10 +5428,15 @@ paths:
           description: CREDIT_APPLICATION_NOT_FOUND.
         '409':
           description: >-
-            DOWN_PAYMENT_NOT_ALLOWED_YET, DOWN_PAYMENT_ALREADY_PENDING o
-            DOWN_PAYMENT_ALREADY_CONFIRMED.
+            DOWN_PAYMENT_NOT_ALLOWED_YET, DOWN_PAYMENT_ALREADY_PENDING,
+            DOWN_PAYMENT_ALREADY_CONFIRMED o IDEMPOTENCY_CONFLICT (la misma
+            `x-idempotency-key` con otro cuerpo; con el mismo cuerpo se devuelve
+            la respuesta original).
         '422':
-          description: EVIDENCE_OBJECT_NOT_FOUND o APPLICATION_WITHOUT_PARTNER.
+          description: >-
+            EVIDENCE_OBJECT_NOT_FOUND, APPLICATION_WITHOUT_PARTNER o
+            DOWN_PAYMENT_AMOUNT_MISMATCH (el importe no es el inicial de la
+            compra; `error.details.expectedAmount` dice cuál es).
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -8824,8 +8840,27 @@ paths:
         - Expedientes
   /expedientes/{id}/contactos:
     get:
+      description: >-
+        Enmascarados. `revelar=true` con `motivo` en la query sigue funcionando
+        por compatibilidad, pero está OBSOLETO: el motivo acaba en los registros
+        de acceso. Para revelar, `POST /expedientes/:id/contactos/revelar`.
       operationId: ExpedientesContactosController_obtenerContactos
       parameters:
+        - name: motivo
+          required: false
+          in: query
+          deprecated: true
+          schema:
+            type: string
+        - name: revelar
+          required: false
+          in: query
+          deprecated: true
+          schema:
+            enum:
+              - 'true'
+              - 'false'
+            type: string
         - name: id
           in: path
           required: true
@@ -8855,6 +8890,58 @@ paths:
       security:
         - access-token: []
       summary: Contactos y referencias del cliente, enmascarados
+      tags:
+        - Expedientes
+  /expedientes/{id}/contactos/revelar:
+    post:
+      operationId: ExpedientesContactosController_revelarContactos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador de ruta `id`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                motivo:
+                  type: string
+                  maxLength: 500
+              required:
+                - motivo
+              additionalProperties: false
+      responses:
+        '200':
+          description: >-
+            El JSON de contactos sin enmascarar. Exige `expedientes.pii.revelar`
+            y un motivo de 8+ caracteres.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Revelar contactos y referencias del cliente, con motivo
       tags:
         - Expedientes
   /expedientes/{id}/nodos:
@@ -15147,6 +15234,15 @@ paths:
     post:
       operationId: MerchantDownPaymentController_decide
       parameters:
+        - name: x-idempotency-key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
         - $ref: '#/components/parameters/TenantId'
         - name: partnerId
           in: path
@@ -15178,6 +15274,10 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: DOWN_PAYMENT_NOT_PENDING.
+        '422':
+          description: >-
+            DOWN_PAYMENT_AMOUNT_MISMATCH: el importe avisado no es el inicial de
+            la compra.
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -16313,6 +16413,15 @@ paths:
           description: >-
             Identificador del cliente. Un actor con rol `customer` sólo puede
             operar sobre el suyo.
+        - name: x-idempotency-key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: >-
+            Clave de idempotencia de la mutación. Reintentar con la misma clave
+            devuelve el resultado de la primera ejecución en vez de ejecutar el
+            comando dos veces.
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -16331,7 +16440,10 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: PAYMENT_CLAIM_ALREADY_PENDING o INSTALLMENT_ALREADY_PAID.
+          description: >-
+            PAYMENT_CLAIM_ALREADY_PENDING, INSTALLMENT_ALREADY_PAID o
+            IDEMPOTENCY_CONFLICT (la misma `x-idempotency-key` con otro cuerpo;
+            con el mismo cuerpo se devuelve la respuesta original).
         '422':
           description: >-
             EVIDENCE_OBJECT_NOT_FOUND o LOAN_WITHOUT_PARTNER (sin comercio nadie

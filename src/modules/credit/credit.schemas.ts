@@ -196,8 +196,10 @@ export type SubmitBankStatementDto = z.infer<typeof submitBankStatementSchema>;
  * El aviso del pago INICIAL de una compra (el 60 % que se paga directo al comercio al comprar).
  *
  * Es el mismo gesto que avisar una cuota —comprobante + referencia del banco— pero ocurre antes de que exista un
- * préstamo, así que cuelga de la SOLICITUD de crédito. `amount` es lo que el cliente dice haber pagado: quien lo
- * comprueba contra su cuenta es el comercio. `storageKey` viene del ticket de subida de comprobantes.
+ * préstamo, así que cuelga de la SOLICITUD de crédito. `amount` es lo que el cliente dice haber pagado: aquí sólo
+ * se valida su forma; el servicio lo compara con el inicial que sale de la compra (60/40 sobre el financiado,
+ * `domain/down-payment.ts`) y rechaza con 422 `DOWN_PAYMENT_AMOUNT_MISMATCH` uno distinto. Que el dinero entró lo
+ * comprueba después el comercio contra su cuenta. `storageKey` viene del ticket de subida de comprobantes.
  */
 export const submitDownPaymentSchema = z
   .object({
