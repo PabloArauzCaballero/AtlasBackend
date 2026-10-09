@@ -17,7 +17,13 @@ export type ActorType = 'customer' | 'internal_user' | 'platform_user' | 'mercha
  * extracción. Que el vocabulario tenga archivo propio además lo deja donde se puede leer entero.
  */
 export type OneTimeCodePurpose =
-  'password_reset' | 'password_change' | 'login_pin' | 'contact_verification_phone' | 'contact_verification_email';
+  | 'password_reset'
+  | 'password_change'
+  | 'login_pin'
+  | 'contact_verification_phone'
+  | 'contact_verification_email'
+  // La prueba de reautenticación ante una operación sensible (ver `AuthReauthenticationService`).
+  | 'sensitive_reauth';
 
 /**
  * Qué se registra en la bitácora de autenticación (`auth_events.event_type`, `varchar(60)`).
@@ -34,7 +40,9 @@ export type AuthEventType =
   | 'password_reset'
   | 'password_change_request'
   | 'password_change'
-  | 'pin_verify';
+  | 'pin_verify'
+  // Contraseña repetida con la sesión abierta, antes de una operación sensible (cambiar la cuenta de cobro).
+  | 'sensitive_reauth';
 
 /** Una entrada de esa bitácora, tal como la escribe `AuthRepository.recordLoginAttemptEvent`. */
 export type LoginAttemptEvent = {

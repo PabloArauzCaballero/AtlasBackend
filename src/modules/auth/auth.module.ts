@@ -26,6 +26,7 @@ import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthPasswordChangeRepository } from './auth-password-change.repository.js';
 import { AuthPasswordChangeService } from './auth-password-change.service.js';
 import { AuthPasswordResetService } from './auth-password-reset.service.js';
+import { AuthReauthenticationService } from './auth-reauthentication.service.js';
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
 import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
@@ -58,6 +59,7 @@ import { AuthCredentialsService } from './auth-credentials.service.js';
     AuthPinVerifyService,
     AuthPasswordChangeRepository,
     AuthPasswordResetService,
+    AuthReauthenticationService,
     AuthSecondFactorService,
     AuthTokenIssuerService,
     AuthRepository,
@@ -69,8 +71,11 @@ import { AuthCredentialsService } from './auth-credentials.service.js';
   // su acceso lleva de verdad un segundo factor, sin duplicar esa política fuera de aquí.
   // `AuthTokenIssuerService` se exporta porque el registro de un cliente abre su sesión dentro de la
   // transacción del alta, sin volver a pasar por el login.
+  // `AuthReauthenticationService`: la emite el canal del comercio y la exige quien guarda una
+  // operación sensible (la cuenta de cobro del expediente).
   exports: [
     AuthService,
+    AuthReauthenticationService,
     AuthRepository,
     AuthOneTimeCodeRepository,
     AuthSecondFactorService,

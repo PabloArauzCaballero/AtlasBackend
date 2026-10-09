@@ -5488,6 +5488,25 @@
     ],
     "body": false
   },
+  "POST /merchant/auth/reauthenticate": {
+    "operationId": "MerchantAuthController_reauthenticate",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
   "POST /merchant/auth/refresh": {
     "operationId": "MerchantAuthController_refresh",
     "responses": [

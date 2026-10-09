@@ -3,7 +3,23 @@
  * @business Esta pieza convierte un comercio declarado en un partner verificable, con locales, cobro y terminales trazables.
  * @system expone los locales del partner, la subida de sus QR de cobro y el alta de sus terminales.
  */
-import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Patch, Post, Res, StreamableFile, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  Headers,
+  HttpCode,
+  Inject,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Req,
+  Res,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -39,6 +55,11 @@ import {
   terminalIdParamsSchema,
 } from './partner-onboarding.schemas.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { AuthenticatedUser } from '../../common/types/auth.types.js';
+import type { RequestWithNetwork } from '../../common/utils/http/headers.util.js';
+import { PAYMENT_QR_REAUTH, PAYMENT_QR_REAUTH_HEADER, type PaymentQrReauth } from './application/payment-qr-reauth.port.js';
+import { preparePaymentQrChange } from './payment-qr-change.context.js';
 
 /**
  * Lo que el comercio opera de su propio expediente: sus locales, sus dos QR y sus terminales.
@@ -54,6 +75,7 @@ export class PartnerCommerceController {
   constructor(
     private readonly commerce: PartnerCommerceService,
     private readonly qr: PartnerQrService,
+    @Inject(PAYMENT_QR_REAUTH) private readonly reauthentication: PaymentQrReauth,
   ) {}
 
   @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
@@ -137,7 +159,9 @@ export class PartnerCommerceController {
   }
 
   /**
-   * Paso 2: registrar el QR ya subido. El servidor MIRA el objeto antes de escribir la fila.
+   * Paso 2: registrar el QR ya subido. El servidor MIRA el objeto antes de escribir la fila. Es la
+   * ÚNICA mutación de la cuenta de cobro del comercio (un QR no se edita ni se borra: se reemplaza);
+   * por eso un comercio la hace con la contraseña repetida (ver `preparePaymentQrChange`).
    */
   @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')
   @ApiBearerAuth('access-token')
@@ -145,21 +169,28 @@ export class PartnerCommerceController {
     summary: 'Registrar el QR subido',
     description:
       'Descarga el objeto, comprueba que es una imagen y guarda su hash. Si ya había un QR vigente ' +
-      'del mismo tipo y ámbito, queda como `replaced` apuntando al nuevo: nunca se sobrescribe.',
+      'del mismo tipo y ámbito, queda como `replaced` apuntando al nuevo: nunca se sobrescribe. ' +
+      'Un usuario de comercio debe enviar `x-reauth-token` (de `POST /merchant/auth/reauthenticate`); se gasta al registrar.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
+  @ApiHeader({ name: PAYMENT_QR_REAUTH_HEADER, required: false, description: 'Prueba de reautenticación; obligatoria para comercios.' })
   @ApiParam({ name: 'partnerId', schema: zodToApiSchema(partnerIdParamsSchema.shape.partnerId) })
   @ApiBody({ schema: zodToApiSchema(registerQrSchema) })
-  @ApiResponse({ status: 201, description: 'QR registrado, en `pending_review`.' })
+  @ApiResponse({ status: 201, description: 'QR registrado y activo.' })
+  @ApiResponse({ status: 403, description: 'REAUTH_REQUIRED: falta la prueba, venció o ya se usó.' })
   @ApiResponse({ status: 422, description: 'QR_OBJECT_NOT_FOUND | QR_OBJECT_NOT_AN_IMAGE.' })
   @Post(':partnerId/qr-codes')
   @HttpCode(HttpStatus.CREATED)
   async registerQr(
     @CurrentTenant() tenantId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
     @Param(new ZodValidationPipe(partnerIdParamsSchema)) params: PartnerIdParamsDto,
     @Body(new ZodValidationPipe(registerQrSchema)) body: RegisterQrDto,
+    @Headers(PAYMENT_QR_REAUTH_HEADER) reauthToken: string | undefined,
+    @Req() request: RequestWithNetwork,
   ) {
-    return toPartnerQrDto(await this.qr.register(tenantId, params.partnerId, body));
+    const context = await preparePaymentQrChange(this.reauthentication, currentUser, reauthToken, request);
+    return toPartnerQrDto(await this.qr.register(tenantId, params.partnerId, body, context));
   }
 
   @Roles('merchant', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')

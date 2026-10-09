@@ -18,6 +18,12 @@ export const merchantLoginSchema = z.object({
 });
 export type MerchantLoginDto = z.infer<typeof merchantLoginSchema>;
 
+/** Repetir la contraseña con la sesión abierta, antes de una operación sensible. */
+export const merchantReauthenticateSchema = z.object({
+  password: z.string().min(1).max(128),
+});
+export type MerchantReauthenticateDto = z.infer<typeof merchantReauthenticateSchema>;
+
 export const merchantRefreshSchema = z.object({
   refreshToken: z.string().trim().min(20).optional(),
 });
