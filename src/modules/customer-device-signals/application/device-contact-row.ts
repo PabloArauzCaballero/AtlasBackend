@@ -6,6 +6,7 @@
 import { normalizeEmailForHash, normalizePhoneForHash } from '../../../common/utils/contact/phone-normalization.util.js';
 import { encryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
 import { hashSensitiveText, lastCharacters } from '../../../common/utils/crypto/hash.util.js';
+import { phoneLookupHashFromPlain } from '../../../common/utils/crypto/phone-hash.util.js';
 import { type ContactRow } from '../repositories/customer-device-contacts.repository.js';
 import { type DeviceContactDto } from '../customer-device-signals.schemas.js';
 
@@ -47,7 +48,7 @@ export async function toContactRow(contacto: DeviceContactDto, contexto: Contact
 
   // Distintos y en orden estable: el mismo contacto leído dos veces tiene que dar el mismo array,
   // o cada sincronización parecería un cambio.
-  const phoneHashes = [...new Set(numeros.map((telefono) => hashSensitiveText(telefono.normalized)))].sort();
+  const phoneHashes = [...new Set(numeros.map((telefono) => phoneLookupHashFromPlain(telefono.normalized)))].sort();
   const emailHashes = correos && [...new Set(correos.map((correo) => hashSensitiveText(correo.normalized)))].sort();
   const primario = numeros[0] ?? null;
 
@@ -84,7 +85,7 @@ export async function toContactRow(contacto: DeviceContactDto, contexto: Contact
     emailsEncrypted: emails,
     addressesEncrypted: addresses,
     displayNameHash: siVino(contacto.displayName, (nombre) => (nombre ? hashSensitiveText(nombre) : null)),
-    primaryPhoneHash: primario ? hashSensitiveText(primario.normalized) : null,
+    primaryPhoneHash: primario ? phoneLookupHashFromPlain(primario.normalized) : null,
     primaryPhoneLast4: primario ? lastCharacters(primario.normalized, 4) : null,
     phoneHashes,
     emailHashes,

@@ -21,6 +21,7 @@ const produccion = {
   REDIS_URL: 'redis://cache:6379',
   JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-produccion-suficientemente-largo',
   NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+  PHONE_HASH_HMAC_KEYS: '1:clave-de-huellas-de-telefono-larga-de-verdad',
   MAILSENDER_BASE_URL: 'https://mail.interno',
   MAILSENDER_EXTERNAL_API_KEY: 'mailsender-api-key',
   MAILSENDER_ADMIN_USERNAME: 'atlas-ops',

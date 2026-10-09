@@ -4,6 +4,7 @@
  * @system define seeders para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
  */
 import { hashSensitiveText } from '../../../common/utils/crypto/hash.util.js';
+import { phoneLookupHashFromPlain } from '../../../common/utils/crypto/phone-hash.util.js';
 import { ID_INTERNOS } from './equipo.seed-data.js';
 import { TENANT_DEMO, type DominioSembrado } from './tipos.js';
 
@@ -502,7 +503,8 @@ const vigilancia = VIGILANCIA.map((v) => ({
   _tenant_id: T,
   scope: 'tenant',
   entity_type: v.entidad,
-  entity_hash: hashSensitiveText(v.valor),
+  // Un teléfono se guarda como lo busca el sistema: HMAC con la clave del servidor (APP-21).
+  entity_hash: v.entidad === 'phone' ? phoneLookupHashFromPlain(v.valor) : hashSensitiveText(v.valor),
   entity_last_4: v.valor.slice(-4),
   reason_code: v.razon,
   severity: v.severidad,

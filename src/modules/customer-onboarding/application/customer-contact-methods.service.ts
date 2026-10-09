@@ -10,6 +10,7 @@ import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { encryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
 import { hashSensitiveText, lastCharacters, normalizeSensitiveText } from '../../../common/utils/crypto/hash.util.js';
+import { phoneLookupHashFromPlain } from '../../../common/utils/crypto/phone-hash.util.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
@@ -75,7 +76,8 @@ export class CustomerContactMethodsService {
       throw new UnprocessableEntityException(`PROFILE_NOT_EDITABLE_IN_STATUS: ${status}`);
     }
 
-    const contactValueHash = hashSensitiveText(input.body.value);
+    const contactValueHash =
+      input.body.contactType === 'phone' ? phoneLookupHashFromPlain(input.body.value) : hashSensitiveText(input.body.value);
     const now = new Date();
 
     return this.sequelize.transaction(async (transaction) => {

@@ -194,6 +194,7 @@ x-atlas-env: &atlas-env
   AUTH_LOGIN_PIN_ENABLED: ${AUTH_LOGIN_PIN_ENABLED:-true}
   # Obligatoria en producción: sin ella los códigos de un solo uso se guardan con un SHA-256 reversible.
   AUTH_ONE_TIME_CODE_PEPPER: ${AUTH_ONE_TIME_CODE_PEPPER:?Falta AUTH_ONE_TIME_CODE_PEPPER}
+  PHONE_HASH_HMAC_KEYS: ${PHONE_HASH_HMAC_KEYS:?Falta PHONE_HASH_HMAC_KEYS}
 
   # --- Bitácora en Mongo (opcional) -----------------------------------------------------------
   MONGO_DB_URL_CONNECTION: ${MONGO_DB_URL_CONNECTION:-}

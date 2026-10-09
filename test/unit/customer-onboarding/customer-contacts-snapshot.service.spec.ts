@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { phoneLookupHash } from '../../../src/common/utils/crypto/phone-hash.util.js';
 import { CustomerContactsSnapshotService } from '../../../src/modules/customer-onboarding/application/customer-contacts-snapshot.service.js';
 import { CustomerContactsSnapshotRepository } from '../../../src/modules/customer-onboarding/repositories/customer-contacts-snapshot.repository.js';
 import { contactsSnapshotSchema } from '../../../src/modules/customer-onboarding/customer-contacts-snapshot.schemas.js';
@@ -116,6 +117,9 @@ describe('CustomerContactsSnapshotService', () => {
     await service.submit({ tenantId: TENANT, customerId: CUSTOMER, body: SNAPSHOT, currentUser: usuario, ipAddress: null });
 
     expect(snapshots.countKnownPhoneHashes).toHaveBeenCalledTimes(1);
+    // Lo guardado es el HMAC con la clave del servidor (APP-21): el SHA-256 de la app se cruza por la misma función.
+    const cruzados = (snapshots.countKnownPhoneHashes.mock.calls[0]?.[0] as { phoneHashes: string[] }).phoneHashes;
+    expect(cruzados).toEqual((SNAPSHOT.phoneHashes ?? []).map(phoneLookupHash));
 
     const escrito = JSON.stringify([...creados, ...metricas]);
     for (const hash of SNAPSHOT.phoneHashes ?? []) {

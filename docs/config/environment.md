@@ -540,5 +540,6 @@ Activa SMS/WhatsApp cuando ya tengas datos de contacto validados, consentimiento
 - Validación fail-fast de credenciales cuando un provider está activo.
 - Validación fail-fast de webhooks cuando un canal usa `webhook`.
 - `NOTIFICATION_TOKEN_ENCRYPTION_KEY` obligatorio y separado del JWT en producción.
+- `PHONE_HASH_HMAC_KEYS` obligatorio en producción (`<versión>:<secreto>`, todas las versiones de la 1 a la vigente): las huellas de teléfono se guardan como HMAC con esa clave (APP-21).
 - `NOTIFICATION_PUSH_INCLUDE_VISIBLE_NOTIFICATION=false` por privacidad.
 - Meta WhatsApp Cloud soporta template fallback mediante `whatsappTemplateName` o `META_WHATSAPP_DEFAULT_TEMPLATE_NAME`.

@@ -4,6 +4,7 @@
  * @system define seeders para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
  */
 import { hashSensitiveText, lastCharacters } from '../../../common/utils/crypto/hash.util.js';
+import { phoneLookupHashFromPlain } from '../../../common/utils/crypto/phone-hash.util.js';
 import { TENANT_DEMO, type DominioSembrado } from './tipos.js';
 
 /**
@@ -234,7 +235,7 @@ const clientes = PERSONAS.map((p) => ({
   _tenant_id: TENANT_DEMO,
   customer_code: `ATL-${p.id}`,
   customer_uuid: uuidDemo(p.id),
-  primary_phone_hash: hashSensitiveText(p.telefono),
+  primary_phone_hash: phoneLookupHashFromPlain(p.telefono),
   primary_phone_last_4: lastCharacters(p.telefono, 4),
   primary_email_hash: hashSensitiveText(p.correo),
   primary_email_domain: p.correo.split('@')[1],
@@ -271,8 +272,8 @@ const contactos = PERSONAS.flatMap((p, indice) => [
     _tenant_id: TENANT_DEMO,
     customer_id: p.id,
     contact_type: 'phone',
-    contact_value_hash: hashSensitiveText(p.telefono),
-    normalized_value_hash: hashSensitiveText(p.telefono),
+    contact_value_hash: phoneLookupHashFromPlain(p.telefono),
+    normalized_value_hash: phoneLookupHashFromPlain(p.telefono),
     value_last_4: lastCharacters(p.telefono, 4),
     label: 'Celular declarado en el alta',
     is_primary: true,

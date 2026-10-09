@@ -16,7 +16,8 @@ import type { AddressInfo } from 'node:net';
 import request from 'supertest';
 import { ServiceTokenGuard } from '../../../src/common/guards/service-token.guard.js';
 import { encryptSecretEnvelope } from '../../../src/common/utils/crypto/envelope-encryption.util.js';
-import { hashSensitiveText, lastCharacters } from '../../../src/common/utils/crypto/hash.util.js';
+import { lastCharacters } from '../../../src/common/utils/crypto/hash.util.js';
+import { phoneLookupHashFromPlain } from '../../../src/common/utils/crypto/phone-hash.util.js';
 import { env } from '../../../src/config/env.js';
 import { CustomerContactMethodModel } from '../../../src/database/models/index.js';
 import { CustomerRecipientDirectoryController } from '../../../src/modules/customers/customer-recipient-directory.controller.js';
@@ -45,7 +46,7 @@ beforeAll(async () => {
       tenantId: harness.tenantId,
       customerId,
       contactType: 'phone',
-      contactValueHash: hashSensitiveText(PHONE),
+      contactValueHash: phoneLookupHashFromPlain(PHONE),
       contactValueEncrypted: await encryptSecretEnvelope(PHONE),
       valueLast4: lastCharacters(PHONE, 4),
       emailDomain: null,

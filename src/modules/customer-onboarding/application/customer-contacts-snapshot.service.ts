@@ -9,6 +9,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { createHash } from 'node:crypto';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
+import { phoneLookupHash } from '../../../common/utils/crypto/phone-hash.util.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerContactsSnapshotRepository } from '../repositories/customer-contacts-snapshot.repository.js';
@@ -76,10 +77,11 @@ export class CustomerContactsSnapshotService {
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
 
     const hashes = input.body.phoneHashes ?? [];
+    // La app manda SHA-256; lo guardado es su HMAC con la clave del servidor (APP-21). Se cruza con la misma función.
     const conocidos = await this.snapshots.countKnownPhoneHashes({
       tenantId: input.tenantId,
       customerId: input.customerId,
-      phoneHashes: hashes,
+      phoneHashes: [...new Set(hashes.map(phoneLookupHash))],
     });
 
     /*

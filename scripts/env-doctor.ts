@@ -26,7 +26,10 @@ if (nodeEnv === 'production') {
     problems.push('NOTIFICATION_TOKEN_ENCRYPTION_KEY no puede ser el valor de ejemplo.');
   if (process.env.NOTIFICATION_TOKEN_ENCRYPTION_KEY === process.env.JWT_ACCESS_TOKEN_SECRET)
     problems.push('NOTIFICATION_TOKEN_ENCRYPTION_KEY debe ser distinto de JWT_ACCESS_TOKEN_SECRET.');
+  if (!present('PHONE_HASH_HMAC_KEYS')) problems.push('PHONE_HASH_HMAC_KEYS es obligatorio en producción (huellas de teléfono, APP-21).');
 } else {
+  if (!present('PHONE_HASH_HMAC_KEYS'))
+    warnings.push('PHONE_HASH_HMAC_KEYS vacía: el alta, el login por teléfono y la agenda fallarán. Genera «1:$(openssl rand -hex 32)».');
   if (process.env.NODE_ENV === 'production')
     warnings.push('Tu entorno global está en production. Para local usa `yarn start:dev`, que lo fuerza a development.');
   if (!present('REDIS_URL'))

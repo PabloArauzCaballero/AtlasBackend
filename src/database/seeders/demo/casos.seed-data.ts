@@ -4,6 +4,7 @@
  * @system define seeders para evolucionar, mapear, sembrar o consultar PostgreSQL de forma controlada.
  */
 import { hashSensitiveText } from '../../../common/utils/crypto/hash.util.js';
+import { phoneLookupHashFromPlain } from '../../../common/utils/crypto/phone-hash.util.js';
 import { ID_INTERNOS } from './equipo.seed-data.js';
 import { TENANT_DEMO, type DominioSembrado, type FilaSembrada } from './tipos.js';
 
@@ -252,7 +253,7 @@ const coincidencias = [
     watchlist_entry_id: 960603,
     customer_id: 910012,
     matched_entity_type: 'phone',
-    matched_value_hash: hashSensitiveText('+59171234512'),
+    matched_value_hash: phoneLookupHashFromPlain('+59171234512'),
     match_method: 'hash_exacto',
     match_confidence: 1.0,
     opened_fraud_case_id: 980101,
