@@ -17,6 +17,7 @@ import { PartnerProfileService } from '../partner-onboarding/application/partner
 import { EventsService } from '../events/events.service.js';
 import { assertOwnPartnerResource } from '../../common/utils/auth/ownership.util.js';
 import type { DecidePaymentClaimDto } from './loan-payment-claims.schemas.js';
+import { PosHistoryService } from './pos-history.service.js';
 import { INSTALLMENT_AGGREGATE, nextInstallmentVersion, PaymentClaimsContextService, PENDIENTE } from './payment-claims.shared.js';
 
 /**
@@ -38,6 +39,7 @@ export class PartnerPaymentClaimsService {
     private readonly events: EventsService,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly contexto: PaymentClaimsContextService,
+    private readonly historial: PosHistoryService,
   ) {}
 
   /** Lo que este comercio tiene esperando que confirme. */
@@ -56,9 +58,12 @@ export class PartnerPaymentClaimsService {
       limit: 200,
     });
 
+    // Sucursal y caja de la compra de cada comprobante: dos del mismo importe pueden venir de cajas distintas.
+    const origen = await this.historial.origenDeComprobantes(input.tenantId, input.partnerProfileId, claims);
     return {
       partnerProfileId: input.partnerProfileId,
       claims: claims.map((claim) => ({
+        ...origen.get(String(claim.id)),
         claimId: String(claim.id),
         claimCode: claim.claimCode,
         installmentId: String(claim.installmentId),

@@ -69,6 +69,27 @@ export const claimsQuerySchema = z.object({
 });
 export type ClaimsQueryDto = z.infer<typeof claimsQuerySchema>;
 
+const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u, 'Fecha en formato AAAA-MM-DD.');
+
+/** Los filtros del historial del POS: sucursal, caja, desde y hasta (días), y la página. */
+export const posHistoryQuerySchema = z
+  .object({
+    branchId: z
+      .string()
+      .regex(/^[1-9][0-9]*$/u)
+      .optional(),
+    terminalId: z
+      .string()
+      .regex(/^[1-9][0-9]*$/u)
+      .optional(),
+    from: dia.optional(),
+    to: dia.optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(5).max(100).default(20),
+  })
+  .refine((q) => !q.from || !q.to || q.from <= q.to, { message: 'La fecha de inicio no puede ser posterior a la de fin.', path: ['from'] });
+export type PosHistoryQueryDto = z.infer<typeof posHistoryQuerySchema>;
+
 /** Id numérico de una ruta (`:customerId`, `:partnerId`, `:installmentId`): si no lo es, 400 y no un 22P02 de PostgreSQL. */
 export const numericIdParamSchema = z.string().regex(/^[1-9][0-9]*$/u);
 

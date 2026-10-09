@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { LoansRepository } from '../loans/loans.repository.js';
 import { CreditRepository } from '../credit/credit.repository.js';
+import { CreditPosOriginService, SIN_ORIGEN } from '../credit/application/credit-pos-origin.service.js';
 import { PartnerProfileService } from '../partner-onboarding/application/partner-profile.service.js';
 import { assertOwnPartnerResource } from '../../common/utils/auth/ownership.util.js';
 import { PENDIENTE } from './payment-claims.shared.js';
@@ -45,6 +46,7 @@ export class PartnerPortfolioService {
     private readonly credit: CreditRepository,
     private readonly partners: PartnerProfileService,
     @InjectModel(LoanPaymentClaimModel) private readonly claims: typeof LoanPaymentClaimModel,
+    private readonly posOrigin: CreditPosOriginService,
   ) {}
 
   /**
@@ -70,6 +72,17 @@ export class PartnerPortfolioService {
     const loans = (
       await Promise.all(applications.map((application) => this.loans.findLoanByApplication(input.tenantId, String(application.id))))
     ).filter((loan): loan is NonNullable<typeof loan> => loan !== null);
+
+    /*
+     * De qué sucursal y caja salió cada crédito, y cuándo (Pablo, 2026-10-08): en Facturación las cuotas se agrupan por
+     * crédito y cada uno dice su origen, porque dos créditos del mismo importe pueden venir de cajas distintas.
+     */
+    const solicitudPorId = new Map(applications.map((application) => [String(application.id), application]));
+    const origenes = await this.posOrigin.origenes(
+      input.tenantId,
+      input.partnerProfileId,
+      loans.map((loan) => String(loan.creditApplicationId)),
+    );
 
     const hoy = new Date().toISOString().slice(0, 10);
     const creditos = [];
@@ -149,6 +162,10 @@ export class PartnerPortfolioService {
         outstanding: detalle.reduce((suma, cuota) => suma + Number(cuota.amountOutstanding), 0).toFixed(2),
         collected: cobradoCredito.toFixed(2),
         commissionAccrued: comisionCredito.toFixed(2),
+        ...(origenes.get(String(loan.creditApplicationId)) ?? SIN_ORIGEN),
+        applicationCode: solicitudPorId.get(String(loan.creditApplicationId))?.applicationCode ?? null,
+        // La fecha de origen es la de la COMPRA (cuando se pidió en la caja); el desembolso llega minutos después.
+        originatedAt: fechaIso(solicitudPorId.get(String(loan.creditApplicationId))?.submittedAt ?? loan.disbursedAt),
         installments: detalle,
       });
     }
@@ -242,4 +259,8 @@ export class PartnerPortfolioService {
       };
     });
   }
+}
+
+function fechaIso(valor: Date | string | null | undefined): string | null {
+  return valor ? new Date(valor).toISOString() : null;
 }

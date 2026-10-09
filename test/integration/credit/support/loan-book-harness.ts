@@ -124,6 +124,8 @@ export async function buildLoanBookHarness(sequelize: Sequelize) {
     events,
     sequelize,
     contexto,
+    // El origen (sucursal y caja) de cada comprobante no entra en estos escenarios del libro de préstamos.
+    { origenDeComprobantes: async () => new Map() } as never,
   );
 
   const createCustomer = async (): Promise<string> => {

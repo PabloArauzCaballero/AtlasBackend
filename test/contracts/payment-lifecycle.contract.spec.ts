@@ -60,6 +60,7 @@ function build(options: { claimStatus?: string; claimPartner?: string; previousV
     events as never,
     sequelize as never,
     contexto as never,
+    { origenDeComprobantes: jest.fn(async () => new Map()) } as never,
   );
   return { service, claim, payments, published, contexto };
 }

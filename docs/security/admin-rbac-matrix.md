@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (132 controladores) | 613 |
+| Total montadas (132 controladores) | 614 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
-| Con `@Roles` | 555 |
+| Con `@Roles` | 556 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 85 |
 | Cualquier sesión autenticada (sin `@Roles`) | 24 |
 
@@ -431,6 +431,7 @@
 | `GET` | `/merchant/partners/:partnerId/payment-claims/:claimId/proof` | `merchant`, `internal_operator`, `admin`, `platform_admin` | — | `MerchantPaymentClaimsController.proof` | guards: `TenantGuard` |
 | `POST` | `/merchant/partners/:partnerId/payment-claims/:claimId/verification` | `merchant`, `internal_operator`, `admin`, `platform_admin` | — | `MerchantPaymentClaimsController.decide` | guards: `TenantGuard` |
 | `GET` | `/merchant/partners/:partnerId/payment-claims/portfolio` | `merchant`, `internal_operator`, `admin`, `platform_admin` | — | `MerchantPaymentClaimsController.portfolio` | guards: `TenantGuard` |
+| `GET` | `/merchant/partners/:partnerId/payment-claims/pos-history` | `merchant`, `internal_operator`, `admin`, `platform_admin` | — | `MerchantPaymentClaimsController.posHistory` | guards: `TenantGuard` |
 | `POST` | `/mobile/customers/:customerId/payment-claims` | `customer`, `internal_operator`, `admin`, `platform_admin` | — | `MobilePaymentClaimsController.submit` | guards: `TenantGuard` |
 | `GET` | `/mobile/customers/:customerId/payment-claims/instructions/:installmentId` | `customer`, `internal_operator`, `admin`, `platform_admin` | — | `MobilePaymentClaimsController.instruction` | guards: `TenantGuard` |
 | `POST` | `/mobile/customers/:customerId/payment-claims/proof-tickets` | `customer`, `internal_operator`, `admin`, `platform_admin` | — | `MobilePaymentClaimsController.createTicket` | guards: `TenantGuard` |

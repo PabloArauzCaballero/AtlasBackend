@@ -15263,6 +15263,49 @@ paths:
       summary: 'Mi cartera: qué me deben, quién y cuándo'
       tags:
         - Merchant · Cobros
+  /merchant/partners/{partnerId}/payment-claims/pos-history:
+    get:
+      description: >-
+        Una sola lista, de lo más reciente a lo más antiguo, con la sucursal y
+        la caja de cada fila. Filtros: sucursal, caja y días (hora de Bolivia).
+        Paginada; `totals` es del filtro entero, no de la página. `filters` trae
+        las sucursales y cajas.
+      operationId: MerchantPaymentClaimsController_posHistory
+      parameters:
+        - name: partnerId
+          required: true
+          in: path
+          schema:
+            type: string
+          description: >-
+            Identificador de ruta `partnerId` del recurso direccionado por la
+            operación.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: '`{ items, page, pageSize, total, pages, totals, filters }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: 'Historial del POS: solicitudes respondidas y pagos verificados'
+      tags:
+        - Merchant · Cobros
   /merchant/partners/{partnerId}/payment-claims/{claimId}/proof:
     get:
       operationId: MerchantPaymentClaimsController_proof
