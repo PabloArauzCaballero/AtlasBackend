@@ -24,6 +24,7 @@ import { twilioProviderEnvShape } from './env.twilio.schema.js';
 import { brevoProviderEnvShape } from './env.brevo.schema.js';
 import { onboardingEnvShape } from './env.identity-review.schema.js';
 import { metaWhatsAppProviderEnvShape } from './env.meta-whatsapp.schema.js';
+import { authSessionEnvShape } from './env.auth-session.schema.js';
 
 export const DEFAULT_JWT_SECRET = 'dev-only-atlas-access-token-secret-change-me';
 export const DEFAULT_NOTIFICATION_TOKEN_ENCRYPTION_KEY = 'change-this-32-plus-character-key-for-device-tokens';
@@ -115,7 +116,7 @@ export const envBaseSchema = z.object({
   // Swagger/OpenAPI queda activo fuera de producción; en producción requiere activación explícita.
   API_DOCS_ENABLED: optionalBooleanEnvSchema,
 
-  AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS: z.coerce.number().int().positive().default(30),
+  ...authSessionEnvShape,
   AUTH_MAX_FAILED_LOGIN_ATTEMPTS: z.coerce.number().int().positive().default(5),
   AUTH_LOCKOUT_MINUTES: z.coerce.number().int().positive().default(15),
 
@@ -281,9 +282,8 @@ export const envBaseSchema = z.object({
   SHUTDOWN_DRAIN_MS: z.coerce.number().int().min(0).max(120_000).default(0),
   REQUEST_TIMEOUT_MS: z.coerce.number().int().min(0).max(600_000).default(30_000),
 
-  // Identidad del artefacto desplegado, inyectada por el pipeline al construir la imagen. Sin ella,
-  // `/health` no puede decir qué build está corriendo (hallazgo A-05 de
-  // docs/audit/auditoria-integral-2026-07-30.md).
+  // Identidad del artefacto desplegado, inyectada por el pipeline al construir la imagen. Sin ella, `/health` no
+  // puede decir qué build está corriendo (hallazgo A-05 de docs/audit/auditoria-integral-2026-07-30.md).
   // Metadatos del build. Se tratan con `optionalNonEmptyStringEnvSchema` y no con `.min(1).optional()`
   // porque un `ARG` de Docker no declarado se convierte en `ENV VAR=""`, no en "variable ausente":
   // con `.min(1)` eso rompia el arranque de CUALQUIER contenedor construido sin `--build-arg`, que es

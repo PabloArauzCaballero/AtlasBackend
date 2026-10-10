@@ -103,7 +103,9 @@ export function applyCustomerSessionMode<T extends object>(request: SessionReque
   if (!wantsCookieSession(request)) return result;
   const { refreshToken, ...rest } = result as T & TokenResult;
   if (!refreshToken) return result;
-  const maxAgeMs = env.AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1000;
+  // La cookie es sólo del cliente: no tiene sentido que sobreviva al tope absoluto de su sesión (el servidor lo
+  // aplica igual; esto sólo evita que el navegador guarde 30 días una cookie que a las pocas horas ya no vale).
+  const maxAgeMs = Math.min(env.AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS * 24, env.AUTH_CUSTOMER_SESSION_ABSOLUTE_MAX_HOURS) * 60 * 60 * 1000;
   for (const path of customerRefreshCookiePaths()) {
     response.cookie(CUSTOMER_REFRESH_COOKIE, refreshToken, cookieOptions(request, path, maxAgeMs));
   }

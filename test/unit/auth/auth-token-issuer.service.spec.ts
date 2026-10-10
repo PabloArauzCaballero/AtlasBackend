@@ -34,7 +34,8 @@ describe('AuthTokenIssuerService.issueRegistrationTokens', () => {
 
     const claims = jwt.verify(result.accessToken, env.JWT_ACCESS_TOKEN_SECRET) as Record<string, unknown>;
     expect(claims).toMatchObject({ sub: '42', role: 'customer', tokenVersion: 3, tenantId: '1' });
-    expect(result).toMatchObject({ tokenType: 'Bearer', expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN });
+    // Sesión de cliente: acceso corto (`AUTH_CUSTOMER_ACCESS_TOKEN_TTL_MINUTES`), no el de los portales.
+    expect(result).toMatchObject({ tokenType: 'Bearer', expiresIn: `${String(env.AUTH_CUSTOMER_ACCESS_TOKEN_TTL_MINUTES)}m` });
     expect(result.refreshToken).toEqual(expect.any(String));
   });
 
