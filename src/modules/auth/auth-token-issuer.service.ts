@@ -12,6 +12,7 @@ import { generateRefreshToken, hashRefreshToken } from '../../common/utils/crypt
 import { ActorType, AuthRepository } from './auth.repository.js';
 import { ResolvedActor } from './auth-actor-resolver.service.js';
 import { LoginResponseDto } from './auth.dtos.js';
+import { accessTokenTtlSeconds, describeTtl, refreshTokenExpiry } from './customer-session-lifetime.js';
 
 /**
  * Emisión de credenciales de sesión: el JWT de acceso y el refresh token que lo renueva.
@@ -25,7 +26,11 @@ import { LoginResponseDto } from './auth.dtos.js';
 export class AuthTokenIssuerService {
   constructor(private readonly authRepository: AuthRepository) {}
 
-  issueAccessToken(actor: ResolvedActor, actorType: ActorType, tokenVersion: number): string {
+  /**
+   * `sessionStartedAt` sólo cambia algo para el cliente: su token vive `AUTH_CUSTOMER_ACCESS_TOKEN_TTL_MINUTES` y nunca
+   * más allá del tope absoluto de su sesión (`customer-session-lifetime.ts`). Los demás, `JWT_ACCESS_TOKEN_EXPIRES_IN`.
+   */
+  issueAccessToken(actor: ResolvedActor, actorType: ActorType, tokenVersion: number, sessionStartedAt: Date | null = null): string {
     const payload: Record<string, unknown> = {
       sub: actor.id,
       role: actor.role,
@@ -36,10 +41,15 @@ export class AuthTokenIssuerService {
 
     const options: SignOptions = accessTokenSignOptions({
       algorithm: 'HS256',
-      expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN as SignOptions['expiresIn'],
+      expiresIn: accessTokenTtlSeconds(actorType, sessionStartedAt) ?? (env.JWT_ACCESS_TOKEN_EXPIRES_IN as SignOptions['expiresIn']),
     });
 
     return jwt.sign(payload, env.JWT_ACCESS_TOKEN_SECRET, options);
+  }
+
+  /** El `expiresIn` que acompaña a ese token en la respuesta. */
+  accessTokenExpiresIn(actorType: ActorType, sessionStartedAt: Date | null = null): string {
+    return describeTtl(accessTokenTtlSeconds(actorType, sessionStartedAt));
   }
 
   async issueRefreshToken(
@@ -49,11 +59,14 @@ export class AuthTokenIssuerService {
       actorId: string;
       userAgent: string | null;
       ipAddress: string | null;
+      /** Inicio de sesión con credenciales de la familia: ahora en un login, el heredado en una rotación. */
+      sessionStartedAt?: Date;
     },
     options: { transaction?: Transaction } = {},
   ): Promise<{ token: string; id: string }> {
     const refreshToken = generateRefreshToken();
-    const expiresAt = new Date(Date.now() + env.AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1000);
+    const sessionStartedAt = input.sessionStartedAt ?? new Date();
+    const expiresAt = refreshTokenExpiry(input.actorType, sessionStartedAt);
     const created = await this.authRepository.createRefreshToken(
       {
         tenantId: input.tenantId,
@@ -61,6 +74,7 @@ export class AuthTokenIssuerService {
         actorId: input.actorId,
         tokenHash: hashRefreshToken(refreshToken),
         expiresAt,
+        sessionStartedAt,
         userAgent: input.userAgent,
         ipAddress: input.ipAddress,
       },
@@ -75,16 +89,19 @@ export class AuthTokenIssuerService {
     tokenVersion: number,
     network: { ip: string | null; userAgent: string | null },
   ): Promise<LoginResponseDto> {
-    const accessToken = this.issueAccessToken(actor, actorType, tokenVersion);
+    // Un inicio de sesión con credenciales abre una familia nueva y con ella el reloj del tope absoluto.
+    const sessionStartedAt = new Date();
+    const accessToken = this.issueAccessToken(actor, actorType, tokenVersion, sessionStartedAt);
     const issuedRefreshToken = await this.issueRefreshToken({
       tenantId: actor.tenantId,
       actorType,
       actorId: actor.id,
       userAgent: network.userAgent,
       ipAddress: network.ip,
+      sessionStartedAt,
     });
-
-    return { accessToken, refreshToken: issuedRefreshToken.token, tokenType: 'Bearer', expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN };
+    const expiresIn = this.accessTokenExpiresIn(actorType, sessionStartedAt);
+    return { accessToken, refreshToken: issuedRefreshToken.token, tokenType: 'Bearer', expiresIn };
   }
 
   /**
@@ -115,7 +132,8 @@ export class AuthTokenIssuerService {
       email: null,
       displayName: null,
     };
-    const accessToken = this.issueAccessToken(actor, 'customer', input.tokenVersion);
+    const sessionStartedAt = new Date();
+    const accessToken = this.issueAccessToken(actor, 'customer', input.tokenVersion, sessionStartedAt);
     const issuedRefreshToken = await this.issueRefreshToken(
       {
         tenantId: input.tenantId,
@@ -123,9 +141,11 @@ export class AuthTokenIssuerService {
         actorId: input.customerId,
         userAgent: input.userAgent,
         ipAddress: input.ipAddress,
+        sessionStartedAt,
       },
       { transaction: input.transaction },
     );
-    return { accessToken, refreshToken: issuedRefreshToken.token, tokenType: 'Bearer', expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN };
+    const expiresIn = this.accessTokenExpiresIn('customer', sessionStartedAt);
+    return { accessToken, refreshToken: issuedRefreshToken.token, tokenType: 'Bearer', expiresIn };
   }
 }

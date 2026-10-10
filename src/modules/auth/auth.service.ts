@@ -19,6 +19,13 @@ import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from './auth-password-reset.service.js';
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
+import {
+  SESSION_EXPIRED_CODE,
+  SESSION_EXPIRED_REVOKE_REASON,
+  hasAbsoluteSessionCap,
+  isCustomerSessionExpired,
+  sessionStartOf,
+} from './customer-session-lifetime.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
 import { LoginPinChallengeResponseDto, LoginResponseDto, LogoutResponseDto } from './auth.dtos.js';
 import { LoginDto } from './auth.schemas.js';
@@ -206,12 +213,16 @@ export class AuthService {
     );
 
     if (outcome.kind === 'success') {
-      return {
-        accessToken: outcome.accessToken,
-        refreshToken: outcome.refreshToken,
-        tokenType: 'Bearer',
-        expiresIn: env.JWT_ACCESS_TOKEN_EXPIRES_IN,
-      };
+      return { accessToken: outcome.accessToken, refreshToken: outcome.refreshToken, tokenType: 'Bearer', expiresIn: outcome.expiresIn };
+    }
+
+    if (outcome.kind === 'session_expired') {
+      // Distinto del 401 genérico a propósito: la app sabe que no es un token roto sino el tope de la sesión, y
+      // puede pedir la contraseña o el PIN con ese mensaje. En modo cookie el controlador borra la cookie.
+      throw new UnauthorizedException({
+        code: SESSION_EXPIRED_CODE,
+        message: 'La sesión superó su duración máxima. Vuelve a iniciar sesión.',
+      });
     }
 
     if (outcome.kind === 'reused') {
@@ -234,7 +245,8 @@ export class AuthService {
     input: { ip: string | null; userAgent: string | null; expectedActorType?: ActorType },
     transaction: Transaction,
   ): Promise<
-    | { kind: 'success'; accessToken: string; refreshToken: string }
+    | { kind: 'success'; accessToken: string; refreshToken: string; expiresIn: string }
+    | { kind: 'session_expired' }
     | { kind: 'invalid' }
     | { kind: 'actor_unavailable' }
     | { kind: 'reused'; actorType: ActorType; actorId: string }
@@ -262,6 +274,14 @@ export class AuthService {
       return { kind: 'invalid' };
     }
 
+    // Tope absoluto del cliente, contado desde el inicio de sesión con credenciales y no desde la última rotación.
+    // Va antes del vencimiento porque su refresh token ya vence en ese mismo instante: así se responde con su código.
+    const sessionStartedAt = sessionStartOf(stored);
+    if (hasAbsoluteSessionCap(actorType) && isCustomerSessionExpired(sessionStartedAt)) {
+      await this.authRepository.revokeRefreshToken(stored, SESSION_EXPIRED_REVOKE_REASON, undefined, { transaction });
+      return { kind: 'session_expired' };
+    }
+
     if (stored.expiresAt.getTime() < Date.now()) return { kind: 'invalid' };
 
     const credential = await this.authRepository.findCredentialsByActor(actorType, stored.actorId, { transaction });
@@ -281,13 +301,15 @@ export class AuthService {
         actorId: refreshedActor.id,
         userAgent: input.userAgent,
         ipAddress: input.ip,
+        sessionStartedAt,
       },
       { transaction },
     );
     await this.authRepository.revokeRefreshToken(stored, 'rotated', newRefreshToken.id, { transaction });
 
-    const accessToken = this.tokenIssuer.issueAccessToken(refreshedActor, actorType, credential.tokenVersion);
-    return { kind: 'success', accessToken, refreshToken: newRefreshToken.token };
+    const accessToken = this.tokenIssuer.issueAccessToken(refreshedActor, actorType, credential.tokenVersion, sessionStartedAt);
+    const expiresIn = this.tokenIssuer.accessTokenExpiresIn(actorType, sessionStartedAt);
+    return { kind: 'success', accessToken, refreshToken: newRefreshToken.token, expiresIn };
   }
 
   async logout(input: { refreshToken: string; allDevices: boolean }): Promise<LogoutResponseDto> {
