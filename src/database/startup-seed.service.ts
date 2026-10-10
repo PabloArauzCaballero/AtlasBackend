@@ -87,8 +87,12 @@ export class StartupSeedService implements OnApplicationBootstrap {
           adminPassword: env.DEV_ADMIN_PASSWORD,
           partnerPassword: env.DEV_PARTNER_PASSWORD,
         });
-        if (overrides.applied.length > 0) {
-          this.logger.log(`Credenciales locales reaplicadas: ${overrides.applied.join(', ')}.`);
+        this.logger.log(`Credenciales locales reaplicadas: ${overrides.applied.join(', ')}.`);
+        if (overrides.generatedAdminPassword) {
+          // Una sola vez, fuera de producción y sólo tras una carga real. Para fijarla: `DEV_ADMIN_PASSWORD` en `.env`.
+          this.logger.warn(
+            `Administrador de desarrollo ${overrides.adminEmail}: contraseña generada en esta máquina (no se vuelve a mostrar): ${overrides.generatedAdminPassword}`,
+          );
         }
       }
 

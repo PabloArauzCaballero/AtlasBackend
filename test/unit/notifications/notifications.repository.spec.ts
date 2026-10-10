@@ -367,6 +367,9 @@ describe('NotificationsRepository — núcleo', () => {
       }>;
       expect(targets).toHaveLength(1);
       expect(targets[0].kind).toBe(kind);
+      // Auditoría 2026-10-09: sin huella SHA-256 sin clave del destino (nadie la leía y un teléfono se revierte).
+      expect(Object.keys(targets[0]).sort()).toEqual(['addressEncrypted', 'kind', 'last4']);
+      expect(JSON.stringify(targets[0])).not.toContain('+591700');
     });
 
     it('in_app no tiene destino que cifrar, y un canal con destino ausente tampoco', async () => {
