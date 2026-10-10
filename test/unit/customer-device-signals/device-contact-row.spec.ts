@@ -53,6 +53,9 @@ describe('toContactRow', () => {
     expect(JSON.stringify({ ...fila, phonesEncrypted: '', displayNameEncrypted: '' })).not.toContain('76500122');
     expect(JSON.stringify(fila)).not.toContain('Quispe"');
     expect(fila.phoneCount).toBe(1);
+    // La huella del número es HMAC con la clave del servidor (APP-21), no su SHA-256 desnudo.
+    expect(fila.primaryPhoneHash).toMatch(/^ph1:[0-9a-f]{64}$/u);
+    expect(fila.phoneHashes).toEqual([fila.primaryPhoneHash]);
     expect(fila.primaryPhoneLast4).toBe('0122');
     expect(fila.birthday).toBe('1985-03-09');
   });

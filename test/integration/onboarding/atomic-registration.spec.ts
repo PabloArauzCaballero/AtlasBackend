@@ -72,7 +72,7 @@ describe('AT-025 · registro atómico del alta', () => {
       guards,
       registration,
       { hash: async (p) => `argon2:${p.length}` },
-      { hash: (v) => `h:${v}` },
+      { phone: (v) => `h:${v}`, email: (v) => `e:${v}` },
       fixedClock('2026-09-11'),
     );
     const result = await useCase.execute({
@@ -101,7 +101,7 @@ describe('AT-025 · registro atómico del alta', () => {
         },
       },
       { hash: async () => 'x' },
-      { hash: () => 'x' },
+      { phone: () => 'x', email: () => 'x' },
       fixedClock('2026-09-11'),
     );
     await expect(

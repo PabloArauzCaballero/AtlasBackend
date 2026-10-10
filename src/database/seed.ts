@@ -5,6 +5,7 @@
  */
 import { Client } from 'pg';
 import { env } from '../config/env.js';
+import { upgradeAllPhoneHashes } from './migration-support/phone-hash-columns.js';
 import { applyLocalIdentityOverrides } from './seed-local-identities.js';
 import { requireSeedSource } from './seed-source.js';
 import { hasSeedLoad, listSeededTables, syncSeedData } from './seed-sync.js';
@@ -70,6 +71,10 @@ async function commandPull(onlyIfEmpty: boolean): Promise<void> {
 
     const result = await syncSeedData({ source, target, sourceLabel: describe });
 
+    // La rama de semillas publica las huellas de teléfono como SHA-256 (versión 0): sin clave del servidor, no hay otra
+    // forma portable. Se llevan aquí a la versión vigente, igual que hizo la migración con lo que ya había (APP-21).
+    const phoneHashes = await upgradeAllPhoneHashes(async (sql, params) => (await target.query(sql, params)).rows);
+
     // Las credenciales propias de la máquina se reaplican DESPUÉS de la copia y sólo fuera de
     // producción; ver seed-local-identities.ts.
     const overrides =
@@ -83,7 +88,14 @@ async function commandPull(onlyIfEmpty: boolean): Promise<void> {
 
     console.log(
       `\n${JSON.stringify(
-        { command: 'pull', source: describe, ...result, localOverrides: overrides.applied, pulledAt: new Date().toISOString() },
+        {
+          command: 'pull',
+          source: describe,
+          ...result,
+          phoneHashes,
+          localOverrides: overrides.applied,
+          pulledAt: new Date().toISOString(),
+        },
         null,
         2,
       )}`,

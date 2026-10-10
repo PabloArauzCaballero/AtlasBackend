@@ -35,7 +35,7 @@ cambia y esta tabla no, CI falla. Se regeneran con `yarn docs:figures`.
 | Módulos de dominio | <!-- fig:code.modules -->44<!-- /fig --> | carpetas de `src/modules` con `*.module.ts` |
 | Controladores | <!-- fig:code.controllers -->132<!-- /fig --> | clases `@Controller`, en <!-- fig:code.controllerFiles -->125<!-- /fig --> archivos |
 | Modelos Sequelize | <!-- fig:code.ormModels -->213<!-- /fig --> | clases `@Table` en `src/` |
-| Migraciones | <!-- fig:code.migrations -->190<!-- /fig --> | `src/database/migrations/*.ts` |
+| Migraciones | <!-- fig:code.migrations -->191<!-- /fig --> | `src/database/migrations/*.ts` |
 | Tablas / esquemas de dominio | <!-- fig:db.tables -->221<!-- /fig --> / <!-- fig:db.schemas -->15<!-- /fig --> | `ATLAS_DOMAIN_TABLES` (`src/database/domain-tables.ts`) |
 | Rutas montadas | <!-- fig:code.routes -->616<!-- /fig --> | metadata de los controladores; incluye las internas fuera del contrato |
 | Rutas / operaciones del contrato | <!-- fig:openapi.paths -->564<!-- /fig --> / <!-- fig:openapi.operations -->606<!-- /fig --> | `docs/endpoints/openapi.yaml` |

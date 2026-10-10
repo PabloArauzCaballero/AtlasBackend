@@ -8,6 +8,8 @@ jest.mock('../../../src/common/utils/crypto/envelope-encryption.util.js', () => 
 
 import { AuthActorResolverService, isKnownRole } from '../../../src/modules/auth/auth-actor-resolver.service.js';
 import { decryptSecretEnvelope } from '../../../src/common/utils/crypto/envelope-encryption.util.js';
+import { hashSensitiveText } from '../../../src/common/utils/crypto/hash.util.js';
+import { phoneLookupHashFromPlain } from '../../../src/common/utils/crypto/phone-hash.util.js';
 
 /**
  * `AuthActorResolverService` se extrajo de `AuthService` (Fase 2.2) para unificar la resolución de
@@ -61,6 +63,15 @@ describe('AuthActorResolverService', () => {
     } as never);
     const actor = await service.resolveActorForLogin('t1', 'customer', 'user@mail.com');
     expect(actor).toEqual({ id: 'c1', tenantId: 't1', role: 'customer', email: 'user@mail.com', displayName: null });
+  });
+
+  it('resolveActorForLogin(customer) busca el teléfono por su HMAC con clave del servidor y el correo por su SHA-256 (APP-21)', async () => {
+    const { service, customersRepository } = build();
+    await service.resolveActorForLogin('t1', 'customer', ' +59171234567 ');
+    expect(customersRepository.findByContactHash).toHaveBeenCalledWith('t1', {
+      phoneHash: phoneLookupHashFromPlain('+59171234567'),
+      emailHash: hashSensitiveText(' +59171234567 '),
+    });
   });
 
   /**

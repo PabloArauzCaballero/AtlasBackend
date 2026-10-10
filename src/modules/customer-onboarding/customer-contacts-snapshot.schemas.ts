@@ -34,12 +34,12 @@ import { z } from 'zod';
  * números que ya conocemos por otros expedientes. Eso exige cruzar contra datos
  * del servidor.
  *
- * Se resuelve mandando SHA-256 de cada teléfono normalizado —la misma convención
- * con la que el resto del sistema guarda un teléfono, `hashSensitiveText`— y el
- * servidor:
+ * Se resuelve mandando SHA-256 de cada teléfono normalizado —la misma normalización
+ * que `hashSensitiveText`— y el servidor:
  *
- * 1. cruza contra `watchlist_entries` y contra las referencias de OTROS
- *    expedientes,
+ * 1. le aplica `phoneLookupHash` (HMAC con la clave del servidor, que es como se
+ *    GUARDA un teléfono desde APP-21) y cruza contra `watchlist_entries` y contra
+ *    las referencias de OTROS expedientes,
  * 2. se queda con el NÚMERO de coincidencias,
  * 3. **descarta los hashes**. No se persisten, no se registran y no salen del
  *    proceso que atendió la petición.

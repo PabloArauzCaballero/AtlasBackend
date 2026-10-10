@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { ATLAS_USER_ROLES, AtlasUserRole } from '../../common/types/auth.types.js';
 import { decryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { hashSensitiveText } from '../../common/utils/crypto/hash.util.js';
+import { phoneLookupHashFromPlain } from '../../common/utils/crypto/phone-hash.util.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
@@ -48,10 +49,10 @@ export class AuthActorResolverService {
   /** Resuelve el actor durante el login, a partir del identificador que el usuario escribió. */
   async resolveActorForLogin(tenantId: string, actorType: ActorType, identifier: string): Promise<ResolvedActor | null> {
     if (actorType === 'customer') {
-      const identifierHash = hashSensitiveText(identifier);
+      // El identificador puede ser un teléfono o un correo: se busca por las dos huellas, cada una con la suya.
       const customer = await this.customersRepository.findByContactHash(tenantId, {
-        phoneHash: identifierHash,
-        emailHash: identifierHash,
+        phoneHash: phoneLookupHashFromPlain(identifier),
+        emailHash: hashSensitiveText(identifier),
       });
       if (!customer || customer.lifecycleStatus === 'closed') return null;
       // El email/teléfono del cliente se almacena hasheado. Si el identificador escrito ES un

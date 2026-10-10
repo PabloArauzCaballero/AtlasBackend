@@ -30,6 +30,7 @@ describe('applyEnvCrossChecks', () => {
     NODE_ENV: 'production',
     JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-produccion-suficientemente-largo',
     NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+    PHONE_HASH_HMAC_KEYS: '1:clave-de-huellas-de-telefono-larga-de-verdad',
     REDIS_URL: 'redis://cache:6379',
     MAILSENDER_BASE_URL: 'https://mail.interno',
     MAILSENDER_EXTERNAL_API_KEY: 'mailsender-api-key',
@@ -179,6 +180,7 @@ describe('applyEnvCrossChecks', () => {
           NODE_ENV: 'development',
           JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-desarrollo-suficientemente-largo',
           NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+          PHONE_HASH_HMAC_KEYS: '1:clave-de-huellas-de-telefono-larga-de-verdad',
         }),
       ).toEqual([]);
     });
@@ -212,6 +214,7 @@ describe('applyEnvCrossChecks', () => {
           NODE_ENV: 'development',
           JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-desarrollo-suficientemente-largo',
           NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+          PHONE_HASH_HMAC_KEYS: '1:clave-de-huellas-de-telefono-larga-de-verdad',
         }),
       ).toEqual([]);
     });
@@ -238,6 +241,7 @@ describe('applyEnvCrossChecks', () => {
           NODE_ENV: 'development',
           JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-desarrollo-suficientemente-largo',
           NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+          PHONE_HASH_HMAC_KEYS: '1:clave-de-huellas-de-telefono-larga-de-verdad',
           DB_LOG_SQL: 'true',
         }),
       ).toEqual([]);
@@ -278,6 +282,7 @@ describe('applyEnvCrossChecks', () => {
           NODE_ENV: 'development',
           JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-desarrollo-suficientemente-largo',
           NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+          PHONE_HASH_HMAC_KEYS: '1:clave-de-huellas-de-telefono-larga-de-verdad',
           FILE_STORAGE_LOCAL_URL_SECRET: 'corto',
         }),
       ).toContain('FILE_STORAGE_LOCAL_URL_SECRET');
@@ -305,6 +310,7 @@ describe('applyEnvCrossChecks', () => {
           NODE_ENV: 'development',
           JWT_ACCESS_TOKEN_SECRET: 'un-secreto-de-desarrollo-suficientemente-largo',
           NOTIFICATION_TOKEN_ENCRYPTION_KEY: 'otra-clave-distinta-y-tambien-larga-de-verdad',
+          PHONE_HASH_HMAC_KEYS: '1:clave-de-huellas-de-telefono-larga-de-verdad',
           AUTH_LOGIN_PIN_ENABLED: 'false',
         }),
       ).toEqual([]);
@@ -348,6 +354,35 @@ describe('applyEnvCrossChecks', () => {
       expect(failedPaths({ ...validProduction, [variable]: 'webhook' })).toContain(channelUrl);
       expect(failedPaths({ ...validProduction, [variable]: 'webhook', NOTIFICATION_WEBHOOK_URL: 'https://hooks/x' })).toEqual([]);
       expect(failedPaths({ ...validProduction, [variable]: 'webhook', [channelUrl]: 'https://hooks/y' })).toEqual([]);
+    });
+  });
+
+  describe('clave de las huellas de teléfono (APP-21)', () => {
+    it('es obligatoria en producción', () => {
+      expect(failedPaths({ ...validProduction, PHONE_HASH_HMAC_KEYS: undefined })).toContain('PHONE_HASH_HMAC_KEYS');
+      expect(failedPaths({ ...validProduction, PHONE_HASH_HMAC_KEYS: '' })).toContain('PHONE_HASH_HMAC_KEYS');
+    });
+
+    it('el worker de Mensajería no la necesita, y fuera de producción el arranque no la exige', () => {
+      expect(failedPaths({ ...validProduction, PHONE_HASH_HMAC_KEYS: undefined, ATLAS_CAPABILITY_PROFILE: 'messaging' })).not.toContain(
+        'PHONE_HASH_HMAC_KEYS',
+      );
+      expect(failedPaths({ NODE_ENV: 'development' })).not.toContain('PHONE_HASH_HMAC_KEYS');
+    });
+
+    it.each([
+      ['secreto corto', '1:corta'],
+      ['sin versión', 'clave-de-huellas-de-telefono-larga-de-verdad'],
+      ['falta la versión 1', '2:clave-de-huellas-de-telefono-larga-de-verdad'],
+      ['versión repetida', '1:clave-de-huellas-de-telefono-larga-de-verdad,1:otra-clave-de-huellas-de-telefono-larga'],
+    ])('rechaza una lista mal formada (%s), en cualquier entorno', (_caso, valor) => {
+      expect(failedPaths({ ...validProduction, PHONE_HASH_HMAC_KEYS: valor })).toContain('PHONE_HASH_HMAC_KEYS');
+      expect(failedPaths({ NODE_ENV: 'development', PHONE_HASH_HMAC_KEYS: valor })).toContain('PHONE_HASH_HMAC_KEYS');
+    });
+
+    it('acepta la cadena completa de una rotación', () => {
+      const rotacion = '1:clave-de-huellas-de-telefono-larga-de-verdad,2:otra-clave-de-huellas-de-telefono-larga';
+      expect(failedPaths({ ...validProduction, PHONE_HASH_HMAC_KEYS: rotacion })).toEqual([]);
     });
   });
 

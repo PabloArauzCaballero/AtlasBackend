@@ -11,6 +11,7 @@ import { TracingService } from '../../../../common/observability/tracing.service
 import { APP_ATTRIBUTES, SPAN_NAMES } from '../../../../observability/telemetry.constants.js';
 import { hashPassword } from '../../../../common/utils/crypto/password.util.js';
 import { hashSensitiveText } from '../../../../common/utils/crypto/hash.util.js';
+import { phoneLookupHashFromPlain } from '../../../../common/utils/crypto/phone-hash.util.js';
 import { ApplicationError } from '../../../../platform/contracts/application-error.js';
 import { systemClock } from '../../../../platform/di/clock.js';
 import type { Clock } from '../../../../platform/di/clock.js';
@@ -26,8 +27,10 @@ export interface PasswordHasher {
   hash(plain: string): Promise<string>;
 }
 
+/** Teléfono y correo no se protegen igual: el teléfono va con la clave del servidor (APP-21, `phoneLookupHash`). */
 export interface ContactHasher {
-  hash(value: string): string;
+  phone(value: string): string;
+  email(value: string): string;
 }
 
 export type StartOnboardingCommand = Readonly<{
@@ -78,8 +81,8 @@ export class StartOnboardingUseCase {
 
   private async register(command: StartOnboardingCommand): Promise<RegistrationResult> {
     if (!command.idempotencyKey) throw new ApplicationError({ kind: 'invalid', code: 'X-Idempotency-Key header is required.' });
-    const phoneHash = command.phone ? this.contacts.hash(command.phone) : null;
-    const emailHash = command.email ? this.contacts.hash(command.email) : null;
+    const phoneHash = command.phone ? this.contacts.phone(command.phone) : null;
+    const emailHash = command.email ? this.contacts.email(command.email) : null;
 
     // Preparación: fuera de cualquier transacción.
     await this.guards.assertNoDuplicateCustomer(command.tenantId, phoneHash, emailHash);
@@ -114,7 +117,7 @@ export function buildStartOnboardingUseCase(
     guards,
     { register },
     { hash: hashPassword },
-    { hash: hashSensitiveText },
+    { phone: phoneLookupHashFromPlain, email: hashSensitiveText },
     systemClock,
     new TracingService(),
   );

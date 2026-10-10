@@ -4,6 +4,7 @@
  * @system se separa de `env.schema.ts` por la misma razón que Twilio y Brevo: ese archivo roza el gate de tamaño.
  */
 import { otpDeliveryEnvShape } from './env.otp.schema.js';
+import { phoneHashEnvShape } from './env.phone-hash.schema.js';
 import { booleanEnvDefaultTrueSchema } from './env.primitives.js';
 
 export const identityReviewEnvShape = {
@@ -25,5 +26,5 @@ export const identityReviewEnvShape = {
   IDENTITY_REQUIRE_HUMAN_REVIEW: booleanEnvDefaultTrueSchema,
 } as const;
 
-/** El alta del cliente en un solo bloque de `env.schema.ts`: entrega del código y revisión de identidad. */
-export const onboardingEnvShape = { ...otpDeliveryEnvShape, ...identityReviewEnvShape } as const;
+/** El alta del cliente en un solo bloque de `env.schema.ts`: entrega del código, revisión de identidad y clave de los teléfonos. */
+export const onboardingEnvShape = { ...otpDeliveryEnvShape, ...identityReviewEnvShape, ...phoneHashEnvShape } as const;

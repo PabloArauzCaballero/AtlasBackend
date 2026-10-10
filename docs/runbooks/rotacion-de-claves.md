@@ -77,6 +77,31 @@ que sea distinta del valor de ejemplo y **distinta de `JWT_ACCESS_TOKEN_SECRET`*
 
 ---
 
+## B2. Rotación de `PHONE_HASH_HMAC_KEYS` (huellas de teléfono, APP-21)
+
+Las columnas de teléfono (`customers.primary_phone_hash`, `customer_contact_methods` de tipo `phone`,
+`customer_reference_contacts.phone_hash`, `customer_device_contacts.primary_phone_hash`/`phone_hashes`,
+`watchlist_entries`/`watchlist_matches` de tipo teléfono, `sim_observations.phone_number_hash`) guardan
+`ph<versión>:<hex>`: `ph1 = HMAC(K1, sha256(teléfono))`, `phN = HMAC(KN, <hex de N-1>)`. El teléfono en
+claro NO está en la base, así que rotar no recalcula: **envuelve** el valor anterior con la clave nueva.
+La lista de columnas vive en `src/database/migration-support/phone-hash-columns.ts`.
+
+1. Generar la clave nueva: `openssl rand -hex 32`.
+2. **Añadirla** a la variable, nunca sustituir: `1:<K1>` pasa a `1:<K1>,2:<K2>`. Para calcular la
+   huella de hoy hacen falta todas las claves de la cadena; quitar la 1 deja todo inencontrable.
+3. Crear una migración nueva que llame a `upgradeAllPhoneHashes` (copia de
+   `20261009230000-phone-hashes-to-hmac.ts`). Es idempotente y por lotes; reescribe `ph1:` → `ph2:`.
+4. Poner la variable en TODOS los entornos (Coolify de DEV y de TEST, secretos de producción) ANTES de
+   desplegar la migración: el código nuevo busca ya en `ph2`.
+5. Comprobar con el CUERPO: login por teléfono de un cliente existente y `SELECT count(*) … WHERE
+   primary_phone_hash !~ '^ph2:'` a 0 en cada columna.
+
+**Clave comprometida:** la rotación protege lo guardado desde ese momento (sin K2 no se invierte
+`ph2`), pero un volcado tomado ANTES con K1 sigue expuesto: tratarlo como incidente de PII. Los
+respaldos anteriores a la rotación llevan `ph1`.
+
+---
+
 ## C. Rotación de `JWT_ACCESS_TOKEN_SECRET`
 
 Rotar este secreto **invalida todos los access tokens vigentes** firmados con el

@@ -31,7 +31,8 @@ no autorice guardar las fichas—, y es lo que evita que negarse deje el expedie
    `422 CONSENT_NOT_GRANTED` sin él. Ver `application/device-signals-access.service.ts`.
 2. **La PII de terceros va cifrada.** El cliente consintió; sus contactos no. Todo lo que identifica
    a una persona sale en columnas `BYTEA` con sobre criptográfico; en claro solo quedan hashes y
-   recuentos, que es lo que permite cruzar sin descifrar. **No usa MinIO**: no hay objetos, y la foto
+   recuentos, que es lo que permite cruzar sin descifrar. Los de teléfono son HMAC con la clave del
+   servidor (`PHONE_HASH_HMAC_KEYS`, `phoneLookupHash`): un SHA-256 desnudo de un móvil se revierte en segundos. **No usa MinIO**: no hay objetos, y la foto
    del contacto no se lee.
 3. **No se devuelve análisis.** Quien sube estos datos es el teléfono de la persona analizada.
    Decirle cuántos contactos coinciden con otros expedientes le enseña qué borrar.

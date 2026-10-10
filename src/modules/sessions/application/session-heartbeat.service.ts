@@ -15,6 +15,7 @@ import { SessionsRepository } from '../sessions.repository.js';
 import { SessionsLifecycleRepository } from '../repositories/sessions-lifecycle.repository.js';
 import { SessionGpsWriterService } from './session-gps-writer.service.js';
 import { decimal, hasLocationPermission, RequestContext, riskFlagsFromSnapshot, toDate } from './sessions.shared.js';
+import { phoneLookupHash } from '../../../common/utils/crypto/phone-hash.util.js';
 
 @Injectable()
 export class SessionHeartbeatService {
@@ -115,7 +116,7 @@ export class SessionHeartbeatService {
             customerId: input.customerId,
             sessionId: input.sessionId,
             deviceId: input.body.deviceId,
-            phoneNumberHash: input.body.simObservation.phoneNumberHash ?? null,
+            phoneNumberHash: input.body.simObservation.phoneNumberHash ? phoneLookupHash(input.body.simObservation.phoneNumberHash) : null,
             phoneLast4: input.body.simObservation.phoneLast4 ?? null,
             carrierName: input.body.simObservation.carrierName ?? null,
             simType: input.body.simObservation.simType ?? null,

@@ -5,6 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { phoneLookupHash } from '../../common/utils/crypto/phone-hash.util.js';
 
 import { AuthEventModel, DeviceRiskEventModel, IpReputationObservationModel, SimObservationModel } from '../../database/models/index.js';
 import type { RepositoryOptions } from './telemetry-repository-options.js';
@@ -102,7 +103,10 @@ export class TelemetryDeviceSignalsRepository {
         deviceId: values.deviceId,
         customerId: values.customerId,
         sessionId: values.sessionId,
-        phoneNumberHash: typeof values.metadata.phoneNumberHash === 'string' ? values.metadata.phoneNumberHash : null,
+        phoneNumberHash:
+          typeof values.metadata.phoneNumberHash === 'string' && values.metadata.phoneNumberHash.trim()
+            ? phoneLookupHash(values.metadata.phoneNumberHash)
+            : null,
         phoneLast4: typeof values.metadata.phoneLast4 === 'string' ? values.metadata.phoneLast4 : null,
         carrierName: typeof values.metadata.carrierName === 'string' ? values.metadata.carrierName : null,
         simType: typeof values.metadata.simType === 'string' ? values.metadata.simType : null,

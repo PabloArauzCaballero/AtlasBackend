@@ -59,6 +59,7 @@ Sin estas cuatro, `NODE_ENV=production` **no arranca**. Las valida
 |---|---|---|---|
 | `JWT_ACCESS_TOKEN_SECRET` | 🔴 | Generarla (≥32 chars aleatorios) | El arranque falla si es el valor por defecto de desarrollo. Es la clave que firma **todas** las sesiones. |
 | `NOTIFICATION_TOKEN_ENCRYPTION_KEY` | 🔴 | Generarla (≥32 chars, **distinta** de la anterior) | El arranque falla si es la de ejemplo o si coincide con `JWT_ACCESS_TOKEN_SECRET`. Cifra los tokens de dispositivo para push. |
+| `PHONE_HASH_HMAC_KEYS` | 🔴 | `1:` + `openssl rand -hex 32` | El arranque falla sin ella en producción; en DEV/TEST el alta, el login por teléfono y la migración `phone-hashes-to-hmac` fallan sin ella. Clave de las huellas de teléfono (APP-21). Se rota AÑADIENDO `,2:<otra>` (ver `docs/runbooks/rotacion-de-claves.md`). |
 | `REDIS_URL` | 🔴 | Infraestructura | El arranque falla. Sin Redis el rate limiting solo protege por instancia, y la elección de líder del planificador no existe. |
 | `DB_PASSWORD` | 🔴 | Infraestructura / gestor de secretos | Sin credencial no hay base de datos. Debe apuntar al rol `atlas_app_rw`, no al owner. |
 

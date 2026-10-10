@@ -15,6 +15,7 @@ import { StartSessionDto } from '../sessions.schemas.js';
 import { SessionsRepository } from '../sessions.repository.js';
 import { SessionGpsWriterService } from './session-gps-writer.service.js';
 import { decimal, hasLocationPermission, RequestContext, riskFlagsFromSnapshot, toDate } from './sessions.shared.js';
+import { phoneLookupHash } from '../../../common/utils/crypto/phone-hash.util.js';
 
 @Injectable()
 export class SessionStartService {
@@ -163,7 +164,7 @@ export class SessionStartService {
             customerId: input.customerId,
             sessionId: String(session.id),
             deviceId: String(device.id),
-            phoneNumberHash: input.body.simObservation.phoneNumberHash ?? null,
+            phoneNumberHash: input.body.simObservation.phoneNumberHash ? phoneLookupHash(input.body.simObservation.phoneNumberHash) : null,
             phoneLast4: input.body.simObservation.phoneLast4 ?? null,
             carrierName: input.body.simObservation.carrierName ?? null,
             simType: input.body.simObservation.simType ?? null,

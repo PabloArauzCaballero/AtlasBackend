@@ -10,6 +10,7 @@ import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { encryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
 import { hashSensitiveText, lastCharacters } from '../../../common/utils/crypto/hash.util.js';
+import { phoneLookupHashFromPlain } from '../../../common/utils/crypto/phone-hash.util.js';
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { MAXIMUM_REFERENCE_CONTACTS } from '../../customers/customer-eligibility.constants.js';
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
@@ -79,7 +80,7 @@ export class CustomerReferenceContactsService {
 
       const created: string[] = [];
       for (const reference of input.body.references) {
-        const phoneHash = hashSensitiveText(reference.phone);
+        const phoneHash = phoneLookupHashFromPlain(reference.phone);
 
         // El propio teléfono del cliente no puede ser su referencia, y una referencia no se
         // duplica: ambas cosas inflarían artificialmente la señal de contactabilidad.

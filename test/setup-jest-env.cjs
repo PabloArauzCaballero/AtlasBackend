@@ -2,6 +2,8 @@
 process.env.NODE_ENV = 'test';
 process.env.JWT_ACCESS_TOKEN_SECRET ||= 'test-only-atlas-access-token-secret-32chars-minimum';
 process.env.NOTIFICATION_TOKEN_ENCRYPTION_KEY ||= 'test-only-notification-token-key-32chars-minimum';
+// Huellas de teléfono (APP-21): sin clave no se guarda ni se busca un teléfono.
+process.env.PHONE_HASH_HMAC_KEYS ||= '1:test-only-phone-hash-hmac-key-32chars-minimum';
 process.env.NOTIFICATION_EMAIL_PROVIDER ||= 'disabled';
 process.env.NOTIFICATION_PUSH_PROVIDER ||= 'disabled';
 process.env.NOTIFICATION_SMS_PROVIDER ||= 'disabled';
