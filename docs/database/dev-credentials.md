@@ -7,12 +7,12 @@ conjunto que publica la base de semillas de **desarrollo** al traerlo con `yarn 
 arrancar con `DATABASE_SEED_ON_STARTUP=true`), junto con el catálogo de roles y permisos. La base de
 semillas de producción no la publica. Ver [Semillas](seeds.md).
 
-| Campo | Valor |
-|---|---|
-| Email | `DEV_ADMIN_EMAIL` si está definida; si no, `admin@atlas.local` |
+| Campo          | Valor                                                                                                                               |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Email          | `DEV_ADMIN_EMAIL` si está definida; si no, `admin@atlas.local`                                                                      |
 | Password local | `DEV_ADMIN_PASSWORD` si está definida; si no, una **aleatoria generada en tu máquina** que `yarn db:seed:pull` imprime una sola vez |
-| Roles | `SUPER_ADMIN`, `SYSTEMS_ADMIN`, `DATA_GOVERNANCE_MANAGER` |
-| Tenant | `1` |
+| Roles          | `SUPER_ADMIN`, `SYSTEMS_ADMIN`, `DATA_GOVERNANCE_MANAGER`                                                                           |
+| Tenant         | `1`                                                                                                                                 |
 
 Justo después de copiar las filas (y sólo entonces: si `--if-empty` se salta la carga, no se toca
 nada), `applyLocalIdentityOverrides` (`src/database/seed-local-identities.ts`) fija **siempre** el
@@ -21,12 +21,13 @@ el mismo para todos y, por tanto, conocido: no hay hash por defecto que valga. L
 hashea **en tu máquina**, así que ni ella ni su hash entran al repo — la lección de ATLAS-P0-002
 aplicada al hash. Sólo fuera de producción.
 
-Si no definiste `DEV_ADMIN_PASSWORD`, la salida de la siembra trae una línea así (no se guarda en
-ningún archivo; si la pierdes, define la variable y vuelve a traer las semillas):
+Si no definiste `DEV_ADMIN_PASSWORD`, la siembra genera una contraseña y la guarda en un archivo nuevo con
+permisos 600 en el directorio temporal; la salida sólo dice dónde (el valor nunca va a la consola ni a los
+logs). Si lo pierdes, define la variable y vuelve a traer las semillas:
 
 ```text
 Administrador de desarrollo: admin@atlas.local
-Contraseña generada en esta máquina (no se vuelve a mostrar): <24 caracteres>
+Contraseña generada en esta máquina: en /tmp/atlas-dev-admin-<pid>-<instante>.txt (permisos 600)
 ```
 
 ### Apuntar la cuenta a tu correo real
@@ -56,18 +57,18 @@ Esta credencial existe para desarrollo local y pruebas iniciales. No debe usarse
 
 ## Usuarios y registros demo
 
-| Dato | Valor |
-|---|---|
-| Tenant ID | `1` |
-| Tenant code | `atlas-bo-dev` |
-| Customer ID | `1` |
-| Customer code | `CUS-DEMO-001` |
-| Device ID | `1` |
-| Session ID | `1` |
-| Risk assessment run ID | `1` |
-| Manual review case | `MR-DEMO-001` |
-| Fraud case | `FR-DEMO-001` |
-| Consent document ID activo | `1` |
+| Dato                       | Valor          |
+| -------------------------- | -------------- |
+| Tenant ID                  | `1`            |
+| Tenant code                | `atlas-bo-dev` |
+| Customer ID                | `1`            |
+| Customer code              | `CUS-DEMO-001` |
+| Device ID                  | `1`            |
+| Session ID                 | `1`            |
+| Risk assessment run ID     | `1`            |
+| Manual review case         | `MR-DEMO-001`  |
+| Fraud case                 | `FR-DEMO-001`  |
+| Consent document ID activo | `1`            |
 
 ## Login interno de prueba
 

@@ -6,6 +6,7 @@
 import { Client } from 'pg';
 import { env } from '../config/env.js';
 import { upgradeAllPhoneHashes } from './migration-support/phone-hash-columns.js';
+import { saveGeneratedAdminPassword } from './dev-admin-password-file.js';
 import { applyLocalIdentityOverrides } from './seed-local-identities.js';
 import { requireSeedSource } from './seed-source.js';
 import { hasSeedLoad, listSeededTables, syncSeedData } from './seed-sync.js';
@@ -87,9 +88,12 @@ async function commandPull(onlyIfEmpty: boolean): Promise<void> {
           });
 
     if (overrides.generatedAdminPassword) {
-      // Una sola vez y sólo aquí: no se guarda en ningún archivo. Para fijarla, `DEV_ADMIN_PASSWORD` en `.env`.
+      // La contraseña generada NO se imprime: en DEV acabaría en los logs del contenedor (CodeQL
+      // js/clear-text-logging). Va a un archivo nuevo con permisos 600 y sólo se muestra su ruta.
+      // Para fijarla en vez de generarla, `DEV_ADMIN_PASSWORD` en `.env`.
+      const archivo = saveGeneratedAdminPassword(overrides.generatedAdminPassword);
       console.log(
-        `\nAdministrador de desarrollo: ${overrides.adminEmail}\nContraseña generada en esta máquina (no se vuelve a mostrar): ${overrides.generatedAdminPassword}\n`,
+        `\nAdministrador de desarrollo: ${overrides.adminEmail}\nContraseña generada en esta máquina: en ${archivo} (permisos 600)\n`,
       );
     }
 

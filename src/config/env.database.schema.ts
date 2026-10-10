@@ -95,7 +95,7 @@ export const databaseEnvShape = {
 
   // Identidad del SUPER_ADMIN de desarrollo. Ambas son opcionales y solo se leen fuera de
   // producción: sin ellas el correo pasa a `admin@atlas.local` y la contraseña a una aleatoria que la
-  // siembra imprime una vez (el hash que publica la rama es compartido, o sea conocido). Se aplican
+  // siembra guarda en un archivo 600 (nunca en la salida) (el hash que publica la rama es compartido, o sea conocido). Se aplican
   // DESPUÉS de traer las semillas (`src/database/seed-local-identities.ts`).
   //
   // Existen porque la alternativa era peor: para que un desarrollador use su correo real —necesario
