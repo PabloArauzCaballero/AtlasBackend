@@ -19,7 +19,7 @@ const logger = new Logger('MailRecipient');
 /**
  * ¿Se puede entregar de verdad un correo a esta dirección?
  *
- * Los datos de semilla y de demo usan direcciones como `pablo@atlas.internal` o `ana@atlas.test`.
+ * Los datos de semilla y de demo usan direcciones como `admin@atlas.local`, `ops@atlas.internal` o `ana@atlas.test`.
  * Entregarlas al proveedor no es inocuo: el proveedor acepta el envío, intenta resolver el dominio,
  * falla, y devuelve un REBOTE al remitente. Como el remitente es un buzón real, cada uno de esos
  * intentos termina en la bandeja de una persona, y no una vez: los rebotes se reintentan. Es ruido

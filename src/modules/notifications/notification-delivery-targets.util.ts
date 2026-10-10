@@ -3,7 +3,7 @@
  * @business Esta pieza entrega mensajes oportunos y respetuosos de preferencias por canales configurables.
  * @system orquesta reglas, plantillas, audiencias, persistencia y adaptadores multicanal resilientes.
  */
-import { lastCharacters, sha256Hex } from '../../common/utils/crypto/hash.util.js';
+import { lastCharacters } from '../../common/utils/crypto/hash.util.js';
 import { decryptSecretEnvelope, encryptSecretEnvelope } from '../../common/utils/crypto/envelope-encryption.util.js';
 import { DeliveryTarget, NotificationChannel } from './notification-types.js';
 
@@ -14,10 +14,14 @@ import { DeliveryTarget, NotificationChannel } from './notification-types.js';
  * payload del mensaje más el envelope encryption. Concentrarlas aquí evita que la dirección del
  * destinatario en claro se disperse por el repositorio.
  */
+//
+// Sin `addressHash`: hasta 2026-10 se guardaba `sha256(destino)` sin clave, que nadie leía y que para un teléfono
+// boliviano se revierte en segundos (auditoría de seguridad 2026-10-09). La migración
+// `20261010130000-drop-notification-address-hash` lo quita de las filas existentes. Si algún día hace falta
+// deduplicar o auditar por destino, la huella va por `phoneLookupHash` (HMAC con clave del servidor), nunca SHA-256.
 export type StoredDeliveryTarget = {
   kind: DeliveryTarget['kind'];
   addressEncrypted: string;
-  addressHash: string;
   last4: string;
 };
 
@@ -52,7 +56,6 @@ export async function buildEncryptedDeliveryTargets(
     {
       kind: spec.kind,
       addressEncrypted: await encryptSecretEnvelope(address),
-      addressHash: sha256Hex(address),
       last4: lastCharacters(address, 4),
     },
   ];

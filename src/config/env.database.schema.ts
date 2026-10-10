@@ -94,8 +94,9 @@ export const databaseEnvShape = {
   DATABASE_SEED_ON_STARTUP_FAIL_FAST: booleanEnvSchema,
 
   // Identidad del SUPER_ADMIN de desarrollo. Ambas son opcionales y solo se leen fuera de
-  // producción: sin ellas queda el correo y el hash que publica la rama de semillas, que es lo que
-  // espera CI. Se aplican DESPUÉS de traer las semillas (`src/database/seed-local-identities.ts`).
+  // producción: sin ellas el correo pasa a `admin@atlas.local` y la contraseña a una aleatoria que la
+  // siembra guarda en un archivo 600 (nunca en la salida) (el hash que publica la rama es compartido, o sea conocido). Se aplican
+  // DESPUÉS de traer las semillas (`src/database/seed-local-identities.ts`).
   //
   // Existen porque la alternativa era peor: para que un desarrollador use su correo real —necesario
   // si quiere RECIBIR el PIN del segundo factor en una bandeja de verdad— había que reescribir el

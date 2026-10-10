@@ -7,6 +7,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Client } from 'pg';
 import { env } from '../config/env.js';
 import { appRole, runsBackgroundWork } from '../config/app-role.js';
+import { saveGeneratedAdminPassword } from './dev-admin-password-file.js';
 import { applyLocalIdentityOverrides } from './seed-local-identities.js';
 import { resolveSeedSource } from './seed-source.js';
 import { hasSeedLoad, syncSeedData } from './seed-sync.js';
@@ -87,8 +88,12 @@ export class StartupSeedService implements OnApplicationBootstrap {
           adminPassword: env.DEV_ADMIN_PASSWORD,
           partnerPassword: env.DEV_PARTNER_PASSWORD,
         });
-        if (overrides.applied.length > 0) {
-          this.logger.log(`Credenciales locales reaplicadas: ${overrides.applied.join(', ')}.`);
+        this.logger.log(`Credenciales locales reaplicadas: ${overrides.applied.join(', ')}.`);
+        if (overrides.generatedAdminPassword) {
+          // Fuera de producción y sólo tras una carga real. El valor NO va al log (lo leería cualquiera con acceso
+          // a los logs del contenedor): va a un archivo 600 dentro del contenedor. Para fijarla: `DEV_ADMIN_PASSWORD`.
+          const archivo = saveGeneratedAdminPassword(overrides.generatedAdminPassword);
+          this.logger.warn(`Administrador de desarrollo ${overrides.adminEmail}: contraseña generada en ${archivo} (permisos 600).`);
         }
       }
 
