@@ -17,7 +17,7 @@ import { DeliveryTarget, NotificationChannel } from './notification-types.js';
 //
 // Sin `addressHash`: hasta 2026-10 se guardaba `sha256(destino)` sin clave, que nadie leía y que para un teléfono
 // boliviano se revierte en segundos (auditoría de seguridad 2026-10-09). La migración
-// `20261010120000-drop-notification-address-hash` lo quita de las filas existentes. Si algún día hace falta
+// `20261010130000-drop-notification-address-hash` lo quita de las filas existentes. Si algún día hace falta
 // deduplicar o auditar por destino, la huella va por `phoneLookupHash` (HMAC con clave del servidor), nunca SHA-256.
 export type StoredDeliveryTarget = {
   kind: DeliveryTarget['kind'];
