@@ -29,6 +29,10 @@ export class AuthRefreshTokenModel extends Model {
   @Column({ field: 'expires_at', type: DataType.DATE, allowNull: false })
   declare expiresAt: Date;
 
+  /** Inicio de sesión con credenciales de la familia de tokens; la rotación lo hereda. Mide el tope absoluto del cliente. */
+  @Column({ field: 'session_started_at', type: DataType.DATE })
+  declare sessionStartedAt: Date | null;
+
   @Column({ field: 'revoked_at', type: DataType.DATE })
   declare revokedAt: Date | null;
 

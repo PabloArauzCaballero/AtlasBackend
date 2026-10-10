@@ -198,11 +198,14 @@ describe('AuthRepository', () => {
         actorId: '10',
         tokenHash: 'th',
         expiresAt: new Date(),
+        sessionStartedAt: new Date('2026-10-10T08:00:00Z'),
         userAgent: null,
         ipAddress: null,
       });
       const [values] = (models.refreshToken.create as jest.Mock).mock.calls[0];
       expect(values).toMatchObject({ tokenHash: 'th', revokedAt: null, replacedByTokenId: null });
+      // El inicio de sesión de la familia se guarda tal cual: es lo que mide el tope absoluto del cliente.
+      expect(values).toMatchObject({ sessionStartedAt: new Date('2026-10-10T08:00:00Z') });
     });
 
     it('findRefreshTokenForUpdate bloquea la fila con FOR UPDATE y no filtra por revokedAt', async () => {

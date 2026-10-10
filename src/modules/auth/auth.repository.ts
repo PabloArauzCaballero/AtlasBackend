@@ -154,6 +154,7 @@ export class AuthRepository {
       actorId: string;
       tokenHash: string;
       expiresAt: Date;
+      sessionStartedAt: Date;
       userAgent: string | null;
       ipAddress: string | null;
     },
@@ -167,6 +168,7 @@ export class AuthRepository {
         tokenHash: input.tokenHash,
         issuedAt: new Date(),
         expiresAt: input.expiresAt,
+        sessionStartedAt: input.sessionStartedAt,
         revokedAt: null,
         revokedReason: null,
         replacedByTokenId: null,

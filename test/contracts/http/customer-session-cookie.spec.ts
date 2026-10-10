@@ -203,6 +203,26 @@ describe('APP-02 · sesión del cliente en modo cookie', () => {
       for (const cookie of set) expect(cookie).toMatch(/Expires=Thu, 01 Jan 1970|Max-Age=0/i);
     });
 
+    it('sesión pasada de su tope absoluto: 401 SESSION_EXPIRED y la cookie se borra en las dos rutas', async () => {
+      auth.refresh.mockImplementationOnce(async () => {
+        throw new UnauthorizedException({ code: 'SESSION_EXPIRED', message: 'La sesión superó su duración máxima.' });
+      });
+      const response = await cookieMode(post('/auth/refresh')).set('Cookie', `${CUSTOMER_REFRESH_COOKIE}=${OLD_REFRESH}`).send({});
+      expect(response.status).toBe(401);
+      expect(response.body).toMatchObject({ code: 'SESSION_EXPIRED' });
+      const set = refreshCookies(response);
+      expect(set.map((cookie) => /Path=([^;]+)/i.exec(cookie)?.[1]).sort()).toEqual(customerRefreshCookiePaths().sort());
+      for (const cookie of set) expect(cookie).toMatch(/Expires=Thu, 01 Jan 1970|Max-Age=0/i);
+    });
+
+    it('la cookie no sobrevive al tope de la sesión: Max-Age de como mucho esas horas', async () => {
+      const response = await cookieMode(post('/auth/refresh')).set('Cookie', `${CUSTOMER_REFRESH_COOKIE}=${OLD_REFRESH}`).send({});
+      for (const cookie of refreshCookies(response)) {
+        const maxAge = Number(/Max-Age=(\d+)/i.exec(cookie)?.[1]);
+        expect(maxAge).toBeLessThanOrEqual(env.AUTH_CUSTOMER_SESSION_ABSOLUTE_MAX_HOURS * 3600);
+      }
+    });
+
     it('CSRF: sin Origin, o con un Origin ajeno, el refresh se rechaza (403) sin tocar el token', async () => {
       const sinOrigin = await post('/auth/refresh')
         .set(SESSION_MODE_HEADER, 'cookie')

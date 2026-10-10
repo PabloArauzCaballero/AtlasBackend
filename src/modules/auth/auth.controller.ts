@@ -179,7 +179,10 @@ export class AuthController {
   })
   @ApiBody({ schema: zodToApiSchema(refreshSchema) })
   @ApiResponse({ status: 200, description: 'Rotación exitosa — nuevo access token + refresh token.' })
-  @ApiResponse({ status: 401, description: 'Refresh token inválido, expirado, o el actor asociado ya no está disponible.' })
+  @ApiResponse({
+    status: 401,
+    description: 'Refresh token inválido o expirado, o actor no disponible. `SESSION_EXPIRED`: tope de 8 h del cliente.',
+  })
   @sesionWeb.ApiCustomerSessionMode()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
