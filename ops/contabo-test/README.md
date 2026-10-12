@@ -104,6 +104,8 @@ Host: RAM disponible < 2 GB · disco ≥ 85 % y ≥ 90 % · caché de build > 15
 contenedor de Atlas al > 90 % de su límite o reiniciándose.
 Servicio: principal en marcha pero no sana · respaldo no sano · bloque de red DOWN · herramienta crítica
 caída · 5xx > 2 % o p95 > 2 s en 15 min.
+Extremo a extremo (`monitor/sondas.sh`, cada 2 min, mirando el cuerpo y no el código): contenido de la app en DEV
+por el enlace público, contenido de la app en TEST y la web de la app en TEST; avisa tras 2 lecturas malas seguidas.
 Negocio y datos: proveedor externo < 80 % de éxito · desenlaces agotados al Motor · cola de revisión con casos
 de más de 24 h · outbox creciendo · copia de bases con más de 7 h.
 

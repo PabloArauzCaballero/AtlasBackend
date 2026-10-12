@@ -245,6 +245,7 @@ chequeo copia "$([ "$edad_h" -lt 0 ] || [ "$edad_h" -ge 7 ] && echo 1 || echo 0)
   "COPIA DE BASES: la última copia buena tiene ${edad_h} h (debe ser cada 6 h). Mirar journalctl -u atlas-respaldo-datos." \
   "la copia de bases vuelve a estar al día."
 
+[ -f "$DIR/sondas.sh" ] && . "$DIR/sondas.sh"   # sondas de extremo a extremo (ver sondas.sh)
 # --- 6. Puerta SSH (ver ssh.sh) ---------------------------------------------------------------
 command -v vigilar_ssh >/dev/null && vigilar_ssh
 
