@@ -21,7 +21,7 @@ import { RepositoryOptions, upsertByCode } from './catalog-repository.helpers.js
  * propósitos de privacidad, políticas de retención, proveedores de datos, políticas de
  * clasificación, reglas de campos sensibles y reglas de calidad de datos. Toca EXCLUSIVAMENTE las 6
  * tablas de su agregado — no tiene acceso al resto del esquema de catálogo, riesgo o auditoría.
- * `CatalogManagementRepository` delega en este repo para mantener su API pública.
+ * Los servicios de aplicación lo inyectan directamente.
  */
 @Injectable()
 export class CatalogDataGovernanceRepository {

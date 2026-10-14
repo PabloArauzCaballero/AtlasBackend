@@ -21,7 +21,7 @@ import { DefinitionsQueryDto } from './catalog-management.schemas.js';
  * Repositorio del agregado de DEFINICIONES de catalog-management (Fase 2.3 del plan 10/10): el
  * catálogo de definiciones de observaciones, eventos, atributos y features. Toca EXCLUSIVAMENTE sus
  * 4 tablas de definición — sin acceso al resto del esquema de catálogo, riesgo, gobierno o
- * auditoría. `CatalogManagementRepository` delega en este repo para conservar su API pública.
+ * auditoría. Los servicios de aplicación lo inyectan directamente.
  */
 @Injectable()
 export class CatalogDefinitionsRepository {

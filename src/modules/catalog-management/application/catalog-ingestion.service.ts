@@ -8,7 +8,9 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
-import { CatalogManagementRepository } from '../catalog-management.repository.js';
+import { CatalogAuditRepository } from '../catalog-audit.repository.js';
+import { CatalogVersionsRepository } from '../catalog-versions.repository.js';
+import { CatalogIngestionRepository } from '../catalog-ingestion.repository.js';
 import { CatalogIngestionDto, StagingDecisionBatchDto } from '../catalog-management.schemas.js';
 import {
   actorPlatformUserId,
@@ -22,24 +24,26 @@ import {
 @Injectable()
 export class CatalogIngestionService {
   constructor(
-    private readonly repository: CatalogManagementRepository,
+    private readonly audit: CatalogAuditRepository,
+    private readonly versions: CatalogVersionsRepository,
+    private readonly ingestion: CatalogIngestionRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
   async ingestCatalog(input: { body: CatalogIngestionDto; currentUser: AuthenticatedUser; context: RequestContext }) {
     assertInternal(input.currentUser);
     requireIdempotency(input.context);
-    const catalog = await this.repository.findCatalogByCode(input.body.catalogCode);
+    const catalog = await this.versions.findCatalogByCode(input.body.catalogCode);
     if (!catalog) throw new NotFoundException('Catálogo no encontrado.');
     const now = new Date();
     return this.sequelize.transaction(async (transaction) => {
       const sourceCode = input.body.sourceCode ?? `manual_${sha256Hex(input.body.sourceName).slice(0, 16)}`;
-      let source = await this.repository.findSourceByCode(sourceCode, { transaction });
-      source ??= await this.repository.createSource(
+      let source = await this.versions.findSourceByCode(sourceCode, { transaction });
+      source ??= await this.versions.createSource(
         { sourceCode, sourceName: input.body.sourceName, sourceType: input.body.sourceType, now },
         { transaction },
       );
-      const job = await this.repository.createIngestionJob(
+      const job = await this.ingestion.createIngestionJob(
         {
           jobCode: `ing_${Date.now()}_${sha256Hex(input.body.catalogCode).slice(0, 8)}`,
           sourceType: input.body.sourceType,
@@ -53,7 +57,7 @@ export class CatalogIngestionService {
         { transaction },
       );
       for (const item of input.body.items) {
-        await this.repository.createStagingItem(
+        await this.ingestion.createStagingItem(
           {
             catalogId: String(catalog.id),
             ingestionJobId: String(job.id),
@@ -73,7 +77,7 @@ export class CatalogIngestionService {
           { transaction },
         );
       }
-      await this.repository.createAudit(
+      await this.audit.createAudit(
         {
           ...auditBase(input.context, input.currentUser),
           actionCode: 'catalog.ingestion.create',
@@ -84,7 +88,7 @@ export class CatalogIngestionService {
         },
         { transaction },
       );
-      await this.repository.createDataChange(
+      await this.audit.createDataChange(
         {
           tenantId: input.context.tenantId,
           tableName: 'context_ingestion_jobs',
@@ -106,7 +110,7 @@ export class CatalogIngestionService {
   async decideStagingItems(input: { body: StagingDecisionBatchDto; currentUser: AuthenticatedUser; context: RequestContext }) {
     assertInternal(input.currentUser);
     requireIdempotency(input.context);
-    const targetVersion = await this.repository.findCatalogVersionById(input.body.targetCatalogVersionId);
+    const targetVersion = await this.versions.findCatalogVersionById(input.body.targetCatalogVersionId);
     if (!targetVersion) throw new NotFoundException('Versión destino no encontrada.');
     if (!['draft', 'pending_approval'].includes(targetVersion.status ?? ''))
       throw new UnprocessableEntityException('TARGET_VERSION_NOT_EDITABLE');
@@ -116,7 +120,7 @@ export class CatalogIngestionService {
       let rejected = 0;
       let itemsCreated = 0;
       for (const decision of input.body.decisions) {
-        const staging = await this.repository.findStagingItemById(decision.stagingItemId, { transaction });
+        const staging = await this.ingestion.findStagingItemById(decision.stagingItemId, { transaction });
         if (!staging) throw new NotFoundException(`Staging item ${decision.stagingItemId} no encontrado.`);
         if (String(staging.catalogId) !== String(targetVersion.catalogId)) {
           throw new UnprocessableEntityException(
@@ -134,7 +138,7 @@ export class CatalogIngestionService {
           const itemName = decision.itemName ?? staging.proposedItemName;
           const itemType = decision.itemType ?? String(staging.proposedAttributesJson?.itemType ?? 'catalog_item');
           if (!itemCode || !itemName) throw new UnprocessableEntityException('APPROVED_STAGING_ITEM_REQUIRES_ITEM_CODE_AND_NAME');
-          const item = await this.repository.createContextItem(
+          const item = await this.versions.createContextItem(
             {
               catalogVersionId: input.body.targetCatalogVersionId,
               itemCode,
@@ -149,7 +153,7 @@ export class CatalogIngestionService {
           );
           itemsCreated += 1;
           for (const alias of decision.aliases) {
-            await this.repository.createAlias(
+            await this.versions.createAlias(
               {
                 contextItemId: String(item.id),
                 aliasValue: alias.aliasValue,
@@ -162,7 +166,7 @@ export class CatalogIngestionService {
             );
           }
           for (const mapping of decision.riskMappings) {
-            await this.repository.createRiskMapping(
+            await this.versions.createRiskMapping(
               {
                 contextItemId: String(item.id),
                 riskDimension: mapping.riskDimension,
@@ -178,20 +182,20 @@ export class CatalogIngestionService {
               { transaction },
             );
           }
-          await this.repository.updateStagingItemDecision(
+          await this.ingestion.updateStagingItemDecision(
             staging,
             { reviewStatus: 'approved', reviewNotes: decision.decisionReason, now },
             { transaction },
           );
         } else {
           rejected += 1;
-          await this.repository.updateStagingItemDecision(
+          await this.ingestion.updateStagingItemDecision(
             staging,
             { reviewStatus: 'rejected', reviewNotes: decision.decisionReason, now },
             { transaction },
           );
         }
-        await this.repository.createApprovalEvent(
+        await this.versions.createApprovalEvent(
           {
             stagingItemId: decision.stagingItemId,
             catalogVersionId: input.body.targetCatalogVersionId,
@@ -203,7 +207,7 @@ export class CatalogIngestionService {
           { transaction },
         );
       }
-      await this.repository.createAudit(
+      await this.audit.createAudit(
         {
           ...auditBase(input.context, input.currentUser),
           actionCode: 'catalog.staging.decision_batch',

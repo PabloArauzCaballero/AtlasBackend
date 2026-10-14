@@ -30,7 +30,7 @@ describe('CatalogVersionWorkflowService', () => {
       updateCatalogVersionStatus: jest.fn(),
     };
     const sequelize = { transaction: buildTransactionMock() };
-    const service = new CatalogVersionWorkflowService(repository as never, sequelize as never);
+    const service = new CatalogVersionWorkflowService(repository as never, repository as never, sequelize as never);
     return { service, repository, sequelize };
   }
 

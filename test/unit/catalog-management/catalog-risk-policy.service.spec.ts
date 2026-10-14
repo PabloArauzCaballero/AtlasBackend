@@ -29,7 +29,7 @@ describe('CatalogRiskPolicyService', () => {
       activateRuleset: jest.fn(),
     };
     const sequelize = { transaction: buildTransactionMock() };
-    const service = new CatalogRiskPolicyService(repository as never, sequelize as never);
+    const service = new CatalogRiskPolicyService(repository as never, repository as never, sequelize as never);
     return { service, repository };
   }
 

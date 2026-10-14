@@ -43,7 +43,9 @@ import { CatalogManagementController } from './catalog-management.controller.js'
 import { CatalogDataGovernanceRepository } from './catalog-data-governance.repository.js';
 import { CatalogDefinitionsRepository } from './catalog-definitions.repository.js';
 import { CatalogRiskPolicyRepository } from './catalog-risk-policy.repository.js';
-import { CatalogManagementRepository } from './catalog-management.repository.js';
+import { CatalogAuditRepository } from './catalog-audit.repository.js';
+import { CatalogIngestionRepository } from './catalog-ingestion.repository.js';
+import { CatalogVersionsRepository } from './catalog-versions.repository.js';
 import { CatalogStagingReadService } from './application/catalog-staging-read.service.js';
 import { CatalogManagementService } from './catalog-management.service.js';
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
@@ -93,7 +95,9 @@ import { InternalUsersModule } from '../internal-users/internal-users.module.js'
     CatalogDataGovernanceRepository,
     CatalogDefinitionsRepository,
     CatalogRiskPolicyRepository,
-    CatalogManagementRepository,
+    CatalogAuditRepository,
+    CatalogIngestionRepository,
+    CatalogVersionsRepository,
   ],
 })
 export class CatalogManagementModule {}

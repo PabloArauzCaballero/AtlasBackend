@@ -9,7 +9,8 @@ import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { buildPaginationMeta } from '../../../common/utils/pagination/pagination.util.js';
 import { definitionDtos } from '../catalog-management.mapper.js';
-import { CatalogManagementRepository } from '../catalog-management.repository.js';
+import { CatalogAuditRepository } from '../catalog-audit.repository.js';
+import { CatalogDefinitionsRepository } from '../catalog-definitions.repository.js';
 import { DefinitionsPackageDto, DefinitionsQueryDto } from '../catalog-management.schemas.js';
 import { actorPlatformUserId, assertInternal, auditBase, RequestContext, requireIdempotency } from './catalog-management.shared.js';
 import {
@@ -22,7 +23,8 @@ import {
 @Injectable()
 export class CatalogDefinitionsService {
   constructor(
-    private readonly repository: CatalogManagementRepository,
+    private readonly audit: CatalogAuditRepository,
+    private readonly definitions: CatalogDefinitionsRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -33,7 +35,7 @@ export class CatalogDefinitionsService {
    */
   async listDefinitions(input: { query: DefinitionsQueryDto; currentUser: AuthenticatedUser }) {
     assertInternal(input.currentUser);
-    const page = await this.repository.listDefinitions(input.query);
+    const page = await this.definitions.listDefinitions(input.query);
     const total = page.counts.events + page.counts.observations + page.counts.attributes + page.counts.features;
     return {
       ...definitionDtos(page),
@@ -53,16 +55,16 @@ export class CatalogDefinitionsService {
       // La traducción DTO -> fila vive en `catalog-definition-rows.mapper.ts`. Aquí queda lo que es
       // competencia de este servicio: el orden de escritura, la transacción y la auditoría.
       for (const item of definitions.events) {
-        await this.repository.upsertEventDefinition(toEventDefinitionRow(item, domain, at), { transaction });
+        await this.definitions.upsertEventDefinition(toEventDefinitionRow(item, domain, at), { transaction });
       }
       for (const item of definitions.observations) {
-        await this.repository.upsertObservationDefinition(toObservationDefinitionRow(item, domain, at), { transaction });
+        await this.definitions.upsertObservationDefinition(toObservationDefinitionRow(item, domain, at), { transaction });
       }
       for (const item of definitions.attributes) {
-        await this.repository.upsertAttributeDefinition(toAttributeDefinitionRow(item, domain, at), { transaction });
+        await this.definitions.upsertAttributeDefinition(toAttributeDefinitionRow(item, domain, at), { transaction });
       }
       for (const item of definitions.features) {
-        await this.repository.upsertFeatureDefinition(toFeatureDefinitionRow(item, domain, at), { transaction });
+        await this.definitions.upsertFeatureDefinition(toFeatureDefinitionRow(item, domain, at), { transaction });
       }
 
       const processed = {
@@ -72,7 +74,7 @@ export class CatalogDefinitionsService {
         features: definitions.features.length,
       };
 
-      await this.repository.createAudit(
+      await this.audit.createAudit(
         {
           ...auditBase(input.context, input.currentUser),
           actionCode: 'definitions.package.upsert',
@@ -83,7 +85,7 @@ export class CatalogDefinitionsService {
         },
         { transaction },
       );
-      await this.repository.createDataChange(
+      await this.audit.createDataChange(
         {
           tenantId: input.context.tenantId,
           tableName: 'definitions',
