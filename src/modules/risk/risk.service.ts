@@ -17,7 +17,7 @@ import {
   openAssessmentRun,
   openManualReviewCase,
   recordDecisionEvidence,
-  type AssessmentSubject,
+  toAssessmentSubject,
 } from './application/risk-assessment-persistence.js';
 import { assertOwnDeviceReferences } from './application/risk-device-ownership.js';
 import { resolveModelIdentity } from './application/risk-model-identity.js';
@@ -27,36 +27,15 @@ import { toPolicyFeatures } from './application/risk-policy-features.js';
 import { buildHeuristicFallback, computeHeuristicScores, toPersistedFeatureMap } from './application/risk-heuristic-scoring.js';
 import { RiskAssessmentResultResponseDto } from './risk.dtos.js';
 import { toRiskAssessmentResultResponse } from './risk.mapper.js';
-import { RiskRepository } from './risk.repository.js';
+import { RiskAssessmentRepository } from './repositories/risk-assessment.repository.js';
+import { RiskAuditRepository } from './repositories/risk-audit.repository.js';
+import { RiskCustomerFactsRepository } from './repositories/risk-customer-facts.repository.js';
+import { RiskFeatureEvidenceRepository } from './repositories/risk-feature-evidence.repository.js';
 import { RevisionManualRepository } from './repositories/revision-manual.repository.js';
 import { CreateRiskAssessmentDto } from './risk.schemas.js';
 
 function toScore(value: number): string {
   return Math.max(0, Math.min(100, value)).toFixed(2);
-}
-
-/**
- * A quién y en qué contexto se está evaluando.
- *
- * Se arma una sola vez y viaja completo a cada escritura: la corrida, el snapshot y el resultado
- * comparten esta identidad, y construirla por separado en cada sitio es como una fila acaba
- * apuntando a una sesión y su vecina a ninguna.
- */
-function toAssessmentSubject(input: {
-  tenantId: string;
-  customerId: string;
-  body: CreateRiskAssessmentDto;
-  idempotencyKey: string;
-}): AssessmentSubject {
-  return {
-    tenantId: input.tenantId,
-    customerId: input.customerId,
-    sessionId: input.body.sessionId ?? null,
-    deviceId: input.body.deviceId ?? null,
-    assessmentType: input.body.assessmentType,
-    channel: input.body.channel,
-    idempotencyKey: input.idempotencyKey,
-  };
 }
 
 /**
@@ -96,7 +75,10 @@ function dimensionScoreColumns(scores: ReturnType<typeof computeHeuristicScores>
 @Injectable()
 export class RiskService {
   constructor(
-    private readonly riskRepository: RiskRepository,
+    private readonly assessmentRepository: RiskAssessmentRepository,
+    private readonly evidenceRepository: RiskFeatureEvidenceRepository,
+    private readonly customerFactsRepository: RiskCustomerFactsRepository,
+    private readonly auditRepository: RiskAuditRepository,
     // El caso de revisión y la incidencia de dato faltante viven en su propio puerto: no leen nada
     // del modelo de riesgo, sólo abren el trabajo humano que la evaluación dejó pendiente.
     private readonly revisionManualRepository: RevisionManualRepository,
@@ -107,7 +89,7 @@ export class RiskService {
     @Optional() @Inject(RISK_INPUT_FACTS_PORT) inputFacts?: RiskInputFactsPort,
   ) {
     // Construcción a mano (pruebas, scripts): el adaptador local sobre los mismos repositorios.
-    this.inputFacts = inputFacts ?? new LocalRiskInputFactsAdapter(this.customersRepository, this.riskRepository);
+    this.inputFacts = inputFacts ?? new LocalRiskInputFactsAdapter(this.customersRepository, this.customerFactsRepository);
   }
 
   private readonly inputFacts: RiskInputFactsPort;
@@ -124,7 +106,7 @@ export class RiskService {
       throw new NotFoundException('Cliente no encontrado.');
     }
 
-    const result = await this.riskRepository.findLatestCustomerRiskResult(input.tenantId, input.customerId);
+    const result = await this.assessmentRepository.findLatestCustomerRiskResult(input.tenantId, input.customerId);
     return result ? toRiskAssessmentResultResponse(result) : null;
   }
 
@@ -164,7 +146,7 @@ export class RiskService {
   }) {
     if (!input.idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
     assertOwnCustomerResource(input.currentUser, input.customerId);
-    await assertOwnDeviceReferences(this.riskRepository, input);
+    await assertOwnDeviceReferences(this.customerFactsRepository, input);
 
     const now = this.clock.now();
     const { hasGrantedConsent, hasIdentity, verifiedContactCount, scores } = await this.gatherRiskSignals(input);
@@ -190,7 +172,7 @@ export class RiskService {
       const featureMap = toPersistedFeatureMap(scores, { hasGrantedConsent, verifiedContactCount, hasIdentity });
       const subject = toAssessmentSubject(input);
       const { run, snapshot } = await openAssessmentRun({
-        repository: this.riskRepository,
+        repositories: { assessments: this.assessmentRepository, evidence: this.evidenceRepository },
         subject,
         featureMap,
         missing,
@@ -202,7 +184,7 @@ export class RiskService {
       });
 
       await recordDecisionEvidence({
-        repository: this.riskRepository,
+        repository: this.assessmentRepository,
         tenantId: input.tenantId,
         runId: String(run.id),
         reasons,
@@ -214,7 +196,7 @@ export class RiskService {
         transaction,
       });
 
-      const result = await this.riskRepository.createRiskResult(
+      const result = await this.assessmentRepository.createRiskResult(
         {
           ...subject,
           runId: String(run.id),
@@ -248,7 +230,7 @@ export class RiskService {
         transaction,
       });
 
-      await this.riskRepository.createAudit(
+      await this.auditRepository.createAudit(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,
@@ -279,11 +261,11 @@ export class RiskService {
 
   async getRiskAssessmentDetail(tenantId: string, runId: string) {
     const [run, result, rules, contributions, snapshot] = await Promise.all([
-      this.riskRepository.findRiskRun(tenantId, runId),
-      this.riskRepository.findRiskResultByRun(tenantId, runId),
-      this.riskRepository.findRulesByRun(tenantId, runId),
-      this.riskRepository.findContributionsByRun(tenantId, runId),
-      this.riskRepository.findSnapshotByRun(tenantId, runId),
+      this.assessmentRepository.findRiskRun(tenantId, runId),
+      this.assessmentRepository.findRiskResultByRun(tenantId, runId),
+      this.assessmentRepository.findRulesByRun(tenantId, runId),
+      this.assessmentRepository.findContributionsByRun(tenantId, runId),
+      this.evidenceRepository.findSnapshotByRun(tenantId, runId),
     ]);
     if (!run) throw new NotFoundException('Evaluación de riesgo no encontrada.');
     return {

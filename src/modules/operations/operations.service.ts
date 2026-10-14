@@ -14,7 +14,7 @@ import { CustomerContactsSnapshotService } from '../customer-onboarding/applicat
 import { CustomerLifecycleStatus } from '../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
-import { RiskRepository } from '../risk/risk.repository.js';
+import { RiskAssessmentRepository } from '../risk/repositories/risk-assessment.repository.js';
 import { InvestigationSummaryResponseDto } from './operations.dtos.js';
 import { toInvestigationSummaryResponse } from './operations.mapper.js';
 import { OperationsRepository } from './operations.repository.js';
@@ -29,7 +29,7 @@ export class OperationsService {
     private readonly operationsRepository: OperationsRepository,
     private readonly customersRepository: CustomersRepository,
     private readonly customerContactsRepository: CustomerContactsRepository,
-    private readonly riskRepository: RiskRepository,
+    private readonly riskAssessmentRepository: RiskAssessmentRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     /*
      * La agenda del cliente la calcula y la guarda el módulo de ALTA, y de ahí se
@@ -55,7 +55,7 @@ export class OperationsService {
         this.customersRepository.findCurrentProfile(tenantId, params.customerId),
         this.customerContactsRepository.findContactMethods(tenantId, params.customerId),
         this.customersRepository.findCustomerConsents(tenantId, params.customerId),
-        this.riskRepository.findLatestCustomerRiskResult(tenantId, params.customerId),
+        this.riskAssessmentRepository.findLatestCustomerRiskResult(tenantId, params.customerId),
         this.operationsRepository.findOpenManualReviewCasesForCustomer(tenantId, params.customerId),
         this.operationsRepository.findFraudCasesForCustomer(tenantId, params.customerId),
         this.operationsRepository.findLatestIdentityAttempt(tenantId, params.customerId),
@@ -210,8 +210,12 @@ export class OperationsService {
     if (!riskAssessmentRunId) return;
     const recommendedAction = body.decision === 'approved' ? 'approved_for_next_step' : body.decision === 'rejected' ? 'rejected' : null;
     if (!recommendedAction) return;
-    const result = await this.riskRepository.findRiskResultByRun(tenantId, riskAssessmentRunId);
+    const result = await this.riskAssessmentRepository.findRiskResultByRun(tenantId, riskAssessmentRunId);
     if (!result) return;
-    await this.riskRepository.applyManualReviewOutcome(result, { recommendedAction, reason: body.reasonCode, now }, { transaction });
+    await this.riskAssessmentRepository.applyManualReviewOutcome(
+      result,
+      { recommendedAction, reason: body.reasonCode, now },
+      { transaction },
+    );
   }
 }

@@ -13,7 +13,7 @@ import { CreateRiskAssessmentDto } from '../../../src/modules/risk/risk.schemas.
  * `PROMPT_MASTER_ATLAS.md` prohíbe tratar como caja negra. No tenía ningún test propio antes de
  * este flujo.
  *
- * Se mockea `RiskRepository` y `CustomersRepository` por completo (no hay Postgres real en el
+ * Se mockea los repositorios de riesgo (un mock único los cubre) y `CustomersRepository` por completo (no hay Postgres real en el
  * test unitario) y `sequelize.transaction` se resuelve invocando
  * directamente el callback — foco en la LÓGICA DE DECISIÓN (scores, reason codes, resultado),
  * no en el mapeo objeto-relacional, que es responsabilidad de un test de integración contra una
@@ -124,7 +124,10 @@ describe('RiskService.getLatestCustomerRiskResult', () => {
     const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
@@ -141,7 +144,10 @@ describe('RiskService.getLatestCustomerRiskResult', () => {
     const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock(null);
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
@@ -159,7 +165,10 @@ describe('RiskService.getLatestCustomerRiskResult', () => {
     riskRepository.findLatestCustomerRiskResult.mockResolvedValueOnce(null);
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
@@ -182,7 +191,10 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
@@ -206,7 +218,10 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock({ lifecycleStatus: 'blocked' });
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
@@ -230,7 +245,10 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     riskRepository.findCustomerConsents.mockResolvedValueOnce([{ granted: true, revokedAt: new Date() }]); // revocado
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
@@ -253,7 +271,10 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     const revisionManualRepository = buildRevisionManualRepositoryMock(); // identidad + contacto verificado por defecto
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock(POLITICA_APRUEBA) as never,
@@ -289,7 +310,10 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
       const riskRepository = buildRiskRepositoryMock();
       riskRepository.findOwnedDeviceReferences.mockResolvedValue(owned);
       const service = new RiskService(
-        riskRepository as never,
+        riskRepository as never, // evaluaciones
+        riskRepository as never, // evidencia de features
+        riskRepository as never, // hechos del cliente
+        riskRepository as never, // auditoría
         buildRevisionManualRepositoryMock() as never,
         buildCustomersRepositoryMock() as never,
         buildPolicyDecisionServiceMock(POLITICA_APRUEBA) as never,
@@ -315,7 +339,10 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
@@ -346,7 +373,10 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     riskRepository.findCustomerContacts.mockResolvedValueOnce([{ status: 'pending' }]); // sin contacto verificado
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
@@ -374,7 +404,10 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock(POLITICA_APRUEBA) as never,
@@ -397,7 +430,10 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
@@ -420,7 +456,10 @@ describe('RiskService.createRiskAssessment — reglas de decisión', () => {
     const revisionManualRepository = buildRevisionManualRepositoryMock();
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
@@ -449,7 +488,10 @@ describe('RiskService.getRiskAssessmentExplanation', () => {
     riskRepository.findRiskRun.mockResolvedValueOnce(null);
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
@@ -471,7 +513,10 @@ describe('RiskService.getRiskAssessmentExplanation', () => {
     ]);
     const customersRepository = buildCustomersRepositoryMock();
     const service = new RiskService(
-      riskRepository as never,
+      riskRepository as never, // evaluaciones
+      riskRepository as never, // evidencia de features
+      riskRepository as never, // hechos del cliente
+      riskRepository as never, // auditoría
       revisionManualRepository as never,
       customersRepository as never,
       buildPolicyDecisionServiceMock() as never,
