@@ -23,7 +23,7 @@ describe('CatalogDataGovernanceService', () => {
       createDataChange: jest.fn(),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-    const service = new CatalogDataGovernanceService(repository as never, sequelize as never);
+    const service = new CatalogDataGovernanceService(repository as never, repository as never, sequelize as never);
     return { service, repository };
   }
 

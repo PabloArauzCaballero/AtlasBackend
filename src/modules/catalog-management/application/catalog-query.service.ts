@@ -7,13 +7,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { buildPaginationMeta } from '../../../common/utils/pagination/pagination.util.js';
 import { catalogDto, catalogVersionDto, contextItemDto } from '../catalog-management.mapper.js';
-import { CatalogManagementRepository } from '../catalog-management.repository.js';
+import { CatalogVersionsRepository } from '../catalog-versions.repository.js';
 import { ListCatalogsQueryDto } from '../catalog-management.schemas.js';
 import { assertInternal } from './catalog-management.shared.js';
 
 @Injectable()
 export class CatalogQueryService {
-  constructor(private readonly repository: CatalogManagementRepository) {}
+  constructor(private readonly versions: CatalogVersionsRepository) {}
 
   /**
    * El estado de versión ya lo filtra la consulta (contra la versión más reciente, en SQL); aquí sólo
@@ -21,10 +21,10 @@ export class CatalogQueryService {
    */
   async listCatalogs(input: { query: ListCatalogsQueryDto; currentUser: AuthenticatedUser }) {
     assertInternal(input.currentUser);
-    const page = await this.repository.listCatalogs(input.query);
+    const page = await this.versions.listCatalogs(input.query);
     // Batch: una sola query trae la última versión de TODOS los catálogos de la página, en vez de un
     // `findLatestVersion` por catálogo (N+1).
-    const latestVersionsByCatalogId = await this.repository.findLatestVersionsByCatalogIds(page.rows.map((catalog) => String(catalog.id)));
+    const latestVersionsByCatalogId = await this.versions.findLatestVersionsByCatalogIds(page.rows.map((catalog) => String(catalog.id)));
     return {
       items: page.rows.map((catalog) => catalogDto(catalog, latestVersionsByCatalogId.get(String(catalog.id)) ?? null)),
       meta: buildPaginationMeta({ page: input.query.page, limit: input.query.limit }, page.total),
@@ -34,15 +34,15 @@ export class CatalogQueryService {
 
   async getCatalogVersion(input: { catalogCode: string; versionId: string; currentUser: AuthenticatedUser }) {
     assertInternal(input.currentUser);
-    const catalog = await this.repository.findCatalogByCode(input.catalogCode);
+    const catalog = await this.versions.findCatalogByCode(input.catalogCode);
     if (!catalog) throw new NotFoundException('Catálogo no encontrado.');
-    const version = await this.repository.findCatalogVersion(String(catalog.id), input.versionId);
+    const version = await this.versions.findCatalogVersion(String(catalog.id), input.versionId);
     if (!version) throw new NotFoundException('Versión de catálogo no encontrada.');
-    const items = await this.repository.findItemsByVersion(String(version.id));
+    const items = await this.versions.findItemsByVersion(String(version.id));
     const itemIds = items.map((item) => String(item.id));
     const [aliases, mappings] = await Promise.all([
-      this.repository.findAliasesByItemIds(itemIds),
-      this.repository.findRiskMappingsByItemIds(itemIds),
+      this.versions.findAliasesByItemIds(itemIds),
+      this.versions.findRiskMappingsByItemIds(itemIds),
     ]);
     return {
       catalog: catalogDto(catalog, version),

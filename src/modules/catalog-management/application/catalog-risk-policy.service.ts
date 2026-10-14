@@ -8,7 +8,8 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { riskPolicyDto } from '../catalog-management.mapper.js';
-import { CatalogManagementRepository } from '../catalog-management.repository.js';
+import { CatalogAuditRepository } from '../catalog-audit.repository.js';
+import { CatalogRiskPolicyRepository } from '../catalog-risk-policy.repository.js';
 import { ActivateRiskRulesetVersionDto, CreateRiskRulesetVersionDto } from '../catalog-management.schemas.js';
 import {
   actorPlatformUserId,
@@ -22,14 +23,15 @@ import {
 @Injectable()
 export class CatalogRiskPolicyService {
   constructor(
-    private readonly repository: CatalogManagementRepository,
+    private readonly audit: CatalogAuditRepository,
+    private readonly riskPolicy: CatalogRiskPolicyRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
   async getCurrentRiskPolicy(input: { currentUser: AuthenticatedUser }) {
     assertInternal(input.currentUser);
-    const current = await this.repository.listCurrentRiskPolicy();
-    const rules = await this.repository.findRulesByRulesetIds(current.rulesetVersions.map((ruleset) => String(ruleset.id)));
+    const current = await this.riskPolicy.listCurrentRiskPolicy();
+    const rules = await this.riskPolicy.findRulesByRulesetIds(current.rulesetVersions.map((ruleset) => String(ruleset.id)));
     return riskPolicyDto({ ...current, rules });
   }
 
@@ -38,7 +40,7 @@ export class CatalogRiskPolicyService {
     requireIdempotency(input.context);
     const now = new Date();
     return this.sequelize.transaction(async (transaction) => {
-      const modelVersion = await this.repository.createRiskModelVersion(
+      const modelVersion = await this.riskPolicy.createRiskModelVersion(
         {
           modelCode: input.body.modelVersion.modelCode,
           versionCode: input.body.modelVersion.versionCode,
@@ -55,7 +57,7 @@ export class CatalogRiskPolicyService {
         },
         { transaction },
       );
-      const ruleset = await this.repository.createRiskRulesetVersion(
+      const ruleset = await this.riskPolicy.createRiskRulesetVersion(
         {
           rulesetCode: input.body.ruleset.rulesetCode,
           versionCode: input.body.ruleset.versionCode,
@@ -70,7 +72,7 @@ export class CatalogRiskPolicyService {
         { transaction },
       );
       for (const rule of input.body.rules) {
-        await this.repository.createRiskPolicyRule(
+        await this.riskPolicy.createRiskPolicyRule(
           {
             rulesetVersionId: String(ruleset.id),
             ruleCode: rule.ruleCode,
@@ -88,7 +90,7 @@ export class CatalogRiskPolicyService {
         );
       }
       for (const seed of input.body.riskSignalSeeds) {
-        await this.repository.createRiskSignalSeed(
+        await this.riskPolicy.createRiskSignalSeed(
           {
             signalCode: seed.signalCode,
             signalName: seed.signalName,
@@ -108,7 +110,7 @@ export class CatalogRiskPolicyService {
           { transaction },
         );
       }
-      await this.repository.createAudit(
+      await this.audit.createAudit(
         {
           ...auditBase(input.context, input.currentUser),
           actionCode: 'risk_policy.ruleset_version.create',
@@ -123,7 +125,7 @@ export class CatalogRiskPolicyService {
         },
         { transaction },
       );
-      await this.repository.createDataChange(
+      await this.audit.createDataChange(
         {
           tenantId: input.context.tenantId,
           tableName: 'risk_ruleset_versions',
@@ -156,22 +158,22 @@ export class CatalogRiskPolicyService {
   }) {
     assertAdmin(input.currentUser);
     requireIdempotency(input.context);
-    const version = await this.repository.findRiskRulesetVersionById(input.rulesetVersionId);
+    const version = await this.riskPolicy.findRiskRulesetVersionById(input.rulesetVersionId);
     if (!version) throw new NotFoundException('Versión de reglas no encontrada.');
     if (!['draft', 'inactive', 'approved'].includes(version.status ?? ''))
       throw new UnprocessableEntityException('RULESET_VERSION_NOT_ACTIVATABLE');
     const now = new Date();
     const effectiveFrom = input.body.effectiveFrom ? new Date(input.body.effectiveFrom) : now;
     return this.sequelize.transaction(async (transaction) => {
-      const retiredCount = await this.repository.retireOtherActiveRulesets(version.rulesetCode, input.rulesetVersionId, effectiveFrom, {
+      const retiredCount = await this.riskPolicy.retireOtherActiveRulesets(version.rulesetCode, input.rulesetVersionId, effectiveFrom, {
         transaction,
       });
-      const activated = await this.repository.activateRuleset(
+      const activated = await this.riskPolicy.activateRuleset(
         version,
         { approvedByPlatformUserId: actorPlatformUserId(input.currentUser), effectiveFrom, now },
         { transaction },
       );
-      await this.repository.createAudit(
+      await this.audit.createAudit(
         {
           ...auditBase(input.context, input.currentUser),
           actionCode: 'risk_policy.ruleset_version.activate',
@@ -182,7 +184,7 @@ export class CatalogRiskPolicyService {
         },
         { transaction },
       );
-      await this.repository.createDataChange(
+      await this.audit.createDataChange(
         {
           tenantId: input.context.tenantId,
           tableName: 'risk_ruleset_versions',

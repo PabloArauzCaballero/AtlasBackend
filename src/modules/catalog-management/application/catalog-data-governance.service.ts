@@ -10,20 +10,22 @@ import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { dataGovernanceDto } from '../catalog-management.mapper.js';
 import { searchGovernancePolicies } from '../catalog-governance-index.query.js';
 import type { GovernancePolicySearchDto } from '../catalog-list.schemas.js';
-import { CatalogManagementRepository } from '../catalog-management.repository.js';
+import { CatalogAuditRepository } from '../catalog-audit.repository.js';
+import { CatalogDataGovernanceRepository } from '../catalog-data-governance.repository.js';
 import { DataGovernancePolicyPackageDto } from '../catalog-management.schemas.js';
 import { actorPlatformUserId, assertInternal, auditBase, RequestContext, requireIdempotency } from './catalog-management.shared.js';
 
 @Injectable()
 export class CatalogDataGovernanceService {
   constructor(
-    private readonly repository: CatalogManagementRepository,
+    private readonly audit: CatalogAuditRepository,
+    private readonly dataGovernance: CatalogDataGovernanceRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
   async getDataGovernancePolicies(input: { currentUser: AuthenticatedUser }) {
     assertInternal(input.currentUser);
-    return dataGovernanceDto(await this.repository.listDataGovernancePolicies());
+    return dataGovernanceDto(await this.dataGovernance.listDataGovernancePolicies());
   }
 
   /** Lista paginada de las políticas (buscador, tipo y conteos del filtro entero). */
@@ -49,7 +51,7 @@ export class CatalogDataGovernanceService {
       let dataQualityRules = 0;
       for (const item of input.body.privacyPurposes) {
         privacyPurposes += 1;
-        await this.repository.upsertPrivacyPurpose(
+        await this.dataGovernance.upsertPrivacyPurpose(
           {
             purposeCode: item.purposeCode,
             purposeName: item.purposeName,
@@ -65,7 +67,7 @@ export class CatalogDataGovernanceService {
       }
       for (const item of input.body.retentionPolicies) {
         retentionPolicies += 1;
-        await this.repository.upsertRetentionPolicy(
+        await this.dataGovernance.upsertRetentionPolicy(
           {
             policyCode: item.policyCode,
             appliesTo: item.appliesTo,
@@ -82,7 +84,7 @@ export class CatalogDataGovernanceService {
       }
       for (const item of input.body.dataProviders) {
         dataProviders += 1;
-        await this.repository.upsertDataProvider(
+        await this.dataGovernance.upsertDataProvider(
           {
             providerCode: item.providerCode,
             providerName: item.providerName,
@@ -99,7 +101,7 @@ export class CatalogDataGovernanceService {
       }
       for (const item of input.body.classificationPolicies) {
         classificationPolicies += 1;
-        await this.repository.upsertClassificationPolicy(
+        await this.dataGovernance.upsertClassificationPolicy(
           {
             classificationCode: item.classificationCode,
             classificationName: item.classificationName,
@@ -119,7 +121,7 @@ export class CatalogDataGovernanceService {
       }
       for (const item of input.body.sensitiveFieldRules) {
         sensitiveFieldRules += 1;
-        await this.repository.upsertSensitiveFieldRule(
+        await this.dataGovernance.upsertSensitiveFieldRule(
           {
             tableName: item.tableName,
             fieldName: item.fieldName,
@@ -138,7 +140,7 @@ export class CatalogDataGovernanceService {
       }
       for (const item of input.body.dataQualityRules) {
         dataQualityRules += 1;
-        await this.repository.upsertDataQualityRule(
+        await this.dataGovernance.upsertDataQualityRule(
           {
             ruleCode: item.ruleCode,
             ruleName: item.ruleName,
@@ -155,7 +157,7 @@ export class CatalogDataGovernanceService {
           { transaction },
         );
       }
-      await this.repository.createAudit(
+      await this.audit.createAudit(
         {
           ...auditBase(input.context, input.currentUser),
           actionCode: 'data_governance.policy_package.upsert',
@@ -166,7 +168,7 @@ export class CatalogDataGovernanceService {
         },
         { transaction },
       );
-      await this.repository.createDataChange(
+      await this.audit.createDataChange(
         {
           tenantId: input.context.tenantId,
           tableName: 'data_governance_policies',

@@ -133,7 +133,9 @@ Roles que alcanzan este módulo: `internal_operator`, `risk_analyst`, `complianc
 - `test/unit/catalog-management/catalog-ingestion.service.spec.ts`
 - `test/unit/catalog-management/catalog-management.controller.spec.ts`
 - `test/unit/catalog-management/catalog-management.mapper.spec.ts`
-- `test/unit/catalog-management/catalog-management.repository.spec.ts`
+- `test/unit/catalog-management/catalog-versions.repository.spec.ts`
+- `test/unit/catalog-management/catalog-ingestion.repository.spec.ts`
+- `test/unit/catalog-management/catalog-audit.repository.spec.ts`
 - `test/unit/catalog-management/catalog-management.service.spec.ts`
 - `test/unit/catalog-management/catalog-query.service.spec.ts`
 - `test/unit/catalog-management/catalog-risk-policy.repository.spec.ts`
