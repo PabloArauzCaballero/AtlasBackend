@@ -111,7 +111,11 @@ export default [
   },
   {
     // Sequelize usa consultas dinámicas en el catálogo administrativo; este archivo se tipa por endpoint.
-    files: ['src/modules/catalog-management/catalog-management.repository.ts'],
+    files: [
+      'src/modules/catalog-management/catalog-versions.repository.ts',
+      'src/modules/catalog-management/catalog-ingestion.repository.ts',
+      'src/modules/catalog-management/catalog-audit.repository.ts',
+    ],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },
