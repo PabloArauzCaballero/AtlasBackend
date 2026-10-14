@@ -29,6 +29,7 @@ describe('SessionHeartbeatService.heartbeat', () => {
       createCustomerObservation: jest.fn(),
       upsertActivitySummary: jest.fn(),
       createAudit: jest.fn(),
+      touchActivity: jest.fn(async (..._args: unknown[]) => undefined),
     };
     const customersRepository = { findById: jest.fn() };
     const gpsWriter = {
@@ -39,15 +40,17 @@ describe('SessionHeartbeatService.heartbeat', () => {
       })),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-    const sessionLifecycle = { touchActivity: jest.fn(async (..._args: unknown[]) => undefined) };
     const service = new SessionHeartbeatService(
+      sessionsRepository as never,
+      sessionsRepository as never,
+      sessionsRepository as never,
+      sessionsRepository as never,
       sessionsRepository as never,
       customersRepository as never,
       gpsWriter as never,
       sequelize as never,
-      sessionLifecycle as never,
     );
-    return { service, sessionsRepository, customersRepository, gpsWriter, sessionLifecycle };
+    return { service, sessionsRepository, customersRepository, gpsWriter, sessionLifecycle: sessionsRepository };
   }
 
   const customerUser = { role: 'customer', customerId: 'c1', internalUserId: null, platformUserId: null } as never;

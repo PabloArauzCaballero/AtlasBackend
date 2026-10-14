@@ -8,7 +8,8 @@ import { randomUUID } from 'node:crypto';
 import { Transaction } from 'sequelize';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
-import { SessionsRepository } from '../../sessions/sessions.repository.js';
+import { SessionsDeviceRepository } from '../../sessions/repositories/sessions-device.repository.js';
+import { SessionsLifecycleRepository } from '../../sessions/repositories/sessions-lifecycle.repository.js';
 import { StartOnboardingDto } from '../customer-onboarding.schemas.js';
 
 /**
@@ -21,7 +22,10 @@ import { StartOnboardingDto } from '../customer-onboarding.schemas.js';
  */
 @Injectable()
 export class OnboardingDeviceSessionService {
-  constructor(private readonly sessionsRepository: SessionsRepository) {}
+  constructor(
+    private readonly deviceRepository: SessionsDeviceRepository,
+    private readonly lifecycleRepository: SessionsLifecycleRepository,
+  ) {}
 
   /**
    * Deja al cliente recién creado con dispositivo resuelto, sesión abierta y —si la mandó— su
@@ -50,14 +54,14 @@ export class OnboardingDeviceSessionService {
     transaction: Transaction;
   }) {
     // 5. Resolve global device fingerprint
-    let globalDevice = await this.sessionsRepository.findGlobalDevice(
+    let globalDevice = await this.deviceRepository.findGlobalDevice(
       input.input.device.deviceFingerprintHash,
       input.input.device.fingerprintVersion,
       { transaction: input.transaction },
     );
 
     if (!globalDevice) {
-      globalDevice = await this.sessionsRepository.createGlobalDevice(
+      globalDevice = await this.deviceRepository.createGlobalDevice(
         {
           deviceFingerprint: input.input.device.deviceFingerprintHash,
           fingerprintVersion: input.input.device.fingerprintVersion,
@@ -66,11 +70,11 @@ export class OnboardingDeviceSessionService {
         { transaction: input.transaction },
       );
     } else {
-      await this.sessionsRepository.touchGlobalDevice(globalDevice, input.now, { transaction: input.transaction });
+      await this.deviceRepository.touchGlobalDevice(globalDevice, input.now, { transaction: input.transaction });
     }
 
     // 6. Resolve tenant-scoped device
-    let device = await this.sessionsRepository.findDevice(
+    let device = await this.deviceRepository.findDevice(
       input.tenantId,
       input.input.device.deviceFingerprintHash,
       input.input.device.fingerprintVersion,
@@ -78,7 +82,7 @@ export class OnboardingDeviceSessionService {
     );
 
     if (!device) {
-      device = await this.sessionsRepository.createDevice(
+      device = await this.deviceRepository.createDevice(
         {
           tenantId: input.tenantId,
           globalDeviceFingerprintId: String(globalDevice.id),
@@ -89,16 +93,16 @@ export class OnboardingDeviceSessionService {
         { transaction: input.transaction },
       );
     } else {
-      await this.sessionsRepository.touchDevice(device, input.now, { transaction: input.transaction });
+      await this.deviceRepository.touchDevice(device, input.now, { transaction: input.transaction });
     }
 
     // 7. Create customer-device link
-    let link = await this.sessionsRepository.findCustomerDeviceLink(input.tenantId, String(input.customer.id), String(device.id), {
+    let link = await this.deviceRepository.findCustomerDeviceLink(input.tenantId, String(input.customer.id), String(device.id), {
       transaction: input.transaction,
     });
 
     if (!link) {
-      link = await this.sessionsRepository.createCustomerDeviceLink(
+      link = await this.deviceRepository.createCustomerDeviceLink(
         { tenantId: input.tenantId, customerId: String(input.customer.id), deviceId: String(device.id), now: input.now },
         { transaction: input.transaction },
       );
@@ -111,14 +115,14 @@ export class OnboardingDeviceSessionService {
   async createOnboardingSession(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    device: Awaited<ReturnType<SessionsRepository['findDevice']>>;
-    link: Awaited<ReturnType<SessionsRepository['findCustomerDeviceLink']>>;
+    device: Awaited<ReturnType<SessionsDeviceRepository['findDevice']>>;
+    link: Awaited<ReturnType<SessionsDeviceRepository['findCustomerDeviceLink']>>;
     input: Omit<StartOnboardingDto, 'password'>;
     ipAddress: string | null;
     now: Date;
     transaction: Transaction;
   }) {
-    const session = await this.sessionsRepository.createSession(
+    const session = await this.lifecycleRepository.createSession(
       {
         tenantId: input.tenantId,
         customerId: String(input.customer.id),
@@ -136,7 +140,7 @@ export class OnboardingDeviceSessionService {
       { transaction: input.transaction },
     );
 
-    await this.sessionsRepository.touchCustomerDeviceLink(input.link!, String(session.id), input.now, { transaction: input.transaction });
+    await this.deviceRepository.touchCustomerDeviceLink(input.link!, String(session.id), input.now, { transaction: input.transaction });
 
     return session;
   }
@@ -145,14 +149,14 @@ export class OnboardingDeviceSessionService {
   async captureDeviceSnapshotIfProvided(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    device: Awaited<ReturnType<SessionsRepository['findDevice']>>;
-    session: Awaited<ReturnType<SessionsRepository['createSession']>>;
+    device: Awaited<ReturnType<SessionsDeviceRepository['findDevice']>>;
+    session: Awaited<ReturnType<SessionsLifecycleRepository['createSession']>>;
     input: Omit<StartOnboardingDto, 'password'>;
     now: Date;
     transaction: Transaction;
   }): Promise<void> {
     if (input.input.device.snapshot) {
-      await this.sessionsRepository.createDeviceSnapshot(
+      await this.deviceRepository.createDeviceSnapshot(
         {
           tenantId: input.tenantId,
           customerId: String(input.customer.id),

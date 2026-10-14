@@ -9,15 +9,14 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                   | Responsabilidad                                                                |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------ |
 | [`sessions.controller.ts`](./sessions.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`sessions.dtos.ts`](./sessions.dtos.ts) | DTOs: contrato estable de salida sin filtrar modelos de persistencia. |
-| [`sessions.mapper.ts`](./sessions.mapper.ts) | Mapper: transforma modelos internos a contratos de transporte. |
-| [`sessions.module.ts`](./sessions.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`sessions.repository.ts`](./sessions.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`sessions.schemas.ts`](./sessions.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
-| [`sessions.service.ts`](./sessions.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`sessions.dtos.ts`](./sessions.dtos.ts)             | DTOs: contrato estable de salida sin filtrar modelos de persistencia.          |
+| [`sessions.mapper.ts`](./sessions.mapper.ts)         | Mapper: transforma modelos internos a contratos de transporte.                 |
+| [`sessions.module.ts`](./sessions.module.ts)         | Módulo NestJS: declara el límite de inyección y sus dependencias.              |
+| [`sessions.schemas.ts`](./sessions.schemas.ts)       | Esquemas Zod: validan entradas y parámetros en el borde del sistema.           |
+| [`sessions.service.ts`](./sessions.service.ts)       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
 
 ## Subcarpetas
 

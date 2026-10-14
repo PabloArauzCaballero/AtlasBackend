@@ -20,7 +20,12 @@ describe('SessionEndService.endSession', () => {
       createAudit: jest.fn(),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-    const service = new SessionEndService(sessionsRepository as never, sequelize as never);
+    const service = new SessionEndService(
+      sessionsRepository as never,
+      sessionsRepository as never,
+      sessionsRepository as never,
+      sequelize as never,
+    );
     return { service, sessionsRepository };
   }
 

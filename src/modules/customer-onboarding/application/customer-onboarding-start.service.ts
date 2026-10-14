@@ -14,7 +14,8 @@ import { AuthTokenIssuerService } from '../../auth/auth-token-issuer.service.js'
 import { ConsentsRepository } from '../../consents/consents.repository.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerContactsRepository } from '../../customers/repositories/customer-contacts.repository.js';
-import { SessionsRepository } from '../../sessions/sessions.repository.js';
+import type { SessionsDeviceRepository } from '../../sessions/repositories/sessions-device.repository.js';
+import type { SessionsLifecycleRepository } from '../../sessions/repositories/sessions-lifecycle.repository.js';
 import { StartOnboardingResponseDto } from '../customer-onboarding.dtos.js';
 import { toStartOnboardingResponse } from '../customer-onboarding.mapper.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
@@ -40,7 +41,7 @@ export class CustomerOnboardingStartService {
     private readonly authRepository: AuthRepository,
     private readonly tokenIssuer: AuthTokenIssuerService,
     private readonly guardsService: CustomerOnboardingGuardsService,
-    // Dispositivo, sesión y su instantánea: tres pasos que solo hablan con `SessionsRepository` y
+    // Dispositivo, sesión y su instantánea: tres pasos que solo hablan con los repositorios de sesiones y
     // que no comparten nada con el resto del alta salvo el cliente recién creado.
     private readonly deviceSession: OnboardingDeviceSessionService,
     private readonly bridge: LegacyOnboardingAtomicBridge,
@@ -317,7 +318,7 @@ export class CustomerOnboardingStartService {
   private async createOnboardingFlowAndFirstEvent(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    session: Awaited<ReturnType<SessionsRepository['createSession']>>;
+    session: Awaited<ReturnType<SessionsLifecycleRepository['createSession']>>;
     input: RegistrationInput;
     sourceType: string;
     phoneHash: string | null;
@@ -367,8 +368,8 @@ export class CustomerOnboardingStartService {
   private async recordDecisionsAndAudit(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    session: Awaited<ReturnType<SessionsRepository['createSession']>>;
-    device: Awaited<ReturnType<SessionsRepository['findDevice']>>;
+    session: Awaited<ReturnType<SessionsLifecycleRepository['createSession']>>;
+    device: Awaited<ReturnType<SessionsDeviceRepository['findDevice']>>;
     onboardingFlow: Awaited<ReturnType<CustomerOnboardingRepository['createOnboardingFlow']>>;
     input: RegistrationInput;
     ipAddress: string | null;
@@ -385,7 +386,7 @@ export class CustomerOnboardingStartService {
   private async recordPermissionDecisions(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    session: Awaited<ReturnType<SessionsRepository['createSession']>>;
+    session: Awaited<ReturnType<SessionsLifecycleRepository['createSession']>>;
     onboardingFlow: Awaited<ReturnType<CustomerOnboardingRepository['createOnboardingFlow']>>;
     input: RegistrationInput;
     now: Date;
@@ -412,8 +413,8 @@ export class CustomerOnboardingStartService {
   private async recordActionAndAuditLogs(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    session: Awaited<ReturnType<SessionsRepository['createSession']>>;
-    device: Awaited<ReturnType<SessionsRepository['findDevice']>>;
+    session: Awaited<ReturnType<SessionsLifecycleRepository['createSession']>>;
+    device: Awaited<ReturnType<SessionsDeviceRepository['findDevice']>>;
     onboardingFlow: Awaited<ReturnType<CustomerOnboardingRepository['createOnboardingFlow']>>;
     input: RegistrationInput;
     ipAddress: string | null;
@@ -465,7 +466,7 @@ export class CustomerOnboardingStartService {
   private async recordConsents(input: {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
-    session: Awaited<ReturnType<SessionsRepository['createSession']>>;
+    session: Awaited<ReturnType<SessionsLifecycleRepository['createSession']>>;
     input: RegistrationInput;
     ipAddress: string | null;
     now: Date;

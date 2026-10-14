@@ -82,7 +82,7 @@ Persiste en 19 tabla(s):
 
 **Del que dependen:** [[03-domains/customer-onboarding/index\|customer-onboarding]]
 
-**Exporta:** `SessionsRepository`, `SessionsService`
+**Exporta:** `SessionsDeviceRepository`, `SessionsLifecycleRepository`, `SessionsService`
 
 > [!warning] Exporta un repositorio
 > Otros módulos pueden llegar a la persistencia de este dominio sin pasar por su servicio, saltándose las reglas que vivan ahí. La regla del proyecto solo lo admite con necesidad transaccional real y documentada.
@@ -93,7 +93,7 @@ Persiste en 19 tabla(s):
 |---|---|
 | Controllers | `sessions.controller.ts` |
 | Services | `sessions.service.ts`, `application/session-end.service.ts`, `application/session-gps-writer.service.ts`, `application/session-heartbeat.service.ts`, `application/session-query.service.ts`, `application/session-start.service.ts` |
-| Repositories | `sessions.repository.ts`, `repositories/sessions-activity-audit.repository.ts`, `repositories/sessions-device.repository.ts`, `repositories/sessions-lifecycle.repository.ts`, `repositories/sessions-location.repository.ts`, `repositories/sessions-onboarding-link.repository.ts`, `repositories/sessions-telemetry.repository.ts` |
+| Repositories | `repositories/sessions-activity-audit.repository.ts`, `repositories/sessions-device.repository.ts`, `repositories/sessions-lifecycle.repository.ts`, `repositories/sessions-location.repository.ts`, `repositories/sessions-onboarding-link.repository.ts`, `repositories/sessions-telemetry.repository.ts` |
 | Esquemas Zod | `sessions.schemas.ts` |
 | Mappers | `sessions.mapper.ts` |
 
@@ -117,7 +117,6 @@ Roles que alcanzan este módulo: `customer`, `internal_operator`, `risk_analyst`
 - `test/unit/sessions/sessions-lifecycle.repository.spec.ts`
 - `test/unit/sessions/sessions-location.repository.spec.ts`
 - `test/unit/sessions/sessions-onboarding-link.repository.spec.ts`
-- `test/unit/sessions/sessions-repository-facade.spec.ts`
 - `test/unit/sessions/sessions-telemetry.repository.spec.ts`
 - `test/unit/sessions/sessions.controller.spec.ts`
 - `test/unit/sessions/sessions.mapper.spec.ts`
