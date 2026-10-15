@@ -98,7 +98,9 @@ import { SystemsToolInferenceRepository } from './systems-tool-inference.reposit
 import { SystemsToolInferenceService } from './systems-tool-inference.service.js';
 import { SystemsDataImpactInferenceRepository } from './systems-data-impact-inference.repository.js';
 import { SystemsDataImpactInferenceService } from './systems-data-impact-inference.service.js';
-import { SystemsMetadataRepository } from './systems-metadata.repository.js';
+import { SystemDataStructureRepository } from './system-data-structure.repository.js';
+import { SystemEndpointImpactRepository } from './system-endpoint-impact.repository.js';
+import { SystemGovernanceCatalogRepository } from './system-governance-catalog.repository.js';
 
 @Module({
   imports: [
@@ -147,7 +149,9 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
     SystemFlowsController,
   ],
   providers: [
-    SystemsMetadataRepository,
+    SystemEndpointImpactRepository,
+    SystemDataStructureRepository,
+    SystemGovernanceCatalogRepository,
     SystemFlowsService,
     SystemFlowsImportService,
     SystemFlowsAsyncRepository,

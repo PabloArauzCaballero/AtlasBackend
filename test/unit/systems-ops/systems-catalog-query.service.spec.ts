@@ -50,7 +50,9 @@ describe('SystemsCatalogQueryService', () => {
       discovery as never,
       seedService as never,
       healthService as never,
-      // Los metadatos salieron a `SystemsMetadataRepository`; el mismo doble los sigue exponiendo.
+      // Los metadatos viven en tres repositorios (impactos, estructura y gobierno); el mismo doble los expone.
+      catalogRepository as never,
+      catalogRepository as never,
       catalogRepository as never,
       reviewRepository as never,
     );

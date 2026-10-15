@@ -26,7 +26,9 @@ import { SystemDataEntityCatalogRepository } from './system-data-entity-catalog.
 import { SystemsDashboardRepository } from './systems-dashboard.repository.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 
-import { SystemsMetadataRepository } from './systems-metadata.repository.js';
+import { SystemEndpointImpactRepository } from './system-endpoint-impact.repository.js';
+import { SystemDataStructureRepository } from './system-data-structure.repository.js';
+import { SystemGovernanceCatalogRepository } from './system-governance-catalog.repository.js';
 import { SystemsReviewRepository } from './systems-review.repository.js';
 import { actorId } from '../../common/utils/auth/actor.util.js';
 @Injectable()
@@ -39,7 +41,9 @@ export class SystemsCatalogQueryService {
     private readonly discovery: EndpointDiscoveryService,
     private readonly seedService: SystemsCatalogSeedService,
     private readonly healthService: SystemsHealthService,
-    private readonly metadatos: SystemsMetadataRepository,
+    private readonly endpointImpacts: SystemEndpointImpactRepository,
+    private readonly dataStructure: SystemDataStructureRepository,
+    private readonly governanceCatalog: SystemGovernanceCatalogRepository,
     private readonly reviewRepository: SystemsReviewRepository,
   ) {}
 
@@ -52,9 +56,9 @@ export class SystemsCatalogQueryService {
     const endpoint = await this.endpointCatalog.findEndpointById(endpointId);
     if (!endpoint) throw new NotFoundException('SYSTEM_ENDPOINT_NOT_FOUND');
     const [tools, dataImpacts, fieldImpacts] = await Promise.all([
-      this.metadatos.findToolRequirementsByEndpoint(endpointId),
-      this.metadatos.findDataImpactsByEndpoint(endpointId),
-      this.metadatos.findFieldImpactsByEndpoint(endpointId),
+      this.endpointImpacts.findToolRequirementsByEndpoint(endpointId),
+      this.endpointImpacts.findDataImpactsByEndpoint(endpointId),
+      this.endpointImpacts.findFieldImpactsByEndpoint(endpointId),
     ]);
     const [enrichedTools, enrichedDataImpacts, enrichedFieldImpacts] = await Promise.all([
       this.enrichToolRequirements(tools),
@@ -78,12 +82,12 @@ export class SystemsCatalogQueryService {
   }
 
   async listDomains(query: SystemsListQueryDto) {
-    const result = await this.metadatos.listDomains(query);
+    const result = await this.governanceCatalog.listDomains(query);
     return { items: result.rows.map(mapDomain), meta: result.meta };
   }
 
   async getDomain(domainCode: string) {
-    const domain = await this.metadatos.findDomainByCode(domainCode);
+    const domain = await this.governanceCatalog.findDomainByCode(domainCode);
     if (!domain) throw new NotFoundException('SYSTEM_DOMAIN_NOT_FOUND');
     return mapDomain(domain);
   }
@@ -108,8 +112,8 @@ export class SystemsCatalogQueryService {
     const entity = await this.dataEntityCatalog.findDataEntityById(entityId);
     if (!entity) throw new NotFoundException('SYSTEM_DATA_ENTITY_NOT_FOUND');
     const [columns, relations] = await Promise.all([
-      this.metadatos.findFieldsByEntity(entityId),
-      this.metadatos.findRelationshipsByTable(entity.schemaName, entity.tableName),
+      this.dataStructure.findFieldsByEntity(entityId),
+      this.dataStructure.findRelationshipsByTable(entity.schemaName, entity.tableName),
     ]);
     return {
       ...mapDataEntity(entity),
@@ -133,9 +137,9 @@ export class SystemsCatalogQueryService {
     const endpoint = await this.endpointCatalog.findEndpointById(endpointId);
     if (!endpoint) throw new NotFoundException('SYSTEM_ENDPOINT_NOT_FOUND');
     const [tools, dataImpacts, fieldImpacts] = await Promise.all([
-      this.metadatos.findToolRequirementsByEndpoint(endpointId),
-      this.metadatos.findDataImpactsByEndpoint(endpointId),
-      this.metadatos.findFieldImpactsByEndpoint(endpointId),
+      this.endpointImpacts.findToolRequirementsByEndpoint(endpointId),
+      this.endpointImpacts.findDataImpactsByEndpoint(endpointId),
+      this.endpointImpacts.findFieldImpactsByEndpoint(endpointId),
     ]);
     const [enrichedTools, enrichedTables, enrichedFields] = await Promise.all([
       this.enrichToolRequirements(tools),
@@ -154,10 +158,10 @@ export class SystemsCatalogQueryService {
     const entity = await this.dataEntityCatalog.findDataEntityByTable(schemaName, tableName);
     if (!entity) throw new NotFoundException('SYSTEM_DATA_ENTITY_NOT_FOUND');
     const [impacts, columns, relations, fieldImpacts] = await Promise.all([
-      this.metadatos.findDataImpactsByEntity(String(entity.id)),
-      this.metadatos.findFieldsByTable(schemaName, tableName),
-      this.metadatos.findRelationshipsByTable(schemaName, tableName),
-      this.metadatos.findFieldImpactsByDataEntity(String(entity.id)),
+      this.endpointImpacts.findDataImpactsByEntity(String(entity.id)),
+      this.dataStructure.findFieldsByTable(schemaName, tableName),
+      this.dataStructure.findRelationshipsByTable(schemaName, tableName),
+      this.endpointImpacts.findFieldImpactsByDataEntity(String(entity.id)),
     ]);
     return {
       entity: mapDataEntity(entity),
@@ -169,21 +173,21 @@ export class SystemsCatalogQueryService {
     };
   }
 
-  private async enrichToolRequirements(rows: Awaited<ReturnType<SystemsMetadataRepository['findToolRequirementsByEndpoint']>>) {
+  private async enrichToolRequirements(rows: Awaited<ReturnType<SystemEndpointImpactRepository['findToolRequirementsByEndpoint']>>) {
     const toolIds = [...new Set(rows.map((row) => String(row.toolId)))];
     const tools = await this.toolCatalog.findToolsByIds(toolIds);
     const toolsById = new Map(tools.map((tool) => [String(tool.id), tool]));
     return rows.map((row) => mapToolRequirement(row, toolsById.get(String(row.toolId))));
   }
 
-  private async enrichDataImpacts(rows: Awaited<ReturnType<SystemsMetadataRepository['findDataImpactsByEndpoint']>>) {
+  private async enrichDataImpacts(rows: Awaited<ReturnType<SystemEndpointImpactRepository['findDataImpactsByEndpoint']>>) {
     const entityIds = [...new Set(rows.map((row) => String(row.dataEntityId)))];
     const entities = await this.dataEntityCatalog.findDataEntitiesByIds(entityIds);
     const entitiesById = new Map(entities.map((entity) => [String(entity.id), entity]));
     return rows.map((row) => mapDataImpact(row, entitiesById.get(String(row.dataEntityId))));
   }
 
-  private async enrichFieldImpacts(rows: Awaited<ReturnType<SystemsMetadataRepository['findFieldImpactsByEndpoint']>>) {
+  private async enrichFieldImpacts(rows: Awaited<ReturnType<SystemEndpointImpactRepository['findFieldImpactsByEndpoint']>>) {
     const entityIds = [...new Set(rows.map((row) => String(row.dataEntityId)))];
     const entities = await this.dataEntityCatalog.findDataEntitiesByIds(entityIds);
     const entitiesById = new Map(entities.map((entity) => [String(entity.id), entity]));
