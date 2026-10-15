@@ -22,6 +22,10 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
   async function buildService() {
     const { CustomerOnboardingStartService } =
       await import('../../../src/modules/customer-onboarding/application/customer-onboarding-start.service.js');
+    const { OnboardingCustomerRecordService } =
+      await import('../../../src/modules/customer-onboarding/application/onboarding-customer-record.service.js');
+    const { OnboardingRegistrationTrailService } =
+      await import('../../../src/modules/customer-onboarding/application/onboarding-registration-trail.service.js');
     const { OnboardingDeviceSessionService } =
       await import('../../../src/modules/customer-onboarding/application/onboarding-device-session.service.js');
 
@@ -76,12 +80,9 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
     const sequelize = { run: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
 
     const service = new CustomerOnboardingStartService(
-      customersRepository as never,
       // Los contactos del cliente viven en `CustomerContactsRepository`; el doble ya los expone.
-      customersRepository as never,
-      consentsRepository as never,
-      onboardingRepository as never,
-      authRepository as never,
+      new OnboardingCustomerRecordService(customersRepository as never, customersRepository as never, authRepository as never),
+      new OnboardingRegistrationTrailService(onboardingRepository as never, consentsRepository as never),
       tokenIssuer as never,
       guardsService as never,
       // Real: el dispositivo, la sesión y su instantánea salieron a su propio colaborador, pero

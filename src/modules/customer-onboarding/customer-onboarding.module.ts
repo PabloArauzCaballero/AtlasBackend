@@ -79,7 +79,8 @@ import { DecisionEngineClient } from '../decision-engine/decision-engine.client.
 import { OnboardingReviewDossierController } from './onboarding-review-dossier.controller.js';
 import { OnboardingReviewDossierService } from './application/onboarding-review-dossier.service.js';
 import { ONBOARDING_DOSSIER_ENGINE_PORT, OnboardingReviewDossierPublisher } from './application/onboarding-review-dossier.publisher.js';
-import { OnboardingReviewDossierRepository } from './repositories/onboarding-review-dossier.repository.js';
+import { OnboardingDossierDeviceRepository } from './repositories/onboarding-dossier-device.repository.js';
+import { OnboardingDossierRecordRepository } from './repositories/onboarding-dossier-record.repository.js';
 import { CustomerTelemetryModule } from '../customer-telemetry/customer-telemetry.module.js';
 import { ConsumerSurveyController } from './consumer-survey/consumer-survey.controller.js';
 import { ConsumerSurveyService } from './consumer-survey/consumer-survey.service.js';
@@ -106,7 +107,9 @@ import { CustomerContactsSnapshotRepository } from './repositories/customer-cont
 import { CustomerProfileDataRepository } from './repositories/customer-profile-data.repository.js';
 import { CustomerVerificationRepository } from './repositories/customer-verification.repository.js';
 import { OnboardingAbandonmentService } from './application/onboarding-abandonment.service.js';
+import { OnboardingCustomerRecordService } from './application/onboarding-customer-record.service.js';
 import { OnboardingDeviceSessionService } from './application/onboarding-device-session.service.js';
+import { OnboardingRegistrationTrailService } from './application/onboarding-registration-trail.service.js';
 import { CustomerVerificationService } from './application/customer-verification.service.js';
 import { CustomerComplianceScreeningService } from './application/customer-compliance-screening.service.js';
 import { CustomerAddressStatusRepository } from './repositories/customer-address-status.repository.js';
@@ -228,7 +231,8 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
     OnboardingRiskTriggerService,
     // El onboarding pide la evaluación de riesgo por puerto; `RiskService` (de `RiskModule`) la implementa.
     { provide: ONBOARDING_RISK_PORT, useExisting: RiskService },
-    OnboardingReviewDossierRepository,
+    OnboardingDossierRecordRepository,
+    OnboardingDossierDeviceRepository,
     OnboardingReviewDossierService,
     OnboardingReviewDossierPublisher,
     // El Motor implementa el anexo; el onboarding sólo conoce el puerto.
@@ -247,6 +251,8 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
     CustomerVerificationRepository,
     OnboardingAbandonmentService,
     OnboardingDeviceSessionService,
+    OnboardingCustomerRecordService,
+    OnboardingRegistrationTrailService,
     CustomerVerificationService,
     CustomerComplianceScreeningService,
     CustomerOnboardingFlowRepository,
