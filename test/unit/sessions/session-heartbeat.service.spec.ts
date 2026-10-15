@@ -42,6 +42,7 @@ describe('SessionHeartbeatService.heartbeat', () => {
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
     const service = new SessionHeartbeatService(
       sessionsRepository as never,
+      sessionsRepository as never, // actividad del cliente: mismo doble
       sessionsRepository as never,
       sessionsRepository as never,
       sessionsRepository as never,

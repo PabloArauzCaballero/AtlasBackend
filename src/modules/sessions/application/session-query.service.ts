@@ -10,6 +10,7 @@ import { CustomersRepository } from '../../customers/customers.repository.js';
 import { SessionsDeviceRepository } from '../repositories/sessions-device.repository.js';
 import { SessionsLifecycleRepository } from '../repositories/sessions-lifecycle.repository.js';
 import { SessionsLocationRepository } from '../repositories/sessions-location.repository.js';
+import { SessionsCustomerActivityRepository } from '../repositories/sessions-customer-activity.repository.js';
 import { SessionsTelemetryRepository } from '../repositories/sessions-telemetry.repository.js';
 import { SessionsActivityAuditRepository } from '../repositories/sessions-activity-audit.repository.js';
 import { assertInternalAccess } from './sessions.shared.js';
@@ -21,6 +22,7 @@ export class SessionQueryService {
     private readonly lifecycleRepository: SessionsLifecycleRepository,
     private readonly locationRepository: SessionsLocationRepository,
     private readonly telemetryRepository: SessionsTelemetryRepository,
+    private readonly customerActivityRepository: SessionsCustomerActivityRepository,
     private readonly activityAuditRepository: SessionsActivityAuditRepository,
     private readonly customersRepository: CustomersRepository,
   ) {}
@@ -106,8 +108,8 @@ export class SessionQueryService {
       this.telemetryRepository.findSessionIpReputation(input.tenantId, input.sessionId),
       this.telemetryRepository.findSessionSimObservations(input.tenantId, input.sessionId),
       deviceId ? this.deviceRepository.findDeviceRiskEvents(input.tenantId, deviceId) : Promise.resolve([]),
-      this.telemetryRepository.findSessionCustomerActions(input.tenantId, input.sessionId),
-      this.telemetryRepository.findSessionCustomerObservations(input.tenantId, input.sessionId),
+      this.customerActivityRepository.findSessionCustomerActions(input.tenantId, input.sessionId),
+      this.customerActivityRepository.findSessionCustomerObservations(input.tenantId, input.sessionId),
       this.activityAuditRepository.findSessionAudits(input.tenantId, input.sessionId),
     ]);
 

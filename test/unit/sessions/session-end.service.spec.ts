@@ -22,6 +22,7 @@ describe('SessionEndService.endSession', () => {
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
     const service = new SessionEndService(
       sessionsRepository as never,
+      sessionsRepository as never, // actividad del cliente: mismo doble
       sessionsRepository as never,
       sessionsRepository as never,
       sequelize as never,

@@ -33,6 +33,7 @@ import { SessionsDeviceRepository } from './repositories/sessions-device.reposit
 import { SessionsLifecycleRepository } from './repositories/sessions-lifecycle.repository.js';
 import { SessionsLocationRepository } from './repositories/sessions-location.repository.js';
 import { SessionsOnboardingLinkRepository } from './repositories/sessions-onboarding-link.repository.js';
+import { SessionsCustomerActivityRepository } from './repositories/sessions-customer-activity.repository.js';
 import { SessionsTelemetryRepository } from './repositories/sessions-telemetry.repository.js';
 import { SessionsService } from './sessions.service.js';
 import { SessionEndService } from './application/session-end.service.js';
@@ -72,6 +73,7 @@ import { SessionStartService } from './application/session-start.service.js';
     SessionsLifecycleRepository,
     SessionsLocationRepository,
     SessionsTelemetryRepository,
+    SessionsCustomerActivityRepository,
     SessionsOnboardingLinkRepository,
     SessionsActivityAuditRepository,
     SessionGpsWriterService,

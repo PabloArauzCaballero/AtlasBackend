@@ -6,14 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Transaction } from 'sequelize';
-import {
-  AuthEventModel,
-  CustomerActionLogModel,
-  CustomerObservationModel,
-  IpReputationObservationModel,
-  PermissionEventModel,
-  SimObservationModel,
-} from '../../../database/models/index.js';
+import { AuthEventModel, IpReputationObservationModel, PermissionEventModel, SimObservationModel } from '../../../database/models/index.js';
 
 export type RepositoryOptions = {
   transaction?: Transaction;
@@ -21,8 +14,8 @@ export type RepositoryOptions = {
 
 /**
  * ATLAS-P11-T12: parte de la descomposición de `sessions.repository.ts`. Responsabilidad única:
- * señales de telemetría de sesión de bajo nivel (permisos, auth events, reputación de IP, SIM,
- * acciones y observaciones de cliente). Split mecánico, sin cambio de comportamiento.
+ * señales de telemetría de sesión de bajo nivel (permisos, auth events, reputación de IP y SIM).
+ * Las acciones y observaciones de cliente viven en `SessionsCustomerActivityRepository`. Split mecánico, sin cambio de comportamiento.
  */
 @Injectable()
 export class SessionsTelemetryRepository {
@@ -31,8 +24,6 @@ export class SessionsTelemetryRepository {
     @InjectModel(AuthEventModel) private readonly authEventModel: typeof AuthEventModel,
     @InjectModel(IpReputationObservationModel) private readonly ipReputationObservationModel: typeof IpReputationObservationModel,
     @InjectModel(SimObservationModel) private readonly simObservationModel: typeof SimObservationModel,
-    @InjectModel(CustomerActionLogModel) private readonly customerActionLogModel: typeof CustomerActionLogModel,
-    @InjectModel(CustomerObservationModel) private readonly customerObservationModel: typeof CustomerObservationModel,
   ) {}
 
   createPermissionEvent(
@@ -205,98 +196,6 @@ export class SessionsTelemetryRepository {
 
   findSessionSimObservations(tenantId: string, sessionId: string, limit = 10): Promise<SimObservationModel[]> {
     return this.simObservationModel.findAll({
-      where: { tenantId, sessionId },
-      order: [
-        ['capturedAt', 'DESC'],
-        ['id', 'DESC'],
-      ],
-      limit,
-    } as FindOptions);
-  }
-
-  createCustomerAction(
-    values: {
-      tenantId: string;
-      customerId: string;
-      sessionId: string;
-      deviceId: string | null;
-      eventName: string;
-      screenName: string | null;
-      payload: Record<string, unknown> | null;
-      occurredAt: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<CustomerActionLogModel> {
-    return this.customerActionLogModel.create(
-      {
-        tenantId: values.tenantId,
-        customerId: values.customerId,
-        sessionId: values.sessionId,
-        deviceId: values.deviceId,
-        eventName: values.eventName,
-        screenName: values.screenName,
-        actionPayloadJson: values.payload,
-        occurredAt: values.occurredAt,
-        createdAtValue: values.occurredAt,
-      },
-      { transaction: options.transaction },
-    );
-  }
-
-  findSessionCustomerActions(tenantId: string, sessionId: string, limit = 30): Promise<CustomerActionLogModel[]> {
-    return this.customerActionLogModel.findAll({
-      where: { tenantId, sessionId },
-      order: [
-        ['occurredAt', 'DESC'],
-        ['id', 'DESC'],
-      ],
-      limit,
-    } as FindOptions);
-  }
-
-  createCustomerObservation(
-    values: {
-      tenantId: string;
-      customerId: string;
-      sessionId: string;
-      deviceId: string | null;
-      observationCode: string;
-      valueBoolean: boolean | null;
-      payload: Record<string, unknown> | null;
-      sourceType: string;
-      capturedAt: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<CustomerObservationModel> {
-    return this.customerObservationModel.create(
-      {
-        tenantId: values.tenantId,
-        customerId: values.customerId,
-        sessionId: values.sessionId,
-        deviceId: values.deviceId,
-        observationCode: values.observationCode,
-        valueText: null,
-        valueNumber: null,
-        valueBoolean: values.valueBoolean,
-        valueJson: values.payload,
-        sourceType: values.sourceType,
-        sourceProviderId: null,
-        evidenceId: null,
-        confidenceScore: null,
-        verificationStatus: 'observed',
-        capturedAt: values.capturedAt,
-        validFrom: values.capturedAt,
-        validUntil: null,
-        derivationMethod: null,
-        derivationVersion: null,
-        createdAtValue: values.capturedAt,
-      },
-      { transaction: options.transaction },
-    );
-  }
-
-  findSessionCustomerObservations(tenantId: string, sessionId: string, limit = 30): Promise<CustomerObservationModel[]> {
-    return this.customerObservationModel.findAll({
       where: { tenantId, sessionId },
       order: [
         ['capturedAt', 'DESC'],

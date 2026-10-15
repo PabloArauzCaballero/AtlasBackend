@@ -55,6 +55,7 @@ describe('SessionStartService.startSession', () => {
 
     const service = new SessionStartService(
       sessionsRepository as never,
+      sessionsRepository as never, // actividad del cliente: mismo doble
       sessionsRepository as never,
       sessionsRepository as never,
       sessionsRepository as never,
