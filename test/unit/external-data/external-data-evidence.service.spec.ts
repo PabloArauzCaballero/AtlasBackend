@@ -1,5 +1,6 @@
 import { describe, expect, it, jest, afterEach } from '@jest/globals';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ExternalConsentService } from '../../../src/modules/external-data/application/external-consent.service.js';
 import { ExternalDataEvidenceService } from '../../../src/modules/external-data/application/external-data-evidence.service.js';
 
 /**
@@ -14,8 +15,6 @@ describe('ExternalDataEvidenceService', () => {
   function buildService() {
     const repository = {
       listCustomerConsents: jest.fn(),
-      findCustomerConsentByIdAndTenant: jest.fn(),
-      revokeCustomerConsent: jest.fn(),
       findProviderRequestByIdAndTenant: jest.fn(),
       findProviderResponsesByRequestIdAndTenant: jest.fn(),
       listCustomerObservations: jest.fn(),
@@ -25,44 +24,18 @@ describe('ExternalDataEvidenceService', () => {
       findProviderById: jest.fn(),
       createFeatureSnapshot: jest.fn(),
     };
-    const service = new ExternalDataEvidenceService(repository as never);
+    const service = new ExternalDataEvidenceService(
+      repository as never,
+      repository as never,
+      repository as never,
+      new ExternalConsentService(repository as never),
+    );
     return { service, repository };
   }
 
   const ORIGINAL_ENV = { ...process.env };
   afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
-  });
-
-  describe('revokeConsent', () => {
-    it('throws NotFoundException when the consent does not exist', async () => {
-      const { service, repository } = buildService();
-      (repository.findCustomerConsentByIdAndTenant as jest.Mock).mockResolvedValueOnce(null as never);
-      await expect(service.revokeConsent({ tenantId: 't1', consentId: 'missing' })).rejects.toThrow(NotFoundException);
-    });
-
-    it('throws ForbiddenException when a customerId is given and does not match the consent owner', async () => {
-      const { service, repository } = buildService();
-      (repository.findCustomerConsentByIdAndTenant as jest.Mock).mockResolvedValueOnce({ id: 'consent-1', customerId: 'c1' } as never);
-      await expect(service.revokeConsent({ tenantId: 't1', consentId: 'consent-1', customerId: 'someone-else' })).rejects.toThrow(
-        ForbiddenException,
-      );
-      expect(repository.revokeCustomerConsent).not.toHaveBeenCalled();
-    });
-
-    it('does not check ownership at all when customerId is omitted (internal/operations use)', async () => {
-      const { service, repository } = buildService();
-      (repository.findCustomerConsentByIdAndTenant as jest.Mock).mockResolvedValueOnce({ id: 'consent-1', customerId: 'c1' } as never);
-      (repository.revokeCustomerConsent as jest.Mock).mockResolvedValueOnce({
-        id: 'consent-1',
-        customerId: 'c1',
-        revokedAt: new Date(),
-      } as never);
-
-      const result = await service.revokeConsent({ tenantId: 't1', consentId: 'consent-1' });
-
-      expect(result.revoked).toBe(true);
-    });
   });
 
   describe('getCustomerScoringInput — la garantía de que scoring nunca llama proveedores directamente', () => {
@@ -253,26 +226,6 @@ describe('ExternalDataEvidenceService', () => {
   });
 
   describe('proyecciones de lectura (mapeo con y sin ids opcionales)', () => {
-    it('listCustomerConsents proyecta el consentimiento', async () => {
-      const { service, repository } = buildService();
-      repository.listCustomerConsents.mockResolvedValue([
-        { id: 1, customerId: 9, purposeCode: 'KYC', granted: true, grantedAt: null, revokedAt: null, channel: 'web' },
-      ] as never);
-      const result = await service.listCustomerConsents({ tenantId: 't1', customerId: '9' });
-      expect(result[0]).toMatchObject({ id: '1', customerId: '9', purposeCode: 'KYC', granted: true, channel: 'web' });
-    });
-
-    it('revokeConsent devuelve el consentimiento revocado; si la revocación no encuentra fila, NotFound', async () => {
-      const { service, repository } = buildService();
-      repository.findCustomerConsentByIdAndTenant.mockResolvedValue({ id: 5, customerId: 9 } as never);
-      repository.revokeCustomerConsent.mockResolvedValue({ id: 5, customerId: 9, revokedAt: new Date('2026-01-01') } as never);
-      const ok = await service.revokeConsent({ tenantId: 't1', consentId: '5', customerId: '9' });
-      expect(ok).toMatchObject({ id: '5', customerId: '9', revoked: true });
-
-      repository.revokeCustomerConsent.mockResolvedValue(null as never);
-      await expect(service.revokeConsent({ tenantId: 't1', consentId: '5' })).rejects.toThrow('Consentimiento no encontrado.');
-    });
-
     it('getProviderRequest lanza NotFound, y con datos proyecta la solicitud + sus respuestas', async () => {
       const { service, repository } = buildService();
       repository.findProviderRequestByIdAndTenant.mockResolvedValue(null as never);

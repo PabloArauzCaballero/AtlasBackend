@@ -3,40 +3,24 @@
  * @business Esta pieza incorpora evidencia KYC, financiera y de confianza con control de costo, consentimiento y disponibilidad.
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { stableStringify } from '../../../common/utils/privacy/redaction.util.js';
-import { ExternalDataRepository } from '../external-data.repository.js';
+import { ExternalProviderCatalogRepository } from '../infrastructure/external-provider-catalog.repository.js';
+import { ExternalCustomerEvidenceRepository } from '../infrastructure/external-customer-evidence.repository.js';
+import { ExternalProviderRequestRepository } from '../infrastructure/external-provider-request.repository.js';
+import { ExternalConsentService } from './external-consent.service.js';
 import { NormalizedExternalObservation } from '../domain/external-provider.types.js';
 import { CORE_SCORING_FEATURES, envNumber, featuresFromObservations } from './external-data-policy.util.js';
 
 @Injectable()
 export class ExternalDataEvidenceService {
-  constructor(private readonly repository: ExternalDataRepository) {}
-
-  async listCustomerConsents(input: { tenantId: string; customerId: string }) {
-    const consents = await this.repository.listCustomerConsents(input.tenantId, input.customerId);
-    return consents.map((consent) => ({
-      id: String(consent.id),
-      customerId: String(consent.customerId),
-      purposeCode: consent.purposeCode,
-      granted: consent.granted,
-      grantedAt: consent.grantedAt,
-      revokedAt: consent.revokedAt,
-      channel: consent.channel,
-    }));
-  }
-
-  async revokeConsent(input: { tenantId: string; consentId: string; customerId?: string }) {
-    const existing = await this.repository.findCustomerConsentByIdAndTenant(input.tenantId, input.consentId);
-    if (!existing) throw new NotFoundException('Consentimiento no encontrado.');
-    if (input.customerId && String(existing.customerId) !== input.customerId) {
-      throw new ForbiddenException('El consentimiento no corresponde al cliente autenticado.');
-    }
-    const consent = await this.repository.revokeCustomerConsent(input.tenantId, input.consentId, new Date());
-    if (!consent) throw new NotFoundException('Consentimiento no encontrado.');
-    return { id: String(consent.id), customerId: String(consent.customerId), revoked: true, revokedAt: consent.revokedAt };
-  }
+  constructor(
+    private readonly catalogRepository: ExternalProviderCatalogRepository,
+    private readonly requestRepository: ExternalProviderRequestRepository,
+    private readonly evidenceRepository: ExternalCustomerEvidenceRepository,
+    private readonly consent: ExternalConsentService,
+  ) {}
 
   /**
    * `customerId` es el alcance del actor: con token de cliente, sólo SUS solicitudes. Sin él, un cliente
@@ -44,12 +28,12 @@ export class ExternalDataEvidenceService {
    * mismo 404 que una inexistente, para no confirmar que existe.
    */
   async getProviderRequest(input: { tenantId: string; requestId: string; customerId?: string }) {
-    const request = await this.repository.findProviderRequestByIdAndTenant(input.tenantId, input.requestId);
+    const request = await this.requestRepository.findProviderRequestByIdAndTenant(input.tenantId, input.requestId);
     if (!request) throw new NotFoundException('Solicitud de provider externo no encontrada.');
     if (input.customerId !== undefined && String(request.customerId ?? '') !== input.customerId) {
       throw new NotFoundException('Solicitud de provider externo no encontrada.');
     }
-    const responses = await this.repository.findProviderResponsesByRequestIdAndTenant(input.tenantId, input.requestId);
+    const responses = await this.requestRepository.findProviderResponsesByRequestIdAndTenant(input.tenantId, input.requestId);
     return {
       id: String(request.id),
       providerId: request.providerId ? String(request.providerId) : null,
@@ -82,7 +66,7 @@ export class ExternalDataEvidenceService {
   }
 
   async getCustomerObservations(input: { tenantId: string; customerId: string; limit?: number }) {
-    const observations = await this.repository.listCustomerObservations(input.tenantId, input.customerId, input.limit ?? 50);
+    const observations = await this.evidenceRepository.listCustomerObservations(input.tenantId, input.customerId, input.limit ?? 50);
     return observations.map((observation) => ({
       id: String(observation.id),
       customerId: observation.customerId ? String(observation.customerId) : null,
@@ -100,7 +84,7 @@ export class ExternalDataEvidenceService {
   }
 
   async getCustomerFeatures(input: { tenantId: string; customerId: string; limit?: number }) {
-    const snapshots = await this.repository.listCustomerFeatureSnapshots(input.tenantId, input.customerId, input.limit ?? 20);
+    const snapshots = await this.evidenceRepository.listCustomerFeatureSnapshots(input.tenantId, input.customerId, input.limit ?? 20);
     return snapshots.map((snapshot) => ({
       id: String(snapshot.id),
       customerId: snapshot.customerId ? String(snapshot.customerId) : null,
@@ -115,7 +99,7 @@ export class ExternalDataEvidenceService {
   }
 
   async getCustomerScoringInput(input: { tenantId: string; customerId: string }) {
-    const snapshots = await this.repository.listCustomerFeatureSnapshots(input.tenantId, input.customerId, 50);
+    const snapshots = await this.evidenceRepository.listCustomerFeatureSnapshots(input.tenantId, input.customerId, 50);
     const maxAgeHours = envNumber('EXTERNAL_FEATURE_MAX_AGE_HOURS', 168);
     const now = Date.now();
     const features: Record<string, unknown> = {};
@@ -159,9 +143,9 @@ export class ExternalDataEvidenceService {
     const [features, observations, consents] = await Promise.all([
       this.getCustomerScoringInput({ tenantId: input.tenantId, customerId: input.customerId }),
       this.getCustomerObservations({ tenantId: input.tenantId, customerId: input.customerId, limit: 100 }),
-      this.listCustomerConsents({ tenantId: input.tenantId, customerId: input.customerId }),
+      this.consent.listCustomerConsents({ tenantId: input.tenantId, customerId: input.customerId }),
     ]);
-    const requests = await this.repository.listProviderRequests({
+    const requests = await this.requestRepository.listProviderRequests({
       tenantId: input.tenantId,
       customerId: input.customerId,
       from: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
@@ -169,7 +153,9 @@ export class ExternalDataEvidenceService {
     });
     const latestRequests = await Promise.all(
       requests.slice(0, 20).map(async (request) => {
-        const responses = input.includeRawResponses ? await this.repository.findProviderResponsesByRequestId(String(request.id)) : [];
+        const responses = input.includeRawResponses
+          ? await this.requestRepository.findProviderResponsesByRequestId(String(request.id))
+          : [];
         return {
           requestId: String(request.id),
           providerId: request.providerId ? String(request.providerId) : null,
@@ -225,14 +211,14 @@ export class ExternalDataEvidenceService {
   }
 
   async rebuildFeatureSnapshotFromRequest(input: { tenantId: string; requestId: string }) {
-    const request = await this.repository.findProviderRequestByIdAndTenant(input.tenantId, input.requestId);
+    const request = await this.requestRepository.findProviderRequestByIdAndTenant(input.tenantId, input.requestId);
     if (!request) throw new NotFoundException('Solicitud de provider externo no encontrada.');
     if (!request.customerId) throw new BadRequestException('REQUEST_WITHOUT_CUSTOMER_CANNOT_REBUILD_FEATURES');
-    const responses = await this.repository.findProviderResponsesByRequestIdAndTenant(input.tenantId, input.requestId);
+    const responses = await this.requestRepository.findProviderResponsesByRequestIdAndTenant(input.tenantId, input.requestId);
     const normalized = responses[0]?.normalizedPayloadJson ?? {};
     const observations = Array.isArray(normalized.observations) ? (normalized.observations as NormalizedExternalObservation[]) : [];
     if (observations.length === 0) throw new BadRequestException('REQUEST_HAS_NO_NORMALIZED_OBSERVATIONS_TO_REBUILD');
-    const provider = request.providerId ? await this.repository.findProviderById(String(request.providerId)) : null;
+    const provider = request.providerId ? await this.catalogRepository.findProviderById(String(request.providerId)) : null;
     const providerCode = provider ? String(provider.providerCode) : 'UNKNOWN';
     const features = featuresFromObservations(observations);
     const missingFeaturesJson = observations
@@ -241,7 +227,7 @@ export class ExternalDataEvidenceService {
         acc[observation.featureKey] = 'DATA_NOT_AVAILABLE';
         return acc;
       }, {});
-    const snapshot = await this.repository.createFeatureSnapshot({
+    const snapshot = await this.evidenceRepository.createFeatureSnapshot({
       tenantId: input.tenantId,
       customerId: String(request.customerId),
       providerCode,

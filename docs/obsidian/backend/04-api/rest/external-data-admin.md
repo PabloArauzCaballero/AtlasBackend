@@ -76,7 +76,9 @@ endpoints:
 
 ## Evidencia
 
-- [`src/modules/external-data/external-data.controller.ts`](../../../../../src/modules/external-data/external-data.controller.ts)
+- [`src/modules/external-data/controllers/admin-external-providers-reports.controller.ts`](../../../../../src/modules/external-data/controllers/admin-external-providers-reports.controller.ts)
+- [`src/modules/external-data/controllers/admin-external-providers-config.controller.ts`](../../../../../src/modules/external-data/controllers/admin-external-providers-config.controller.ts)
+- [`src/modules/external-data/controllers/admin-external-providers-requests.controller.ts`](../../../../../src/modules/external-data/controllers/admin-external-providers-requests.controller.ts)
 
 ## Relaciones
 

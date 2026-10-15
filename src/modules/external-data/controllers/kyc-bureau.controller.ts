@@ -15,7 +15,7 @@ import { TenantGuard } from '../../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { actorId, assertCustomerAccess, inlineApprovalBy } from '../external-data-controller.util.js';
-import { ExternalDataService } from '../external-data.service.js';
+import { ExternalProviderConvenienceService } from '../application/external-provider-convenience.service.js';
 import { infocenterCheckSchema, InfocenterCheckDto, segipVerifySchema, SegipVerifyDto } from '../external-data.schemas.js';
 
 /**
@@ -31,7 +31,7 @@ import { infocenterCheckSchema, InfocenterCheckDto, segipVerifySchema, SegipVeri
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('customer', 'internal_operator', 'risk_analyst', 'compliance_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
 export class KycExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
+  constructor(private readonly convenience: ExternalProviderConvenienceService) {}
 
   @ApiOperation({
     summary: 'Verificar identidad contra SEGIP',
@@ -51,7 +51,7 @@ export class KycExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeSegip({
+    return this.convenience.executeSegip({
       tenantId: tenantId,
       customerId: body.customerId,
       body,
@@ -67,7 +67,7 @@ export class KycExternalDataController {
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('admin', 'platform_admin', 'risk_analyst', 'compliance_analyst')
 export class BureauExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
+  constructor(private readonly convenience: ExternalProviderConvenienceService) {}
 
   @ApiOperation({
     summary: 'Consultar buró de crédito InfoCenter',
@@ -88,7 +88,7 @@ export class BureauExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeInfocenter({
+    return this.convenience.executeInfocenter({
       tenantId: tenantId,
       customerId: body.customerId,
       body,

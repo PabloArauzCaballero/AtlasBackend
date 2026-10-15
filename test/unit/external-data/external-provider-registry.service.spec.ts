@@ -168,6 +168,21 @@ describe('ExternalProviderRegistryService', () => {
       expect(repository.createHealthLog).toHaveBeenCalledWith({ providerId: '7', health: { status: 'up' } });
     });
 
+    it('normaliza el código recibido (minúsculas y alias CGIP) antes de buscar el proveedor', async () => {
+      const { service, repository, adapters } = buildService();
+      (repository.findProviderByCode as jest.Mock).mockResolvedValueOnce({
+        id: 7,
+        providerCode: 'SEGIP',
+        defaultMode: 'live',
+        isActive: true,
+      } as never);
+      (adapters.segipAdapter.checkHealth as jest.Mock).mockResolvedValueOnce({ status: 'up' } as never);
+
+      await service.getProviderHealth(' cgip ');
+
+      expect(repository.findProviderByCode).toHaveBeenCalledWith('SEGIP');
+    });
+
     it('checks health for every registered provider when no providerCode is given', async () => {
       const { service, repository, adapters } = buildService();
       (repository.listProviders as jest.Mock).mockResolvedValueOnce([

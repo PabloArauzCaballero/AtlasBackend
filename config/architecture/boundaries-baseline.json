@@ -22,7 +22,7 @@
     "import:src/modules/customer-onboarding/application/contact-verification-code.service.ts->src/modules/notifications/adapters/sms.adapter.ts",
     "import:src/modules/customer-onboarding/application/contact-verification-code.service.ts->src/modules/notifications/adapters/whatsapp.adapter.ts",
     "import:src/modules/customer-onboarding/application/customer-identity-package.service.ts->src/modules/expedientes/application/expediente-hooks.service.ts",
-    "import:src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts->src/modules/external-data/external-data.service.ts",
+    "import:src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts->src/modules/external-data/application/external-provider-convenience.service.ts",
     "import:src/modules/customer-onboarding/application/customer-onboarding-status.service.ts->src/modules/expedientes/application/expediente-hooks.service.ts",
     "import:src/modules/customer-onboarding/customer-onboarding.service.ts->src/modules/expedientes/application/expediente-hooks.service.ts",
     "import:src/modules/customer-telemetry/customer-telemetry.service.ts->src/modules/customers/customers.repository.ts",

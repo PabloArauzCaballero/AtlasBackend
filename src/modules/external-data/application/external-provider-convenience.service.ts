@@ -5,7 +5,8 @@
  */
 import { randomBytes } from 'node:crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ExternalDataRepository } from '../external-data.repository.js';
+import { ExternalProviderCatalogRepository } from '../infrastructure/external-provider-catalog.repository.js';
+import { ExternalProviderRequestRepository } from '../infrastructure/external-provider-request.repository.js';
 import { ExternalDataRequestDto } from '../external-data.schemas.js';
 import { toMode, toProviderCode } from './external-data-policy.util.js';
 import { ExternalDataExecutionService } from './external-data-execution.service.js';
@@ -13,7 +14,8 @@ import { ExternalDataExecutionService } from './external-data-execution.service.
 @Injectable()
 export class ExternalProviderConvenienceService {
   constructor(
-    private readonly repository: ExternalDataRepository,
+    private readonly catalogRepository: ExternalProviderCatalogRepository,
+    private readonly requestRepository: ExternalProviderRequestRepository,
     private readonly execution: ExternalDataExecutionService,
   ) {}
 
@@ -175,9 +177,9 @@ export class ExternalProviderConvenienceService {
     requestedByUserId?: string;
     approvedByAdminId?: string;
   }) {
-    const original = await this.repository.findProviderRequestByIdAndTenant(input.tenantId, input.requestId);
+    const original = await this.requestRepository.findProviderRequestByIdAndTenant(input.tenantId, input.requestId);
     if (!original) throw new NotFoundException('Solicitud de provider externo no encontrada.');
-    const originalProvider = original.providerId ? await this.repository.findProviderById(String(original.providerId)) : null;
+    const originalProvider = original.providerId ? await this.catalogRepository.findProviderById(String(original.providerId)) : null;
     const providerCode = toProviderCode(input.body.providerCode ?? String(originalProvider?.providerCode ?? ''));
     if (!input.body.input) {
       throw new BadRequestException(

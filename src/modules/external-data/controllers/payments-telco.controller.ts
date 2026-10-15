@@ -15,7 +15,9 @@ import { TenantGuard } from '../../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { actorId, assertCustomerAccess } from '../external-data-controller.util.js';
-import { ExternalDataService } from '../external-data.service.js';
+import { ExternalProviderConvenienceService } from '../application/external-provider-convenience.service.js';
+import { BankingQrService } from '../application/banking-qr.service.js';
+import { ExternalDataEvidenceService } from '../application/external-data-evidence.service.js';
 import {
   bankQrGenerateSchema,
   BankQrGenerateDto,
@@ -42,7 +44,10 @@ import {
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin', 'system')
 export class PaymentsExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
+  constructor(
+    private readonly convenience: ExternalProviderConvenienceService,
+    private readonly bankingQr: BankingQrService,
+  ) {}
 
   @ApiOperation({
     summary: 'Verificar pago por QR',
@@ -61,7 +66,7 @@ export class PaymentsExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeQrPayment({
+    return this.convenience.executeQrPayment({
       tenantId: tenantId,
       customerId: body.customerId,
       body,
@@ -87,7 +92,7 @@ export class PaymentsExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeBankTransfer({
+    return this.convenience.executeBankTransfer({
       tenantId: tenantId,
       customerId: body.customerId,
       body,
@@ -114,7 +119,7 @@ export class PaymentsExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.generateBankQr({
+    return this.bankingQr.generateQr({
       tenantId: tenantId,
       customerId: body.customerId,
       amount: body.amount,
@@ -132,7 +137,10 @@ export class PaymentsExternalDataController {
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('customer', 'internal_operator', 'risk_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
 export class TelcoExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
+  constructor(
+    private readonly convenience: ExternalProviderConvenienceService,
+    private readonly evidence: ExternalDataEvidenceService,
+  ) {}
 
   @ApiOperation({
     summary: 'Verificar confianza de teléfono (telco)',
@@ -152,7 +160,7 @@ export class TelcoExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeTelcoPhoneTrust({
+    return this.convenience.executeTelcoPhoneTrust({
       tenantId: tenantId,
       customerId: body.customerId,
       body,
@@ -172,7 +180,7 @@ export class TelcoExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
-    return this.externalDataService.getCustomerFeatures({
+    return this.evidence.getCustomerFeatures({
       tenantId: tenantId,
       customerId: params.customerId,
     });

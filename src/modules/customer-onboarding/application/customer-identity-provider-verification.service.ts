@@ -12,7 +12,7 @@ import { hashSensitiveText } from '../../../common/utils/crypto/hash.util.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
-import { ExternalDataService } from '../../external-data/external-data.service.js';
+import { ExternalProviderConvenienceService } from '../../external-data/application/external-provider-convenience.service.js';
 import { VerifyIdentityDto } from '../customer-onboarding-profile.schemas.js';
 import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerProfileDataRepository } from '../repositories/customer-profile-data.repository.js';
@@ -41,7 +41,7 @@ export class CustomerIdentityProviderVerificationService {
     private readonly verificationRepository: CustomerVerificationRepository,
     private readonly profileDataRepository: CustomerProfileDataRepository,
     private readonly onboardingRepository: CustomerOnboardingRepository,
-    private readonly externalDataService: ExternalDataService,
+    private readonly externalProviders: ExternalProviderConvenienceService,
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly eligibilityService: CustomerEligibilityService,
     @InjectConnection() private readonly sequelize: Sequelize,
@@ -79,7 +79,7 @@ export class CustomerIdentityProviderVerificationService {
     const profile = await this.profileDataRepository.findCurrentProfile(input.tenantId, input.customerId);
     if (!profile?.firstName || !profile.lastName) throw new UnprocessableEntityException('PROFILE_INCOMPLETE_FOR_VERIFICATION');
 
-    const providerResult = await this.externalDataService.executeSegip({
+    const providerResult = await this.externalProviders.executeSegip({
       tenantId: input.tenantId,
       customerId: input.customerId,
       body: {

@@ -60,7 +60,9 @@ endpoints:
 
 ## Evidencia
 
-- [`src/modules/external-data/external-data.controller.ts`](../../../../../src/modules/external-data/external-data.controller.ts)
+- [`src/modules/external-data/controllers/external-data-consents.controller.ts`](../../../../../src/modules/external-data/controllers/external-data-consents.controller.ts)
+- [`src/modules/external-data/controllers/external-data-requests.controller.ts`](../../../../../src/modules/external-data/controllers/external-data-requests.controller.ts)
+- [`src/modules/external-data/controllers/external-data-customer-evidence.controller.ts`](../../../../../src/modules/external-data/controllers/external-data-customer-evidence.controller.ts)
 
 ## Relaciones
 

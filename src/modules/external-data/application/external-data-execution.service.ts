@@ -4,37 +4,35 @@
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/sequelize';
-import { Sequelize } from 'sequelize-typescript';
-import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
+import { stableStringify } from '../../../common/utils/privacy/redaction.util.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
-import { redactSensitiveObject, stableStringify } from '../../../common/utils/privacy/redaction.util.js';
-import { ExternalDataRepository } from '../external-data.repository.js';
+import { ExternalProviderCatalogRepository } from '../infrastructure/external-provider-catalog.repository.js';
+import { ExternalConsentRepository } from '../infrastructure/external-consent.repository.js';
+import { ExternalProviderRequestRepository } from '../infrastructure/external-provider-request.repository.js';
 import { ExternalDataRequestDto } from '../external-data.schemas.js';
 import { ExternalDataDecisionService } from './external-data-decision.service.js';
+import { ExternalProviderCallService } from './external-provider-call.service.js';
 import { ExternalProviderRegistryService } from './external-provider-registry.service.js';
 import {
   consentPurposeCodes,
-  featuresFromObservations,
   isConsentRequiredError,
   mockBaseUrlFor,
   productionIntegrationBlockers,
   executionModeFor,
-  statusFromRaw,
   toProviderCode,
 } from './external-data-policy.util.js';
 import { ExternalDataRequestResult, ExternalProviderExecutionInput } from '../domain/external-provider.types.js';
-import { contractViolationReason, validateProviderResponse } from '../domain/provider-response.contract.js';
 import { currentQaContext } from '../../../platform/security/qa-execution-context.js';
 
 @Injectable()
 export class ExternalDataExecutionService {
   constructor(
-    private readonly repository: ExternalDataRepository,
+    private readonly catalogRepository: ExternalProviderCatalogRepository,
+    private readonly consentRepository: ExternalConsentRepository,
+    private readonly requestRepository: ExternalProviderRequestRepository,
     private readonly registry: ExternalProviderRegistryService,
-    private readonly resilience: ResilientAdapterExecutorService,
     private readonly decision: ExternalDataDecisionService,
-    @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly call: ExternalProviderCallService,
   ) {}
 
   async executeExternalDataRequest(input: {
@@ -56,12 +54,12 @@ export class ExternalDataExecutionService {
     const providerCode = toProviderCode(input.body.providerCode);
     const provider = await this.registry.requireProvider(providerCode);
     const adapter = this.registry.requireAdapter(providerCode);
-    const policy = await this.repository.findCostPolicy(String(provider.id), input.body.queryType);
+    const policy = await this.catalogRepository.findCostPolicy(String(provider.id), input.body.queryType);
     const mode = executionModeFor(String(provider.providerCode), provider.defaultMode);
     const now = new Date();
     const requestPayloadHash = sha256Hex(stableStringify(input.body.input));
     if (input.idempotencyKey) {
-      const existing = await this.repository.findIdempotentProviderRequest(input.tenantId, input.idempotencyKey);
+      const existing = await this.requestRepository.findIdempotentProviderRequest(input.tenantId, input.idempotencyKey);
       if (existing) {
         this.decision.assertIdempotencyScopeMatches(existing, {
           providerId: String(provider.id),
@@ -88,7 +86,7 @@ export class ExternalDataExecutionService {
       });
     } catch (error) {
       if (!isConsentRequiredError(error)) throw error;
-      const request = await this.repository.createProviderRequest({
+      const request = await this.requestRepository.createProviderRequest({
         tenantId: input.tenantId,
         providerId: String(provider.id),
         customerId: input.body.customerId,
@@ -161,7 +159,7 @@ export class ExternalDataExecutionService {
 
     const cacheTtlSeconds = input.body.forceRefresh ? 0 : this.decision.cacheTtlSeconds(policy);
     if (!policyBlock.blocked && cacheTtlSeconds > 0) {
-      const cachedRequest = await this.repository.findReusableProviderRequest({
+      const cachedRequest = await this.requestRepository.findReusableProviderRequest({
         tenantId: input.tenantId,
         providerId: String(provider.id),
         customerId: input.body.customerId,
@@ -170,7 +168,7 @@ export class ExternalDataExecutionService {
         since: new Date(Date.now() - cacheTtlSeconds * 1000),
       });
       if (cachedRequest) {
-        const auditRequest = await this.repository.createProviderRequest({
+        const auditRequest = await this.requestRepository.createProviderRequest({
           tenantId: input.tenantId,
           providerId: String(provider.id),
           customerId: input.body.customerId,
@@ -211,7 +209,7 @@ export class ExternalDataExecutionService {
       }
     }
 
-    const request = await this.repository.createProviderRequest({
+    const request = await this.requestRepository.createProviderRequest({
       tenantId: input.tenantId,
       providerId: String(provider.id),
       customerId: input.body.customerId,
@@ -267,148 +265,7 @@ export class ExternalDataExecutionService {
       qaContext: currentQaContext(),
     };
 
-    try {
-      // ATLAS-ROBUSTEZ: `retryMaxAttempts`/`retryBackoffSeconds` ya existían como columnas de
-      // `external_provider_cost_policies` (y se leían en `mapCostPolicy` para el preview), pero
-      // nunca se aplicaban a la ejecución real del adaptador — cualquier política que los
-      // configurara no tenía ningún efecto. Ahora alimentan el kernel de resiliencia compartido
-      // (`ResilientAdapterExecutorService`, el mismo que usan los adapters de `notifications`):
-      // un fallo transitorio del adaptador (`AdapterError.retryable`, p. ej. timeout o 5xx una
-      // vez que exista una integración real) se reintenta con backoff antes de marcar el
-      // request como `FAILED`. Sin política configurada, el default es 1 intento (sin retry) —
-      // mismo comportamiento observable para llamadas sin política de costo configurada.
-      //
-      // El suelo es 1: las políticas sembradas escriben `retry_max_attempts = 0` para decir «sin
-      // reintentos» (proveedores con costo), y pasado tal cual eran CERO intentos: el adaptador no
-      // se llamaba nunca y la consulta salía `FAILED` con `RETRY_LOOP_EXHAUSTED_WITHOUT_ERROR`
-      // (INFOCENTER, WhatsApp, confianza social y digital). Medido el 2026-09-24 en una corrida QA.
-      const raw = await this.resilience.run(() => adapter.execute(executionInput), {
-        provider: providerCode,
-        maxAttempts: Math.max(1, policy?.retryMaxAttempts ?? 1),
-        baseDelayMs: policy?.retryBackoffSeconds ? policy.retryBackoffSeconds * 1000 : 200,
-      });
-      // Un 200 con el contrato roto NO puede seguir hacia `normalize()`.
-      //
-      // Los normalizadores rellenan lo que falta —`num(payload.matchScore) ?? 0`,
-      // `bool(payload.documentExists) ?? status === 'FOUND'`— así que una respuesta `{"status":
-      // "FOUND"}` sin un solo dato de la verificación salía del pipeline como cinco observaciones
-      // bien formadas, indistinguibles de una identidad de baja coincidencia. El cambio
-      // incompatible de un proveedor no rompía nada: degradaba en silencio la evidencia de un
-      // expediente KYC. Ahora es un fallo identificable, con los campos que faltaron, y sin
-      // observaciones inventadas.
-      const contractViolations = validateProviderResponse(providerCode, raw.payload, String(raw.status));
-      const contractBroken = contractViolations.length > 0;
-      const observations = contractBroken ? [] : await adapter.normalize(raw, executionInput);
-      const features = featuresFromObservations(observations);
-      const missingFeaturesJson = observations
-        .filter((observation) => observation.valueString === 'DATA_NOT_AVAILABLE')
-        .reduce<Record<string, unknown>>((acc, observation) => {
-          acc[observation.featureKey] = 'DATA_NOT_AVAILABLE';
-          return acc;
-        }, {});
-      const status = contractBroken ? 'FAILED' : statusFromRaw(raw);
-      const redactedPayload = redactSensitiveObject(raw.payload) as Record<string, unknown>;
-      const responseHash = sha256Hex(stableStringify(redactedPayload));
-      // Sin observaciones no hay quien pida revisión manual, y una respuesta que no se pudo
-      // interpretar es exactamente el caso que un humano tiene que mirar.
-      const manualReviewRequired = contractBroken || observations.some((observation) => observation.manualReviewRequired === true);
-
-      await this.sequelize.transaction(async (transaction) => {
-        await this.repository.updateProviderRequest(
-          request,
-          {
-            responseStatus: status,
-            responseCode: String(raw.status),
-            latencyMs: raw.latencyMs,
-            respondedAt: new Date(),
-            providerRequestRef: raw.providerReference,
-            actualCostAmount: policy ? String(policy.unitCostAmount) : undefined,
-            errorMessageSafe: contractBroken ? contractViolationReason(contractViolations) : undefined,
-            metadataJson: {
-              providerCode,
-              isMocked: raw.isMocked,
-              scenario: input.body.scenario ?? null,
-              // Los campos concretos que faltaron quedan en la evidencia: sin ellos, diagnosticar
-              // un cambio de contrato del proveedor obliga a reproducir la llamada.
-              ...(contractBroken ? { contractViolations } : {}),
-            },
-          },
-          { transaction },
-        );
-        await this.repository.createProviderResponse(
-          {
-            tenantId: input.tenantId,
-            providerRequestId: String(request.id),
-            redactedPayloadJson: redactedPayload,
-            normalizedPayloadJson: { observations, features },
-            responseHash,
-            providerStatusCode: raw.statusCode,
-            providerReference: raw.providerReference,
-            containsSensitiveData: true,
-            now: new Date(),
-          },
-          { transaction },
-        );
-        if (input.body.customerId) {
-          await this.repository.createObservations(
-            {
-              tenantId: input.tenantId,
-              customerId: input.body.customerId,
-              providerId: String(provider.id),
-              requestId: String(request.id),
-              observations,
-              now: new Date(),
-            },
-            { transaction },
-          );
-          await this.repository.createFeatureSnapshot(
-            {
-              tenantId: input.tenantId,
-              customerId: input.body.customerId,
-              providerCode,
-              requestId: String(request.id),
-              featuresJson: features,
-              missingFeaturesJson,
-              integrityHash: sha256Hex(stableStringify(features)),
-              now: new Date(),
-            },
-            { transaction },
-          );
-        }
-      });
-
-      return {
-        requestId: String(request.id),
-        providerCode,
-        status,
-        // El veredicto del proveedor viaja aparte del estado de ejecución: `status` colapsa a MOCKED
-        // toda respuesta simulada, así que quien decide identidad/crédito lo perdería.
-        providerVerdict: String(raw.status),
-        reasonCode: contractBroken ? contractViolationReason(contractViolations) : String(raw.payload.reasonCode ?? raw.status),
-        observations,
-        features,
-        manualReviewRequired,
-        modeUsed: mode,
-      };
-    } catch (error) {
-      const safeError = error instanceof Error ? error.message : 'UNKNOWN_PROVIDER_ERROR';
-      await this.repository.updateProviderRequest(request, {
-        responseStatus: 'FAILED',
-        responseCode: 'PROVIDER_EXECUTION_FAILED',
-        respondedAt: new Date(),
-        errorMessageSafe: safeError,
-      });
-      return {
-        requestId: String(request.id),
-        providerCode,
-        status: 'FAILED',
-        reasonCode: safeError,
-        observations: [],
-        features: {},
-        manualReviewRequired: true,
-        modeUsed: mode,
-      };
-    }
+    return this.call.callAdapter({ request, providerId: String(provider.id), adapter, executionInput, policy });
   }
 
   private async validateConsent(input: {
@@ -428,7 +285,7 @@ export class ExternalDataExecutionService {
       return null;
     }
     if (!input.customerId) throw new ForbiddenException('CONSENT_REQUIRED');
-    const consent = await this.repository.findCustomerConsent(
+    const consent = await this.consentRepository.findCustomerConsent(
       input.tenantId,
       input.customerId,
       consentPurposeCodes(input.providerCode, input.purpose),

@@ -24,7 +24,7 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (132 controladores) | 616 |
+| Total montadas (136 controladores) | 616 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
@@ -309,48 +309,48 @@
 
 | Método | Ruta | Acceso | Permiso fino | Handler | Notas |
 |---|---|---|---|---|---|
-| `GET` | `/admin/external-providers` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.listProviders` | guards: `TenantGuard` |
+| `GET` | `/admin/external-providers` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersReportsController.listProviders` | guards: `TenantGuard` |
 | `GET` | `/admin/external-providers/:providerCode/auth-state` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `ProviderAuthAdminController.authState` | guards: `TenantGuard` |
-| `GET` | `/admin/external-providers/:providerCode/cost-policy` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.getCostPolicy` | guards: `TenantGuard` |
-| `PATCH` | `/admin/external-providers/:providerCode/cost-policy/:queryType` | `admin`, `platform_admin` | — | `AdminExternalProvidersController.updateCostPolicy` | guards: `TenantGuard` |
+| `GET` | `/admin/external-providers/:providerCode/cost-policy` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersConfigController.getCostPolicy` | guards: `TenantGuard` |
+| `PATCH` | `/admin/external-providers/:providerCode/cost-policy/:queryType` | `admin`, `platform_admin` | — | `AdminExternalProvidersConfigController.updateCostPolicy` | guards: `TenantGuard` |
 | `POST` | `/admin/external-providers/:providerCode/credentials/invalidate-token` | `admin`, `platform_admin` | — | `ProviderAuthAdminController.invalidateToken` | guards: `TenantGuard` |
 | `POST` | `/admin/external-providers/:providerCode/credentials/revoke` | `admin`, `platform_admin` | — | `ProviderAuthAdminController.revoke` | guards: `TenantGuard` |
 | `POST` | `/admin/external-providers/:providerCode/credentials/rotate` | `admin`, `platform_admin` | — | `ProviderAuthAdminController.rotate` | guards: `TenantGuard` |
-| `POST` | `/admin/external-providers/:providerCode/kill-switch` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.killSwitch` | guards: `TenantGuard` |
-| `PATCH` | `/admin/external-providers/:providerCode/runtime` | `admin`, `platform_admin` | — | `AdminExternalProvidersController.patchRuntime` | guards: `TenantGuard` |
-| `POST` | `/admin/external-providers/:providerCode/test` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.testProvider` | guards: `TenantGuard` |
+| `POST` | `/admin/external-providers/:providerCode/kill-switch` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersConfigController.killSwitch` | guards: `TenantGuard` |
+| `PATCH` | `/admin/external-providers/:providerCode/runtime` | `admin`, `platform_admin` | — | `AdminExternalProvidersConfigController.patchRuntime` | guards: `TenantGuard` |
+| `POST` | `/admin/external-providers/:providerCode/test` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersConfigController.testProvider` | guards: `TenantGuard` |
 | `GET` | `/admin/external-providers/auth-broker/availability` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `ProviderAuthAdminController.availability` | guards: `TenantGuard` |
 | `GET` | `/admin/external-providers/auth-state` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `ProviderAuthAdminController.listAuthStates` | guards: `TenantGuard` |
 | `GET` | `/admin/external-providers/credentials/pending-rotation` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `ProviderAuthAdminController.pendingRotation` | guards: `TenantGuard` |
 | `GET` | `/admin/external-providers/dashboard` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `ExternalProvidersDashboardController.dashboard` | guards: `TenantGuard` |
-| `GET` | `/admin/external-providers/health` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.health` | guards: `TenantGuard` |
-| `GET` | `/admin/external-providers/idempotency-audit` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.idempotencyAudit` | guards: `TenantGuard` |
-| `POST` | `/admin/external-providers/policy/preview` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.previewPolicy` | guards: `TenantGuard` |
-| `GET` | `/admin/external-providers/production-gate` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.productionGate` | guards: `TenantGuard` |
-| `GET` | `/admin/external-providers/quality-audit` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.qualityAudit` | guards: `TenantGuard` |
-| `GET` | `/admin/external-providers/readiness` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.readiness` | guards: `TenantGuard` |
+| `GET` | `/admin/external-providers/health` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersReportsController.health` | guards: `TenantGuard` |
+| `GET` | `/admin/external-providers/idempotency-audit` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersReportsController.idempotencyAudit` | guards: `TenantGuard` |
+| `POST` | `/admin/external-providers/policy/preview` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersReportsController.previewPolicy` | guards: `TenantGuard` |
+| `GET` | `/admin/external-providers/production-gate` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersReportsController.productionGate` | guards: `TenantGuard` |
+| `GET` | `/admin/external-providers/quality-audit` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersReportsController.qualityAudit` | guards: `TenantGuard` |
+| `GET` | `/admin/external-providers/readiness` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersReportsController.readiness` | guards: `TenantGuard` |
 | `GET` | `/admin/external-providers/requests` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `ExternalProvidersDashboardController.requests` | guards: `TenantGuard` |
-| `POST` | `/admin/external-providers/requests/:requestId/approve` | `admin`, `platform_admin` | — | `AdminExternalProvidersController.approveRequest` | guards: `TenantGuard` |
-| `POST` | `/admin/external-providers/requests/:requestId/rebuild-features` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.rebuildFeatures` | guards: `TenantGuard` |
-| `POST` | `/admin/external-providers/requests/:requestId/retry` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.retryRequest` | guards: `TenantGuard` |
-| `GET` | `/admin/external-providers/retention/preview` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.retentionPreview` | guards: `TenantGuard` |
-| `GET` | `/admin/external-providers/sanitization-audit` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.sanitizationAudit` | guards: `TenantGuard` |
-| `GET` | `/admin/external-providers/sla` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.sla` | guards: `TenantGuard` |
-| `GET` | `/admin/external-providers/usage` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersController.usage` | guards: `TenantGuard` |
+| `POST` | `/admin/external-providers/requests/:requestId/approve` | `admin`, `platform_admin` | — | `AdminExternalProvidersRequestsController.approveRequest` | guards: `TenantGuard` |
+| `POST` | `/admin/external-providers/requests/:requestId/rebuild-features` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersRequestsController.rebuildFeatures` | guards: `TenantGuard` |
+| `POST` | `/admin/external-providers/requests/:requestId/retry` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersRequestsController.retryRequest` | guards: `TenantGuard` |
+| `GET` | `/admin/external-providers/retention/preview` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersReportsController.retentionPreview` | guards: `TenantGuard` |
+| `GET` | `/admin/external-providers/sanitization-audit` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersReportsController.sanitizationAudit` | guards: `TenantGuard` |
+| `GET` | `/admin/external-providers/sla` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersReportsController.sla` | guards: `TenantGuard` |
+| `GET` | `/admin/external-providers/usage` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `AdminExternalProvidersReportsController.usage` | guards: `TenantGuard` |
 | `POST` | `/bureau/infocenter/check` | `admin`, `platform_admin`, `risk_analyst`, `compliance_analyst` | — | `BureauExternalDataController.checkInfocenter` | guards: `TenantGuard` |
 | `POST` | `/digital-trust/check` | `customer`, `internal_operator`, `risk_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `DigitalTrustExternalDataController.check` | guards: `TenantGuard` |
 | `GET` | `/digital-trust/profile/:customerId` | `customer`, `internal_operator`, `risk_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `DigitalTrustExternalDataController.profile` | guards: `TenantGuard` |
-| `POST` | `/external-data/consents` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.createConsent` | guards: `TenantGuard` |
-| `POST` | `/external-data/consents/:consentId/revoke` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.revokeConsent` | guards: `TenantGuard` |
-| `GET` | `/external-data/consents/user/:customerId` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.listConsents` | guards: `TenantGuard` |
-| `GET` | `/external-data/providers/health` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getProviderHealth` | guards: `TenantGuard` |
-| `POST` | `/external-data/requests` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.executeRequest` | guards: `TenantGuard` |
-| `GET` | `/external-data/requests/:requestId` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getRequest` | guards: `TenantGuard` |
-| `POST` | `/external-data/requests/preview` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.previewRequest` | guards: `TenantGuard` |
-| `GET` | `/external-data/users/:customerId/decision-package` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getDecisionPackage` | guards: `TenantGuard` |
-| `GET` | `/external-data/users/:customerId/features` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getUserFeatures` | guards: `TenantGuard` |
-| `GET` | `/external-data/users/:customerId/observations` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getUserObservations` | guards: `TenantGuard` |
-| `GET` | `/external-data/users/:customerId/scoring-input` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataController.getUserScoringInput` | guards: `TenantGuard` |
+| `POST` | `/external-data/consents` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataConsentsController.createConsent` | guards: `TenantGuard` |
+| `POST` | `/external-data/consents/:consentId/revoke` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataConsentsController.revokeConsent` | guards: `TenantGuard` |
+| `GET` | `/external-data/consents/user/:customerId` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataConsentsController.listConsents` | guards: `TenantGuard` |
+| `GET` | `/external-data/providers/health` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataRequestsController.getProviderHealth` | guards: `TenantGuard` |
+| `POST` | `/external-data/requests` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataRequestsController.executeRequest` | guards: `TenantGuard` |
+| `GET` | `/external-data/requests/:requestId` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataRequestsController.getRequest` | guards: `TenantGuard` |
+| `POST` | `/external-data/requests/preview` | `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataRequestsController.previewRequest` | guards: `TenantGuard` |
+| `GET` | `/external-data/users/:customerId/decision-package` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataCustomerEvidenceController.getDecisionPackage` | guards: `TenantGuard` |
+| `GET` | `/external-data/users/:customerId/features` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataCustomerEvidenceController.getUserFeatures` | guards: `TenantGuard` |
+| `GET` | `/external-data/users/:customerId/observations` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataCustomerEvidenceController.getUserObservations` | guards: `TenantGuard` |
+| `GET` | `/external-data/users/:customerId/scoring-input` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `ExternalDataCustomerEvidenceController.getUserScoringInput` | guards: `TenantGuard` |
 | `POST` | `/kyc/segip/verify` | `customer`, `internal_operator`, `risk_analyst`, `compliance_analyst`, `fraud_analyst`, `admin`, `platform_admin`, `system` | — | `KycExternalDataController.verifySegip` | guards: `TenantGuard` |
 | `POST` | `/payments/bank-transfer/qr` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin`, `system` | — | `PaymentsExternalDataController.generateBankQr` | guards: `TenantGuard` |
 | `POST` | `/payments/bank-transfer/verify` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin`, `system` | — | `PaymentsExternalDataController.verifyBankTransfer` | guards: `TenantGuard` |

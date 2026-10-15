@@ -6,13 +6,14 @@
 import { Inject, Injectable, Logger, NotFoundException, OnModuleInit, Optional } from '@nestjs/common';
 import { assertAllProvidersConfigured } from '../../../common/resilience/provider-config-validator.js';
 import { EXTERNAL_PROVIDER_ADAPTERS, EXTERNAL_PROVIDER_ALIASES, PROVIDER_ALIASES } from '../infrastructure/external-provider.providers.js';
-import { ExternalDataRepository } from '../external-data.repository.js';
+import { ExternalProviderCatalogRepository } from '../infrastructure/external-provider-catalog.repository.js';
 import { ExternalProviderAdapter } from '../domain/external-provider-adapter.interface.js';
 import {
   externalProviderBootRequirements,
   mockBaseUrlFor,
   productionIntegrationBlockers,
   providerModeFromEnv,
+  toProviderCode,
 } from './external-data-policy.util.js';
 
 @Injectable()
@@ -44,7 +45,7 @@ export class ExternalProviderRegistryService implements OnModuleInit {
    */
   private async reportBlockedProviders(): Promise<void> {
     try {
-      const providers = await this.repository.listProviders();
+      const providers = await this.catalogRepository.listProviders();
       this.blockedProviders = providers
         .filter((provider) => provider)
         .map((provider) => {
@@ -77,7 +78,7 @@ export class ExternalProviderRegistryService implements OnModuleInit {
   private readonly aliases: Readonly<Record<string, string>>;
 
   constructor(
-    private readonly repository: ExternalDataRepository,
+    private readonly catalogRepository: ExternalProviderCatalogRepository,
     // AT-042: la aplicación recibe la colección; las clases concretas se ensamblan en infraestructura.
     @Inject(EXTERNAL_PROVIDER_ADAPTERS) adapters: ExternalProviderAdapter[],
     @Optional() @Inject(EXTERNAL_PROVIDER_ALIASES) aliases: Readonly<Record<string, string>> = PROVIDER_ALIASES,
@@ -111,19 +112,19 @@ export class ExternalProviderRegistryService implements OnModuleInit {
   }
 
   async requireProvider(providerCode: string) {
-    const provider = await this.repository.findProviderByCode(this.canonical(providerCode));
+    const provider = await this.catalogRepository.findProviderByCode(this.canonical(providerCode));
     if (!provider || provider.isActive === false) throw new NotFoundException(`Provider externo no configurado: ${providerCode}`);
     return provider;
   }
 
   async requireProviderAllowDisabled(providerCode: string) {
-    const provider = await this.repository.findProviderByCode(this.canonical(providerCode));
+    const provider = await this.catalogRepository.findProviderByCode(this.canonical(providerCode));
     if (!provider) throw new NotFoundException(`Provider externo no configurado: ${providerCode}`);
     return provider;
   }
 
   async listProviders() {
-    const providers = await this.repository.listProviders();
+    const providers = await this.catalogRepository.listProviders();
     return providers.map((provider) => ({
       id: String(provider.id),
       code: provider.providerCode,
@@ -139,7 +140,9 @@ export class ExternalProviderRegistryService implements OnModuleInit {
   }
 
   async getProviderHealth(providerCode?: string) {
-    const providers = providerCode ? [await this.requireProvider(providerCode)] : await this.repository.listProviders();
+    const providers = providerCode
+      ? [await this.requireProvider(toProviderCode(providerCode))]
+      : await this.catalogRepository.listProviders();
     const results = [];
     for (const provider of providers) {
       if (!provider) continue;
@@ -147,7 +150,7 @@ export class ExternalProviderRegistryService implements OnModuleInit {
       const adapter = this.requireAdapter(code);
       const mode = providerModeFromEnv(code, provider.defaultMode);
       const health = await adapter.checkHealth(mode, mockBaseUrlFor(code));
-      await this.repository.createHealthLog({ providerId: String(provider.id), health });
+      await this.catalogRepository.createHealthLog({ providerId: String(provider.id), health });
       results.push({ ...health, providerCode: code });
     }
     return results;

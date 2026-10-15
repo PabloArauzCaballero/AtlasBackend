@@ -1,6 +1,7 @@
 import { describe, expect, it, jest, afterEach } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
 import { ExternalDataExecutionService } from '../../../src/modules/external-data/application/external-data-execution.service.js';
+import { ExternalProviderCallService } from '../../../src/modules/external-data/application/external-provider-call.service.js';
 import { ExternalDataDecisionService } from '../../../src/modules/external-data/application/external-data-decision.service.js';
 import { sha256Hex } from '../../../src/common/utils/crypto/hash.util.js';
 import { stableStringify } from '../../../src/common/utils/privacy/redaction.util.js';
@@ -34,12 +35,14 @@ describe('ExternalDataExecutionService', () => {
     const resilience = { run: jest.fn(async (fn: () => Promise<unknown>, ..._rest: unknown[]) => fn()) };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
     const decision = new ExternalDataDecisionService(repository as never);
+    const call = new ExternalProviderCallService(repository as never, repository as never, resilience as never, sequelize as never);
     const service = new ExternalDataExecutionService(
       repository as never,
+      repository as never,
+      repository as never,
       registry as never,
-      resilience as never,
       decision,
-      sequelize as never,
+      call,
     );
     /*
      * La PREVISUALIZACIÓN —qué pasaría si se consultara, sin consultar— salió a
@@ -47,6 +50,8 @@ describe('ExternalDataExecutionService', () => {
      * dobles y en el mismo orden, así que las aserciones de este spec no cambian.
      */
     const preview = new ExternalDataPreviewService(
+      repository as never,
+      repository as never,
       repository as never,
       registry as never,
       resilience as never,
