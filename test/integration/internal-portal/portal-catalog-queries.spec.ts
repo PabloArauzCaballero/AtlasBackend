@@ -181,19 +181,7 @@ describe('catálogo de sistemas', () => {
   it('`personalData` y el buscador por responsable filtran en la base', async () => {
     // Sólo los dos modelos que usan los listados; el resto de colaboradores no interviene aquí.
     const unused = undefined as never;
-    const repository = new SystemsCatalogRepository(
-      SystemEndpointCatalogModel,
-      unused,
-      unused,
-      SystemDataEntityCatalogModel,
-      unused,
-      unused,
-      unused,
-      unused,
-      unused,
-      unused,
-      unused,
-    );
+    const repository = new SystemsCatalogRepository(SystemEndpointCatalogModel, unused, SystemDataEntityCatalogModel);
     const personal = await repository.listDataEntities({ module: `mod_${token}`, personalData: true, page: 1, limit: 50 } as never);
     expect(personal.meta.total).toBe(1);
     const byOwner = await repository.listDataEntities({ q: `dueno_${token}`, page: 1, limit: 50 } as never);

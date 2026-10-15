@@ -6,7 +6,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { actorId } from '../../common/utils/auth/actor.util.js';
-import { mapTestStep, mapTestSuite } from './systems-ops.mapper.js';
+import { mapTestStep, mapTestSuite } from './systems-ops.test-run.mapper.js';
 import { restoreRedactedHeaders } from './systems-header-redaction.util.js';
 import {
   CreateTestStepDto,

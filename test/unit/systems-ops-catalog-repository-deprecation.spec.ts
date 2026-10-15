@@ -22,19 +22,7 @@ function buildModelMock(rows: Array<{ id: string; method: string; fullPath: stri
 }
 
 function buildRepository(endpointModel: ReturnType<typeof buildModelMock>) {
-  return new SystemsCatalogRepository(
-    endpointModel as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-  );
+  return new SystemsCatalogRepository(endpointModel as never, {} as never, {} as never);
 }
 
 describe('SystemsCatalogRepository.markDeprecatedCandidates', () => {

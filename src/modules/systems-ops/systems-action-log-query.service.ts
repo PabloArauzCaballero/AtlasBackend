@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { buildActionLogFilterCatalog } from './action-log-filter-catalog.js';
-import { mapActionLog } from './systems-ops.mapper.js';
+import { mapActionLog } from './systems-ops.test-run.mapper.js';
 import { SystemsActionLogQueryDto } from './systems-ops.schemas.js';
 import { SystemsActionLogRepository } from './systems-action-log.repository.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';

@@ -7,7 +7,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { actorId } from '../../common/utils/auth/actor.util.js';
 import { asRecord } from '../../common/utils/types/record.util.js';
-import { mapTestRun, mapTestStepRun } from './systems-ops.mapper.js';
+import { mapTestRun, mapTestStepRun } from './systems-ops.test-run.mapper.js';
 import { RunTestSuiteDto } from './systems-ops.schemas.js';
 import { SystemsTestExecutionRepository } from './systems-test-execution.repository.js';
 import { sanitizeForSystemsOps } from './systems-sanitizer.js';
