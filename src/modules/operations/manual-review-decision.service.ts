@@ -1,7 +1,7 @@
 /**
- * @file Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.
- * @business Esta pieza permite resolver excepciones y revisiones manuales con responsabilidad y trazabilidad.
- * @system gestiona colas y decisiones operativas mediante servicios transaccionales y repositorios aislados.
+ * @file Servicio de aplicación o dominio: decide un caso de revisión manual.
+ * @business Permite resolver excepciones y revisiones manuales con responsabilidad y trazabilidad.
+ * @system cierra el caso, aplica la decisión al riesgo y al estado del cliente, y deja auditoría en una sola transacción.
  */
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
@@ -10,80 +10,25 @@ import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { sha256Hex } from '../../common/utils/crypto/hash.util.js';
 import { CustomerLifecycleService } from '../customers/application/customer-lifecycle.service.js';
-import { CustomerContactsSnapshotService } from '../customer-onboarding/application/customer-contacts-snapshot.service.js';
 import { CustomerLifecycleStatus } from '../customers/customer-lifecycle.constants.js';
-import { CustomersRepository } from '../customers/customers.repository.js';
-import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
 import { RiskAssessmentRepository } from '../risk/repositories/risk-assessment.repository.js';
-import { InvestigationSummaryResponseDto } from './operations.dtos.js';
-import { toInvestigationSummaryResponse } from './operations.mapper.js';
-import { OperationsRepository } from './operations.repository.js';
-import { ManualReviewDecisionDto, ManualReviewDecisionParamsDto, OperationsCustomerIdParamsDto } from './operations.schemas.js';
+import { CustomerObservationRepository } from './customer-observation.repository.js';
+import { assertDecidableFromPortal } from './manual-review-decision-guards.js';
+import { ManualReviewCaseRepository } from './manual-review-case.repository.js';
+import { OperationsAuditRepository } from './operations-audit.repository.js';
+import { ManualReviewDecisionDto, ManualReviewDecisionParamsDto } from './operations.schemas.js';
 
 // La decisión de fraude vive en FraudService; OperationsController conserva la ruta compatible.
-
-import { assertDecidableFromPortal } from './manual-review-decision-guards.js';
 @Injectable()
-export class OperationsService {
+export class ManualReviewDecisionService {
   constructor(
-    private readonly operationsRepository: OperationsRepository,
-    private readonly customersRepository: CustomersRepository,
-    private readonly customerContactsRepository: CustomerContactsRepository,
+    private readonly manualReviews: ManualReviewCaseRepository,
+    private readonly observations: CustomerObservationRepository,
+    private readonly audit: OperationsAuditRepository,
     private readonly riskAssessmentRepository: RiskAssessmentRepository,
     private readonly lifecycleService: CustomerLifecycleService,
-    /*
-     * La agenda del cliente la calcula y la guarda el módulo de ALTA, y de ahí se
-     * lee. No se duplica la consulta aquí porque entonces habría dos definiciones
-     * de qué significa «la agenda de este cliente» —una para decidir y otra para
-     * investigar— y basta con que se separen una vez para que el analista vea unos
-     * números y el motor decida con otros.
-     */
-    private readonly contactsSnapshot: CustomerContactsSnapshotService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
-
-  // La COLA (por página y por cursor) vive en `OperationsWorkQueueService`.
-
-  async getInvestigationSummary(tenantId: string, params: OperationsCustomerIdParamsDto): Promise<InvestigationSummaryResponseDto> {
-    const customer = await this.customersRepository.findById(tenantId, params.customerId);
-    if (!customer) {
-      throw new NotFoundException('Cliente no encontrado.');
-    }
-
-    const [profile, contacts, consents, latestRiskResult, manualReviewCases, fraudCases, latestIdentityAttempt, addressBook] =
-      await Promise.all([
-        this.customersRepository.findCurrentProfile(tenantId, params.customerId),
-        this.customerContactsRepository.findContactMethods(tenantId, params.customerId),
-        this.customersRepository.findCustomerConsents(tenantId, params.customerId),
-        this.riskAssessmentRepository.findLatestCustomerRiskResult(tenantId, params.customerId),
-        this.operationsRepository.findOpenManualReviewCasesForCustomer(tenantId, params.customerId),
-        this.operationsRepository.findFraudCasesForCustomer(tenantId, params.customerId),
-        this.operationsRepository.findLatestIdentityAttempt(tenantId, params.customerId),
-        // La agenda es una lectura auxiliar: si falla, el expediente entero no puede
-        // dejar de verse por ella. Degradar a «no disponible» es lo mismo que la
-        // pantalla enseña cuando la persona no dio el permiso.
-        this.contactsSnapshot.featuresFor(tenantId, params.customerId).catch(() => ({
-          available: false,
-          totalContacts: 0,
-          uniqueRatio: 0,
-          bolivianRatio: 0,
-          referencesFoundInAddressBook: 0,
-          riskMatches: 0,
-        })),
-      ]);
-
-    return toInvestigationSummaryResponse({
-      customer,
-      profile,
-      contacts,
-      consents,
-      latestRiskResult,
-      manualReviewCases,
-      fraudCases,
-      latestIdentityAttempt,
-      addressBook,
-    });
-  }
 
   async decideManualReviewCase(input: {
     tenantId: string;
@@ -98,17 +43,17 @@ export class OperationsService {
     }
     const now = new Date();
     return this.sequelize.transaction(async (transaction) => {
-      const reviewCase = await this.operationsRepository.findManualReviewCaseById(input.tenantId, input.params.caseId, { transaction });
+      const reviewCase = await this.manualReviews.findManualReviewCaseById(input.tenantId, input.params.caseId, { transaction });
       if (!reviewCase) throw new NotFoundException('CASE_NOT_FOUND');
       if (reviewCase.closedAt || reviewCase.status === 'closed') throw new ConflictException('CASE_ALREADY_CLOSED');
       assertDecidableFromPortal(reviewCase);
-      await this.operationsRepository.closeManualReviewCase(
+      await this.manualReviews.closeManualReviewCase(
         reviewCase,
         { resolution: input.body.decision, notes: input.body.notes ?? null, closedAt: now },
         { transaction },
       );
       await this.applyDecisionToRiskResult(input.tenantId, reviewCase.riskAssessmentRunId, input.body, now, transaction);
-      await this.operationsRepository.createManualReviewEvent(
+      await this.manualReviews.createManualReviewEvent(
         {
           tenantId: input.tenantId,
           caseId: input.params.caseId,
@@ -143,7 +88,7 @@ export class OperationsService {
           transaction,
         });
         appliedStatus = transition.newStatus;
-        await this.operationsRepository.createCustomerObservation(
+        await this.observations.createCustomerObservation(
           {
             tenantId: input.tenantId,
             customerId: String(reviewCase.customerId),
@@ -154,7 +99,7 @@ export class OperationsService {
           { transaction },
         );
       }
-      await this.operationsRepository.createOperationalAudit(
+      await this.audit.createOperationalAudit(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,
@@ -167,7 +112,7 @@ export class OperationsService {
         },
         { transaction },
       );
-      await this.operationsRepository.createDataChange(
+      await this.audit.createDataChange(
         {
           tenantId: input.tenantId,
           tableName: 'manual_review_cases',

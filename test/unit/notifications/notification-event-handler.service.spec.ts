@@ -1,115 +1,14 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { asyncMock } from '../../support/jest-mocks.js';
-import { NotificationOrchestratorService } from '../../../src/modules/notifications/notification-orchestrator.service.js';
+import { buildService, fakeEvent } from './support/notification-fixtures.js';
 
 /**
  * ATLAS-P12 (continuación, prioridad #1 de `docs/testing/PLAN_RED_DE_PRUEBAS_ATLAS_P12.md` §9):
- * `NotificationOrchestratorService.handleEvent` es el servicio con el hallazgo de mayor riesgo ya
- * documentado por auditorías previas (duplicados de notificación) y, hasta este archivo, sin
- * ningún test. El caso más importante de todo este archivo es el codec de `idempotencyKey`
- * (`${idempotencyKey ?? eventCode}-${event.id}-${recipientId}-${channel}`): es la única barrera
- * real contra notificaciones duplicadas, y hasta ahora vivía sin verificación escrita.
+ * `NotificationEventHandlerService.handleEvent` es el servicio con el hallazgo de mayor riesgo ya
+ * documentado por auditorías previas (duplicados de notificación). El caso más importante es el
+ * codec de `idempotencyKey` (`${idempotencyKey ?? eventCode}-${event.id}-${recipientId}-${channel}`):
+ * es la única barrera real contra notificaciones duplicadas.
  */
-describe('NotificationOrchestratorService', () => {
-  function buildAdapter(channel: string, overrides: Record<string, unknown> = {}) {
-    return {
-      supports: jest.fn((c: string) => c === channel),
-      validatePayload: jest.fn((..._args: unknown[]) => true),
-      send: jest.fn(async (..._args: unknown[]) => ({
-        status: 'sent',
-        provider: `${channel}-provider`,
-        providerMessageId: 'ext-1',
-        response: null,
-      })),
-      getProviderName: jest.fn((..._args: unknown[]) => `${channel}-provider`),
-      ...overrides,
-    };
-  }
-
-  function buildService() {
-    const rulesService = { getRulesForEvent: asyncMock() };
-    const repository = {
-      isChannelEnabled: jest.fn(async (..._args: unknown[]) => true),
-      findTemplate: jest.fn(async (..._args: unknown[]) => null),
-      // createMessage devuelve el modelo COMPLETO (como en producción): handleEvent ahora lo pasa
-      // directo a deliverMessage sin re-leer (optimización #1), así que necesita channel/status/etc.
-      createMessage: jest.fn(async (..._args: unknown[]) => ({
-        id: 'msg-1',
-        status: 'queued',
-        channel: 'in_app',
-        tenantId: 't1',
-        recipientType: 'customer',
-        recipientId: 'c1',
-        subject: null,
-        title: 'title',
-        body: 'body',
-        payloadJson: {},
-        correlationId: null,
-      })),
-      getMessageForDelivery: jest.fn(async (..._args: unknown[]) => ({
-        id: 'msg-1',
-        status: 'queued',
-        channel: 'in_app',
-        tenantId: 't1',
-        recipientType: 'customer',
-        recipientId: 'c1',
-        subject: null,
-        title: 'title',
-        body: 'body',
-        payloadJson: {},
-        correlationId: null,
-      })),
-      getActivePushDevices: jest.fn(async (..._args: unknown[]) => []),
-      getCustomerContactTargets: jest.fn(async (..._args: unknown[]) => []),
-      markMessageSending: jest.fn(async (..._args: unknown[]) => true),
-      recordDelivery: jest.fn(async (..._args: unknown[]) => undefined),
-    };
-    const renderer = { render: jest.fn((_template: unknown, _payload: unknown, fallback: string) => fallback) };
-    const inAppAdapter = buildAdapter('in_app');
-    const emailAdapter = buildAdapter('email');
-    const pushAdapter = buildAdapter('push');
-    const smsAdapter = buildAdapter('sms');
-    const whatsappAdapter = buildAdapter('whatsapp');
-
-    const service = new NotificationOrchestratorService(
-      rulesService as never,
-      repository as never, // messages
-      repository as never, // deliveries
-      repository as never, // recipientTargets
-      repository as never, // templates
-      repository as never, // preferences
-      renderer as never,
-      inAppAdapter as never,
-      emailAdapter as never,
-      pushAdapter as never,
-      smsAdapter as never,
-      whatsappAdapter as never,
-    );
-
-    return {
-      service,
-      rulesService,
-      repository,
-      renderer,
-      adapters: { inAppAdapter, emailAdapter, pushAdapter, smsAdapter, whatsappAdapter },
-    };
-  }
-
-  function fakeEvent(overrides: Record<string, unknown> = {}) {
-    return {
-      id: 'event-1',
-      tenantId: 't1',
-      eventCode: 'user.registered',
-      aggregateType: 'customer',
-      aggregateId: 'c1',
-      eventPayloadJson: {},
-      idempotencyKey: null,
-      correlationId: 'corr-1',
-      priority: 0,
-      ...overrides,
-    };
-  }
-
+describe('NotificationEventHandlerService', () => {
   describe('handleEvent — resolución de destinatario', () => {
     it('skips a rule entirely (no message created) when no recipientId can be resolved at all', async () => {
       const { service, rulesService, repository } = buildService();
@@ -393,126 +292,6 @@ describe('NotificationOrchestratorService', () => {
     });
   });
 
-  describe('deliverMessage', () => {
-    function fakeMessage(overrides: Record<string, unknown> = {}) {
-      return {
-        id: 'msg-1',
-        status: 'queued',
-        channel: 'in_app',
-        tenantId: 't1',
-        recipientType: 'customer',
-        recipientId: 'c1',
-        subject: null,
-        title: 'title',
-        body: 'body',
-        payloadJson: {},
-        correlationId: null,
-        ...overrides,
-      };
-    }
-
-    it.each(['sent', 'delivered', 'read', 'cancelled'])(
-      'is a no-op (never calls send) when the message status is already "%s"',
-      async (status) => {
-        const { service, repository, adapters } = buildService();
-        (repository.getMessageForDelivery as jest.Mock).mockResolvedValueOnce(fakeMessage({ status }) as never);
-
-        await service.deliverMessage('msg-1');
-
-        expect(adapters.inAppAdapter.send).not.toHaveBeenCalled();
-        expect(repository.markMessageSending).not.toHaveBeenCalled();
-      },
-    );
-
-    it('throws NO_ADAPTER_FOR_CHANNEL_<channel> when no adapter supports the message channel', async () => {
-      const { service, repository, adapters } = buildService();
-      (repository.getMessageForDelivery as jest.Mock).mockResolvedValueOnce(fakeMessage({ channel: 'whatsapp' }) as never);
-      (adapters.whatsappAdapter.supports as jest.Mock).mockReturnValue(false as never);
-
-      await expect(service.deliverMessage('msg-1')).rejects.toThrow(/NO_ADAPTER_FOR_CHANNEL_whatsapp/);
-    });
-
-    it('throws INVALID_PAYLOAD_FOR_CHANNEL_<channel> when the adapter rejects the payload, without marking the message as sending', async () => {
-      const { service, repository, adapters } = buildService();
-      (repository.getMessageForDelivery as jest.Mock).mockResolvedValueOnce(fakeMessage() as never);
-      (adapters.inAppAdapter.validatePayload as jest.Mock).mockReturnValue(false as never);
-
-      await expect(service.deliverMessage('msg-1')).rejects.toThrow(/INVALID_PAYLOAD_FOR_CHANNEL_in_app/);
-      expect(repository.markMessageSending).not.toHaveBeenCalled();
-    });
-
-    it('only fetches FCM device tokens for push + customer, never for other channel/recipient combinations', async () => {
-      const { service, repository } = buildService();
-      (repository.getMessageForDelivery as jest.Mock).mockResolvedValueOnce(fakeMessage({ channel: 'in_app' }) as never);
-
-      await service.deliverMessage('msg-1');
-
-      expect(repository.getActivePushDevices).not.toHaveBeenCalled();
-    });
-
-    it('fetches FCM device tokens when channel is push and recipientType is customer', async () => {
-      const { service, repository, adapters } = buildService();
-      (repository.getMessageForDelivery as jest.Mock).mockResolvedValueOnce(
-        fakeMessage({ channel: 'push', recipientType: 'customer' }) as never,
-      );
-      (repository.getActivePushDevices as jest.Mock).mockResolvedValueOnce([
-        { token: 'token-a', platform: 'android' },
-        { token: 'token-b', platform: 'ios' },
-      ] as never);
-
-      await service.deliverMessage('msg-1');
-
-      expect(repository.getActivePushDevices).toHaveBeenCalledWith('t1', 'c1');
-      const sentPayload = (adapters.pushAdapter.send as jest.Mock).mock.calls[0][0] as {
-        deliveryTargets: Array<{ kind: string; metadata?: { platform?: string } }>;
-      };
-      const push = sentPayload.deliveryTargets.filter((t) => t.kind === 'fcm_token');
-      expect(push).toHaveLength(2);
-      // Sin la plataforma, el adaptador no puede separar iPhone de Android.
-      expect(push.map((t) => t.metadata?.platform)).toEqual(['android', 'ios']);
-    });
-
-    it('does not send when another batch claimed the message first (markMessageSending → false)', async () => {
-      const { service, repository, adapters } = buildService();
-      (repository.getMessageForDelivery as jest.Mock).mockResolvedValueOnce(fakeMessage({ status: 'pending' }) as never);
-      (repository.markMessageSending as jest.Mock).mockResolvedValueOnce(false as never);
-
-      await service.deliverMessage('msg-1');
-
-      expect(adapters.inAppAdapter.send).not.toHaveBeenCalled();
-      expect(repository.recordDelivery).not.toHaveBeenCalled();
-    });
-
-    it('records a successful delivery result from the adapter', async () => {
-      const { service, repository, adapters } = buildService();
-      (repository.getMessageForDelivery as jest.Mock).mockResolvedValueOnce(fakeMessage() as never);
-      (adapters.inAppAdapter.send as jest.Mock).mockResolvedValueOnce({
-        status: 'sent',
-        provider: 'in_app-provider',
-        providerMessageId: 'x',
-        response: null,
-      } as never);
-
-      await service.deliverMessage('msg-1');
-
-      expect(repository.markMessageSending).toHaveBeenCalledTimes(1);
-      const recordArgs = (repository.recordDelivery as jest.Mock).mock.calls[0][2] as { status: string };
-      expect(recordArgs.status).toBe('sent');
-    });
-
-    it('when the adapter throws, deliverMessage does NOT re-throw — it records a failed delivery instead', async () => {
-      const { service, repository, adapters } = buildService();
-      (repository.getMessageForDelivery as jest.Mock).mockResolvedValueOnce(fakeMessage() as never);
-      (adapters.inAppAdapter.send as jest.Mock).mockRejectedValueOnce(new Error('provider timeout') as never);
-
-      await expect(service.deliverMessage('msg-1')).resolves.toBeUndefined();
-
-      const recordArgs = (repository.recordDelivery as jest.Mock).mock.calls[0][2] as { status: string; errorMessage: string };
-      expect(recordArgs.status).toBe('failed');
-      expect(recordArgs.errorMessage).toBe('provider timeout');
-    });
-  });
-
   describe('ramas de derivación restantes', () => {
     const rule = (over: Record<string, unknown> = {}) => ({
       eventCode: 'x',
@@ -603,19 +382,6 @@ describe('NotificationOrchestratorService', () => {
       expect(repository.getMessageForDelivery).not.toHaveBeenCalled();
       const payload = (adapters.inAppAdapter.send as jest.Mock).mock.calls[0][0] as { id: string };
       expect(payload.id).toBe('msg-from-datavalue');
-    });
-
-    it('si el adapter lanza algo que no es Error, registra el código genérico ADAPTER_SEND_FAILED', async () => {
-      const { service, repository, adapters } = buildService();
-      (adapters.inAppAdapter.send as jest.Mock).mockImplementationOnce(() => {
-        throw 'string suelto';
-      });
-
-      await service.deliverMessage('msg-1');
-
-      const recordArgs = (repository.recordDelivery as jest.Mock).mock.calls[0][2] as { errorCode: string; errorMessage: string };
-      expect(recordArgs.errorCode).toBe('ADAPTER_SEND_FAILED');
-      expect(recordArgs.errorMessage).toBe('Fallo no identificado en adapter de notificación.');
     });
   });
 });

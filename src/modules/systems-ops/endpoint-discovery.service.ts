@@ -12,7 +12,7 @@ import { buildEndpointCode, moduleFromPath, routeNameFromMethodAndPath } from '.
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { OpenApiCatalogService } from './openapi-catalog.service.js';
 import { SystemsCatalogAutoSyncService } from './systems-catalog-auto-sync.service.js';
-import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SystemEndpointCatalogRepository } from './system-endpoint-catalog.repository.js';
 import {
   RoleConstants,
   classDecorators,
@@ -65,7 +65,7 @@ function joinPaths(...parts: string[]): string {
 @Injectable()
 export class EndpointDiscoveryService {
   constructor(
-    private readonly repository: SystemsCatalogRepository,
+    private readonly endpointCatalog: SystemEndpointCatalogRepository,
     private readonly classifier: SystemsCatalogClassifierService,
     private readonly openApiCatalog: OpenApiCatalogService,
     private readonly autoSync: SystemsCatalogAutoSyncService,
@@ -100,11 +100,11 @@ export class EndpointDiscoveryService {
       // siendo un `ON CONFLICT (method, full_path) DO UPDATE` independiente (sin cambios de
       // semántica), pero se disparan en lotes en paralelo en vez de uno a la vez, para no abrir
       // cientos de conexiones simultáneas contra el pool en un catálogo grande de endpoints.
-      await mapWithConcurrency(items, SCAN_CONCURRENCY, (item) => this.repository.upsertEndpoint(item));
+      await mapWithConcurrency(items, SCAN_CONCURRENCY, (item) => this.endpointCatalog.upsertEndpoint(item));
       persisted = items.length;
     }
     const activeKeys = new Set(items.map((item) => `${item.method} ${item.fullPath}`));
-    const deprecatedCandidates = persist ? await this.repository.markDeprecatedCandidates(activeKeys) : 0;
+    const deprecatedCandidates = persist ? await this.endpointCatalog.markDeprecatedCandidates(activeKeys) : 0;
     return { discovered: items.length, persisted, deprecatedCandidates, items };
   }
 

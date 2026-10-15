@@ -9,12 +9,12 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`brevo-config.util.ts`](./brevo-config.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
-| [`brevo-request.util.ts`](./brevo-request.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
+| Documento o código                                               | Responsabilidad                                         |
+| ---------------------------------------------------------------- | ------------------------------------------------------- |
+| [`brevo-config.util.ts`](./brevo-config.util.ts)                 | Utilidad pura o acotada reutilizable dentro de su capa. |
+| [`brevo-request.util.ts`](./brevo-request.util.ts)               | Utilidad pura o acotada reutilizable dentro de su capa. |
 | [`brevo-webhook-secret.util.ts`](./brevo-webhook-secret.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
-| [`brevo-whatsapp.util.ts`](./brevo-whatsapp.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
+| [`brevo-whatsapp.util.ts`](./brevo-whatsapp.util.ts)             | Utilidad pura o acotada reutilizable dentro de su capa. |
 
 ## Reglas de mantenimiento
 

@@ -17,7 +17,9 @@ import { AuthRefreshTokensRepository } from './auth-refresh-tokens.repository.js
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
 import { SESSION_EXPIRED_CODE } from './customer-session-lifetime.js';
-import { ActorType, AuthRepository } from './auth.repository.js';
+import { ActorType } from './auth-vocabulary.js';
+import { AuthCredentialRepository } from './auth-credential.repository.js';
+import { AuthEventRepository } from './auth-event.repository.js';
 import { LoginPinChallengeResponseDto, LoginResponseDto, LogoutResponseDto } from './auth.dtos.js';
 import { LoginDto } from './auth.schemas.js';
 
@@ -44,7 +46,8 @@ export function isLoginPinChallenge(outcome: LoginOutcome): outcome is LoginPinC
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly authRepository: AuthRepository,
+    private readonly authCredentials: AuthCredentialRepository,
+    private readonly authEvents: AuthEventRepository,
     private readonly refreshTokens: AuthRefreshTokensRepository,
     private readonly rotation: AuthRefreshRotationService,
     private readonly actorResolver: AuthActorResolverService,
@@ -73,7 +76,7 @@ export class AuthService {
       // span redundante. Lo que falta en la traza no es el tramo, es POR QUÉ falló el login, y el
       // motivo pertenece a un catálogo cerrado (nunca el identificador que se intentó usar).
       this.tracing.setAttributes({ 'auth.actor.type': input.dto.actorType, 'auth.outcome': failed?.reasonCode ?? 'success' });
-      return this.authRepository.recordLoginAttemptEvent({
+      return this.authEvents.recordLoginAttemptEvent({
         tenantId: input.tenantId,
         actorType: input.dto.actorType,
         actorId: failed ? failed.actorId : (actor?.id ?? null),
@@ -91,7 +94,7 @@ export class AuthService {
       throw invalidCredentialsError;
     }
 
-    const credential = await this.authRepository.findCredentialsByActor(input.dto.actorType, actor.id);
+    const credential = await this.authCredentials.findCredentialsByActor(input.dto.actorType, actor.id);
     if (!credential) {
       await verifyPasswordAgainstDummy(input.dto.password);
       await logAttempt({ actorId: actor.id, reasonCode: 'no_credentials' });
@@ -126,7 +129,7 @@ export class AuthService {
     // El intento se RESERVA antes de argon2 y en un solo UPDATE: con la lectura de arriba sola, N
     // peticiones en paralelo veían «sin bloqueo», probaban N secretos y dejaban el contador en k+1.
     // Sobre un PIN de 4 dígitos eso era recorrer el espacio entero entre bloqueo y bloqueo.
-    const locked = await this.authRepository.reserveLoginAttempt(credential.id, {
+    const locked = await this.authCredentials.reserveLoginAttempt(credential.id, {
       maxAttempts: env.AUTH_MAX_FAILED_LOGIN_ATTEMPTS,
       lockoutMinutes: env.AUTH_LOCKOUT_MINUTES,
     });
@@ -137,7 +140,7 @@ export class AuthService {
       await logAttempt({ actorId: actor.id, reasonCode: 'invalid_password' });
       throw invalidCredentialsError;
     }
-    await this.authRepository.clearFailedAttempts(credential.id);
+    await this.authCredentials.clearFailedAttempts(credential.id);
 
     if (this.secondFactor.isRequired(input.dto.actorType, credential)) {
       return this.secondFactor.issueChallenge(actor, input.dto.actorType, { ip: input.ip, userAgent: input.userAgent });
@@ -148,7 +151,7 @@ export class AuthService {
     // y no se emiten tokens (ATLAS-SEC-008). La credencial distingue los dos casos.
     this.secondFactor.assertDeliverable(input.dto.actorType, credential);
 
-    await this.authRepository.recordSuccessfulLogin(credential, input.ip);
+    await this.authCredentials.recordSuccessfulLogin(credential, input.ip);
     await logAttempt(null);
 
     return this.tokenIssuer.issueTokenPair(actor, input.dto.actorType, credential.tokenVersion, {
@@ -201,7 +204,7 @@ export class AuthService {
 
     if (outcome.kind === 'reused') {
       // Fuera de la transacción ya confirmada: mismo mecanismo que `logout(allDevices=true)`
-      // (`TokenRevocationService.bumpTokenVersion`, no `AuthRepository`) para que la caché Redis
+      // (`TokenRevocationService.bumpTokenVersion`, no `AuthCredentialRepository`) para que la caché Redis
       // de `JwtAuthGuard` quede invalidada de inmediato, no recién al vencer su TTL.
       await this.tokenRevocationService.bumpTokenVersion(outcome.actorType, outcome.actorId);
       throw new UnauthorizedException('Refresh token inválido o expirado.');
@@ -222,7 +225,7 @@ export class AuthService {
       return { loggedOut: true };
     }
 
-    await this.authRepository.recordLoginAttemptEvent({
+    await this.authEvents.recordLoginAttemptEvent({
       tenantId: stored.tenantId,
       actorType: stored.actorType as ActorType,
       actorId: stored.actorId,
@@ -235,7 +238,7 @@ export class AuthService {
 
     if (input.allDevices) {
       await this.refreshTokens.revokeAllRefreshTokensForActor(stored.actorType as ActorType, stored.actorId, 'logout_all_devices');
-      const credential = await this.authRepository.findCredentialsByActor(stored.actorType as ActorType, stored.actorId);
+      const credential = await this.authCredentials.findCredentialsByActor(stored.actorType as ActorType, stored.actorId);
       if (credential) {
         // `TokenRevocationService` actualiza base de datos y caché para invalidar access tokens.
         await this.tokenRevocationService.bumpTokenVersion(credential.actorType, credential.actorId);

@@ -9,24 +9,36 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`auth-actor-resolver.service.ts`](./auth-actor-resolver.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`auth-one-time-code.repository.ts`](./auth-one-time-code.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| Documento o código                                                           | Responsabilidad                                                                |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [`auth-actor-resolver.service.ts`](./auth-actor-resolver.service.ts)         | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`auth-actor.repository.ts`](./auth-actor.repository.ts)                     | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
+| [`auth-credential.repository.ts`](./auth-credential.repository.ts)           | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
+| [`auth-credentials.service.ts`](./auth-credentials.service.ts)               | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`auth-event.repository.ts`](./auth-event.repository.ts)                     | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
+| [`auth-login-attempts.ts`](./auth-login-attempts.ts)                         | Artefacto de soporte específico de esta carpeta.                               |
+| [`auth-one-time-code.repository.ts`](./auth-one-time-code.repository.ts)     | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
 | [`auth-password-change.controller.ts`](./auth-password-change.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`auth-password-change.repository.ts`](./auth-password-change.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`auth-password-change.service.ts`](./auth-password-change.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`auth-password-reset.service.ts`](./auth-password-reset.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`auth-second-factor.service.ts`](./auth-second-factor.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`auth-token-issuer.service.ts`](./auth-token-issuer.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`auth-vocabulary.ts`](./auth-vocabulary.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`auth.controller.ts`](./auth.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`auth.dtos.ts`](./auth.dtos.ts) | DTOs: contrato estable de salida sin filtrar modelos de persistencia. |
-| [`auth.module.ts`](./auth.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`auth.repository.ts`](./auth.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`auth.schemas.ts`](./auth.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
-| [`auth.service.ts`](./auth.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`merchant-actor.repository.ts`](./merchant-actor.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`auth-password-change.repository.ts`](./auth-password-change.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
+| [`auth-password-change.service.ts`](./auth-password-change.service.ts)       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`auth-password-reset.service.ts`](./auth-password-reset.service.ts)         | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`auth-pin-verify.controller.ts`](./auth-pin-verify.controller.ts)           | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`auth-pin-verify.service.ts`](./auth-pin-verify.service.ts)                 | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`auth-reauthentication.service.ts`](./auth-reauthentication.service.ts)     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`auth-refresh-rotation.service.ts`](./auth-refresh-rotation.service.ts)     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`auth-refresh-tokens.repository.ts`](./auth-refresh-tokens.repository.ts)   | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
+| [`auth-second-factor.service.ts`](./auth-second-factor.service.ts)           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`auth-token-issuer.service.ts`](./auth-token-issuer.service.ts)             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`auth-vocabulary.ts`](./auth-vocabulary.ts)                                 | Artefacto de soporte específico de esta carpeta.                               |
+| [`auth.controller.ts`](./auth.controller.ts)                                 | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`auth.dtos.ts`](./auth.dtos.ts)                                             | DTOs: contrato estable de salida sin filtrar modelos de persistencia.          |
+| [`auth.module.ts`](./auth.module.ts)                                         | Módulo NestJS: declara el límite de inyección y sus dependencias.              |
+| [`auth.schemas.ts`](./auth.schemas.ts)                                       | Esquemas Zod: validan entradas y parámetros en el borde del sistema.           |
+| [`auth.service.ts`](./auth.service.ts)                                       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`credentials-notifier.service.ts`](./credentials-notifier.service.ts)       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`customer-session-cookie.ts`](./customer-session-cookie.ts)                 | Artefacto de soporte específico de esta carpeta.                               |
+| [`customer-session-lifetime.ts`](./customer-session-lifetime.ts)             | Artefacto de soporte específico de esta carpeta.                               |
+| [`merchant-actor.repository.ts`](./merchant-actor.repository.ts)             | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
 
 ## Reglas de mantenimiento
 

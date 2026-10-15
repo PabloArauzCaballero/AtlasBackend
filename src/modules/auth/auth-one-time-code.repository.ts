@@ -7,7 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction, literal } from 'sequelize';
 import { AuthOneTimeCodeModel } from '../../database/models/index.js';
-import { ActorType, OneTimeCodePurpose } from './auth.repository.js';
+import { ActorType, OneTimeCodePurpose } from './auth-vocabulary.js';
 
 /**
  * Códigos de un solo uso: el PIN del login, el código de reset de contraseña y el OTP de

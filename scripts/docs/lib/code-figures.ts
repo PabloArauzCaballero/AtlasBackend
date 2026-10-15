@@ -15,7 +15,11 @@ import { familiesOf, loadEventInventory } from './event-inventory.js';
 
 const ROOT = process.cwd();
 
-export const ALWAYS_JOB_FILES = ['src/modules/runtime-jobs/scheduled-jobs.catalog.ts', 'src/modules/runtime-jobs/scheduled-jobs.credit.ts'];
+export const ALWAYS_JOB_FILES = [
+  'src/modules/runtime-jobs/scheduled-jobs.catalog.ts',
+  'src/modules/runtime-jobs/scheduled-jobs.runtime.ts',
+  'src/modules/runtime-jobs/scheduled-jobs.credit.ts',
+];
 export const OPTIONAL_JOB_FILE = 'src/modules/runtime-jobs/optional-jobs.catalog.ts';
 
 export type ScheduledJobDoc = {

@@ -23,9 +23,10 @@ jest.mock('../../../src/modules/operations/operations.mapper.js', () => ({
   toInvestigationSummaryResponse: jest.fn((input: unknown) => ({ mapped: true, input })),
 }));
 
-describe('OperationsService', () => {
+describe('OperationsInvestigationService y ManualReviewDecisionService', () => {
   async function buildService() {
-    const { OperationsService } = await import('../../../src/modules/operations/operations.service.js');
+    const { OperationsInvestigationService } = await import('../../../src/modules/operations/operations-investigation.service.js');
+    const { ManualReviewDecisionService } = await import('../../../src/modules/operations/manual-review-decision.service.js');
     const operationsRepository = {
       findManualReviewCasesForQueueWithCursor: asyncMock(),
       findFraudCasesForQueueWithCursor: asyncMock(),
@@ -65,18 +66,30 @@ describe('OperationsService', () => {
         riskMatches: 0,
       })),
     };
-    const service = new OperationsService(
-      operationsRepository as never,
+    const investigation = new OperationsInvestigationService(
       customersRepository as never,
       // Los contactos del cliente viven en `CustomerContactsRepository`; el doble ya los expone.
       customersRepository as never,
       riskRepository as never,
-      lifecycleService as never,
+      // Casos y lecturas de investigación viven en repositorios propios; un solo doble los expone.
+      operationsRepository as never,
+      operationsRepository as never,
       // La agenda del cliente la calcula y la guarda el módulo de alta; aquí sólo se lee. El doble
       // devuelve «no disponible», que es el mismo camino que toma un cliente sin captura.
       contactsSnapshotService as never,
+    );
+    const decisions = new ManualReviewDecisionService(
+      operationsRepository as never, // casos de revisión manual
+      operationsRepository as never, // observaciones del cliente
+      operationsRepository as never, // auditoría de operaciones
+      riskRepository as never,
+      lifecycleService as never,
       sequelize as never,
     );
+    const service = {
+      getInvestigationSummary: investigation.getInvestigationSummary.bind(investigation),
+      decideManualReviewCase: decisions.decideManualReviewCase.bind(decisions),
+    };
     return { service, operationsRepository, customersRepository, riskRepository, lifecycleService, sequelize };
   }
 

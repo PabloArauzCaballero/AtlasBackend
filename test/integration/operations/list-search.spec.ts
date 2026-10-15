@@ -118,16 +118,7 @@ describe('buscadores de operaciones (PostgreSQL real)', () => {
       deleted: false,
     } as never);
 
-    const cola = new OperationsQueueRepository(
-      ManualReviewCaseModel,
-      FraudCaseModel,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-    );
+    const cola = new OperationsQueueRepository(ManualReviewCaseModel, FraudCaseModel);
     const query = workQueueQuerySchema.parse({ queue: 'manual_review', q: `${token}ana`.toLowerCase() });
     const manual = await cola.findManualReviewCasesForQueue(tenantId, query);
     expect(manual.rows.map((row) => row.caseCode)).toEqual([codigo('MR1')]);

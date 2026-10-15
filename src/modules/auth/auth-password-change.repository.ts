@@ -9,16 +9,16 @@ import { Op } from 'sequelize';
 import { InternalUserModel, MerchantUserModel, OperationalAuditLogModel } from '../../database/models/index.js';
 import { AuthCredentialModel } from '../../database/models/index.js';
 import { AuthRefreshTokensRepository } from './auth-refresh-tokens.repository.js';
-import { AuthRepository } from './auth.repository.js';
+import { AuthCredentialRepository } from './auth-credential.repository.js';
+import { AuthEventRepository } from './auth-event.repository.js';
 import type { ActorType, AuthEventType } from './auth-vocabulary.js';
 
 /**
  * Todo lo que el cambio de contraseña escribe, en un solo sitio.
  *
- * Compone `AuthRepository` en vez de duplicarlo —la credencial, los refresh tokens y la bitácora
- * siguen siendo suyos— y añade lo único que le faltaba: bajar `must_change_password`. Ese añadido
- * no cabía en `AuthRepository`, que arrastra deuda de tamaño congelada; es la misma razón por la
- * que existe `MerchantActorRepository`.
+ * Compone los repositorios de credenciales, eventos y refresh tokens en vez de duplicarlos —la
+ * credencial, los refresh tokens y la bitácora siguen siendo suyos— y añade lo único que le faltaba:
+ * bajar `must_change_password`.
  *
  * Que el conjunto de escrituras viva junto no es sólo orden: `applyNewPassword` fija el ORDEN en
  * que ocurren, y ese orden es la diferencia entre un cambio a medias inofensivo y uno peligroso.
@@ -26,7 +26,8 @@ import type { ActorType, AuthEventType } from './auth-vocabulary.js';
 @Injectable()
 export class AuthPasswordChangeRepository {
   constructor(
-    private readonly authRepository: AuthRepository,
+    private readonly authCredentials: AuthCredentialRepository,
+    private readonly authEvents: AuthEventRepository,
     private readonly refreshTokens: AuthRefreshTokensRepository,
     @InjectModel(InternalUserModel) private readonly internalUserModel: typeof InternalUserModel,
     @InjectModel(MerchantUserModel) private readonly merchantUserModel: typeof MerchantUserModel,
@@ -47,7 +48,7 @@ export class AuthPasswordChangeRepository {
   }
 
   findCredential(actorType: ActorType, actorId: string): Promise<AuthCredentialModel | null> {
-    return this.authRepository.findCredentialsByActor(actorType, actorId);
+    return this.authCredentials.findCredentialsByActor(actorType, actorId);
   }
 
   /**
@@ -65,7 +66,7 @@ export class AuthPasswordChangeRepository {
     credential: AuthCredentialModel;
     passwordHash: string;
   }): Promise<void> {
-    await this.authRepository.updatePasswordHash(input.credential, input.passwordHash);
+    await this.authCredentials.updatePasswordHash(input.credential, input.passwordHash);
     await this.clearMustChangePassword(input.actorType, input.actorId);
     await this.refreshTokens.revokeAllRefreshTokensForActor(input.actorType, input.actorId, 'password_change');
   }
@@ -80,7 +81,7 @@ export class AuthPasswordChangeRepository {
     ip: string | null;
     userAgent: string | null;
   }): Promise<void> {
-    await this.authRepository.recordLoginAttemptEvent({
+    await this.authEvents.recordLoginAttemptEvent({
       tenantId: input.tenantId,
       actorType: input.actorType,
       actorId: input.actorId,

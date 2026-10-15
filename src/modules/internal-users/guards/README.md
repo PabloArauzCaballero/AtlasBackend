@@ -9,8 +9,8 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                                 | Responsabilidad                                                   |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------- |
 | [`internal-permissions.guard.ts`](./internal-permissions.guard.ts) | Guard: aplica autenticación o autorización antes del caso de uso. |
 
 ## Reglas de mantenimiento

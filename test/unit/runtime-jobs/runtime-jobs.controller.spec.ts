@@ -17,12 +17,16 @@ describe('RuntimeJobsController', () => {
       recalculateDataQuality: jest.fn(async (..._args: unknown[]) => ({ recalculated: 5 })),
     };
     // Los dos jobs de saneamiento viven en `RuntimeMaintenanceJobsService` (extraídos para no seguir
-    // engordando `runtime-jobs.service.ts`, que ya estaba muy por encima del límite de tamaño).
+    // engordando los servicios de jobs).
     const maintenance = {
       retryStuckNotifications: jest.fn(async (..._args: unknown[]) => ({ retried: 6 })),
       purgeIdempotencyKeys: jest.fn(async (..._args: unknown[]) => ({ deleted: 7 })),
     };
-    return { controller: new RuntimeJobsController(service as never, maintenance as never), service, maintenance };
+    return {
+      controller: new RuntimeJobsController(service as never, service as never, service as never, service as never, maintenance as never),
+      service,
+      maintenance,
+    };
   }
   const user = { role: 'admin', tenantId: '1', internalUserId: 'u1' } as never;
   const key = 'idem-key-123';

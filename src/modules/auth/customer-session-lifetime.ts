@@ -4,7 +4,7 @@
  * @system funciones puras que usan el emisor de tokens y la rotación de refresh tokens; sólo aplican al actor `customer`.
  */
 import { env } from '../../config/env.js';
-import type { ActorType } from './auth.repository.js';
+import type { ActorType } from './auth-vocabulary.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;

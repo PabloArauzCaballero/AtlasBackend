@@ -12,20 +12,20 @@ import type { Transaction } from 'sequelize';
 import { OutboxEventModel } from '../../../database/models/index.js';
 import type { EventConsumer } from '../../../platform/events/event-consumer.port.js';
 import type { IntegrationEvent } from '../../../platform/events/integration-event.js';
-import { NotificationOrchestratorService } from '../notification-orchestrator.service.js';
+import { NotificationEventHandlerService } from '../notification-event-handler.service.js';
 
 @Injectable()
 export class NotificationEventConsumer implements EventConsumer {
   readonly consumerId = 'notifications.orchestrator';
   readonly subscriptions: Readonly<Record<string, readonly number[]>> = Object.freeze({ '*': [1] });
 
-  constructor(private readonly orchestrator: NotificationOrchestratorService) {}
+  constructor(private readonly eventHandler: NotificationEventHandlerService) {}
 
   async handle(event: IntegrationEvent, _transaction: Transaction): Promise<void> {
     void _transaction;
     const row = await OutboxEventModel.findOne({ where: { eventId: event.eventId } as never });
     if (!row)
       throw Object.assign(new Error(`OUTBOX_ROW_NOT_FOUND:${event.eventId}`), { code: 'CONSUMER_REJECTED_PERMANENTLY', permanent: true });
-    await this.orchestrator.handleEvent(row);
+    await this.eventHandler.handleEvent(row);
   }
 }

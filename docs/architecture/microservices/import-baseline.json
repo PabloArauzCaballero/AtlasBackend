@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-15T03:59:30.179Z",
+  "generatedAt": "2026-10-15T18:59:30.430Z",
   "summary": {
-    "files": 1891,
-    "edges": 6843,
-    "crossModuleEdges": 403,
+    "files": 1913,
+    "edges": 6969,
+    "crossModuleEdges": 404,
     "modules": 44,
     "cycles": [
       [
@@ -14,7 +14,7 @@
       ]
     ],
     "leaksByKind": {
-      "repository": 83,
+      "repository": 82,
       "service": 143
     },
     "unresolvedDynamic": 2
@@ -373,7 +373,7 @@
         "modules/risk"
       ],
       "importedBy": [],
-      "crossModuleEdges": 15
+      "crossModuleEdges": 16
     },
     "modules/partner-onboarding": {
       "imports": [
@@ -796,20 +796,6 @@
     },
     {
       "leak": "repository",
-      "symbol": "AuthRepository",
-      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
-      "target": "src/modules/auth/auth.repository.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "repository",
-      "symbol": "OneTimeCodePurpose",
-      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
-      "target": "src/modules/auth/auth.repository.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "repository",
       "symbol": "AuthOneTimeCodeRepository",
       "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
       "target": "src/modules/auth/auth-one-time-code.repository.ts",
@@ -1146,9 +1132,9 @@
     },
     {
       "leak": "repository",
-      "symbol": "AuthRepository",
+      "symbol": "AuthCredentialRepository",
       "source": "src/modules/customer-onboarding/application/onboarding-customer-record.service.ts",
-      "target": "src/modules/auth/auth.repository.ts",
+      "target": "src/modules/auth/auth-credential.repository.ts",
       "kind": "runtime"
     },
     {
@@ -1272,9 +1258,9 @@
     },
     {
       "leak": "service",
-      "symbol": "NotificationOrchestratorService",
+      "symbol": "NotificationEventHandlerService",
       "source": "src/modules/events/events.service.ts",
-      "target": "src/modules/notifications/notification-orchestrator.service.ts",
+      "target": "src/modules/notifications/notification-event-handler.service.ts",
       "kind": "runtime"
     },
     {
@@ -1559,9 +1545,9 @@
     },
     {
       "leak": "repository",
-      "symbol": "AuthRepository",
+      "symbol": "AuthCredentialRepository",
       "source": "src/modules/merchant-identity/merchant-users.service.ts",
-      "target": "src/modules/auth/auth.repository.ts",
+      "target": "src/modules/auth/auth-credential.repository.ts",
       "kind": "runtime"
     },
     {
@@ -1649,6 +1635,48 @@
       "kind": "runtime"
     },
     {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/operations/manual-review-decision.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "RiskAssessmentRepository",
+      "source": "src/modules/operations/manual-review-decision.service.ts",
+      "target": "src/modules/risk/repositories/risk-assessment.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerContactsSnapshotService",
+      "source": "src/modules/operations/operations-investigation.service.ts",
+      "target": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/operations/operations-investigation.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerContactsRepository",
+      "source": "src/modules/operations/operations-investigation.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "RiskAssessmentRepository",
+      "source": "src/modules/operations/operations-investigation.service.ts",
+      "target": "src/modules/risk/repositories/risk-assessment.repository.ts",
+      "kind": "runtime"
+    },
+    {
       "leak": "repository",
       "symbol": "CustomersRepository",
       "source": "src/modules/operations/operations-work-queue.service.ts",
@@ -1667,41 +1695,6 @@
       "symbol": "OnboardingBehaviorSummaryService",
       "source": "src/modules/operations/operations.controller.ts",
       "target": "src/modules/customer-telemetry/application/onboarding-behavior-summary.service.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "service",
-      "symbol": "CustomerLifecycleService",
-      "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "service",
-      "symbol": "CustomerContactsSnapshotService",
-      "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "repository",
-      "symbol": "CustomersRepository",
-      "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/customers/customers.repository.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "repository",
-      "symbol": "CustomerContactsRepository",
-      "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "repository",
-      "symbol": "RiskAssessmentRepository",
-      "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/risk/repositories/risk-assessment.repository.ts",
       "kind": "runtime"
     },
     {
@@ -1814,6 +1807,13 @@
       "symbol": "ExpedientesMantenimientoService",
       "source": "src/modules/runtime-jobs/expedientes-jobs.controller.ts",
       "target": "src/modules/expedientes/jobs/expedientes-mantenimiento.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "EventsService",
+      "source": "src/modules/runtime-jobs/outbox-jobs.service.ts",
+      "target": "src/modules/events/events.service.ts",
       "kind": "runtime"
     },
     {
@@ -1938,22 +1938,15 @@
     {
       "leak": "service",
       "symbol": "EventsService",
-      "source": "src/modules/runtime-jobs/runtime-jobs.service.ts",
-      "target": "src/modules/events/events.service.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "service",
-      "symbol": "EventsService",
       "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
       "target": "src/modules/events/events.service.ts",
       "kind": "runtime"
     },
     {
       "leak": "service",
-      "symbol": "NotificationOrchestratorService",
+      "symbol": "NotificationDispatchService",
       "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
-      "target": "src/modules/notifications/notification-orchestrator.service.ts",
+      "target": "src/modules/notifications/notification-dispatch.service.ts",
       "kind": "runtime"
     },
     {
@@ -2957,10 +2950,9 @@
     },
     {
       "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
-      "target": "src/modules/auth/auth.repository.ts",
+      "target": "src/modules/auth/auth-vocabulary.ts",
       "kind": "runtime",
       "symbols": [
-        "AuthRepository",
         "OneTimeCodePurpose"
       ],
       "viaReexport": false
@@ -3553,10 +3545,10 @@
     },
     {
       "source": "src/modules/customer-onboarding/application/onboarding-customer-record.service.ts",
-      "target": "src/modules/auth/auth.repository.ts",
+      "target": "src/modules/auth/auth-credential.repository.ts",
       "kind": "runtime",
       "symbols": [
-        "AuthRepository"
+        "AuthCredentialRepository"
       ],
       "viaReexport": false
     },
@@ -3841,10 +3833,10 @@
     },
     {
       "source": "src/modules/events/events.service.ts",
-      "target": "src/modules/notifications/notification-orchestrator.service.ts",
+      "target": "src/modules/notifications/notification-event-handler.service.ts",
       "kind": "runtime",
       "symbols": [
-        "NotificationOrchestratorService"
+        "NotificationEventHandlerService"
       ],
       "viaReexport": false
     },
@@ -4456,10 +4448,10 @@
     },
     {
       "source": "src/modules/merchant-identity/merchant-users.service.ts",
-      "target": "src/modules/auth/auth.repository.ts",
+      "target": "src/modules/auth/auth-credential.repository.ts",
       "kind": "runtime",
       "symbols": [
-        "AuthRepository"
+        "AuthCredentialRepository"
       ],
       "viaReexport": false
     },
@@ -4691,6 +4683,69 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/operations/manual-review-decision.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/manual-review-decision.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleStatus"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/manual-review-decision.service.ts",
+      "target": "src/modules/risk/repositories/risk-assessment.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "RiskAssessmentRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations-investigation.service.ts",
+      "target": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerContactsSnapshotService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations-investigation.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations-investigation.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerContactsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations-investigation.service.ts",
+      "target": "src/modules/risk/repositories/risk-assessment.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "RiskAssessmentRepository"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/operations/operations-work-queue.service.ts",
       "target": "src/modules/customers/customers.repository.ts",
       "kind": "runtime",
@@ -4771,60 +4826,6 @@
       "kind": "runtime",
       "symbols": [
         "CustomerTelemetryModule"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
-      "kind": "runtime",
-      "symbols": [
-        "CustomerLifecycleService"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
-      "kind": "runtime",
-      "symbols": [
-        "CustomerContactsSnapshotService"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/customers/customer-lifecycle.constants.ts",
-      "kind": "runtime",
-      "symbols": [
-        "CustomerLifecycleStatus"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/customers/customers.repository.ts",
-      "kind": "runtime",
-      "symbols": [
-        "CustomersRepository"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
-      "kind": "runtime",
-      "symbols": [
-        "CustomerContactsRepository"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/risk/repositories/risk-assessment.repository.ts",
-      "kind": "runtime",
-      "symbols": [
-        "RiskAssessmentRepository"
       ],
       "viaReexport": false
     },
@@ -5086,6 +5087,24 @@
       "kind": "runtime",
       "symbols": [
         "ExpedientesMantenimientoService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/outbox-jobs.service.ts",
+      "target": "src/modules/events/event-registry.ts",
+      "kind": "runtime",
+      "symbols": [
+        "listEventDefinitions"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/outbox-jobs.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsService"
       ],
       "viaReexport": false
     },
@@ -5378,24 +5397,6 @@
       "viaReexport": false
     },
     {
-      "source": "src/modules/runtime-jobs/runtime-jobs.service.ts",
-      "target": "src/modules/events/event-registry.ts",
-      "kind": "runtime",
-      "symbols": [
-        "listEventDefinitions"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/runtime-jobs/runtime-jobs.service.ts",
-      "target": "src/modules/events/events.service.ts",
-      "kind": "runtime",
-      "symbols": [
-        "EventsService"
-      ],
-      "viaReexport": false
-    },
-    {
       "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
       "target": "src/modules/events/events.service.ts",
       "kind": "runtime",
@@ -5406,10 +5407,10 @@
     },
     {
       "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
-      "target": "src/modules/notifications/notification-orchestrator.service.ts",
+      "target": "src/modules/notifications/notification-dispatch.service.ts",
       "kind": "runtime",
       "symbols": [
-        "NotificationOrchestratorService"
+        "NotificationDispatchService"
       ],
       "viaReexport": false
     },

@@ -9,10 +9,10 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                           | Responsabilidad                                  |
+| -------------------------------------------- | ------------------------------------------------ |
 | [`customer-rating.ts`](./customer-rating.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`rating-scale.ts`](./rating-scale.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`rating-scale.ts`](./rating-scale.ts)       | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento
 

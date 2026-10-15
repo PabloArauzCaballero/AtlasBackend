@@ -78,7 +78,7 @@ Persiste en 7 tabla(s):
 
 **Del que dependen:** [[03-domains/customer-onboarding/index\|customer-onboarding]], [[03-domains/internal-users/index\|internal-users]]
 
-**Exporta:** `AuthService`, `AuthRepository`
+**Exporta:** `AuthService`, `AuthCredentialRepository`
 
 > [!warning] Exporta un repositorio
 > Otros módulos pueden llegar a la persistencia de este dominio sin pasar por su servicio, saltándose las reglas que vivan ahí. La regla del proyecto solo lo admite con necesidad transaccional real y documentada.
@@ -89,7 +89,7 @@ Persiste en 7 tabla(s):
 |---|---|
 | Controllers | `auth.controller.ts` |
 | Services | `auth-actor-resolver.service.ts`, `auth-password-reset.service.ts`, `auth.service.ts` |
-| Repositories | `auth.repository.ts` |
+| Repositories | `auth-actor.repository.ts`, `auth-credential.repository.ts`, `auth-event.repository.ts` |
 | Esquemas Zod | `auth.schemas.ts` |
 | Mappers | — |
 
@@ -106,9 +106,11 @@ Roles que alcanzan este módulo: `admin`, `platform_admin`.
 
 - `test/unit/auth/auth-actor-resolver.service.spec.ts`
 - `test/unit/auth/auth-password-reset.service.spec.ts`
-- `test/unit/auth/auth-repository-email-lookup.spec.ts`
+- `test/unit/auth/auth-actor.repository.spec.ts`
+- `test/unit/auth/auth-credential.repository.spec.ts`
+- `test/unit/auth/auth-event.repository.spec.ts`
 - `test/unit/auth/auth.controller.spec.ts`
-- `test/unit/auth/auth.repository.spec.ts`
+- `test/unit/auth/auth-one-time-code.repository.spec.ts`
 - `test/unit/auth/auth.service.spec.ts`
 - `test/unit/auth/ownership.util.spec.ts`
 - `test/unit/auth/password.util.spec.ts`

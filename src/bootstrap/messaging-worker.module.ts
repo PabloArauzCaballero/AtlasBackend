@@ -33,7 +33,10 @@ import { RemoteRecipientDirectoryAdapter } from '../modules/notifications/infras
 import { env } from '../config/env.js';
 import { NotificationEventConsumer } from '../modules/notifications/infrastructure/notification-event.consumer.js';
 import { NOTIFICATION_MODELS } from '../modules/notifications/infrastructure/persistence/notification-models.js';
-import { NotificationOrchestratorService } from '../modules/notifications/notification-orchestrator.service.js';
+import { NotificationChannelRegistry } from '../modules/notifications/notification-channel-registry.service.js';
+import { NotificationDeliveryPayloadBuilder } from '../modules/notifications/notification-delivery-payload.builder.js';
+import { NotificationDispatchService } from '../modules/notifications/notification-dispatch.service.js';
+import { NotificationEventHandlerService } from '../modules/notifications/notification-event-handler.service.js';
 import { NotificationPoliciesRepository } from '../modules/notifications/notification-policies.repository.js';
 import { NotificationPreferencesRepository } from '../modules/notifications/notification-preferences.repository.js';
 import { NotificationRulesService } from '../modules/notifications/notification-rules.service.js';
@@ -92,7 +95,10 @@ export const MESSAGING_FORBIDDEN_MODULES = Object.freeze([
     NotificationPreferencesRepository,
     NotificationRulesService,
     NotificationTemplateRendererService,
-    NotificationOrchestratorService,
+    NotificationChannelRegistry,
+    NotificationDeliveryPayloadBuilder,
+    NotificationDispatchService,
+    NotificationEventHandlerService,
     InAppNotificationAdapter,
     EmailNotificationAdapter,
     PushNotificationAdapter,

@@ -17,7 +17,9 @@ import {
 } from './systems-catalog-auto-sync.service.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
 import { SystemsErpInventoryService } from './systems-erp-inventory.service.js';
-import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SystemEndpointCatalogRepository } from './system-endpoint-catalog.repository.js';
+import { SystemToolCatalogRepository } from './system-tool-catalog.repository.js';
+import { SystemDataEntityCatalogRepository } from './system-data-entity-catalog.repository.js';
 import { SystemsStressProfileRepository } from './systems-stress-profile.repository.js';
 import { SystemsTestExecutionRepository } from './systems-test-execution.repository.js';
 import { CURATED_ENDPOINTS, STRESS_PROFILE_SEEDS } from './systems-seed-fixtures.js';
@@ -33,7 +35,9 @@ import { SystemsSchemaIntrospectionService } from './systems-schema-introspectio
 export class SystemsCatalogSeedService {
   constructor(
     @InjectConnection() private readonly sequelize: Sequelize,
-    private readonly catalogRepository: SystemsCatalogRepository,
+    private readonly endpointCatalog: SystemEndpointCatalogRepository,
+    private readonly toolCatalog: SystemToolCatalogRepository,
+    private readonly dataEntityCatalog: SystemDataEntityCatalogRepository,
     private readonly testRepository: SystemsTestExecutionRepository,
     private readonly stressRepository: SystemsStressProfileRepository,
     private readonly autoSync: SystemsCatalogAutoSyncService,
@@ -142,7 +146,7 @@ export class SystemsCatalogSeedService {
   }
 
   async seedTools(): Promise<number> {
-    for (const seed of SYSTEM_TOOL_SEEDS) await this.catalogRepository.upsertTool(seed);
+    for (const seed of SYSTEM_TOOL_SEEDS) await this.toolCatalog.upsertTool(seed);
     return SYSTEM_TOOL_SEEDS.length;
   }
 
@@ -157,7 +161,7 @@ export class SystemsCatalogSeedService {
       const tableName = source.match(/@Table\(\{\s*tableName:\s*['"]([^'"]+)['"]/s)?.[1];
       const modelName = source.match(/export\s+class\s+([A-Za-z0-9_]+)/)?.[1] ?? null;
       if (!tableName || seen.has(tableName)) continue;
-      await this.catalogRepository.upsertDataEntity(this.classifier.classifyTable(tableName, modelName));
+      await this.dataEntityCatalog.upsertDataEntity(this.classifier.classifyTable(tableName, modelName));
       seen.add(tableName);
       count += 1;
     }
@@ -165,7 +169,7 @@ export class SystemsCatalogSeedService {
   }
 
   async seedCuratedEndpoints(): Promise<number> {
-    for (const seed of CURATED_ENDPOINTS) await this.catalogRepository.upsertEndpoint(seed);
+    for (const seed of CURATED_ENDPOINTS) await this.endpointCatalog.upsertEndpoint(seed);
     return CURATED_ENDPOINTS.length;
   }
 
@@ -204,7 +208,7 @@ export class SystemsCatalogSeedService {
       suiteType: 'INTEGRATION',
       environmentScope: ['LOCAL', 'STAGING'],
     });
-    const endpoint = await this.catalogRepository.findEndpointByMethodAndPath('GET', '/api/v1/operations/work-queue');
+    const endpoint = await this.endpointCatalog.findEndpointByMethodAndPath('GET', '/api/v1/operations/work-queue');
     await this.testRepository.upsertTestStep({
       suiteId: String(operations.id),
       endpointId: endpoint ? String(endpoint.id) : null,
@@ -222,7 +226,7 @@ export class SystemsCatalogSeedService {
   async seedStressProfiles(): Promise<number> {
     let count = 0;
     for (const candidate of STRESS_PROFILE_SEEDS) {
-      const endpoint = await this.catalogRepository.findEndpointByMethodAndPath(candidate.method, candidate.path);
+      const endpoint = await this.endpointCatalog.findEndpointByMethodAndPath(candidate.method, candidate.path);
       if (!endpoint) continue;
       await this.stressRepository.upsertStressProfile({
         endpointId: String(endpoint.id),

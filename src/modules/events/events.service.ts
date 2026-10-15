@@ -13,7 +13,7 @@ import { EventsRepository } from './events.repository.js';
 import { eventStatusSchema, ListEventsQueryDto, PublishEventDto } from './events.schemas.js';
 import { ProcessEventsInput, ProcessEventsResult, PublishEventInput } from './event-types.js';
 import { OutboxEventModel } from '../../database/models/index.js';
-import { NotificationOrchestratorService } from '../notifications/notification-orchestrator.service.js';
+import { NotificationEventHandlerService } from '../notifications/notification-event-handler.service.js';
 import { hasNotificationRule } from '../notifications/notification-rules.service.js';
 
 /** Un bloqueo más viejo que esto es de un proceso que murió: el evento ya no está en vuelo. */
@@ -65,7 +65,7 @@ export class EventsService {
 
   constructor(
     private readonly repository: EventsRepository,
-    private readonly notificationOrchestrator: NotificationOrchestratorService,
+    private readonly eventHandler: NotificationEventHandlerService,
     // AT-034: relay durable con lease/fencing e inbox por consumidor. Sólo actúa con EVENTS_RELAY_V2_ENABLED=true;
     // apagado, el procesamiento sigue siendo exactamente el anterior.
     @Optional() private readonly relay?: OutboxRelayService,
@@ -262,7 +262,7 @@ export class EventsService {
 
     for (const event of events) {
       try {
-        await this.notificationOrchestrator.handleEvent(event);
+        await this.eventHandler.handleEvent(event);
 
         event.status = 'processed';
         event.processedAt = new Date();

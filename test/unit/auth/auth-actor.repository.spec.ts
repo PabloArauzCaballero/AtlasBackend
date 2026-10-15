@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { Op, fn, where, col } from 'sequelize';
-import { AuthRepository } from '../../../src/modules/auth/auth.repository.js';
+import { AuthActorRepository } from '../../../src/modules/auth/auth-actor.repository.js';
 
 /**
  * ATLAS-P10-045: antes, `findInternalUserByEmail`/`findPlatformUserByEmail` comparaban el email
@@ -16,16 +16,10 @@ function expectedWhere(emailLowercased: string) {
 
 function buildRepository(findOneMock: jest.Mock) {
   const modelMock = { findOne: findOneMock };
-  return new AuthRepository(
-    {} as never, // credentialModel — no usado en estos tests
-    modelMock as never, // internalUserModel
-    modelMock as never, // platformUserModel
-    {} as never, // authEventModel — no usado en estos tests
-    {} as never, // auditLogModel — no usado en estos tests
-  );
+  return new AuthActorRepository(modelMock as never, modelMock as never);
 }
 
-describe('AuthRepository — búsqueda de email case-insensitive', () => {
+describe('AuthActorRepository — búsqueda de email case-insensitive', () => {
   it('findInternalUserByEmail normaliza mayúsculas/minúsculas y espacios antes de comparar', async () => {
     const findOne = jest.fn(async (..._args: unknown[]) => ({ id: 'internal-1', email: 'pablo.admin@atlas.test' }));
     const repository = buildRepository(findOne as never);
@@ -51,5 +45,15 @@ describe('AuthRepository — búsqueda de email case-insensitive', () => {
     const result = await repository.findInternalUserByEmail('nadie@atlas.test');
 
     expect(result).toBeNull();
+  });
+
+  it('findInternalUserById / findPlatformUserById filtran por id', async () => {
+    const internal = jest.fn(async (..._args: unknown[]) => ({ id: '5' }));
+    const platform = jest.fn(async (..._args: unknown[]) => null);
+    const repository = new AuthActorRepository({ findOne: internal } as never, { findOne: platform } as never);
+    await repository.findInternalUserById('5');
+    expect(internal.mock.calls[0][0]).toMatchObject({ where: { id: '5' } });
+    await repository.findPlatformUserById('9');
+    expect(platform.mock.calls[0][0]).toMatchObject({ where: { id: '9' } });
   });
 });

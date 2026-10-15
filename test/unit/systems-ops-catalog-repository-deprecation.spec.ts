@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { Op } from 'sequelize';
-import { SystemsCatalogRepository } from '../../src/modules/systems-ops/systems-catalog.repository.js';
+import { SystemEndpointCatalogRepository } from '../../src/modules/systems-ops/system-endpoint-catalog.repository.js';
 
 /**
  * `markDeprecatedCandidates` solía hacer `findAll` de TODO `system_endpoint_catalog` y un
@@ -22,10 +22,10 @@ function buildModelMock(rows: Array<{ id: string; method: string; fullPath: stri
 }
 
 function buildRepository(endpointModel: ReturnType<typeof buildModelMock>) {
-  return new SystemsCatalogRepository(endpointModel as never, {} as never, {} as never);
+  return new SystemEndpointCatalogRepository(endpointModel as never);
 }
 
-describe('SystemsCatalogRepository.markDeprecatedCandidates', () => {
+describe('SystemEndpointCatalogRepository.markDeprecatedCandidates', () => {
   it('only queries endpoints that are already ACTIVE and not APPROVED (filter pushed to SQL)', async () => {
     const endpointModel = buildModelMock([]);
     const repository = buildRepository(endpointModel);

@@ -29,10 +29,12 @@ import { AuthPasswordResetService } from './auth-password-reset.service.js';
 import { AuthReauthenticationService } from './auth-reauthentication.service.js';
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
+import { AuthActorRepository } from './auth-actor.repository.js';
+import { AuthCredentialRepository } from './auth-credential.repository.js';
+import { AuthEventRepository } from './auth-event.repository.js';
 import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
 import { AuthRefreshRotationService } from './auth-refresh-rotation.service.js';
 import { AuthRefreshTokensRepository } from './auth-refresh-tokens.repository.js';
-import { AuthRepository } from './auth.repository.js';
 import { MerchantActorRepository } from './merchant-actor.repository.js';
 import { AuthService } from './auth.service.js';
 import { AuthCredentialsService } from './auth-credentials.service.js';
@@ -64,7 +66,9 @@ import { AuthCredentialsService } from './auth-credentials.service.js';
     AuthReauthenticationService,
     AuthSecondFactorService,
     AuthTokenIssuerService,
-    AuthRepository,
+    AuthActorRepository,
+    AuthCredentialRepository,
+    AuthEventRepository,
     AuthRefreshTokensRepository,
     AuthRefreshRotationService,
     AuthOneTimeCodeRepository,
@@ -80,7 +84,7 @@ import { AuthCredentialsService } from './auth-credentials.service.js';
   exports: [
     AuthService,
     AuthReauthenticationService,
-    AuthRepository,
+    AuthCredentialRepository,
     AuthOneTimeCodeRepository,
     AuthSecondFactorService,
     AuthTokenIssuerService,

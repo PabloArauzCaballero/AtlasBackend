@@ -35,7 +35,10 @@ import { LocalNotificationRequestAdapter } from './infrastructure/local-notifica
 import { NotificationEventConsumer } from './infrastructure/notification-event.consumer.js';
 import { LocalRecipientDirectoryAdapter } from './infrastructure/directory/local-recipient-directory.adapter.js';
 import { EVENT_CONSUMERS } from '../../platform/events/event-consumer.port.js';
-import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
+import { NotificationChannelRegistry } from './notification-channel-registry.service.js';
+import { NotificationDeliveryPayloadBuilder } from './notification-delivery-payload.builder.js';
+import { NotificationDispatchService } from './notification-dispatch.service.js';
+import { NotificationEventHandlerService } from './notification-event-handler.service.js';
 import { NotificationRulesService } from './notification-rules.service.js';
 import { NotificationTemplateRendererService } from './notification-template-renderer.service.js';
 import { NotificationPoliciesRepository } from './notification-policies.repository.js';
@@ -140,7 +143,10 @@ import { NotificationCampaignsRepository } from './campaigns/notification-campai
     NotificationDeviceTokensService,
     NotificationRulesService,
     NotificationTemplateRendererService,
-    NotificationOrchestratorService,
+    NotificationChannelRegistry,
+    NotificationDeliveryPayloadBuilder,
+    NotificationDispatchService,
+    NotificationEventHandlerService,
     NotificationBroadcastService,
     InAppNotificationAdapter,
     EmailNotificationAdapter,
@@ -160,7 +166,8 @@ import { NotificationCampaignsRepository } from './campaigns/notification-campai
     NOTIFICATION_REQUEST_PORT,
     RECIPIENT_DIRECTORY_PORT,
     EVENT_CONSUMERS,
-    NotificationOrchestratorService,
+    NotificationDispatchService,
+    NotificationEventHandlerService,
     NotificationPoliciesRepository,
     NotificationCampaignRunnerService,
     NotificationMessagesRepository,

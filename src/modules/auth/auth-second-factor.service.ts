@@ -13,7 +13,9 @@ import {
 } from '../../common/utils/crypto/one-time-code.util.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { AuthActorResolverService, ResolvedActor } from './auth-actor-resolver.service.js';
-import { ActorType, AuthRepository } from './auth.repository.js';
+import { ActorType } from './auth-vocabulary.js';
+import { AuthCredentialRepository } from './auth-credential.repository.js';
+import { AuthEventRepository } from './auth-event.repository.js';
 import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
 import { LoginPinChallengeResponseDto } from './auth.dtos.js';
 
@@ -41,7 +43,8 @@ export type VerifiedSecondFactor = {
 @Injectable()
 export class AuthSecondFactorService {
   constructor(
-    private readonly authRepository: AuthRepository,
+    private readonly authCredentials: AuthCredentialRepository,
+    private readonly authEvents: AuthEventRepository,
     private readonly oneTimeCodeRepository: AuthOneTimeCodeRepository,
     private readonly actorResolver: AuthActorResolverService,
     private readonly mailSenderService: MailSenderService,
@@ -125,7 +128,7 @@ export class AuthSecondFactorService {
 
   /** MFA opt-in del cliente. Solo aplica a `customer` (los internos tienen 2FA obligatorio). */
   async setCustomerMfaPreference(input: { actorId: string; enabled: boolean }): Promise<{ mfaEnabled: boolean }> {
-    const credential = await this.authRepository.findCredentialsByActor('customer', input.actorId);
+    const credential = await this.authCredentials.findCredentialsByActor('customer', input.actorId);
     if (!credential) {
       throw new UnauthorizedException('No hay credenciales para este cliente.');
     }
@@ -134,7 +137,7 @@ export class AuthSecondFactorService {
       // dejar al cliente bloqueado en el próximo login.
       throw new ServiceUnavailableException('No es posible activar MFA: el servicio de correo no está configurado.');
     }
-    await this.authRepository.setMfaEnabled(credential, input.enabled);
+    await this.authCredentials.setMfaEnabled(credential, input.enabled);
     return { mfaEnabled: input.enabled };
   }
 
@@ -167,7 +170,7 @@ export class AuthSecondFactorService {
       reference: `login-pin-${actorType}-${actor.id}`,
     });
 
-    await this.authRepository.recordLoginAttemptEvent({
+    await this.authEvents.recordLoginAttemptEvent({
       tenantId: actor.tenantId,
       actorType,
       actorId: actor.id,
@@ -206,7 +209,7 @@ export class AuthSecondFactorService {
       throw invalidPinError;
     if (!verifyOneTimeCode(input.pin, challenge.codeHash)) {
       await this.oneTimeCodeRepository.registerOneTimeCodeFailedAttempt(challenge, env.AUTH_ONE_TIME_CODE_MAX_ATTEMPTS);
-      await this.authRepository.recordLoginAttemptEvent({
+      await this.authEvents.recordLoginAttemptEvent({
         tenantId: challenge.tenantId,
         actorType,
         actorId: challenge.actorId,
@@ -223,13 +226,13 @@ export class AuthSecondFactorService {
     if (!(await this.oneTimeCodeRepository.consumeOneTimeCode(challenge))) throw invalidPinError;
 
     const actor = await this.actorResolver.reResolveActorRole(actorType, challenge.actorId, challenge.tenantId);
-    const credential = actor ? await this.authRepository.findCredentialsByActor(actorType, actor.id) : null;
+    const credential = actor ? await this.authCredentials.findCredentialsByActor(actorType, actor.id) : null;
     if (!actor || !credential) {
       throw new UnauthorizedException('El actor asociado a este PIN ya no está disponible.');
     }
 
-    await this.authRepository.recordSuccessfulLogin(credential, input.ip);
-    await this.authRepository.recordLoginAttemptEvent({
+    await this.authCredentials.recordSuccessfulLogin(credential, input.ip);
+    await this.authEvents.recordLoginAttemptEvent({
       tenantId: actor.tenantId,
       actorType,
       actorId: actor.id,

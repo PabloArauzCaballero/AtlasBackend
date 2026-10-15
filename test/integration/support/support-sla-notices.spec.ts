@@ -22,7 +22,10 @@ import {
 import { EventsRepository } from '../../../src/modules/events/events.repository.js';
 import { EventsService } from '../../../src/modules/events/events.service.js';
 import { InAppNotificationAdapter } from '../../../src/modules/notifications/adapters/in-app-notification.adapter.js';
-import { NotificationOrchestratorService } from '../../../src/modules/notifications/notification-orchestrator.service.js';
+import { NotificationChannelRegistry } from '../../../src/modules/notifications/notification-channel-registry.service.js';
+import { NotificationDeliveryPayloadBuilder } from '../../../src/modules/notifications/notification-delivery-payload.builder.js';
+import { NotificationDispatchService } from '../../../src/modules/notifications/notification-dispatch.service.js';
+import { NotificationEventHandlerService } from '../../../src/modules/notifications/notification-event-handler.service.js';
 import { NotificationRulesService } from '../../../src/modules/notifications/notification-rules.service.js';
 import { NotificationTemplateRendererService } from '../../../src/modules/notifications/notification-template-renderer.service.js';
 import { NotificationTemplatesRepository } from '../../../src/modules/notifications/notification-templates.repository.js';
@@ -39,7 +42,7 @@ const token = runToken();
 const ids = { tenant: '', policy: '', caseId: '', clock: '' };
 
 let sla: SupportSlaService;
-let orchestrator: NotificationOrchestratorService;
+let orchestrator: NotificationEventHandlerService;
 
 async function scalar(sql: string, bind: Record<string, unknown>): Promise<string> {
   const rows = await database!.sequelize.query<{ id: string }>(sql, { type: QueryTypes.SELECT, bind });
@@ -93,19 +96,20 @@ beforeAll(async () => {
   // Se ejerce la regla y la plantilla REALES; los adaptadores de otros canales y las preferencias (sólo las
   // consultan los destinatarios cliente) no intervienen en un aviso a operaciones.
   const unused = {} as never;
-  orchestrator = new NotificationOrchestratorService(
-    new NotificationRulesService(),
-    new NotificationMessagesRepository(NotificationMessageModel),
+  const messages = new NotificationMessagesRepository(NotificationMessageModel);
+  const dispatch = new NotificationDispatchService(
+    messages,
     new NotificationDeliveriesRepository(NotificationDeliveryModel),
+    new NotificationChannelRegistry(new InAppNotificationAdapter(), unused, unused, unused, unused),
+    new NotificationDeliveryPayloadBuilder(unused),
+  );
+  orchestrator = new NotificationEventHandlerService(
+    new NotificationRulesService(),
     unused,
     new NotificationTemplatesRepository(NotificationTemplateModel),
-    unused,
     new NotificationTemplateRendererService(),
-    new InAppNotificationAdapter(),
-    unused,
-    unused,
-    unused,
-    unused,
+    messages,
+    dispatch,
   );
 });
 

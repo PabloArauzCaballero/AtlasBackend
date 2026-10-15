@@ -51,7 +51,8 @@ const LEGACY_IMPORTERS: Readonly<Record<string, string>> = {
 
 /** Exportaciones legadas de `NotificationsModule` (AT-017): sólo pueden encoger. */
 const LEGACY_EXPORTS = [
-  'NotificationOrchestratorService',
+  'NotificationDispatchService',
+  'NotificationEventHandlerService',
   'NotificationPoliciesRepository',
   'NotificationCampaignRunnerService',
   'NotificationMessagesRepository',

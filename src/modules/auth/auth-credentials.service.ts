@@ -18,7 +18,9 @@ import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from './auth-password-reset.service.js';
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
-import { ActorType, AuthRepository } from './auth.repository.js';
+import { ActorType } from './auth-vocabulary.js';
+import { AuthActorRepository } from './auth-actor.repository.js';
+import { AuthCredentialRepository } from './auth-credential.repository.js';
 import {
   LoginPinChallengeResponseDto,
   LoginResponseDto,
@@ -57,7 +59,8 @@ export function isLoginPinChallenge(outcome: LoginOutcome): outcome is LoginPinC
 @Injectable()
 export class AuthCredentialsService {
   constructor(
-    private readonly authRepository: AuthRepository,
+    private readonly authActors: AuthActorRepository,
+    private readonly authCredentials: AuthCredentialRepository,
     private readonly actorResolver: AuthActorResolverService,
     private readonly passwordReset: AuthPasswordResetService,
     private readonly secondFactor: AuthSecondFactorService,
@@ -142,8 +145,8 @@ export class AuthCredentialsService {
 
     const actor =
       dto.actorType === 'internal_user'
-        ? await this.authRepository.findInternalUserById(dto.actorId)
-        : await this.authRepository.findPlatformUserById(dto.actorId);
+        ? await this.authActors.findInternalUserById(dto.actorId)
+        : await this.authActors.findPlatformUserById(dto.actorId);
 
     if (!actor) {
       throw new UnauthorizedException('El actor indicado no existe.');
@@ -157,13 +160,13 @@ export class AuthCredentialsService {
       throw new ForbiddenException('No es posible provisionar credenciales de un actor de otro tenant.');
     }
 
-    const existing = await this.authRepository.findCredentialsByActor(dto.actorType, dto.actorId);
+    const existing = await this.authCredentials.findCredentialsByActor(dto.actorType, dto.actorId);
     if (existing) {
       throw new ConflictException('CREDENTIALS_ALREADY_PROVISIONED');
     }
 
     const passwordHash = await hashPassword(dto.password);
-    await this.authRepository.createCredentials({
+    await this.authCredentials.createCredentials({
       tenantId,
       actorType: dto.actorType,
       actorId: dto.actorId,

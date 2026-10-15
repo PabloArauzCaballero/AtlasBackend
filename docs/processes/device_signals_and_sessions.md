@@ -168,7 +168,7 @@ Resumen del uso de la app por el cliente. La ruta existe y ninguna pantalla la l
 - `src/modules/customer-telemetry/customer-telemetry.service.ts`
 - `src/modules/customer-onboarding/customer-packages.controller.ts`
 - `src/modules/operations/operations.controller.ts`
-- `src/modules/runtime-jobs/runtime-jobs.service.ts`
+- `src/modules/runtime-jobs/session-expiry-job.service.ts`
 - `src/modules/runtime-jobs/scheduled-jobs.catalog.ts`
 - `src/config/env.runtime-jobs.schema.ts`
 - `AtlasFrontend/apps/consumer-app/src/session/device-signals.ts`

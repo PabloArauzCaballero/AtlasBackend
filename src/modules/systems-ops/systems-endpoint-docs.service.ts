@@ -8,7 +8,8 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { pathExists } from './path-exists.util.js';
-import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SystemEndpointCatalogRepository } from './system-endpoint-catalog.repository.js';
+import { SystemDataEntityCatalogRepository } from './system-data-entity-catalog.repository.js';
 
 type DocsImpact = { method: string; path: string; reads: string[]; writes: string[] };
 
@@ -18,19 +19,20 @@ type DocsImpact = { method: string; path: string; reads: string[]; writes: strin
  * Vive aparte de las semillas porque su fuente no es la base ni el código: es Markdown. Un cambio de
  * formato en esos documentos rompe esto y nada más, que es exactamente la frontera que se quiere.
  */
-import { SystemsMetadataRepository } from './systems-metadata.repository.js';
+import { SystemEndpointImpactRepository } from './system-endpoint-impact.repository.js';
 @Injectable()
 export class SystemsEndpointDocsService {
   constructor(
-    private readonly catalogRepository: SystemsCatalogRepository,
-    private readonly metadatos: SystemsMetadataRepository,
+    private readonly endpointCatalog: SystemEndpointCatalogRepository,
+    private readonly dataEntityCatalog: SystemDataEntityCatalogRepository,
+    private readonly endpointImpacts: SystemEndpointImpactRepository,
   ) {}
 
   async seedImpactsFromDocs(): Promise<number> {
     const docs = await this.parseEndpointDocs();
     let count = 0;
     for (const doc of docs) {
-      const endpoint = await this.catalogRepository.findEndpointByMethodAndPath(doc.method, doc.path);
+      const endpoint = await this.endpointCatalog.findEndpointByMethodAndPath(doc.method, doc.path);
       if (!endpoint) continue;
       for (const table of doc.reads) {
         if (await this.upsertImpactForTable(String(endpoint.id), table, 'READ', false)) count += 1;
@@ -48,9 +50,9 @@ export class SystemsEndpointDocsService {
     operationType: string,
     isPrimaryEntity: boolean,
   ): Promise<boolean> {
-    const entity = await this.catalogRepository.findDataEntityByTable(atlasSchemaFor(tableName), tableName);
+    const entity = await this.dataEntityCatalog.findDataEntityByTable(atlasSchemaFor(tableName), tableName);
     if (!entity) return false;
-    await this.metadatos.upsertDataImpact({
+    await this.endpointImpacts.upsertDataImpact({
       endpointId,
       dataEntityId: String(entity.id),
       operationType,

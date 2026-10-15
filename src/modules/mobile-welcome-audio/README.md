@@ -26,11 +26,11 @@ sería mucho peor que no tenerlo.
 
 ## Los tres endpoints
 
-| | |
-|---|---|
-| `POST /mobile/welcome-audio` | Encarga la locución. No recibe nada. Devuelve `requestId`. |
-| `GET /mobile/welcome-audio/:requestId` | `PENDING` · `READY` · `UNAVAILABLE`. |
-| `GET /mobile/welcome-audio/:requestId/audio` | Los bytes, bajo la sesión de quien los pidió. |
+|                                              |                                                            |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| `POST /mobile/welcome-audio`                 | Encarga la locución. No recibe nada. Devuelve `requestId`. |
+| `GET /mobile/welcome-audio/:requestId`       | `PENDING` · `READY` · `UNAVAILABLE`.                       |
+| `GET /mobile/welcome-audio/:requestId/audio` | Los bytes, bajo la sesión de quien los pidió.              |
 
 Son tres y no uno porque sintetizar tarda segundos: un endpoint que esperara al audio colgaría la
 petición justo durante el arranque de la app.

@@ -9,7 +9,7 @@ import { env } from '../../../config/env.js';
 import { decryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
 import { generateNumericCode, hashOneTimeCode, verifyOneTimeCode } from '../../../common/utils/crypto/one-time-code.util.js';
 import { CustomerContactMethodModel } from '../../../database/models/index.js';
-import { AuthRepository, OneTimeCodePurpose } from '../../auth/auth.repository.js';
+import { OneTimeCodePurpose } from '../../auth/auth-vocabulary.js';
 import { AuthOneTimeCodeRepository } from '../../auth/auth-one-time-code.repository.js';
 import { MailSenderService } from '../../mail-sender/mail-sender.service.js';
 import { NotificationChannelAdapter } from '../../notifications/adapters/notification-channel-adapter.js';
@@ -70,7 +70,6 @@ export class ContactVerificationCodeService {
   private readonly logger = new Logger(ContactVerificationCodeService.name);
 
   constructor(
-    private readonly authRepository: AuthRepository,
     private readonly oneTimeCodeRepository: AuthOneTimeCodeRepository,
     private readonly mailSenderService: MailSenderService,
     private readonly smsAdapter: SmsNotificationAdapter,

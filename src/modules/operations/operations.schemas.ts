@@ -51,7 +51,7 @@ export type OperationsCustomerIdParamsDto = z.infer<typeof operationsCustomerIdP
  * ATLAS-P11-T10: query schema para las variantes por cursor de las colas individuales
  * (`manual-review-cases`, `fraud-cases`). Deliberadamente NO cubre `queue: 'all'` — la vista
  * combinada sigue siendo OFFSET hasta que se resuelva la fusión de dos fuentes de cursor
- * heterogéneas (ver nota en `operations.repository.ts`).
+ * heterogéneas (ver nota en `operations-queue.repository.ts`).
  */
 export const cursorWorkQueueQuerySchema = z.object({
   status: z.string().trim().min(1).max(40).optional(),

@@ -9,15 +9,15 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`sql-console-catalog.service.ts`](./sql-console-catalog.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`sql-console-query.service.ts`](./sql-console-query.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`sql-console.constants.ts`](./sql-console.constants.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`sql-console.controller.ts`](./sql-console.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`sql-console.module.ts`](./sql-console.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`sql-statement-guard.ts`](./sql-statement-guard.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`sql-tokenizer.ts`](./sql-tokenizer.ts) | Artefacto de soporte específico de esta carpeta. |
+| Documento o código                                                   | Responsabilidad                                                                |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [`sql-console-catalog.service.ts`](./sql-console-catalog.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`sql-console-query.service.ts`](./sql-console-query.service.ts)     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`sql-console.constants.ts`](./sql-console.constants.ts)             | Artefacto de soporte específico de esta carpeta.                               |
+| [`sql-console.controller.ts`](./sql-console.controller.ts)           | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`sql-console.module.ts`](./sql-console.module.ts)                   | Módulo NestJS: declara el límite de inyección y sus dependencias.              |
+| [`sql-statement-guard.ts`](./sql-statement-guard.ts)                 | Artefacto de soporte específico de esta carpeta.                               |
+| [`sql-tokenizer.ts`](./sql-tokenizer.ts)                             | Artefacto de soporte específico de esta carpeta.                               |
 
 ## Reglas de mantenimiento
 

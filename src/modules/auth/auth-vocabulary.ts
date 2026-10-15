@@ -11,10 +11,8 @@ export type ActorType = 'customer' | 'internal_user' | 'platform_user' | 'mercha
  * Para qué se emitió un código de un solo uso. La columna es `varchar(40)`, no un enum de la base:
  * añadir un propósito es un cambio de tipo, no una migración.
  *
- * Vive aquí y no en `auth.repository.ts` porque ese archivo arrastra deuda de tamaño congelada y
- * cada propósito nuevo hacía que la unión pasara de 140 columnas, obligando a prettier a partirla
- * en varias líneas: el trinquete de tamaño rechazaba el crecimiento y la única salida era esta
- * extracción. Que el vocabulario tenga archivo propio además lo deja donde se puede leer entero.
+ * Vive aquí, en un archivo propio, para que los repositorios de auth (actores, credenciales y eventos)
+ * y sus consumidores compartan el vocabulario sin depender de ninguno de ellos.
  */
 export type OneTimeCodePurpose =
   | 'password_reset'
@@ -44,7 +42,7 @@ export type AuthEventType =
   // Contraseña repetida con la sesión abierta, antes de una operación sensible (cambiar la cuenta de cobro).
   | 'sensitive_reauth';
 
-/** Una entrada de esa bitácora, tal como la escribe `AuthRepository.recordLoginAttemptEvent`. */
+/** Una entrada de esa bitácora, tal como la escribe `AuthEventRepository.recordLoginAttemptEvent`. */
 export type LoginAttemptEvent = {
   tenantId: string | null;
   actorType: ActorType;

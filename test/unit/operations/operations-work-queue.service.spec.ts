@@ -201,7 +201,7 @@ describe('OperationsWorkQueueService', () => {
       await service.getWorkQueue('t1', { queue: 'all', page: 3, limit: 5, sortOrder: 'desc' } as never);
 
       // page*limit = 15: cada fuente debe pedirse con offset 0 (page: 1) y limit: 15, no page:3/limit:5 —
-      // ver el comentario en operations.service.ts sobre por qué mezclar dos páginas ya recortadas es incorrecto.
+      // ver el comentario en operations-work-queue.service.ts sobre por qué mezclar dos páginas ya recortadas es incorrecto.
       expect(operationsRepository.findManualReviewCasesForQueue).toHaveBeenCalledWith(
         't1',
         expect.objectContaining({ page: 1, limit: 15 }),

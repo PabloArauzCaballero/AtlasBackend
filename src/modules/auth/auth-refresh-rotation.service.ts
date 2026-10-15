@@ -11,7 +11,8 @@ import { hashRefreshToken } from '../../common/utils/crypto/refresh-token.util.j
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthRefreshTokensRepository } from './auth-refresh-tokens.repository.js';
 import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
-import { ActorType, AuthRepository } from './auth.repository.js';
+import { ActorType } from './auth-vocabulary.js';
+import { AuthCredentialRepository } from './auth-credential.repository.js';
 import {
   SESSION_EXPIRED_REVOKE_REASON,
   hasAbsoluteSessionCap,
@@ -44,7 +45,7 @@ export type RefreshOutcome =
 @Injectable()
 export class AuthRefreshRotationService {
   constructor(
-    private readonly authRepository: AuthRepository,
+    private readonly authCredentials: AuthCredentialRepository,
     private readonly refreshTokens: AuthRefreshTokensRepository,
     private readonly actorResolver: AuthActorResolverService,
     private readonly tokenIssuer: AuthTokenIssuerService,
@@ -90,7 +91,7 @@ export class AuthRefreshRotationService {
 
     if (stored.expiresAt.getTime() < Date.now()) return { kind: 'invalid' };
 
-    const credential = await this.authRepository.findCredentialsByActor(actorType, stored.actorId, { transaction });
+    const credential = await this.authCredentials.findCredentialsByActor(actorType, stored.actorId, { transaction });
     if (!credential) return { kind: 'invalid' };
 
     // El rol/tenant vigentes se re-resuelven antes de emitir un refresh token nuevo.

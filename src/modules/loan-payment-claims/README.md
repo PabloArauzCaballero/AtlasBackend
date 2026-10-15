@@ -9,13 +9,13 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`loan-payment-claims.module.ts`](./loan-payment-claims.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`loan-payment-claims.schemas.ts`](./loan-payment-claims.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
-| [`loan-payment-claims.service.ts`](./loan-payment-claims.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| Documento o código                                                                 | Responsabilidad                                                                |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [`loan-payment-claims.module.ts`](./loan-payment-claims.module.ts)                 | Módulo NestJS: declara el límite de inyección y sus dependencias.              |
+| [`loan-payment-claims.schemas.ts`](./loan-payment-claims.schemas.ts)               | Esquemas Zod: validan entradas y parámetros en el borde del sistema.           |
+| [`loan-payment-claims.service.ts`](./loan-payment-claims.service.ts)               | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
 | [`merchant-payment-claims.controller.ts`](./merchant-payment-claims.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`mobile-payment-claims.controller.ts`](./mobile-payment-claims.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`mobile-payment-claims.controller.ts`](./mobile-payment-claims.controller.ts)     | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 
 ## Reglas de mantenimiento
 

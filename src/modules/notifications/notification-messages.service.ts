@@ -6,7 +6,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { NotificationDeliveriesRepository } from './notification-deliveries.repository.js';
 import { NotificationMessagesRepository } from './notification-messages.repository.js';
-import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
+import { NotificationDispatchService } from './notification-dispatch.service.js';
 import { paginate } from './notification-pagination.util.js';
 import { ListMessagesQueryDto } from './notifications.schemas.js';
 import { mapDelivery, mapMessage } from './notifications.mapper.js';
@@ -16,7 +16,7 @@ export class NotificationMessagesService {
   constructor(
     private readonly messages: NotificationMessagesRepository,
     private readonly deliveries: NotificationDeliveriesRepository,
-    private readonly orchestrator: NotificationOrchestratorService,
+    private readonly dispatch: NotificationDispatchService,
   ) {}
 
   async listMessages(tenantId: string, query: ListMessagesQueryDto) {
@@ -34,7 +34,7 @@ export class NotificationMessagesService {
     const message = await this.messages.getMessage(tenantId, messageId);
     // Sólo se reintenta lo que falló: antes un SMS entregado o un aviso cancelado salía otra vez.
     if (!(await this.messages.markMessageRetrying(message))) throw new ConflictException('MESSAGE_NOT_RETRYABLE');
-    await this.orchestrator.deliverMessage(messageId);
+    await this.dispatch.deliverMessage(messageId);
     return this.getMessage(tenantId, messageId);
   }
 

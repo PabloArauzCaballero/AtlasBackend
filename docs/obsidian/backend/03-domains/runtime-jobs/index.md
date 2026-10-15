@@ -89,7 +89,7 @@ Persiste en 11 tabla(s):
 | Capa | Archivos |
 |---|---|
 | Controllers | `runtime-jobs.controller.ts` |
-| Services | `job-run-recorder.service.ts`, `runtime-jobs-scheduler.service.ts`, `runtime-jobs.service.ts`, `runtime-maintenance-jobs.service.ts` |
+| Services | `job-run-recorder.service.ts`, `runtime-jobs-scheduler.service.ts`, `outbox-jobs.service.ts`, `session-expiry-job.service.ts`, `retention-job.service.ts`, `data-quality-job.service.ts`, `runtime-maintenance-jobs.service.ts` |
 | Repositories | — |
 | Esquemas Zod | `runtime-jobs.schemas.ts` |
 | Mappers | — |
@@ -109,7 +109,7 @@ Roles que alcanzan este módulo: `admin`, `platform_admin`, `system`.
 - `test/unit/runtime-jobs/runtime-jobs-scheduler.roles.spec.ts`
 - `test/unit/runtime-jobs/runtime-jobs-scheduler.service.spec.ts`
 - `test/unit/runtime-jobs/runtime-jobs.controller.spec.ts`
-- `test/unit/runtime-jobs/runtime-jobs.service.spec.ts`
+- `test/unit/runtime-jobs/runtime-jobs-background.spec.ts`
 - `test/unit/runtime-jobs/runtime-maintenance-jobs.service.spec.ts`
 
 ## Referencias al código

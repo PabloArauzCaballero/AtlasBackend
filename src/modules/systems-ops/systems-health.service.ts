@@ -15,7 +15,7 @@ import { env } from '../../config/env.js';
 import { REDIS_CLIENT } from '../../common/redis/redis.module.js';
 import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { SystemsHealthStatus } from './systems-ops.dtos.js';
-import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SystemToolCatalogRepository } from './system-tool-catalog.repository.js';
 import { mapTool } from './systems-ops.mapper.js';
 import type { SystemToolCatalogModel } from '../../database/models/index.js';
 import { probePlatformService } from './platform-service-health.probe.js';
@@ -45,7 +45,7 @@ export class SystemsHealthService implements OnModuleDestroy {
   private mongoClient: MongoClient | null = null;
 
   constructor(
-    private readonly repository: SystemsCatalogRepository,
+    private readonly toolCatalog: SystemToolCatalogRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
     @Inject(REDIS_CLIENT) private readonly redis: Redis | null,
   ) {}
@@ -62,7 +62,7 @@ export class SystemsHealthService implements OnModuleDestroy {
   private async allTools() {
     const tools: SystemToolCatalogModel[] = [];
     for (let page = 1; ; page += 1) {
-      const result = await this.repository.listTools({
+      const result = await this.toolCatalog.listTools({
         page,
         limit: 100,
         status: undefined,

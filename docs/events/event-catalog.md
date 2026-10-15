@@ -200,7 +200,7 @@ Agregados admitidos: `support_case`, `support_channel`, `support_message`, `know
 |---|---|---|---|
 | `support.case.created` | sí | `src/modules/support/application/support-case-creation-events.service.ts` | — |
 | `support.case.triaged` | no (reservado) | — | — |
-| `support.case.assigned` | sí | `src/modules/support/application/support-case-workflow.service.ts` | — |
+| `support.case.assigned` | sí | `src/modules/support/application/support-case-assignment.service.ts` | — |
 | `support.case.escalated` | sí | `src/modules/support/application/support-case-escalation.service.ts` | — |
 | `support.case.resolved` | sí | `src/modules/support/application/support-case-closure.service.ts` | — |
 | `support.case.closed` | sí | `src/modules/support/application/support-case-closure.service.ts` | — |

@@ -14,7 +14,7 @@ import { OpenApiDocumentRegistry } from './openapi-document.registry.js';
 import { PlatformCatalogFederationRepository } from './platform-catalog-federation.repository.js';
 import { PlatformCatalogFederationService } from './platform-catalog-federation.service.js';
 import { FederationOutcome } from './platform-catalog-manifest.types.js';
-import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SystemEndpointCatalogRepository } from './system-endpoint-catalog.repository.js';
 import { EndpointSeed } from './systems-ops.types.js';
 
 /** El bloque que se describe a sí mismo. Mismo código que en `PLATFORM_BLOCKS`. */
@@ -72,7 +72,7 @@ export class SystemsCatalogAutoSyncService implements OnApplicationBootstrap, On
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly registry: OpenApiDocumentRegistry,
     private readonly openApiCatalog: OpenApiCatalogService,
-    private readonly catalogRepository: SystemsCatalogRepository,
+    private readonly endpointCatalog: SystemEndpointCatalogRepository,
     private readonly federationRepository: PlatformCatalogFederationRepository,
     private readonly federation: PlatformCatalogFederationService,
   ) {}
@@ -169,7 +169,7 @@ export class SystemsCatalogAutoSyncService implements OnApplicationBootstrap, On
     for (const seed of seeds) {
       const existing = await this.federationRepository.findEndpointByCode(seed.code);
       if (existing) await this.federationRepository.refreshEndpointStructure(existing, structuralFromSeed(seed, now));
-      else await this.catalogRepository.upsertEndpoint(seed);
+      else await this.endpointCatalog.upsertEndpoint(seed);
     }
     const retired = await this.federationRepository.deprecateMissingEndpoints(
       SELF_CODE,

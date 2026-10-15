@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { InternalSupportController } from '../../../src/modules/support/internal-support.controller.js';
 import type { SupportActorService } from '../../../src/modules/support/application/support-actor.service.js';
 import type { SupportCaseReadService } from '../../../src/modules/support/application/support-case-read.service.js';
-import type { SupportCaseWorkflowService } from '../../../src/modules/support/application/support-case-workflow.service.js';
+import type { SupportCaseAssignmentService } from '../../../src/modules/support/application/support-case-assignment.service.js';
+import type { SupportCaseTransferService } from '../../../src/modules/support/application/support-case-transfer.service.js';
+import type { SupportCaseTriageService } from '../../../src/modules/support/application/support-case-triage.service.js';
 import type { SupportCaseEscalationService } from '../../../src/modules/support/application/support-case-escalation.service.js';
 import type { SupportCaseClosureService } from '../../../src/modules/support/application/support-case-closure.service.js';
 import type { AuthenticatedUser } from '../../../src/common/types/auth.types.js';
@@ -53,7 +55,9 @@ describe('InternalSupportController', () => {
     controller = new InternalSupportController(
       actors as unknown as SupportActorService,
       read as unknown as SupportCaseReadService,
-      workflow as unknown as SupportCaseWorkflowService,
+      workflow as unknown as SupportCaseTriageService,
+      workflow as unknown as SupportCaseAssignmentService,
+      workflow as unknown as SupportCaseTransferService,
       escalation as unknown as SupportCaseEscalationService,
       closure as unknown as SupportCaseClosureService,
     );

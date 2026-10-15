@@ -1,7 +1,7 @@
 /**
  * @file Guardas de la decisión de un caso de revisión manual desde el portal.
  * @business Un caso que se resuelve en otro sitio no puede cerrarse aquí sin dejar a su dueño sin salida.
- * @system funciones puras que `OperationsService.decideManualReviewCase` aplica antes de cerrar el caso.
+ * @system funciones puras que `ManualReviewDecisionService.decideManualReviewCase` aplica antes de cerrar el caso.
  */
 import { ConflictException } from '@nestjs/common';
 import { CREDIT_REVIEW_CASE_TYPE, IDENTITY_REVIEW_CASE_TYPE } from '../../common/types/review-case.types.js';
@@ -9,7 +9,7 @@ import { CREDIT_REVIEW_CASE_TYPE, IDENTITY_REVIEW_CASE_TYPE } from '../../common
 /**
  * Los casos que NO se cierran con el formulario de decisión del portal.
  *
- * Fuera de `OperationsService` porque ese archivo y su `decideManualReviewCase` ya están en el tope
+ * Fuera de `ManualReviewDecisionService` porque ese archivo y su `decideManualReviewCase` ya están en el tope
  * (tamaño y complejidad), y porque las dos guardas son de la misma familia: «este caso se resuelve
  * en otro sitio».
  *

@@ -68,7 +68,10 @@ describe('RuntimeJobsSchedulerService · rol del proceso', () => {
       sweepBreaches: jest.fn(async (..._args: unknown[]) => ({ breached: 0 })),
     };
     const scheduledJobs = buildScheduledJobs({
-      runtimeJobs: runtimeJobs as never,
+      outboxJobs: runtimeJobs as never,
+      sessionExpiry: runtimeJobs as never,
+      retention: runtimeJobs as never,
+      dataQuality: runtimeJobs as never,
       maintenance: maintenance as never,
       onboardingAbandonment: onboardingAbandonment as never,
       delinquency: delinquency as never,

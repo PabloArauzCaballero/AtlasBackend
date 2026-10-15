@@ -298,7 +298,10 @@ describe('P-09 · el reintento de las diferidas corre solo', () => {
   it('el catálogo programa retry_deferred_underwriting cuando se le da el servicio', async () => {
     const retryDeferred = jest.fn(async (..._args: unknown[]) => ({ candidates: 0, decided: 0, stillDeferred: 0, failed: 0 }));
     const jobs = buildScheduledJobs({
-      runtimeJobs: {} as never,
+      outboxJobs: {} as never,
+      sessionExpiry: {} as never,
+      retention: {} as never,
+      dataQuality: {} as never,
       maintenance: {} as never,
       onboardingAbandonment: {} as never,
       delinquency: {} as never,

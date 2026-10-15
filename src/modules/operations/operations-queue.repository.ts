@@ -8,43 +8,19 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindAndCountOptions, FindOptions, Op, WhereOptions } from 'sequelize';
 import { buildPaginationMeta, toOffset } from '../../common/utils/pagination/pagination.util.js';
 import { decodeCursor, encodeCursor } from '../../common/utils/pagination/cursor-pagination.util.js';
-import {
-  CustomerObservationModel,
-  CustomerStatusEventModel,
-  DataChangeLogModel,
-  FraudCaseModel,
-  IdentityVerificationAttemptModel,
-  ManualReviewCaseModel,
-  ManualReviewEventModel,
-  OperationalAuditLogModel,
-} from '../../database/models/index.js';
+import { FraudCaseModel, ManualReviewCaseModel } from '../../database/models/index.js';
 import { WorkQueueQueryDto } from './operations.schemas.js';
 import { fraudQueueWhere, manualReviewQueueWhere, QueueFilter, SqlEscape } from './operations-queue.where.js';
 
 /**
- * Repositorio de operaciones.
- *
- * Las escrituras de decisión de fraude viven en `FraudRepository`; este repositorio mantiene
- * lecturas de casos de fraude para colas e investigation summary.
- */
-
-/**
- * Salen de `OperationsRepository` porque son cuatro consultas paginadas —dos por página y dos por
- * cursor, sobre revisión manual y fraude— que juntas ocupaban más que todo lo demás del
- * repositorio. Lo que queda allí son lecturas y escrituras de una fila concreta.
+ * Las consultas de la cola: cuatro consultas paginadas —dos por página y dos por cursor, sobre
+ * revisión manual y fraude—. Las escrituras de decisión de fraude viven en `FraudRepository`.
  */
 @Injectable()
 export class OperationsQueueRepository {
   constructor(
     @InjectModel(ManualReviewCaseModel) private readonly manualReviewCaseModel: typeof ManualReviewCaseModel,
     @InjectModel(FraudCaseModel) private readonly fraudCaseModel: typeof FraudCaseModel,
-    @InjectModel(ManualReviewEventModel) private readonly manualReviewEventModel: typeof ManualReviewEventModel,
-    @InjectModel(CustomerStatusEventModel) private readonly customerStatusEventModel: typeof CustomerStatusEventModel,
-    @InjectModel(OperationalAuditLogModel) private readonly operationalAuditLogModel: typeof OperationalAuditLogModel,
-    @InjectModel(DataChangeLogModel) private readonly dataChangeLogModel: typeof DataChangeLogModel,
-    @InjectModel(CustomerObservationModel) private readonly customerObservationModel: typeof CustomerObservationModel,
-    @InjectModel(IdentityVerificationAttemptModel)
-    private readonly identityAttemptModel: typeof IdentityVerificationAttemptModel,
   ) {}
 
   /** El `escape` de la conexión; sólo se pide cuando hay texto que buscar. */

@@ -5,7 +5,7 @@
  * portal a medir un cableado imposible. Aquí se comprueba, sin levantar nada:
  *   - paso `http` del Backend → inventario de rutas por decoradores;
  *   - paso `http` del Motor, el ERP o Tableros → copia de sus endpoints (`docs/processes/external-endpoints.json`);
- *   - evento del Backend → `event-registry.ts`; job del Backend → `scheduled-jobs.catalog.ts`;
+ *   - evento del Backend → `event-registry.ts`; job del Backend → `scheduled-jobs.catalog.ts` o `scheduled-jobs.runtime.ts`;
  *   - pasos que no son HTTP → dicen por qué (`reason`) o qué job los corre;
  *   - transiciones y dependencias → nombran pasos de la misma fixture.
  *
@@ -68,7 +68,7 @@ for (const f of FIXTURES) {
     } else if (kind === 'job') {
       if (!step.job) errors.push(`${at}: paso job sin job`);
       else if (system === 'ATLAS_BACKEND' && !jobs.has(step.job))
-        errors.push(`${at}: job ${step.job} no está en scheduled-jobs.catalog.ts`);
+        errors.push(`${at}: job ${step.job} no está en scheduled-jobs.catalog.ts ni scheduled-jobs.runtime.ts`);
     } else if (!step.reason || step.reason.trim().length < 20) {
       errors.push(`${at}: paso ${kind} sin «reason» (por qué no es una llamada HTTP)`);
     }

@@ -9,13 +9,13 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                                   | Responsabilidad                                                                |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | [`loans-operations.controller.ts`](./loans-operations.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`loans.controller.ts`](./loans.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`loans.module.ts`](./loans.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`loans.repository.ts`](./loans.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`loans.schemas.ts`](./loans.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
+| [`loans.controller.ts`](./loans.controller.ts)                       | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`loans.module.ts`](./loans.module.ts)                               | Módulo NestJS: declara el límite de inyección y sus dependencias.              |
+| [`loans.repository.ts`](./loans.repository.ts)                       | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
+| [`loans.schemas.ts`](./loans.schemas.ts)                             | Esquemas Zod: validan entradas y parámetros en el borde del sistema.           |
 
 ## Subcarpetas
 

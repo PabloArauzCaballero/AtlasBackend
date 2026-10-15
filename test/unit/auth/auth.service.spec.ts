@@ -129,11 +129,13 @@ function buildService(
     authRepository as never,
     authRepository as never,
     authRepository as never,
+    authRepository as never,
     tokenRevocationService as never,
     mailSenderService as never,
     actorResolver,
   );
   const secondFactor = new AuthSecondFactorService(
+    authRepository as never,
     authRepository as never,
     authRepository as never,
     actorResolver,
@@ -152,6 +154,7 @@ function buildService(
   const service = new AuthService(
     authRepository as never,
     authRepository as never,
+    authRepository as never,
     rotation,
     actorResolver,
     secondFactor,
@@ -167,6 +170,7 @@ function buildService(
    * escribiéndose como antes: lo que se prueba no ha cambiado, sólo dónde vive el método.
    */
   const credenciales = new AuthCredentialsService(
+    authRepository as never,
     authRepository as never,
     actorResolver,
     passwordReset,

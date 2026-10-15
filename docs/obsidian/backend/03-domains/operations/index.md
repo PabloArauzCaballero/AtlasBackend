@@ -80,8 +80,8 @@ Persiste en 7 tabla(s):
 | Capa | Archivos |
 |---|---|
 | Controllers | `operations.controller.ts` |
-| Services | `operations.service.ts` |
-| Repositories | `operations.repository.ts` |
+| Services | `manual-review-decision.service.ts`, `operations-investigation.service.ts` |
+| Repositories | `customer-investigation.repository.ts`, `customer-observation.repository.ts`, `manual-review-case.repository.ts`, `operations-audit.repository.ts` |
 | Esquemas Zod | `operations.schemas.ts` |
 | Mappers | `operations.mapper.ts` |
 
@@ -97,7 +97,7 @@ Roles que alcanzan este módulo: `internal_operator`, `risk_analyst`, `complianc
 - `test/e2e/workflow-catalog/workflow-progress-and-operations.spec.ts`
 - `test/unit/operations/operations.controller.spec.ts`
 - `test/unit/operations/operations.mapper.spec.ts`
-- `test/unit/operations/operations.repository.spec.ts`
+- `test/unit/operations/operations-repositories.spec.ts`
 - `test/unit/operations/operations.service.spec.ts`
 
 ## Referencias al código

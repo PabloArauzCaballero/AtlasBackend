@@ -14,7 +14,8 @@ import { PortalGlossaryService } from '../../../src/modules/internal-portal/appl
 import { PortalLineageImpactService } from '../../../src/modules/internal-portal/application/portal-lineage-impact.service.js';
 import { PortalLineageService } from '../../../src/modules/internal-portal/application/portal-lineage.service.js';
 import { SystemsCatalogSummaryService } from '../../../src/modules/systems-ops/systems-catalog-summary.service.js';
-import { SystemsCatalogRepository } from '../../../src/modules/systems-ops/systems-catalog.repository.js';
+import { SystemDataEntityCatalogRepository } from '../../../src/modules/systems-ops/system-data-entity-catalog.repository.js';
+import { SystemEndpointCatalogRepository } from '../../../src/modules/systems-ops/system-endpoint-catalog.repository.js';
 import { SystemDataEntityCatalogModel, SystemEndpointCatalogModel } from '../../../src/database/models/index.js';
 import { openIntegrationDatabase, runToken, type IntegrationDatabase } from '../support/database.js';
 
@@ -179,14 +180,13 @@ describe('impacto de linaje en SQL', () => {
 
 describe('catálogo de sistemas', () => {
   it('`personalData` y el buscador por responsable filtran en la base', async () => {
-    // Sólo los dos modelos que usan los listados; el resto de colaboradores no interviene aquí.
-    const unused = undefined as never;
-    const repository = new SystemsCatalogRepository(SystemEndpointCatalogModel, unused, SystemDataEntityCatalogModel);
-    const personal = await repository.listDataEntities({ module: `mod_${token}`, personalData: true, page: 1, limit: 50 } as never);
+    const endpoints = new SystemEndpointCatalogRepository(SystemEndpointCatalogModel);
+    const dataEntities = new SystemDataEntityCatalogRepository(SystemDataEntityCatalogModel);
+    const personal = await dataEntities.listDataEntities({ module: `mod_${token}`, personalData: true, page: 1, limit: 50 } as never);
     expect(personal.meta.total).toBe(1);
-    const byOwner = await repository.listDataEntities({ q: `dueno_${token}`, page: 1, limit: 50 } as never);
+    const byOwner = await dataEntities.listDataEntities({ q: `dueno_${token}`, page: 1, limit: 50 } as never);
     expect(byOwner.meta.total).toBe(1);
-    const routes = await repository.listEndpoints({ module: `mod_${token}`, personalData: true, page: 1, limit: 50 } as never);
+    const routes = await endpoints.listEndpoints({ module: `mod_${token}`, personalData: true, page: 1, limit: 50 } as never);
     expect(routes.rows.map((row) => row.riskLevel)).toEqual(['HIGH']);
   });
 

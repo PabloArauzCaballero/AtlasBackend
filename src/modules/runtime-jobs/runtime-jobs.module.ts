@@ -36,7 +36,10 @@ import { RuntimeJobsController } from './runtime-jobs.controller.js';
 import { RuntimeDecisionJobsController } from './runtime-decision-jobs.controller.js';
 import { ExpedientesJobsController } from './expedientes-jobs.controller.js';
 import { RuntimeJobsSchedulerService } from './runtime-jobs-scheduler.service.js';
-import { RuntimeJobsService } from './runtime-jobs.service.js';
+import { DataQualityJobService } from './data-quality-job.service.js';
+import { OutboxJobsService } from './outbox-jobs.service.js';
+import { RetentionJobService } from './retention-job.service.js';
+import { SessionExpiryJobService } from './session-expiry-job.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
 import { JobRunRecorderService } from './job-run-recorder.service.js';
 import { BankStatementReviewWorker } from '../credit/application/bank-statement-review.worker.js';
@@ -111,13 +114,19 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
   controllers: [RuntimeJobsController, RuntimeDecisionJobsController, ExpedientesJobsController],
   providers: [
     JobRunRecorderService,
-    RuntimeJobsService,
+    OutboxJobsService,
+    SessionExpiryJobService,
+    RetentionJobService,
+    DataQualityJobService,
     RuntimeMaintenanceJobsService,
     RuntimeJobsSchedulerService,
     {
       provide: SCHEDULED_JOBS,
       useFactory: (
-        runtimeJobs: RuntimeJobsService,
+        outboxJobs: OutboxJobsService,
+        sessionExpiry: SessionExpiryJobService,
+        retention: RetentionJobService,
+        dataQuality: DataQualityJobService,
         maintenance: RuntimeMaintenanceJobsService,
         onboardingAbandonment: OnboardingAbandonmentService,
         delinquency: LoanDelinquencyService,
@@ -138,7 +147,10 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         purchaseDisbursement: PurchaseDisbursementService,
       ) => [
         ...buildScheduledJobs({
-          runtimeJobs,
+          outboxJobs,
+          sessionExpiry,
+          retention,
+          dataQuality,
           maintenance,
           onboardingAbandonment,
           delinquency,
@@ -181,7 +193,10 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         ...buildPrivacyScheduledJobs({ privacyDecisions }),
       ],
       inject: [
-        RuntimeJobsService,
+        OutboxJobsService,
+        SessionExpiryJobService,
+        RetentionJobService,
+        DataQualityJobService,
         RuntimeMaintenanceJobsService,
         OnboardingAbandonmentService,
         LoanDelinquencyService,

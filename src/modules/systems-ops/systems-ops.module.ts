@@ -74,7 +74,9 @@ import { SystemsReviewController } from './systems-review.controller.js';
 import { SystemsStressController } from './systems-stress.controller.js';
 import { SystemsTestController } from './systems-test.controller.js';
 import { SystemsActionLogRepository } from './systems-action-log.repository.js';
-import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SystemDataEntityCatalogRepository } from './system-data-entity-catalog.repository.js';
+import { SystemEndpointCatalogRepository } from './system-endpoint-catalog.repository.js';
+import { SystemToolCatalogRepository } from './system-tool-catalog.repository.js';
 import { SystemsDashboardRepository } from './systems-dashboard.repository.js';
 import { SystemsReviewRepository } from './systems-review.repository.js';
 import { SystemsStressProfileRepository } from './systems-stress-profile.repository.js';
@@ -96,7 +98,9 @@ import { SystemsToolInferenceRepository } from './systems-tool-inference.reposit
 import { SystemsToolInferenceService } from './systems-tool-inference.service.js';
 import { SystemsDataImpactInferenceRepository } from './systems-data-impact-inference.repository.js';
 import { SystemsDataImpactInferenceService } from './systems-data-impact-inference.service.js';
-import { SystemsMetadataRepository } from './systems-metadata.repository.js';
+import { SystemDataStructureRepository } from './system-data-structure.repository.js';
+import { SystemEndpointImpactRepository } from './system-endpoint-impact.repository.js';
+import { SystemGovernanceCatalogRepository } from './system-governance-catalog.repository.js';
 
 @Module({
   imports: [
@@ -145,7 +149,9 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
     SystemFlowsController,
   ],
   providers: [
-    SystemsMetadataRepository,
+    SystemEndpointImpactRepository,
+    SystemDataStructureRepository,
+    SystemGovernanceCatalogRepository,
     SystemFlowsService,
     SystemFlowsImportService,
     SystemFlowsAsyncRepository,
@@ -168,7 +174,9 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
     SystemsTestQueryService,
     SystemsStressProfileService,
     SystemsActionLogQueryService,
-    SystemsCatalogRepository,
+    SystemEndpointCatalogRepository,
+    SystemToolCatalogRepository,
+    SystemDataEntityCatalogRepository,
     SystemsTestExecutionRepository,
     SystemsActionLogRepository,
     SystemsDashboardRepository,

@@ -24,7 +24,7 @@ import { SupportChannelRepository } from '../support-channel.repository.js';
 import { SupportMessageService } from './support-message.service.js';
 
 /**
- * Sale de `SupportCaseWorkflowService` porque son las tres piezas que ese servicio usa para
+ * Sale del antiguo `SupportCaseWorkflowService` (hoy dividido en triaje, asignación y transferencia) porque son las tres piezas que ese servicio usa para
  * DECIDIR el destino, frente a las tres que ejecutan el movimiento (triar, asignar, transferir).
  * Juntas pasaban del límite de `check:file-size`.
  */

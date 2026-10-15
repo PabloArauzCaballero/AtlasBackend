@@ -38,7 +38,10 @@ import {
   RecalculateDataQualityDto,
 } from './runtime-jobs.schemas.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
-import { RuntimeJobsService } from './runtime-jobs.service.js';
+import { DataQualityJobService } from './data-quality-job.service.js';
+import { OutboxJobsService } from './outbox-jobs.service.js';
+import { RetentionJobService } from './retention-job.service.js';
+import { SessionExpiryJobService } from './session-expiry-job.service.js';
 
 /**
  * El tenant lo resuelve `@CurrentTenant()`; aquí solo queda exigir la clave de idempotencia, que
@@ -56,7 +59,10 @@ function requireHeaders(tenantId: string, idempotencyKey: string | undefined): s
 @Roles('admin', 'platform_admin', 'system')
 export class RuntimeJobsController {
   constructor(
-    private readonly service: RuntimeJobsService,
+    private readonly outbox: OutboxJobsService,
+    private readonly sessions: SessionExpiryJobService,
+    private readonly retention: RetentionJobService,
+    private readonly dataQuality: DataQualityJobService,
     private readonly maintenance: RuntimeMaintenanceJobsService,
   ) {}
 
@@ -76,7 +82,7 @@ export class RuntimeJobsController {
     @Body(new ZodValidationPipe(processOutboxSchema)) body: ProcessOutboxDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.processOutbox({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
+    return this.outbox.processOutbox({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
 
   @ApiOperation({
@@ -95,7 +101,7 @@ export class RuntimeJobsController {
     @Body(new ZodValidationPipe(processEventsSchema)) body: ProcessEventsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.processEvents({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
+    return this.outbox.processEvents({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
 
   @ApiOperation({ summary: 'Expirar sesiones inactivas', description: 'Job de mantenimiento. Restringido a admin/platform_admin/system.' })
@@ -111,7 +117,7 @@ export class RuntimeJobsController {
     @Body(new ZodValidationPipe(expireStaleSessionsSchema)) body: ExpireStaleSessionsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.expireStaleSessions({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
+    return this.sessions.expireStaleSessions({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
 
   @ApiOperation({
@@ -250,7 +256,7 @@ export class RuntimeJobsController {
     @Body(new ZodValidationPipe(applyRetentionPoliciesSchema)) body: ApplyRetentionPoliciesDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.applyRetentionPolicies({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
+    return this.retention.applyRetentionPolicies({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
 
   @ApiOperation({
@@ -272,6 +278,6 @@ export class RuntimeJobsController {
     @Body(new ZodValidationPipe(recalculateDataQualitySchema)) body: RecalculateDataQualityDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.recalculateDataQuality({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
+    return this.dataQuality.recalculateDataQuality({ tenantId: requireHeaders(tenantId, idempotencyKey), body, currentUser });
   }
 }

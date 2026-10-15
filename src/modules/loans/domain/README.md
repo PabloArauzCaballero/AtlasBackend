@@ -9,13 +9,13 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`loan-allocation.ts`](./loan-allocation.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`loan-delinquency.ts`](./loan-delinquency.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`loan-outcome.ts`](./loan-outcome.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`loan-schedule.ts`](./loan-schedule.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`money.util.ts`](./money.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
+| Documento o código                             | Responsabilidad                                         |
+| ---------------------------------------------- | ------------------------------------------------------- |
+| [`loan-allocation.ts`](./loan-allocation.ts)   | Artefacto de soporte específico de esta carpeta.        |
+| [`loan-delinquency.ts`](./loan-delinquency.ts) | Artefacto de soporte específico de esta carpeta.        |
+| [`loan-outcome.ts`](./loan-outcome.ts)         | Artefacto de soporte específico de esta carpeta.        |
+| [`loan-schedule.ts`](./loan-schedule.ts)       | Artefacto de soporte específico de esta carpeta.        |
+| [`money.util.ts`](./money.util.ts)             | Utilidad pura o acotada reutilizable dentro de su capa. |
 
 ## Reglas de mantenimiento
 

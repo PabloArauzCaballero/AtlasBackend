@@ -112,7 +112,7 @@ Cada transición escribe customer.lifecycle.<estado> en el outbox en la misma tr
 - `src/modules/customers/repositories/customer-lifecycle.repository.ts`
 - `src/modules/customers/customers.controller.ts`
 - `src/modules/operations/operations.controller.ts`
-- `src/modules/operations/operations.service.ts`
+- `src/modules/operations/manual-review-decision.service.ts`
 - `src/modules/fraud/fraud.service.ts`
 - `src/modules/fraud/fraud.schemas.ts`
 - `docs/architecture/onboarding-flujo-corregido.md`

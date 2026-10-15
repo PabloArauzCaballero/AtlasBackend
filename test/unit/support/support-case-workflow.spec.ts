@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Sequelize } from 'sequelize-typescript';
-import { SupportCaseWorkflowService } from '../../../src/modules/support/application/support-case-workflow.service.js';
+import { SupportCaseAssignmentService } from '../../../src/modules/support/application/support-case-assignment.service.js';
+import { SupportCaseTransferService } from '../../../src/modules/support/application/support-case-transfer.service.js';
+import { SupportCaseTriageService } from '../../../src/modules/support/application/support-case-triage.service.js';
 import type { SupportCaseRepository } from '../../../src/modules/support/support-case.repository.js';
 import type { SupportCaseTimelineRepository } from '../../../src/modules/support/support-case-timeline.repository.js';
 import type { SupportCatalogRepository } from '../../../src/modules/support/support-catalog.repository.js';
 import type { SupportAgentRepository } from '../../../src/modules/support/support-agent.repository.js';
-import type { SupportChannelRepository } from '../../../src/modules/support/support-channel.repository.js';
-import type { SupportMessageService } from '../../../src/modules/support/application/support-message.service.js';
 import type { SupportCaseMembershipService } from '../../../src/modules/support/application/support-case-membership.service.js';
 import type { SupportCaseTransitionService } from '../../../src/modules/support/application/support-case-transition.service.js';
 import type { SupportActorService, SupportActor } from '../../../src/modules/support/application/support-actor.service.js';
@@ -57,7 +57,7 @@ function caso(overrides: Record<string, unknown> = {}): SupportCaseModel {
   } as unknown as SupportCaseModel;
 }
 
-describe('SupportCaseWorkflowService', () => {
+describe('triaje, asignación y transferencia de casos de soporte', () => {
   let cases: { requireById: jest.Mock };
   let timeline: { releaseLiveAssignment: jest.Mock; createAssignment: jest.Mock };
   let catalog: { requireQueueByCode: jest.Mock };
@@ -67,7 +67,11 @@ describe('SupportCaseWorkflowService', () => {
   let actors: { assertIsAgent: jest.Mock; assertCanViewCase: jest.Mock };
   let audit: { record: jest.Mock; publish: jest.Mock };
   let enrutado: { resolveClassification: jest.Mock; leaveHandoverSummary: jest.Mock };
-  let service: SupportCaseWorkflowService;
+  let service: {
+    triage: SupportCaseTriageService['triage'];
+    assign: SupportCaseAssignmentService['assign'];
+    transfer: SupportCaseTransferService['transfer'];
+  };
 
   beforeEach(() => {
     cases = { requireById: jest.fn(async () => caso()) };
@@ -91,20 +95,40 @@ describe('SupportCaseWorkflowService', () => {
     };
 
     const sequelize = { transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})) } as unknown as Sequelize;
-    service = new SupportCaseWorkflowService(
+    const triage = new SupportCaseTriageService(
       sequelize,
       cases as unknown as SupportCaseRepository,
-      timeline as unknown as SupportCaseTimelineRepository,
-      catalog as unknown as SupportCatalogRepository,
-      agents as unknown as SupportAgentRepository,
-      {} as unknown as SupportChannelRepository,
-      {} as unknown as SupportMessageService,
-      membership as unknown as SupportCaseMembershipService,
       transitions as unknown as SupportCaseTransitionService,
       actors as unknown as SupportActorService,
       audit as unknown as SupportAuditService,
       enrutado as unknown as SupportCaseRoutingService,
     );
+    const assignment = new SupportCaseAssignmentService(
+      sequelize,
+      cases as unknown as SupportCaseRepository,
+      timeline as unknown as SupportCaseTimelineRepository,
+      agents as unknown as SupportAgentRepository,
+      membership as unknown as SupportCaseMembershipService,
+      transitions as unknown as SupportCaseTransitionService,
+      actors as unknown as SupportActorService,
+      audit as unknown as SupportAuditService,
+    );
+    const transfers = new SupportCaseTransferService(
+      sequelize,
+      cases as unknown as SupportCaseRepository,
+      timeline as unknown as SupportCaseTimelineRepository,
+      catalog as unknown as SupportCatalogRepository,
+      agents as unknown as SupportAgentRepository,
+      membership as unknown as SupportCaseMembershipService,
+      transitions as unknown as SupportCaseTransitionService,
+      actors as unknown as SupportActorService,
+      enrutado as unknown as SupportCaseRoutingService,
+    );
+    service = {
+      triage: triage.triage.bind(triage),
+      assign: assignment.assign.bind(assignment),
+      transfer: transfers.transfer.bind(transfers),
+    };
   });
 
   describe('reclasificar', () => {

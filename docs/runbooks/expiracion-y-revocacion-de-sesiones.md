@@ -2,7 +2,7 @@
 
 Cómo cortar el acceso de un actor (cliente o usuario interno) de forma inmediata o
 programada. Relacionado: [`auth.service.ts`](../../src/modules/auth/auth.service.ts),
-[`auth.repository.ts`](../../src/modules/auth/auth.repository.ts),
+[`auth-credential.repository.ts`](../../src/modules/auth/auth-credential.repository.ts),
 [`auth.controller.ts`](../../src/modules/auth/auth.controller.ts).
 
 ## Modelo de sesión (contexto)

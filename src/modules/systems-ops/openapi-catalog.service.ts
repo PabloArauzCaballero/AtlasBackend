@@ -10,7 +10,7 @@ import { buildEndpointCode, moduleFromPath, normalizePathParamSyntax, routeNameF
 import { OpenApiDocumentRegistry } from './openapi-document.registry.js';
 import { contractFromRequestBody, contractsFromParameters, contractFromSchema, successStatusCodes } from './openapi-contract.util.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
-import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SystemEndpointCatalogRepository } from './system-endpoint-catalog.repository.js';
 import type { EndpointSeed } from './systems-ops.types.js';
 
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
@@ -43,7 +43,7 @@ export class OpenApiCatalogService {
 
   constructor(
     private readonly registry: OpenApiDocumentRegistry,
-    private readonly repository: SystemsCatalogRepository,
+    private readonly endpointCatalog: SystemEndpointCatalogRepository,
     private readonly classifier: SystemsCatalogClassifierService,
   ) {}
 
@@ -63,7 +63,7 @@ export class OpenApiCatalogService {
     const seeds = this.buildSeeds(document);
     let persisted = 0;
     if (persist) {
-      await mapWithConcurrency(seeds, UPSERT_CONCURRENCY, (seed) => this.repository.upsertEndpoint(seed));
+      await mapWithConcurrency(seeds, UPSERT_CONCURRENCY, (seed) => this.endpointCatalog.upsertEndpoint(seed));
       persisted = seeds.length;
     }
     const withContract = seeds.filter((seed) => Object.keys(seed.minPayloadSchema ?? {}).length > 0).length;

@@ -1,63 +1,57 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock, callArg, type CallArgRecord } from '../../support/jest-mocks.js';
-import { OperationsRepository } from '../../../src/modules/operations/operations.repository.js';
+import { CustomerInvestigationRepository } from '../../../src/modules/operations/customer-investigation.repository.js';
+import { CustomerObservationRepository } from '../../../src/modules/operations/customer-observation.repository.js';
+import { ManualReviewCaseRepository } from '../../../src/modules/operations/manual-review-case.repository.js';
+import { OperationsAuditRepository } from '../../../src/modules/operations/operations-audit.repository.js';
 import { encodeCursor } from '../../../src/common/utils/pagination/cursor-pagination.util.js';
 import { OperationsQueueRepository } from '../../../src/modules/operations/operations-queue.repository.js';
 
 /**
- * Cobertura directa de `OperationsRepository` (Fase 1.2 del plan 10/10): finders de la cola de
+ * Cobertura directa de los repositorios de operaciones (Fase 1.2 del plan 10/10): finders de la cola de
  * revisión manual/fraude y las escrituras de auditoría del cierre de un caso. El servicio lo mockea,
  * así que su capa de persistencia no se ejercitaba. Modelos Sequelize mockeados.
  */
-describe('OperationsRepository', () => {
+/** Sólo los miembros públicos: los repositorios comparten nombres de campos privados (los modelos). */
+type PublicOf<T> = { [K in keyof T]: T[K] };
+type Composite = PublicOf<ManualReviewCaseRepository> &
+  PublicOf<CustomerInvestigationRepository> &
+  PublicOf<CustomerObservationRepository> &
+  PublicOf<OperationsAuditRepository> &
+  PublicOf<OperationsQueueRepository>;
+
+describe('repositorios de operaciones', () => {
   function buildRepo() {
     const make = () => ({ findOne: asyncMock(), findAll: asyncMock(), findAndCountAll: asyncMock(), create: asyncMock() });
     const models = {
       manualReviewCase: make(),
       fraudCase: make(),
       manualReviewEvent: make(),
-      customerStatusEvent: make(),
       operationalAudit: make(),
       dataChangeLog: make(),
       customerObservation: make(),
-      // El octavo modelo, que el repositorio recibe desde que la identidad dejó de decidirse con
-      // una sola fuente. Sin él la construcción no compila, y la prueba se quedó atrás.
       identityAttempt: make(),
     };
-    const repo = new OperationsRepository(
-      models.manualReviewCase as never,
-      models.fraudCase as never,
-      models.manualReviewEvent as never,
-      models.customerStatusEvent as never,
-      models.operationalAudit as never,
-      models.dataChangeLog as never,
-      models.customerObservation as never,
-      models.identityAttempt as never,
-    );
     /*
-     * Las cuatro consultas de la COLA salieron a `OperationsQueueRepository` al partir el archivo
-     * por tamaño. Se construye con los MISMOS dobles y en el mismo orden, así que las aserciones de
-     * este spec no cambian: sólo cambia de qué objeto cuelga el método.
+     * Cada agregado tiene su repositorio (casos de revisión, investigación del cliente, observaciones,
+     * auditoría y cola). Este spec los llama por docenas a través de `repo`: se juntan los métodos del
+     * prototipo de cada uno y las aserciones quedan como estaban.
      */
-    const cola = new OperationsQueueRepository(
-      models.manualReviewCase as never,
-      models.fraudCase as never,
-      models.manualReviewEvent as never,
-      models.customerStatusEvent as never,
-      models.operationalAudit as never,
-      models.dataChangeLog as never,
-      models.customerObservation as never,
-      models.identityAttempt as never,
-    );
-    return {
-      repo: Object.assign(repo, {
-        findManualReviewCasesForQueue: cola.findManualReviewCasesForQueue.bind(cola),
-        findManualReviewCasesForQueueWithCursor: cola.findManualReviewCasesForQueueWithCursor.bind(cola),
-        findFraudCasesForQueue: cola.findFraudCasesForQueue.bind(cola),
-        findFraudCasesForQueueWithCursor: cola.findFraudCasesForQueueWithCursor.bind(cola),
-      }),
-      models,
-    };
+    const partes: object[] = [
+      new ManualReviewCaseRepository(models.manualReviewCase as never, models.manualReviewEvent as never),
+      new CustomerInvestigationRepository(models.fraudCase as never, models.identityAttempt as never),
+      new CustomerObservationRepository(models.customerObservation as never),
+      new OperationsAuditRepository(models.operationalAudit as never, models.dataChangeLog as never),
+      new OperationsQueueRepository(models.manualReviewCase as never, models.fraudCase as never),
+    ];
+    const repo: Record<string, (...args: unknown[]) => unknown> = {};
+    for (const parte of partes) {
+      for (const nombre of Object.getOwnPropertyNames(Object.getPrototypeOf(parte))) {
+        if (nombre === 'constructor') continue;
+        repo[nombre] = (parte as Record<string, (...args: unknown[]) => unknown>)[nombre].bind(parte);
+      }
+    }
+    return { repo: repo as unknown as Composite, models };
   }
 
   const tx = { transaction: 'tx' as never };
@@ -149,22 +143,9 @@ describe('OperationsRepository', () => {
       expect(opts).toEqual({ transaction: 'tx' });
     });
 
-    it('createStatusEvent / createCustomerObservation / createOperationalAudit / createDataChange delegan a su modelo dentro de la transacción', async () => {
+    it('createCustomerObservation / createOperationalAudit / createDataChange delegan a su modelo dentro de la transacción', async () => {
       const { repo, models } = buildRepo();
       const base = { tenantId: 't1', happenedAt: new Date('2026-01-01') };
-      await repo.createStatusEvent(
-        {
-          ...base,
-          customerId: 'c1',
-          previousStatus: null,
-          newStatus: 'under_review',
-          reasonCode: 'r',
-          actorType: 'a',
-          actorInternalUserId: 'u1',
-          notes: null,
-        },
-        tx,
-      );
       await repo.createCustomerObservation({ ...base, customerId: 'c1', observationCode: 'oc', payload: {} }, tx);
       await repo.createOperationalAudit(
         { ...base, actorType: 'a', actorInternalUserId: 'u1', actionCode: 'ac', targetType: 'tt', targetId: 'ti', payload: {} },
@@ -183,7 +164,6 @@ describe('OperationsRepository', () => {
         tx,
       );
 
-      expect(models.customerStatusEvent.create).toHaveBeenCalledTimes(1);
       expect(models.customerObservation.create).toHaveBeenCalledTimes(1);
       expect(models.operationalAudit.create).toHaveBeenCalledTimes(1);
       expect(models.dataChangeLog.create).toHaveBeenCalledTimes(1);

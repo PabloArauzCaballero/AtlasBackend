@@ -6,7 +6,7 @@
  *   y con correlación `campaign-test:`; los entrega en el acto y devuelve cómo quedó cada canal.
  */
 import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { NotificationOrchestratorService } from '../notification-orchestrator.service.js';
+import { NotificationDispatchService } from '../notification-dispatch.service.js';
 import { NotificationDeliveriesRepository } from '../notification-deliveries.repository.js';
 import { NotificationMessagesRepository } from '../notification-messages.repository.js';
 import { NotificationCampaignService } from './notification-campaign.service.js';
@@ -21,7 +21,7 @@ export class NotificationCampaignTestSendService {
     private readonly repository: NotificationCampaignsRepository,
     private readonly messages: NotificationMessagesRepository,
     private readonly deliveries: NotificationDeliveriesRepository,
-    private readonly orchestrator: NotificationOrchestratorService,
+    private readonly dispatch: NotificationDispatchService,
   ) {}
 
   async send(tenantId: string, campaignId: string, dto: TestSendCampaignDto) {
@@ -47,7 +47,7 @@ export class NotificationCampaignTestSendService {
     if (created.rows.length === 0) throw new NotFoundException('NOTIFICATION_CAMPAIGN_TEST_NOT_CREATED');
     const results = [];
     for (const message of created.rows) {
-      await this.orchestrator.deliverMessage(message).catch(() => undefined);
+      await this.dispatch.deliverMessage(message).catch(() => undefined);
       const after = await this.messages.getMessage(tenantId, String(message.id));
       const deliveries = await this.deliveries.listDeliveries(tenantId, String(message.id)).catch(() => []);
       const last = deliveries[deliveries.length - 1];

@@ -5,23 +5,23 @@ rastro de ubicación.
 
 ## Qué es y qué no es
 
-| | `customer-onboarding/contacts-snapshot` | `customer-device-signals/address-book` |
-|---|---|---|
-| Qué viaja | cuentas y proporciones | la ficha de cada contacto |
-| Qué se guarda | nueve métricas | nombre, teléfonos, correos, empresa, cumpleaños, direcciones |
-| Los hashes | se cruzan y se **descartan** | se **conservan**, para poder cruzar después |
-| Qué exige | el permiso del sistema | el permiso **y** el consentimiento vigente |
+|               | `customer-onboarding/contacts-snapshot` | `customer-device-signals/address-book`                       |
+| ------------- | --------------------------------------- | ------------------------------------------------------------ |
+| Qué viaja     | cuentas y proporciones                  | la ficha de cada contacto                                    |
+| Qué se guarda | nueve métricas                          | nombre, teléfonos, correos, empresa, cumpleaños, direcciones |
+| Los hashes    | se cruzan y se **descartan**            | se **conservan**, para poder cruzar después                  |
+| Qué exige     | el permiso del sistema                  | el permiso **y** el consentimiento vigente                   |
 
 Los dos conviven y ninguno sustituye al otro. El resumen agregado viaja siempre —aunque la persona
 no autorice guardar las fichas—, y es lo que evita que negarse deje el expediente sin ninguna señal.
 
 ## Endpoints
 
-| Método | Ruta | Qué hace |
-|---|---|---|
-| `POST` | `/customers/:id/address-book` | Sincroniza un lote de hasta 500 contactos. Actualiza los ya conocidos por su identificador de origen. |
-| `DELETE` | `/customers/:id/address-book` | Borra la agenda guardada. **Borrado físico**, es lo que promete el consentimiento al retirarlo. |
-| `POST` | `/customers/:id/location-pings` | Registra hasta 200 posiciones fechadas con el reloj del teléfono. |
+| Método   | Ruta                            | Qué hace                                                                                              |
+| -------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `POST`   | `/customers/:id/address-book`   | Sincroniza un lote de hasta 500 contactos. Actualiza los ya conocidos por su identificador de origen. |
+| `DELETE` | `/customers/:id/address-book`   | Borra la agenda guardada. **Borrado físico**, es lo que promete el consentimiento al retirarlo.       |
+| `POST`   | `/customers/:id/location-pings` | Registra hasta 200 posiciones fechadas con el reloj del teléfono.                                     |
 
 ## Lo que gobierna este módulo entero
 

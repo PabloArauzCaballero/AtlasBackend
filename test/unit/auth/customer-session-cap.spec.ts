@@ -67,6 +67,7 @@ function build(stored: StoredToken) {
   const service = new AuthService(
     authRepository as never,
     authRepository as never,
+    authRepository as never,
     rotation,
     actorResolver as never,
     {} as never,

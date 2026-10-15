@@ -12485,7 +12485,7 @@
       "src/modules/notifications/infrastructure/pilot/messaging-backfill.ts"
     ],
     "operations": [
-      "src/modules/operations/operations.service.ts"
+      "src/modules/operations/manual-review-decision.service.ts"
     ],
     "partner-onboarding": [
       "src/modules/partner-onboarding/application/partner-contact-verification.service.ts",
@@ -12495,8 +12495,11 @@
       "src/modules/risk/risk.service.ts"
     ],
     "runtime-jobs": [
+      "src/modules/runtime-jobs/data-quality-job.service.ts",
       "src/modules/runtime-jobs/job-run-recorder.service.ts",
-      "src/modules/runtime-jobs/runtime-jobs.service.ts"
+      "src/modules/runtime-jobs/outbox-jobs.service.ts",
+      "src/modules/runtime-jobs/retention-job.service.ts",
+      "src/modules/runtime-jobs/session-expiry-job.service.ts"
     ],
     "schema-management": [
       "src/modules/schema-management/schema-change-log.repository.ts",
@@ -12511,10 +12514,12 @@
       "src/modules/sql-console/sql-console-query.service.ts"
     ],
     "support": [
+      "src/modules/support/application/support-case-assignment.service.ts",
       "src/modules/support/application/support-case-closure.service.ts",
       "src/modules/support/application/support-case-customer.service.ts",
       "src/modules/support/application/support-case-escalation.service.ts",
-      "src/modules/support/application/support-case-workflow.service.ts",
+      "src/modules/support/application/support-case-transfer.service.ts",
+      "src/modules/support/application/support-case-triage.service.ts",
       "src/modules/support/application/support-case.service.ts",
       "src/modules/support/application/support-channel-creation.service.ts",
       "src/modules/support/application/support-channel.service.ts",

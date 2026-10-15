@@ -20,7 +20,10 @@ import { InternalPermissionsGuard } from '../../../src/modules/internal-users/gu
 import { EventsController } from '../../../src/modules/events/events.controller.js';
 import { EventsService } from '../../../src/modules/events/events.service.js';
 import { RuntimeJobsController } from '../../../src/modules/runtime-jobs/runtime-jobs.controller.js';
-import { RuntimeJobsService } from '../../../src/modules/runtime-jobs/runtime-jobs.service.js';
+import { DataQualityJobService } from '../../../src/modules/runtime-jobs/data-quality-job.service.js';
+import { OutboxJobsService } from '../../../src/modules/runtime-jobs/outbox-jobs.service.js';
+import { RetentionJobService } from '../../../src/modules/runtime-jobs/retention-job.service.js';
+import { SessionExpiryJobService } from '../../../src/modules/runtime-jobs/session-expiry-job.service.js';
 import { RuntimeMaintenanceJobsService } from '../../../src/modules/runtime-jobs/runtime-maintenance-jobs.service.js';
 import { HealthController } from '../../../src/modules/health/health.controller.js';
 import { getConnectionToken } from '@nestjs/sequelize';
@@ -129,18 +132,12 @@ describe('final block — OpenAPI document generation (8 controllers, 7 modules)
             cancelEvent: asyncMock(),
           },
         },
-        {
-          provide: RuntimeJobsService,
-          useValue: {
-            processOutbox: asyncMock(),
-            processEvents: asyncMock(),
-            expireStaleSessions: asyncMock(),
-            applyRetentionPolicies: asyncMock(),
-            recalculateDataQuality: asyncMock(),
-          },
-        },
+        { provide: OutboxJobsService, useValue: { processOutbox: asyncMock(), processEvents: asyncMock() } },
+        { provide: SessionExpiryJobService, useValue: { expireStaleSessions: asyncMock() } },
+        { provide: RetentionJobService, useValue: { applyRetentionPolicies: asyncMock() } },
+        { provide: DataQualityJobService, useValue: { recalculateDataQuality: asyncMock() } },
         // Los dos jobs de saneamiento viven en su propio servicio (extraídos para no seguir
-        // engordando `runtime-jobs.service.ts`, ya muy por encima del límite de tamaño).
+        // engordando los servicios de jobs).
         {
           provide: RuntimeMaintenanceJobsService,
           useValue: { retryStuckNotifications: asyncMock(), purgeIdempotencyKeys: asyncMock(), reclaimStuckEvents: asyncMock() },

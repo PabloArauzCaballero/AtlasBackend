@@ -9,7 +9,7 @@ import { Op } from 'sequelize';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { IdempotencyKeyModel, OutboxEventModel } from '../../database/models/index.js';
 import { EventsService } from '../events/events.service.js';
-import { NotificationOrchestratorService } from '../notifications/notification-orchestrator.service.js';
+import { NotificationDispatchService } from '../notifications/notification-dispatch.service.js';
 import { NotificationMessagesRepository } from '../notifications/notification-messages.repository.js';
 import { JobRunRecorderService } from './job-run-recorder.service.js';
 import {
@@ -25,7 +25,7 @@ import {
  *
  * Separados de `RuntimeJobsService` (outbox, eventos, sesiones, retención, calidad de datos) porque
  * responden a una pregunta distinta — no "¿qué hay que procesar?" sino "¿qué quedó sin procesar?" —
- * y porque `runtime-jobs.service.ts` ya estaba muy por encima del límite de tamaño: meterles 84
+ * y porque `runtime-jobs.service.ts` (hoy dividido por trabajo) ya estaba muy por encima del límite de tamaño: meterles 84
  * líneas más era justo lo que `yarn check:file-size` existe para impedir.
  *
  * Ambos cierran el resto del hallazgo A-03 de `docs/audit/auditoria-integral-2026-07-30.md`: dos
@@ -38,7 +38,7 @@ export class RuntimeMaintenanceJobsService {
   constructor(
     @InjectModel(IdempotencyKeyModel) private readonly idempotencyKeyModel: typeof IdempotencyKeyModel,
     private readonly notificationMessages: NotificationMessagesRepository,
-    private readonly notificationOrchestrator: NotificationOrchestratorService,
+    private readonly dispatch: NotificationDispatchService,
     private readonly jobRuns: JobRunRecorderService,
     // Va AL FINAL a propósito, siguiendo el mismo criterio que `MetricsService` en
     // `RuntimeJobsService`: varias pruebas construyen este servicio posicionalmente, y una
@@ -109,7 +109,7 @@ export class RuntimeMaintenanceJobsService {
         let failed = 0;
         for (const message of stuck) {
           try {
-            await this.notificationOrchestrator.deliverMessage(message);
+            await this.dispatch.deliverMessage(message);
             retried += 1;
           } catch (error) {
             failed += 1;
@@ -153,7 +153,7 @@ export class RuntimeMaintenanceJobsService {
         let failed = 0;
         for (const message of pending) {
           try {
-            await this.notificationOrchestrator.deliverMessage(message);
+            await this.dispatch.deliverMessage(message);
             delivered += 1;
           } catch (error) {
             failed += 1;
