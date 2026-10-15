@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { SchemaManagementController } from '../../../src/modules/schema-management/schema-management.controller.js';
+import { SchemaCatalogService } from '../../../src/modules/schema-management/services/schema-catalog.service.js';
 import { SchemaManagementService } from '../../../src/modules/schema-management/services/schema-management.service.js';
 import { InternalPortalController } from '../../../src/modules/internal-portal/internal-portal.controller.js';
 import { InternalMetadataController } from '../../../src/modules/internal-portal/internal-metadata.controller.js';
@@ -53,12 +54,18 @@ describe('final block — OpenAPI document generation (8 controllers, 7 modules)
       ],
       providers: [
         {
-          provide: SchemaManagementService,
+          provide: SchemaCatalogService,
           useValue: {
             listSchemaVersions: asyncMock(),
             getSchemaVersion: asyncMock(),
+            listSchemaNames: asyncMock(),
             listSchemaTables: asyncMock(),
             getSchemaTable: asyncMock(),
+          },
+        },
+        {
+          provide: SchemaManagementService,
+          useValue: {
             proposeNewTable: asyncMock(),
             listSchemaChangeLog: asyncMock(),
             approveSchemaChange: asyncMock(),

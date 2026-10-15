@@ -21,7 +21,8 @@ import {
   SystemEndpointToolRequirementModel,
 } from '../../../src/database/models/index.js';
 import { SchemaChangeLogRepository } from '../../../src/modules/schema-management/schema-change-log.repository.js';
-import { SchemaManagementRepository } from '../../../src/modules/schema-management/schema-management.repository.js';
+import { SchemaTablesRepository } from '../../../src/modules/schema-management/schema-tables.repository.js';
+import { SchemaVersionsRepository } from '../../../src/modules/schema-management/schema-versions.repository.js';
 import { SystemsActionLogRepository } from '../../../src/modules/systems-ops/systems-action-log.repository.js';
 import { SystemsReviewRepository } from '../../../src/modules/systems-ops/systems-review.repository.js';
 import { openIntegrationDatabase, runToken, type IntegrationDatabase } from '../support/database.js';
@@ -234,7 +235,7 @@ describe('inventario y change log de esquema: `q`', () => {
 
   it('tablas: busca por nombre cualificado con el `_` escapado', async () => {
     if (!db) return;
-    const repo = new SchemaManagementRepository(db.sequelize);
+    const repo = new SchemaTablesRepository(db.sequelize);
     const found = await repo.listSchemaTables(created.version!, undefined, 50, 0, { q: `alpha_${tok}` });
     expect(found.rows.map((row) => String(row._id))).toEqual([created.t1]);
     expect(found.total).toBe(1);
@@ -244,7 +245,7 @@ describe('inventario y change log de esquema: `q`', () => {
 
   it('versiones: busca por código o notas', async () => {
     if (!db) return;
-    const repo = new SchemaManagementRepository(db.sequelize);
+    const repo = new SchemaVersionsRepository(db.sequelize);
     const found = await repo.listSchemaVersions(20, 0, true, `notas ${tok}`);
     expect(found.rows.map((row) => String(row._id))).toEqual([created.version]);
     expect((await repo.listSchemaVersions(20, 0, true, `nada${tok}`)).total).toBe(0);

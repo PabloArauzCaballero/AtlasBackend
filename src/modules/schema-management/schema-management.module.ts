@@ -8,7 +8,9 @@ import { SchemaManagementController } from './schema-management.controller.js';
 import { SchemaManagementService } from './services/schema-management.service.js';
 import { SchemaManagementValidationService } from './services/schema-management-validation.service.js';
 import { SchemaChangeLogRepository } from './schema-change-log.repository.js';
-import { SchemaManagementRepository } from './schema-management.repository.js';
+import { SchemaTablesRepository } from './schema-tables.repository.js';
+import { SchemaVersionsRepository } from './schema-versions.repository.js';
+import { SchemaCatalogService } from './services/schema-catalog.service.js';
 import { SchemaChangeAuthorizationGuard } from './schema-change-authorization.guard.js';
 import { InternalUsersModule } from '../internal-users/internal-users.module.js';
 import { InternalPermissionsGuard } from '../internal-users/guards/internal-permissions.guard.js';
@@ -21,7 +23,9 @@ import { InternalPermissionsGuard } from '../internal-users/guards/internal-perm
   providers: [
     SchemaManagementService,
     SchemaManagementValidationService,
-    SchemaManagementRepository,
+    SchemaVersionsRepository,
+    SchemaTablesRepository,
+    SchemaCatalogService,
     SchemaChangeLogRepository,
     InternalPermissionsGuard,
     SchemaChangeAuthorizationGuard,

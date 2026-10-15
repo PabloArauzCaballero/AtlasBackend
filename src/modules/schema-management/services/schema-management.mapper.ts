@@ -4,7 +4,7 @@
  * @system valida y audita el catálogo de cambios; la ejecución física permanece en migraciones revisadas.
  */
 import { SchemaChangeLogDto, SchemaTableDto, SchemaVersionDto } from '../schema-management.dtos.js';
-import type { SchemaChangeLogRow, SchemaTableRow, SchemaVersionCounts, SchemaVersionRow } from '../schema-management.repository.js';
+import type { SchemaChangeLogRow, SchemaTableRow, SchemaVersionCounts, SchemaVersionRow } from '../schema-management.rows.js';
 
 /**
  * Fila de Postgres → DTO. Son funciones libres y no métodos privados del servicio: no tocan
