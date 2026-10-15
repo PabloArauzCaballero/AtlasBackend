@@ -15,7 +15,9 @@ import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
-import { NotificationsService } from './notifications.service.js';
+import { NotificationDeviceTokensService } from './notification-device-tokens.service.js';
+import { NotificationInboxService } from './notification-inbox.service.js';
+import { NotificationMessagesService } from './notification-messages.service.js';
 import {
   customerNotificationsParamsSchema,
   customerNotificationsQuerySchema,
@@ -58,7 +60,11 @@ const INTERNAL_SELF_SERVICE_ROLES = [
 @Controller()
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class NotificationsController {
-  constructor(private readonly service: NotificationsService) {}
+  constructor(
+    private readonly messages: NotificationMessagesService,
+    private readonly inbox: NotificationInboxService,
+    private readonly deviceTokens: NotificationDeviceTokensService,
+  ) {}
 
   @ApiOperation({ summary: 'Listar mensajes de notificación (operaciones)' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
@@ -78,7 +84,7 @@ export class NotificationsController {
     'system',
   )
   listMessages(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listMessagesQuerySchema)) query: ListMessagesQueryDto) {
-    return this.service.listMessages(tenantId, query);
+    return this.messages.listMessages(tenantId, query);
   }
 
   @ApiOperation({
@@ -101,7 +107,7 @@ export class NotificationsController {
     'system',
   )
   getMessage(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(messageIdParamsSchema)) params: MessageIdParamsDto) {
-    return this.service.getMessage(tenantId, params.messageId);
+    return this.messages.getMessage(tenantId, params.messageId);
   }
 
   @ApiOperation({ summary: 'Reintentar entrega de un mensaje fallido' })
@@ -120,7 +126,7 @@ export class NotificationsController {
     @Param(new ZodValidationPipe(messageIdParamsSchema)) params: MessageIdParamsDto,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.retryMessage(tenantId, params.messageId);
+    return this.messages.retryMessage(tenantId, params.messageId);
   }
 
   @ApiOperation({ summary: 'Cancelar un mensaje de notificación pendiente' })
@@ -139,7 +145,7 @@ export class NotificationsController {
     @Param(new ZodValidationPipe(messageIdParamsSchema)) params: MessageIdParamsDto,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.cancelMessage(tenantId, params.messageId);
+    return this.messages.cancelMessage(tenantId, params.messageId);
   }
 
   @ApiOperation({ summary: 'Marcar todas las notificaciones del cliente como leídas' })
@@ -155,7 +161,7 @@ export class NotificationsController {
     @Param(new ZodValidationPipe(customerNotificationsParamsSchema)) params: CustomerNotificationsParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.markAllCustomerNotificationsRead(tenantId, params.customerId, currentUser);
+    return this.inbox.markAllCustomerNotificationsRead(tenantId, params.customerId, currentUser);
   }
 
   @ApiOperation({
@@ -176,7 +182,7 @@ export class NotificationsController {
     @Body(new ZodValidationPipe(upsertDeviceTokenSchema)) body: UpsertDeviceTokenDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.upsertDeviceToken(tenantId, params.customerId, body, currentUser);
+    return this.deviceTokens.upsertDeviceToken(tenantId, params.customerId, body, currentUser);
   }
 
   @ApiOperation({ summary: 'Desactivar token de dispositivo (push)' })
@@ -193,7 +199,7 @@ export class NotificationsController {
     @Param(new ZodValidationPipe(deviceTokenIdParamsSchema)) params: DeviceTokenIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.deactivateDeviceToken(tenantId, params.customerId, params.deviceTokenId, currentUser);
+    return this.deviceTokens.deactivateDeviceToken(tenantId, params.customerId, params.deviceTokenId, currentUser);
   }
 
   // ---------------------------------------------------------------------------------------
@@ -216,7 +222,7 @@ export class NotificationsController {
     @Query(new ZodValidationPipe(customerNotificationsQuerySchema)) query: CustomerNotificationsQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.listMyNotifications(tenantId, query, currentUser);
+    return this.inbox.listMyNotifications(tenantId, query, currentUser);
   }
 
   @ApiOperation({ summary: 'Contador de mis notificaciones no leídas (usuario interno)' })
@@ -226,7 +232,7 @@ export class NotificationsController {
   @Get('internal-users/me/notifications/unread-count')
   @Roles(...INTERNAL_SELF_SERVICE_ROLES)
   myUnreadNotificationsCount(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
-    return this.service.myUnreadCount(tenantId, currentUser);
+    return this.inbox.myUnreadCount(tenantId, currentUser);
   }
 
   @ApiOperation({ summary: 'Marcar una de mis notificaciones como leída (usuario interno)' })
@@ -243,7 +249,7 @@ export class NotificationsController {
     @Param(new ZodValidationPipe(internalUserNotificationIdParamsSchema)) params: InternalUserNotificationIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.markMyNotificationRead(tenantId, params.notificationId, currentUser);
+    return this.inbox.markMyNotificationRead(tenantId, params.notificationId, currentUser);
   }
 
   @ApiOperation({ summary: 'Marcar todas mis notificaciones como leídas (usuario interno)' })
@@ -254,6 +260,6 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @Roles(...INTERNAL_SELF_SERVICE_ROLES)
   markAllMyNotificationsRead(@CurrentTenant() tenantId: string, @CurrentUser() currentUser: AuthenticatedUser) {
-    return this.service.markAllMyNotificationsRead(tenantId, currentUser);
+    return this.inbox.markAllMyNotificationsRead(tenantId, currentUser);
   }
 }

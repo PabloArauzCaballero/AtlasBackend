@@ -61,7 +61,6 @@ describe('NotificationOrchestratorService', () => {
       })),
       getActivePushDevices: jest.fn(async (..._args: unknown[]) => []),
       getCustomerContactTargets: jest.fn(async (..._args: unknown[]) => []),
-      getMessageDeliveryTargets: jest.fn(async (..._args: unknown[]) => []),
       markMessageSending: jest.fn(async (..._args: unknown[]) => true),
       recordDelivery: jest.fn(async (..._args: unknown[]) => undefined),
     };
@@ -74,7 +73,11 @@ describe('NotificationOrchestratorService', () => {
 
     const service = new NotificationOrchestratorService(
       rulesService as never,
-      repository as never,
+      repository as never, // messages
+      repository as never, // deliveries
+      repository as never, // recipientTargets
+      repository as never, // templates
+      repository as never, // preferences
       renderer as never,
       inAppAdapter as never,
       emailAdapter as never,

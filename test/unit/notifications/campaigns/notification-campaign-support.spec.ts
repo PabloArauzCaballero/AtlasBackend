@@ -88,6 +88,7 @@ describe('NotificationCampaignTestSendService', () => {
       campaigns as never,
       repository as never,
       notifications as never,
+      notifications as never,
       orchestrator as never,
     );
     return { service, repository, orchestrator };

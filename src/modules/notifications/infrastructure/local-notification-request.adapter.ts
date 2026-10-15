@@ -2,13 +2,13 @@
  * @file Adaptador local del puerto de solicitud de notificación (AT-017).
  * @business Hoy el aviso se registra en la misma base y lo entrega el flujo actual; el consumidor no
  *   tiene que saberlo, y cuando Mensajería se extraiga este adaptador se sustituye por uno remoto.
- * @system Valida contrato (tenant, canal, destinatario), traduce a `NotificationsRepository.createMessage`
+ * @system Valida contrato (tenant, canal, destinatario), traduce a `NotificationMessagesRepository.createMessage`
  *   —que ya deduplica por `idempotencyKey`— y devuelve sólo valores. No expone el modelo.
  */
 import { Injectable } from '@nestjs/common';
 import { ApplicationError } from '../../../platform/contracts/application-error.js';
 import type { NotificationRequestPort } from '../application/ports/notification-request.port.js';
-import { NotificationsRepository } from '../notifications.repository.js';
+import { NotificationMessagesRepository } from '../notification-messages.repository.js';
 import {
   NOTIFICATION_CHANNELS,
   NOTIFICATION_RECIPIENT_TYPES,
@@ -19,7 +19,7 @@ import {
 
 @Injectable()
 export class LocalNotificationRequestAdapter implements NotificationRequestPort {
-  constructor(private readonly repository: NotificationsRepository) {}
+  constructor(private readonly repository: NotificationMessagesRepository) {}
 
   async request(input: NotificationRequestInput, context: NotificationRequestContext): Promise<NotificationRequestResult> {
     if (!context.tenantId) throw new ApplicationError({ kind: 'forbidden', code: 'NOTIFICATION_TENANT_REQUIRED' });

@@ -13,7 +13,7 @@ import { TenantModel } from '../../database/models/index.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { InternalRbacRepository } from '../internal-users/internal-rbac.repository.js';
 import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
-import { NotificationsRepository } from './notifications.repository.js';
+import { NotificationBroadcastRepository } from './notification-broadcast.repository.js';
 import { CreateBroadcastNotificationDto } from './notifications.schemas.js';
 import { RecipientType } from './notification-types.js';
 import { env } from '../../config/env.js';
@@ -48,7 +48,7 @@ export class NotificationBroadcastService {
   private readonly logger = new Logger(NotificationBroadcastService.name);
 
   constructor(
-    private readonly notificationsRepository: NotificationsRepository,
+    private readonly broadcastMessages: NotificationBroadcastRepository,
     private readonly orchestrator: NotificationOrchestratorService,
     private readonly customersRepository: CustomersRepository,
     private readonly internalRbacRepository: InternalRbacRepository,
@@ -145,7 +145,7 @@ export class NotificationBroadcastService {
       return { broadcastId, targeted: 0, created: 0, status: 'completed' };
     }
 
-    const messages = await this.notificationsRepository.createBroadcastMessages(recipients, {
+    const messages = await this.broadcastMessages.createBroadcastMessages(recipients, {
       tenantId,
       title: content.title,
       body: content.body,

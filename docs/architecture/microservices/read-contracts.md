@@ -10,7 +10,7 @@ una decisión crítica.
 |---|---|---|---|---|
 | Elegibilidad del cliente para admitir crédito | credit → customers | **crítica** (autoriza) | `CustomerEligibilityService` en la misma transacción con bloqueo de fila (F1) | Se queda transaccional dentro del límite consistente; no se convierte en proyección. `CreditAdmissionEligibility` (AT-015) es su puerto. |
 | Hechos de riesgo (features) | risk → customers, telemetry | crítica para el snapshot | `CustomersRepository` importado directamente (H11) | Puerto de lectura con revisión de hechos (AT-027). |
-| Directorio de destinatarios | notifications → customers | **eventual con estado definido** | `NotificationsRepository` inyecta `CustomerContactMethodModel` | **Hecho:** `RecipientDirectoryPort` (`src/platform/contracts/recipient-directory.ts`), implementado por Clientes (`CustomerRecipientDirectoryAdapter`), compuesto en `NotificationsModule`. |
+| Directorio de destinatarios | notifications → customers | **eventual con estado definido** | `NotificationDeviceTokensRepository` inyecta `CustomerContactMethodModel` | **Hecho:** `RecipientDirectoryPort` (`src/platform/contracts/recipient-directory.ts`), implementado por Clientes (`CustomerRecipientDirectoryAdapter`), compuesto en `NotificationsModule`. |
 | Lecturas del portal interno | internal-portal → todos | eventual | repositorios directos y `ReadQueryService` | Proyecciones/vistas `read_api` con versión; el portal presenta, no decide (AT-031). |
 | Catálogo y calidad de datos | systems-ops/data-quality → todos | eventual | SQL por `atlasSchemaFor` | Lector gobernado con rol de sólo lectura (V44). |
 
@@ -28,7 +28,7 @@ una decisión crítica.
   fronteras detectó que un import de contrato entre ambos cerraba el ciclo `auth↔…↔notifications`).
 - **Autorización:** el `tenantId` viene del contexto validado, no de la petición.
 
-Prueba de contrato: `test/contracts/architecture/read-contracts.spec.ts`. El consumo real por `NotificationsRepository`
+Prueba de contrato: `test/contracts/architecture/read-contracts.spec.ts`. El consumo real por `NotificationDeviceTokensRepository`
 migra en AT-039 (retirar `CustomerContactMethodModel` y `TenantModel` del `forFeature` de Mensajería).
 
 ## Proyecciones: reglas para cuando lleguen (AT-031, AT-036)

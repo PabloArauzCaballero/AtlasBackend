@@ -12,6 +12,12 @@ import { env } from '../../../../src/config/env.js';
 import { NotificationBroadcastController } from '../../../../src/modules/notifications/notification-broadcast.controller.js';
 import { NotificationTemplatesController } from '../../../../src/modules/notifications/notification-templates.controller.js';
 import { NotificationsController } from '../../../../src/modules/notifications/notifications.controller.js';
+import { NotificationBroadcastService } from '../../../../src/modules/notifications/notification-broadcast.service.js';
+import { NotificationDeviceTokensService } from '../../../../src/modules/notifications/notification-device-tokens.service.js';
+import { NotificationInboxService } from '../../../../src/modules/notifications/notification-inbox.service.js';
+import { NotificationMessagesService } from '../../../../src/modules/notifications/notification-messages.service.js';
+import { NotificationPreferencesService } from '../../../../src/modules/notifications/notification-preferences.service.js';
+import { NotificationTemplatesService } from '../../../../src/modules/notifications/notification-templates.service.js';
 
 /**
  * Igual patrón que test/e2e/systems-ops/support/systems-ops-test-app.ts: app Nest real (Express +
@@ -38,6 +44,18 @@ export async function buildNotificationsTestApp(services: Provider[]): Promise<I
   const app = moduleRef.createNestApplication();
   await app.init();
   return app;
+}
+
+/** Todos los servicios de notificaciones que inyectan los controladores, atendidos por el mismo doble. */
+export function notificationServiceStubs(stub: object): Provider[] {
+  return [
+    NotificationMessagesService,
+    NotificationTemplatesService,
+    NotificationPreferencesService,
+    NotificationInboxService,
+    NotificationDeviceTokensService,
+    NotificationBroadcastService,
+  ].map((token) => ({ provide: token, useValue: stub }));
 }
 
 export function signNotificationsToken(role: AtlasUserRole, overrides: Record<string, unknown> = {}): string {

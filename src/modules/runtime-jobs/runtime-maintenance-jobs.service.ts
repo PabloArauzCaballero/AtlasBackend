@@ -10,7 +10,7 @@ import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { IdempotencyKeyModel, OutboxEventModel } from '../../database/models/index.js';
 import { EventsService } from '../events/events.service.js';
 import { NotificationOrchestratorService } from '../notifications/notification-orchestrator.service.js';
-import { NotificationsRepository } from '../notifications/notifications.repository.js';
+import { NotificationMessagesRepository } from '../notifications/notification-messages.repository.js';
 import { JobRunRecorderService } from './job-run-recorder.service.js';
 import {
   DeliverPendingNotificationsDto,
@@ -37,7 +37,7 @@ export class RuntimeMaintenanceJobsService {
 
   constructor(
     @InjectModel(IdempotencyKeyModel) private readonly idempotencyKeyModel: typeof IdempotencyKeyModel,
-    private readonly notificationsRepository: NotificationsRepository,
+    private readonly notificationMessages: NotificationMessagesRepository,
     private readonly notificationOrchestrator: NotificationOrchestratorService,
     private readonly jobRuns: JobRunRecorderService,
     // Va AL FINAL a propósito, siguiendo el mismo criterio que `MetricsService` en
@@ -97,7 +97,7 @@ export class RuntimeMaintenanceJobsService {
     return this.jobRuns.run(
       { tenantId: input.tenantId, jobCode: 'retry_stuck_notifications', body: input.body, currentUser: input.currentUser },
       async () => {
-        const stuck = await this.notificationsRepository.listStuckMessages({
+        const stuck = await this.notificationMessages.listStuckMessages({
           tenantId: input.tenantId,
           olderThanMinutes: input.body.olderThanMinutes,
           limit: input.body.limit,
@@ -140,7 +140,7 @@ export class RuntimeMaintenanceJobsService {
     return this.jobRuns.run(
       { tenantId: input.tenantId, jobCode: 'deliver_pending_notifications', body: input.body, currentUser: input.currentUser },
       async () => {
-        const pending = await this.notificationsRepository.listStuckMessages({
+        const pending = await this.notificationMessages.listStuckMessages({
           tenantId: input.tenantId,
           olderThanMinutes: 0,
           limit: input.body.limit,

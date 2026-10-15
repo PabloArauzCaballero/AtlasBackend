@@ -11,7 +11,7 @@ import { UniqueConstraintError } from 'sequelize';
 import type { NotificationCampaignModel } from '../../../database/models/index.js';
 import type { AudienceDefinition } from '../../../platform/contracts/campaign-audience.js';
 import { mapMessage } from '../notifications.mapper.js';
-import { NotificationsRepository } from '../notifications.repository.js';
+import { NotificationMessagesRepository } from '../notification-messages.repository.js';
 import { NotificationCampaignAudienceService } from './notification-campaign-audience.service.js';
 import { campaignCorrelationId } from './notification-campaign-messages.js';
 import { mapCampaign } from './notification-campaigns.mapper.js';
@@ -28,7 +28,7 @@ export class NotificationCampaignService {
   constructor(
     private readonly repository: NotificationCampaignsRepository,
     private readonly audience: NotificationCampaignAudienceService,
-    private readonly notifications: NotificationsRepository,
+    private readonly messages: NotificationMessagesRepository,
   ) {}
 
   async list(tenantId: string, query: ListCampaignsQueryDto) {
@@ -46,7 +46,7 @@ export class NotificationCampaignService {
 
   async listMessages(tenantId: string, campaignId: string, query: { page: number; limit: number; status?: string; channel?: string }) {
     const campaign = await this.load(tenantId, campaignId);
-    const result = await this.notifications.listMessages(tenantId, {
+    const result = await this.messages.listMessages(tenantId, {
       ...query,
       correlationId: campaignCorrelationId(campaign.campaignUuid),
     } as never);
