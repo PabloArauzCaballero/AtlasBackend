@@ -31,6 +31,7 @@
 | [`scheduled-jobs.catalog.ts`](./scheduled-jobs.catalog.ts)                     | Artefacto de soporte específico de esta carpeta.                               |
 | [`scheduled-jobs.credit.ts`](./scheduled-jobs.credit.ts)                       | Artefacto de soporte específico de esta carpeta.                               |
 | [`scheduled-jobs.privacy.ts`](./scheduled-jobs.privacy.ts)                     | Artefacto de soporte específico de esta carpeta.                               |
+| [`scheduled-jobs.runtime.ts`](./scheduled-jobs.runtime.ts)                     | Artefacto de soporte específico de esta carpeta.                               |
 | [`session-expiry-job.service.ts`](./session-expiry-job.service.ts)             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
 
 ## Reglas de mantenimiento

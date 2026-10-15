@@ -9,8 +9,8 @@
 
 ## Contenido
 
-| Documento o código                                 | Responsabilidad                                  |
-| -------------------------------------------------- | ------------------------------------------------ |
+| Documento o código | Responsabilidad |
+|---|---|
 | [`build-job-services.ts`](./build-job-services.ts) | Artefacto de soporte específico de esta carpeta. |
 
 ## Reglas de mantenimiento

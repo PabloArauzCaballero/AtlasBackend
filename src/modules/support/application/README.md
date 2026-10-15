@@ -9,30 +9,36 @@
 
 ## Contenido
 
-| Documento o código                                                           | Responsabilidad                                                           |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| [`support-actor.service.ts`](./support-actor.service.ts)                     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-attachment.service.ts`](./support-attachment.service.ts)           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-audit.service.ts`](./support-audit.service.ts)                     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case-closure.service.ts`](./support-case-closure.service.ts)       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case-customer.service.ts`](./support-case-customer.service.ts)     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case-escalation.service.ts`](./support-case-escalation.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case-factory.service.ts`](./support-case-factory.service.ts)       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case-membership.service.ts`](./support-case-membership.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case-read.service.ts`](./support-case-read.service.ts)             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case-transition.service.ts`](./support-case-transition.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case-assignment.service.ts`](./support-case-assignment.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case-transfer.service.ts`](./support-case-transfer.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case-triage.service.ts`](./support-case-triage.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case.service.ts`](./support-case.service.ts)                       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-channel.service.ts`](./support-channel.service.ts)                 | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-conversation.service.ts`](./support-conversation.service.ts)       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-desk.service.ts`](./support-desk.service.ts)                       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-knowledge.service.ts`](./support-knowledge.service.ts)             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-message.service.ts`](./support-message.service.ts)                 | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-realtime.service.ts`](./support-realtime.service.ts)               | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-sla.service.ts`](./support-sla.service.ts)                         | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-sla-events.ts`](./support-sla-events.ts)                           | Artefacto de soporte específico de esta carpeta.                          |
+| Documento o código                                                                     | Responsabilidad                                                           |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [`support-actor.service.ts`](./support-actor.service.ts)                               | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-agent-enrollment.service.ts`](./support-agent-enrollment.service.ts)         | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-attachment.service.ts`](./support-attachment.service.ts)                     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-audit.service.ts`](./support-audit.service.ts)                               | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-assignment.service.ts`](./support-case-assignment.service.ts)           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-closure.service.ts`](./support-case-closure.service.ts)                 | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-creation-events.service.ts`](./support-case-creation-events.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-customer.service.ts`](./support-case-customer.service.ts)               | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-escalation.service.ts`](./support-case-escalation.service.ts)           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-factory.service.ts`](./support-case-factory.service.ts)                 | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-membership.service.ts`](./support-case-membership.service.ts)           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-read.service.ts`](./support-case-read.service.ts)                       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-routing.service.ts`](./support-case-routing.service.ts)                 | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-transfer.service.ts`](./support-case-transfer.service.ts)               | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-transition.service.ts`](./support-case-transition.service.ts)           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-triage.service.ts`](./support-case-triage.service.ts)                   | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-unclassified.service.ts`](./support-case-unclassified.service.ts)       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case.service.ts`](./support-case.service.ts)                                 | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-channel-creation.service.ts`](./support-channel-creation.service.ts)         | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-channel.service.ts`](./support-channel.service.ts)                           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-conversation.service.ts`](./support-conversation.service.ts)                 | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-desk.service.ts`](./support-desk.service.ts)                                 | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-knowledge-read.service.ts`](./support-knowledge-read.service.ts)             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-knowledge.service.ts`](./support-knowledge.service.ts)                       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-message.service.ts`](./support-message.service.ts)                           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-realtime.service.ts`](./support-realtime.service.ts)                         | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-sla-events.ts`](./support-sla-events.ts)                                     | Artefacto de soporte específico de esta carpeta.                          |
+| [`support-sla.service.ts`](./support-sla.service.ts)                                   | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento
 
