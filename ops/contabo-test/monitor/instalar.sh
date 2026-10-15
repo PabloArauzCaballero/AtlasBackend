@@ -4,7 +4,7 @@
 set -eu
 mkdir -p /opt/atlas/monitor /var/lib/atlas-monitor
 install -m 755 monitor.sh grafico.py comandos.sh podar.sh ssh.sh /opt/atlas/monitor/
-install -m 644 sondas.sh /opt/atlas/monitor/   # se carga con `.` desde monitor.sh, no se ejecuta
+install -m 644 sondas.sh colas.sh /opt/atlas/monitor/   # se carga con `.` desde monitor.sh, no se ejecuta
 [ -f /opt/atlas/monitor/monitor.env ] || { umask 077; : > /opt/atlas/monitor/monitor.env; }
 install -m 644 atlas-monitor.service atlas-monitor.timer /etc/systemd/system/
 systemctl daemon-reload

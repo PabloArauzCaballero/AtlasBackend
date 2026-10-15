@@ -212,8 +212,37 @@ export class BankStatementReviewWorker {
     } as FindOptions);
 
     if (atRisk > 0) {
-      this.logger.warn(`${atRisk} revisión(es) de extracto con el plazo de 24 h a punto de vencer y sin resolver.`);
+      this.logger.warn(`${atRisk} revisión(es) de extracto con el plazo de 24 h vencido o a punto de vencer, sin resolver.`);
+      await this.reportBreached(tenantId, now);
     }
     return atRisk;
+  }
+
+  /**
+   * Las ya VENCIDAS, una por una y en `error`: cuál es, en qué estado y dónde está parada.
+   *
+   * El 2026-10-15 dos extractos llevaban ocho días esperando a una persona del Motor y el log sólo decía «2 a punto
+   * de vencer»: ni cuáles, ni que ya habían vencido, ni dónde mirar. Con el motivo y la ejecución del Motor a la
+   * vista se sabe al leer la línea si es la bandeja de extractos del Motor (`processing` con motivo) o la llamada al
+   * Motor (`received`, que no llega nunca a la bandeja).
+   */
+  private async reportBreached(tenantId: string, now: Date): Promise<void> {
+    const breached = await this.reviews.findAll({
+      where: { tenantId, status: ['received', 'processing'], deleted: false, promisedBy: { [Op.lte]: now } },
+      order: [['promised_by', 'ASC']],
+      limit: 10,
+    } as FindOptions);
+    for (const review of breached) {
+      const hours = Math.round((now.getTime() - new Date(review.promisedBy).getTime()) / 3_600_000);
+      const where =
+        review.status === 'processing' && review.reviewReason
+          ? `espera a una persona en el Motor (Procesadores automáticos → Extractos bancarios), motivo ${review.reviewReason}`
+          : review.status === 'processing'
+            ? 'leído; falta que el Motor escriba la línea'
+            : 'no llegó al Motor: revisar la llamada y su llave';
+      this.logger.error(
+        `Extracto ${review.id} con el plazo VENCIDO hace ${hours} h (${review.status}; ${where}; ejecución ${review.engineRequestId ?? 'ninguna'}).`,
+      );
+    }
   }
 }
