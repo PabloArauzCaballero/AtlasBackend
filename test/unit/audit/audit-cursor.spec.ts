@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { decodeAuditCursor, encodeAuditCursor } from '../../../src/modules/audit/audit.repository.js';
+import { decodeAuditCursor, encodeAuditCursor } from '../../../src/modules/audit/audit-cursor.js';
 
 /**
  * ATLAS-P11-T06: primer test real para el código nuevo de `ATLAS-P11-T10` (vista unificada de

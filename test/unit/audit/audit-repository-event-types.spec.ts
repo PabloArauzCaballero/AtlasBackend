@@ -34,7 +34,6 @@ describe('AuditRepository.findCustomerAuditEvents — consent/manual_review/frau
       models.customerConsentModel as never,
       models.manualReviewCaseModel as never,
       models.fraudCaseModel as never,
-      {} as never,
     );
     return { repository, models };
   }
