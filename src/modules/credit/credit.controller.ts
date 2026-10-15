@@ -128,7 +128,7 @@ export class CreditController {
   ) {
     assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
     const review = await this.bankStatements.latest(tenantId, params.customerId);
-    return review ? toBankStatementResponse(review) : null;
+    return review ? toBankStatementResponse(review, await this.bankStatements.lineChange(review)) : null;
   }
 
   @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin')

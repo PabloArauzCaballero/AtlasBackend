@@ -4,6 +4,7 @@
  * @system compone la respuesta de `BankStatementReviewModel`.
  */
 import type { BankStatementReviewModel } from '../../database/models/index.js';
+import type { LineChange } from './bank-statement-line-change.mapper.js';
 import { bankStatementFileName } from './domain/bank-statement-file-name.js';
 import { reviewCopyFor } from './domain/statement-rejection.js';
 
@@ -35,6 +36,12 @@ const STATEMENT_COPY: Record<string, { label: string; detail: string }> = {
   },
 };
 
+const LINE_AWAITING_PERSON = {
+  label: 'Leímos tu extracto',
+  detail:
+    'Tu capacidad de pago ya quedó medida con tus movimientos. Una persona del equipo confirma tu nueva línea; la verás en Inicio en cuanto la apruebe.',
+};
+
 /** Forma mínima de la evaluación del motor. El contrato completo vive en el motor. */
 interface StatementAffordabilityJson {
   eligible?: boolean;
@@ -63,6 +70,8 @@ function copyFor(review: BankStatementReviewModel): { label: string; detail: str
     const review_ = reviewCopyFor(review.reviewReason);
     return { label: review_.title, detail: review_.message };
   }
+  // Aplicado sin línea: el extracto cuenta, pero el límite nuevo lo concede una persona (`creditLineHeld`).
+  if (review.status === 'applied' && !review.appliedCreditLineId) return LINE_AWAITING_PERSON;
   return STATEMENT_COPY[review.status] ?? STATEMENT_COPY.received!;
 }
 
@@ -78,7 +87,7 @@ function copyFor(review: BankStatementReviewModel): { label: string; detail: str
  * hora concreta convierte la espera en algo que no se puede comprobar. Y NO lleva nada del
  * contenido del extracto, que es exactamente lo que se le prometió a la persona.
  */
-export function toBankStatementResponse(review: BankStatementReviewModel) {
+export function toBankStatementResponse(review: BankStatementReviewModel, lineChange: LineChange | null = null) {
   const copy = copyFor(review);
   const affordability = review.affordabilityJson as StatementAffordabilityJson | null;
 
@@ -91,6 +100,12 @@ export function toBankStatementResponse(review: BankStatementReviewModel) {
     promisedBy: review.promisedBy,
     /** Solo cuando ya se aplicó: la línea que salió del recálculo. */
     appliedCreditLineId: review.appliedCreditLineId,
+    /** Aplicado y sin línea: el límite nuevo espera a una persona. La app lo dice en vez de «tu línea se actualizó». */
+    lineAwaitingApproval: review.status === 'applied' && !review.appliedCreditLineId,
+    /** En curso porque lo mira una persona del motor; sin esto, `processing` es «ya se leyó y falta la línea». */
+    inHumanReview: review.status === 'processing' && Boolean(review.reviewReason),
+    /** La línea de antes, la de ahora y la cuenta que las une. Sólo en el estado de la última revisión. */
+    lineChange,
     rejectionReason: review.rejectionReason,
     /**
      * La categoría del rechazo, para que la app pueda elegir un icono o una ayuda sin

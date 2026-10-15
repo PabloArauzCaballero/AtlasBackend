@@ -65,6 +65,11 @@ export class CreditLineService {
     } as FindOptions);
   }
 
+  /** Una versión concreta de la línea del cliente, vigente o cerrada. La usa el extracto para enseñar «antes → ahora». */
+  version(tenantId: string, customerId: string, id: string): Promise<CreditLineModel | null> {
+    return this.creditLines.findOne({ where: { tenantId, customerId, id, deleted: false } } as FindOptions);
+  }
+
   /** El historial completo, de la más reciente a la más antigua. Es el «por qué me bajó». */
   history(tenantId: string, customerId: string, limit = 12): Promise<CreditLineModel[]> {
     return this.creditLines.findAll({

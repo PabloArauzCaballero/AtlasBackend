@@ -16,7 +16,9 @@ import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions } from 'sequelize';
 import { BankStatementReviewModel } from '../../../database/models/index.js';
 import type { StatementRun } from '../../decision-engine/bank-statement-engine.client.js';
+import { engineVerdictApplies } from '../../../config/decision-engine-auto-apply.js';
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
+import { toLineChange, type LineChange } from '../bank-statement-line-change.mapper.js';
 import { CreditLineService } from './credit-line.service.js';
 
 /** Lo que se le promete a quien sube su extracto. Está aquí y no en la pantalla: es un compromiso. */
@@ -59,6 +61,21 @@ export class BankStatementService {
       where: { tenantId, customerId, deleted: false },
       order: [['_created_at', 'DESC']],
     } as FindOptions);
+  }
+
+  /**
+   * Qué le hizo el extracto a la línea: la de antes, la de ahora y la cuenta que las une.
+   *
+   * Sólo cuando se aplicó Y abrió una línea. Un extracto aplicado sin línea (la retuvo una persona) o todavía en
+   * curso no tiene «después» que enseñar, y una cifra inventada aquí sería peor que ninguna.
+   */
+  async lineChange(review: BankStatementReviewModel): Promise<LineChange | null> {
+    if (review.status !== 'applied' || !review.appliedCreditLineId) return null;
+    const applied = await this.creditLines.version(review.tenantId, review.customerId, review.appliedCreditLineId);
+    const previous = applied?.supersedesCreditLineId
+      ? await this.creditLines.version(review.tenantId, review.customerId, applied.supersedesCreditLineId)
+      : null;
+    return toLineChange(applied, previous);
   }
 
   /**
@@ -155,7 +172,8 @@ export class BankStatementService {
    * desembolsos de crédito— y no la suma de todo lo que entró.
    *
    * Si el motor no responde, la revisión queda en `processing` y no en `applied`: decir «aplicado»
-   * sin línea nueva le diría al cliente que su extracto ya cuenta cuando no cuenta.
+   * sin línea nueva le diría al cliente que su extracto ya cuenta cuando no cuenta. La excepción es la línea
+   * RETENIDA para una persona: ahí el extracto sí cuenta y la espera ya no es del sistema (ver abajo).
    */
   async applyReview(input: {
     tenantId: string;
@@ -211,6 +229,22 @@ export class BankStatementService {
     });
 
     if (!line) {
+      /*
+       * Sin el crédito en `DECISION_ENGINE_AUTO_APPLY`, el límite del Motor queda como propuesta y lo concede una
+       * persona desde la ficha (`creditLineHeld`). Esperar aquí no sirve: el barrido relanzaba el recálculo cada
+       * pasada, el Motor volvía a proponer, la línea volvía a retenerse, y el cliente leía «Calculando tu nueva
+       * capacidad» para siempre sin poder subir otro extracto (una sola revisión abierta). El extracto YA cuenta
+       * —su capacidad quedó escrita arriba y es la que leerá el próximo cálculo—, así que se cierra como aplicado,
+       * sin línea, y la app dice que una persona confirma el límite.
+       */
+      if (!engineVerdictApplies('credit')) {
+        review.status = 'applied';
+        review.appliedCreditLineId = null;
+        review.updatedAtValue = new Date();
+        await review.save();
+        this.logger.log(`Extracto ${review.id} aplicado; la línea nueva queda para que la conceda una persona.`);
+        return review;
+      }
       this.logger.warn(`Extracto ${review.id} revisado pero el motor no recalculó; queda en processing.`);
       return review;
     }
