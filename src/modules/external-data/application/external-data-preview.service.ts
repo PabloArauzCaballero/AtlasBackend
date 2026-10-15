@@ -9,7 +9,10 @@ import { Sequelize } from 'sequelize-typescript';
 import { ResilientAdapterExecutorService } from '../../../common/resilience/resilient-adapter-executor.service.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { redactSensitiveObject, stableStringify } from '../../../common/utils/privacy/redaction.util.js';
-import { ExternalDataRepository } from '../external-data.repository.js';
+import { ExternalProviderCatalogRepository } from '../infrastructure/external-provider-catalog.repository.js';
+import { mapCostPolicy } from './external-cost-policy.mapper.js';
+import { ExternalConsentRepository } from '../infrastructure/external-consent.repository.js';
+import { ExternalProviderRequestRepository } from '../infrastructure/external-provider-request.repository.js';
 import { ExternalDataRequestDto } from '../external-data.schemas.js';
 import { ExternalDataDecisionService } from './external-data-decision.service.js';
 import { ExternalProviderRegistryService } from './external-provider-registry.service.js';
@@ -31,7 +34,9 @@ interface PreviewInput {
 @Injectable()
 export class ExternalDataPreviewService {
   constructor(
-    private readonly repository: ExternalDataRepository,
+    private readonly catalogRepository: ExternalProviderCatalogRepository,
+    private readonly consentRepository: ExternalConsentRepository,
+    private readonly requestRepository: ExternalProviderRequestRepository,
     private readonly registry: ExternalProviderRegistryService,
     private readonly resilience: ResilientAdapterExecutorService,
     private readonly decision: ExternalDataDecisionService,
@@ -41,7 +46,7 @@ export class ExternalDataPreviewService {
   async previewExternalDataRequest(input: PreviewInput) {
     const providerCode = toProviderCode(input.body.providerCode);
     const provider = await this.registry.requireProvider(providerCode);
-    const policy = await this.repository.findCostPolicy(String(provider.id), input.body.queryType);
+    const policy = await this.catalogRepository.findCostPolicy(String(provider.id), input.body.queryType);
     const mode = providerModeFromEnv(String(provider.providerCode), provider.defaultMode);
     const consentStatus = await this.previewConsentStatus({
       tenantId: input.tenantId,
@@ -81,7 +86,7 @@ export class ExternalDataPreviewService {
     const cacheTtlSeconds = input.body.forceRefresh ? 0 : this.decision.cacheTtlSeconds(policy);
     const cacheHit =
       cacheTtlSeconds > 0
-        ? await this.repository.findReusableProviderRequest({
+        ? await this.requestRepository.findReusableProviderRequest({
             tenantId: input.tenantId,
             providerId: String(provider.id),
             customerId: input.body.customerId,
@@ -103,7 +108,7 @@ export class ExternalDataPreviewService {
       status: disabled ? 'PROVIDER_UNAVAILABLE' : blockedByConsent ? 'CONSENT_REQUIRED' : policyBlock.status,
       reasonCode: disabled ? `${providerCode}_PROVIDER_DISABLED` : blockedByConsent ? 'CONSENT_REQUIRED' : policyBlock.reasonCode,
       consent: consentStatus,
-      costPolicy: this.decision.mapCostPolicy(policy),
+      costPolicy: mapCostPolicy(policy),
       estimatedCostAmount: policy ? String(policy.unitCostAmount) : null,
       currency: policy?.currency ?? null,
       requestPayloadHash,
@@ -129,7 +134,7 @@ export class ExternalDataPreviewService {
     const purposeCodes = consentPurposeCodes(input.providerCode, input.purpose);
     if (!input.providerRequiresConsent) return { status: 'NOT_REQUIRED', purposeCodes };
     if (!input.customerId) return { status: 'CONSENT_REQUIRED', purposeCodes };
-    const consent = await this.repository.findCustomerConsent(input.tenantId, input.customerId, purposeCodes);
+    const consent = await this.consentRepository.findCustomerConsent(input.tenantId, input.customerId, purposeCodes);
     if (!consent) return { status: 'CONSENT_REQUIRED', purposeCodes };
     return { status: 'VALID', consentId: String(consent.id), purposeCodes };
   }

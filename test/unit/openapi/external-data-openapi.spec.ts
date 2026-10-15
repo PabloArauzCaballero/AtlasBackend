@@ -6,7 +6,12 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 // verticales se movieron a `controllers/`; solo cambian estas rutas de import — las aserciones de
 // abajo (mismas rutas, mismos summaries, sin colisiones) son las que garantizan que el contrato
 // OpenAPI no cambió con la división.
-import { AdminExternalProvidersController, ExternalDataController } from '../../../src/modules/external-data/external-data.controller.js';
+import { ExternalDataConsentsController } from '../../../src/modules/external-data/controllers/external-data-consents.controller.js';
+import { ExternalDataRequestsController } from '../../../src/modules/external-data/controllers/external-data-requests.controller.js';
+import { ExternalDataCustomerEvidenceController } from '../../../src/modules/external-data/controllers/external-data-customer-evidence.controller.js';
+import { AdminExternalProvidersReportsController } from '../../../src/modules/external-data/controllers/admin-external-providers-reports.controller.js';
+import { AdminExternalProvidersConfigController } from '../../../src/modules/external-data/controllers/admin-external-providers-config.controller.js';
+import { AdminExternalProvidersRequestsController } from '../../../src/modules/external-data/controllers/admin-external-providers-requests.controller.js';
 import {
   BureauExternalDataController,
   KycExternalDataController,
@@ -20,7 +25,16 @@ import {
   FacebookExternalDataController,
   WhatsappExternalDataController,
 } from '../../../src/modules/external-data/controllers/social-trust.controller.js';
-import { ExternalDataService } from '../../../src/modules/external-data/external-data.service.js';
+import { ExternalConsentService } from '../../../src/modules/external-data/application/external-consent.service.js';
+import { BankingQrService } from '../../../src/modules/external-data/application/banking-qr.service.js';
+import { ExternalDataEvidenceService } from '../../../src/modules/external-data/application/external-data-evidence.service.js';
+import { ExternalDataExecutionService } from '../../../src/modules/external-data/application/external-data-execution.service.js';
+import { ExternalDataGovernanceService } from '../../../src/modules/external-data/application/external-data-governance.service.js';
+import { ExternalDataPreviewService } from '../../../src/modules/external-data/application/external-data-preview.service.js';
+import { ExternalProviderConvenienceService } from '../../../src/modules/external-data/application/external-provider-convenience.service.js';
+import { ExternalProviderReadinessService } from '../../../src/modules/external-data/application/external-provider-readiness.service.js';
+import { ExternalProviderRegistryService } from '../../../src/modules/external-data/application/external-provider-registry.service.js';
+import { ExternalProviderReportingService } from '../../../src/modules/external-data/application/external-provider-reporting.service.js';
 import { JwtAuthGuard } from '../../../src/common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../../src/common/guards/roles.guard.js';
 
@@ -76,8 +90,12 @@ describe('external-data — OpenAPI document generation (9 controllers, ~40 endp
 
     const moduleRef = await Test.createTestingModule({
       controllers: [
-        ExternalDataController,
-        AdminExternalProvidersController,
+        ExternalDataConsentsController,
+        ExternalDataRequestsController,
+        ExternalDataCustomerEvidenceController,
+        AdminExternalProvidersReportsController,
+        AdminExternalProvidersConfigController,
+        AdminExternalProvidersRequestsController,
         KycExternalDataController,
         BureauExternalDataController,
         PaymentsExternalDataController,
@@ -86,7 +104,18 @@ describe('external-data — OpenAPI document generation (9 controllers, ~40 endp
         WhatsappExternalDataController,
         DigitalTrustExternalDataController,
       ],
-      providers: [{ provide: ExternalDataService, useValue: serviceMock }],
+      providers: [
+        ExternalConsentService,
+        BankingQrService,
+        ExternalDataEvidenceService,
+        ExternalDataExecutionService,
+        ExternalDataGovernanceService,
+        ExternalDataPreviewService,
+        ExternalProviderConvenienceService,
+        ExternalProviderReadinessService,
+        ExternalProviderRegistryService,
+        ExternalProviderReportingService,
+      ].map((provide) => ({ provide, useValue: serviceMock })),
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })

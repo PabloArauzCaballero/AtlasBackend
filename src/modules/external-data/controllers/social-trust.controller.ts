@@ -15,7 +15,8 @@ import { TenantGuard } from '../../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { actorId, assertCustomerAccess } from '../external-data-controller.util.js';
-import { ExternalDataService } from '../external-data.service.js';
+import { ExternalProviderConvenienceService } from '../application/external-provider-convenience.service.js';
+import { ExternalDataEvidenceService } from '../application/external-data-evidence.service.js';
 import {
   customerIdParamsSchema,
   CustomerIdParamsDto,
@@ -44,7 +45,10 @@ import {
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin', 'system')
 export class FacebookExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
+  constructor(
+    private readonly convenience: ExternalProviderConvenienceService,
+    private readonly evidence: ExternalDataEvidenceService,
+  ) {}
 
   @ApiOperation({ summary: 'Generar URL de conexión OAuth con Facebook' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
@@ -57,7 +61,7 @@ export class FacebookExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, query.customerId);
-    return this.externalDataService.createFacebookConnectUrl({
+    return this.convenience.createFacebookConnectUrl({
       tenantId: tenantId,
       customerId: query.customerId,
     });
@@ -80,7 +84,7 @@ export class FacebookExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeFacebookCallback({
+    return this.convenience.executeFacebookCallback({
       tenantId: tenantId,
       customerId: body.customerId,
       body,
@@ -100,7 +104,7 @@ export class FacebookExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
-    return this.externalDataService.getCustomerFeatures({
+    return this.evidence.getCustomerFeatures({
       tenantId: tenantId,
       customerId: params.customerId,
     });
@@ -113,7 +117,10 @@ export class FacebookExternalDataController {
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('customer', 'internal_operator', 'risk_analyst', 'admin', 'platform_admin', 'system')
 export class WhatsappExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
+  constructor(
+    private readonly convenience: ExternalProviderConvenienceService,
+    private readonly evidence: ExternalDataEvidenceService,
+  ) {}
 
   @ApiOperation({
     summary: 'Iniciar verificación de WhatsApp',
@@ -132,7 +139,7 @@ export class WhatsappExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeWhatsapp({
+    return this.convenience.executeWhatsapp({
       tenantId: tenantId,
       customerId: body.customerId,
       body,
@@ -158,7 +165,7 @@ export class WhatsappExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeWhatsapp({
+    return this.convenience.executeWhatsapp({
       tenantId: tenantId,
       customerId: body.customerId,
       body,
@@ -178,7 +185,7 @@ export class WhatsappExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
-    return this.externalDataService.getCustomerFeatures({
+    return this.evidence.getCustomerFeatures({
       tenantId: tenantId,
       customerId: params.customerId,
     });
@@ -191,7 +198,10 @@ export class WhatsappExternalDataController {
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Roles('customer', 'internal_operator', 'risk_analyst', 'fraud_analyst', 'admin', 'platform_admin', 'system')
 export class DigitalTrustExternalDataController {
-  constructor(private readonly externalDataService: ExternalDataService) {}
+  constructor(
+    private readonly convenience: ExternalProviderConvenienceService,
+    private readonly evidence: ExternalDataEvidenceService,
+  ) {}
 
   @ApiOperation({
     summary: 'Consultar confianza digital (email/IP/dispositivo)',
@@ -210,7 +220,7 @@ export class DigitalTrustExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, body.customerId);
-    return this.externalDataService.executeDigitalTrust({
+    return this.convenience.executeDigitalTrust({
       tenantId: tenantId,
       customerId: body.customerId,
       body,
@@ -230,7 +240,7 @@ export class DigitalTrustExternalDataController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertCustomerAccess(currentUser, params.customerId);
-    return this.externalDataService.getCustomerFeatures({
+    return this.evidence.getCustomerFeatures({
       tenantId: tenantId,
       customerId: params.customerId,
     });

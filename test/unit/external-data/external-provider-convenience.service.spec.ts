@@ -17,7 +17,7 @@ describe('ExternalProviderConvenienceService', () => {
   function buildService() {
     const repository = { findProviderRequestByIdAndTenant: asyncMock(), findProviderById: asyncMock() };
     const execution = { executeExternalDataRequest: jest.fn(async (..._args: unknown[]) => ({ status: 'PENDING' })) };
-    const service = new ExternalProviderConvenienceService(repository as never, execution as never);
+    const service = new ExternalProviderConvenienceService(repository as never, repository as never, execution as never);
     return { service, repository, execution };
   }
 

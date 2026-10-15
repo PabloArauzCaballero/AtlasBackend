@@ -187,9 +187,15 @@ Roles que alcanzan este módulo: `customer`, `internal_operator`, `risk_analyst`
 - `test/unit/external-data/external-data-execution.service.spec.ts`
 - `test/unit/external-data/external-data-governance.service.spec.ts`
 - `test/unit/external-data/external-data-policy.util.spec.ts`
-- `test/unit/external-data/external-data.controller.spec.ts`
-- `test/unit/external-data/external-data.repository.spec.ts`
-- `test/unit/external-data/external-data.service.spec.ts`
+- `test/unit/external-data/external-data-customer.controllers.spec.ts`
+- `test/unit/external-data/admin-external-providers.controllers.spec.ts`
+- `test/unit/external-data/external-provider-catalog.repository.spec.ts`
+- `test/unit/external-data/external-consent.repository.spec.ts`
+- `test/unit/external-data/external-provider-request.repository.spec.ts`
+- `test/unit/external-data/external-customer-evidence.repository.spec.ts`
+- `test/unit/external-data/external-consent.service.spec.ts`
+- `test/unit/external-data/external-provider-readiness.service.spec.ts`
+- `test/unit/external-data/external-provider-reporting.service.spec.ts`
 - … y 14 más
 
 ## Referencias al código
@@ -202,8 +208,12 @@ Roles que alcanzan este módulo: `customer`, `internal_operator`, `risk_analyst`
 - Controller `FacebookExternalDataController`: [`src/modules/external-data/controllers/social-trust.controller.ts`](../../../../../src/modules/external-data/controllers/social-trust.controller.ts)
 - Controller `WhatsappExternalDataController`: [`src/modules/external-data/controllers/social-trust.controller.ts`](../../../../../src/modules/external-data/controllers/social-trust.controller.ts)
 - Controller `DigitalTrustExternalDataController`: [`src/modules/external-data/controllers/social-trust.controller.ts`](../../../../../src/modules/external-data/controllers/social-trust.controller.ts)
-- Controller `ExternalDataController`: [`src/modules/external-data/external-data.controller.ts`](../../../../../src/modules/external-data/external-data.controller.ts)
-- Controller `AdminExternalProvidersController`: [`src/modules/external-data/external-data.controller.ts`](../../../../../src/modules/external-data/external-data.controller.ts)
+- Controller `ExternalDataConsentsController`: [`src/modules/external-data/controllers/external-data-consents.controller.ts`](../../../../../src/modules/external-data/controllers/external-data-consents.controller.ts)
+- Controller `ExternalDataRequestsController`: [`src/modules/external-data/controllers/external-data-requests.controller.ts`](../../../../../src/modules/external-data/controllers/external-data-requests.controller.ts)
+- Controller `ExternalDataCustomerEvidenceController`: [`src/modules/external-data/controllers/external-data-customer-evidence.controller.ts`](../../../../../src/modules/external-data/controllers/external-data-customer-evidence.controller.ts)
+- Controller `AdminExternalProvidersReportsController`: [`src/modules/external-data/controllers/admin-external-providers-reports.controller.ts`](../../../../../src/modules/external-data/controllers/admin-external-providers-reports.controller.ts)
+- Controller `AdminExternalProvidersConfigController`: [`src/modules/external-data/controllers/admin-external-providers-config.controller.ts`](../../../../../src/modules/external-data/controllers/admin-external-providers-config.controller.ts)
+- Controller `AdminExternalProvidersRequestsController`: [`src/modules/external-data/controllers/admin-external-providers-requests.controller.ts`](../../../../../src/modules/external-data/controllers/admin-external-providers-requests.controller.ts)
 
 ## Relaciones
 

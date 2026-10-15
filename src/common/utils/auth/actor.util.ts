@@ -12,7 +12,7 @@ import { AuthenticatedUser } from '../../types/auth.types.js';
  * OJO: hay dos variantes parecidas que NO deben unificarse con esta:
  * - `idempotency.interceptor.ts` antepone `customerId` (los clientes también generan claves
  *   de idempotencia).
- * - `external-data.controller.ts` retorna `undefined` y usa `customerId` como último fallback.
+ * - los controllers de `external-data` (`controllers/`) retornan `undefined` y usa `customerId` como último fallback.
  */
 export function actorId(user: AuthenticatedUser | undefined): string | null {
   return user?.internalUserId ?? user?.platformUserId ?? user?.merchantUserId ?? user?.sub ?? null;

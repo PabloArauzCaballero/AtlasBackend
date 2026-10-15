@@ -129,7 +129,12 @@ El administrador revisa calidad, idempotencia y saneamiento y la compuerta que d
 
 ## Fuentes
 
-- `src/modules/external-data/external-data.controller.ts`
+- `src/modules/external-data/controllers/external-data-consents.controller.ts`
+- `src/modules/external-data/controllers/external-data-requests.controller.ts`
+- `src/modules/external-data/controllers/external-data-customer-evidence.controller.ts`
+- `src/modules/external-data/controllers/admin-external-providers-reports.controller.ts`
+- `src/modules/external-data/controllers/admin-external-providers-config.controller.ts`
+- `src/modules/external-data/controllers/admin-external-providers-requests.controller.ts`
 - `src/modules/external-data/controllers/provider-auth.controller.ts`
 - `src/modules/external-data/controllers/external-providers-dashboard.controller.ts`
 - `src/database/models/data-providers.model.ts`

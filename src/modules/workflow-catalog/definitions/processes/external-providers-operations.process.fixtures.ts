@@ -1,7 +1,7 @@
 /**
  * @file Proceso declarado en código: Proveedores externos: salud, kill-switch, credenciales, auditorías y compuerta de producción.
  * @business Las consultas a terceros (identidad, buró, telco, pagos) cuestan dinero, llevan datos personales y pueden caerse; este proceso las vigila, permite cortarlas al instante, rota sus credenciales y decide si un proveedor está listo para producción.
- * @system fixture P-36 que `syncWorkflowCatalog` vuelca a `workflow_*`; `external-data.controller.ts` (`external-data` y `admin/external-providers`), `provider-auth.controller.ts` y `external-providers-dashboard.controller.ts`; en dev/test responde el mock de proveedores.
+ * @system fixture P-36 que `syncWorkflowCatalog` vuelca a `workflow_*`; los controllers `external-data-*` (`external-data`) y `admin-external-providers-*` (`admin/external-providers`), `provider-auth.controller.ts` y `external-providers-dashboard.controller.ts`; en dev/test responde el mock de proveedores.
  */
 import type { WorkflowDefinitionFixture } from '../workflow-definition.types.js';
 
@@ -57,7 +57,12 @@ export const EXTERNAL_PROVIDERS_OPERATIONS: WorkflowDefinitionFixture = {
     'Cada proveedor responde con su modo correcto, sus credenciales están vigentes y la compuerta de producción dice si puede pasar a live.',
   failure: 'Un proveedor caído o caro sigue recibiendo consultas, una credencial expira sin rotar, o se pasa a producción sin compuerta.',
   sources: [
-    'src/modules/external-data/external-data.controller.ts',
+    'src/modules/external-data/controllers/external-data-consents.controller.ts',
+    'src/modules/external-data/controllers/external-data-requests.controller.ts',
+    'src/modules/external-data/controllers/external-data-customer-evidence.controller.ts',
+    'src/modules/external-data/controllers/admin-external-providers-reports.controller.ts',
+    'src/modules/external-data/controllers/admin-external-providers-config.controller.ts',
+    'src/modules/external-data/controllers/admin-external-providers-requests.controller.ts',
     'src/modules/external-data/controllers/provider-auth.controller.ts',
     'src/modules/external-data/controllers/external-providers-dashboard.controller.ts',
     'src/database/models/data-providers.model.ts',

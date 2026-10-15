@@ -4,7 +4,8 @@
  * @system aísla proveedores detrás de adaptadores resilientes y políticas de gobierno, ejecución y evidencia.
  */
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { ExternalDataRepository } from '../external-data.repository.js';
+import { ExternalProviderCatalogRepository } from '../infrastructure/external-provider-catalog.repository.js';
+import { ExternalProviderRequestRepository } from '../infrastructure/external-provider-request.repository.js';
 import { envBoolean, envNumber, policyNumber, toMode } from './external-data-policy.util.js';
 import {
   ExternalDataRequestResult,
@@ -17,8 +18,8 @@ import {
 /** Resultado de una evaluación de política: si se bloquea la llamada al proveedor y por qué. */
 export type PolicyDecision = { blocked: boolean; status: ExternalProviderStatus; reasonCode: string };
 
-type CostPolicy = Awaited<ReturnType<ExternalDataRepository['findCostPolicy']>>;
-type IdempotentRequest = Awaited<ReturnType<ExternalDataRepository['findIdempotentProviderRequest']>>;
+type CostPolicy = Awaited<ReturnType<ExternalProviderCatalogRepository['findCostPolicy']>>;
+type IdempotentRequest = Awaited<ReturnType<ExternalProviderRequestRepository['findIdempotentProviderRequest']>>;
 
 /**
  * Decisiones de gobierno de costo/cuota/resiliencia para llamadas a proveedores externos, extraídas
@@ -31,34 +32,7 @@ type IdempotentRequest = Awaited<ReturnType<ExternalDataRepository['findIdempote
  */
 @Injectable()
 export class ExternalDataDecisionService {
-  constructor(private readonly repository: ExternalDataRepository) {}
-
-  /** Proyección pública de la cost policy para el preview (misma forma que antes). */
-  mapCostPolicy(policy: CostPolicy) {
-    if (!policy) return null;
-    return {
-      id: String(policy.id),
-      providerId: String(policy.providerId),
-      queryType: policy.queryType,
-      unitCostAmount: policy.unitCostAmount,
-      currency: policy.currency,
-      costTier: policy.costTier,
-      maxQueriesPerUserPerDay: policy.maxQueriesPerUserPerDay,
-      maxQueriesPerUserPerMonth: policy.maxQueriesPerUserPerMonth,
-      maxQueriesGlobalPerDay: policy.maxQueriesGlobalPerDay,
-      allowedDecisionStagesJson: policy.allowedDecisionStagesJson ?? [],
-      requiresManualApproval: policy.requiresManualApproval,
-      requiresAdminRole: policy.requiresAdminRole,
-      blockByDefault: policy.blockByDefault,
-      cacheTtlSeconds: policy.cacheTtlSeconds,
-      featureTtlSeconds: policy.featureTtlSeconds,
-      retryMaxAttempts: policy.retryMaxAttempts,
-      retryBackoffSeconds: policy.retryBackoffSeconds,
-      active: policy.active,
-      activeFrom: policy.activeFrom,
-      activeTo: policy.activeTo,
-    };
-  }
+  constructor(private readonly requestRepository: ExternalProviderRequestRepository) {}
 
   assertIdempotencyScopeMatches(
     existing: IdempotentRequest,
@@ -105,7 +79,7 @@ export class ExternalDataDecisionService {
         modeUsed: 'mock_local',
       };
     }
-    const responses = await this.repository.findProviderResponsesByRequestId(String(existing.id));
+    const responses = await this.requestRepository.findProviderResponsesByRequestId(String(existing.id));
     const normalized = responses[0]?.normalizedPayloadJson ?? {};
     const observations = Array.isArray(normalized.observations) ? (normalized.observations as NormalizedExternalObservation[]) : [];
     const features =
@@ -136,7 +110,7 @@ export class ExternalDataDecisionService {
     }
     const threshold = envNumber('EXTERNAL_PROVIDER_CIRCUIT_BREAKER_FAILURE_THRESHOLD', 5);
     const windowMs = envNumber('EXTERNAL_PROVIDER_CIRCUIT_BREAKER_WINDOW_MS', 10 * 60 * 1000);
-    const failures = await this.repository.countRequests({
+    const failures = await this.requestRepository.countRequests({
       providerId: input.providerId,
       from: new Date(Date.now() - windowMs),
       statuses: ['FAILED', 'PROVIDER_UNAVAILABLE', 'PROVIDER_AUTH_FAILED', 'RATE_LIMITED'],
@@ -169,7 +143,7 @@ export class ExternalDataDecisionService {
     // conteos gastaría queries de más en el caso común de bloqueo, que es justo el que este
     // short-circuit evita.
     if (policy.maxQueriesGlobalPerDay) {
-      const globalDaily = await this.repository.countRequests({
+      const globalDaily = await this.requestRepository.countRequests({
         providerId: input.providerId,
         from: startOfDay,
         statuses: countableStatuses,
@@ -179,7 +153,7 @@ export class ExternalDataDecisionService {
       }
     }
     if (input.customerId && policy.maxQueriesPerUserPerDay) {
-      const userDaily = await this.repository.countRequests({
+      const userDaily = await this.requestRepository.countRequests({
         providerId: input.providerId,
         customerId: input.customerId,
         from: startOfDay,
@@ -190,7 +164,7 @@ export class ExternalDataDecisionService {
       }
     }
     if (input.customerId && policy.maxQueriesPerUserPerMonth) {
-      const userMonthly = await this.repository.countRequests({
+      const userMonthly = await this.requestRepository.countRequests({
         providerId: input.providerId,
         customerId: input.customerId,
         from: startOfMonth,

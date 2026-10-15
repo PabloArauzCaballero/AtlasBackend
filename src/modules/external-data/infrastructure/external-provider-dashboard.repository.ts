@@ -35,8 +35,7 @@ const MEDICION_REAL = {
 };
 
 /**
- * Vive APARTE de `ExternalDataRepository` por el trinquete `check:file-size` (ese archivo está en
- * el baseline y no puede crecer) y porque su naturaleza es distinta: aquí no se escribe nada, son
+ * Vive APARTE de los repositorios de escritura (`ExternalProviderRequestRepository` y compañía) porque su naturaleza es distinta: aquí no se escribe nada, son
  * lecturas agregadas para pintar una pantalla.
  *
  * `provider_health_logs` se venía ESCRIBIENDO desde 2026-07 en cada carga de la tabla del portal y

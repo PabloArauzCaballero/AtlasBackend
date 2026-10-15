@@ -6,7 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { paginationMetaFromOffset } from '../../../common/utils/pagination/pagination.util.js';
 import { DataProviderRequestModel } from '../../../database/models/index.js';
-import { ExternalDataRepository } from '../external-data.repository.js';
+import { ExternalProviderCatalogRepository } from '../infrastructure/external-provider-catalog.repository.js';
 import { ExternalProviderDashboardRepository } from '../infrastructure/external-provider-dashboard.repository.js';
 import { percentile, providerModeFromEnv, round2, toProviderCode } from './external-data-policy.util.js';
 
@@ -109,13 +109,13 @@ function rememberLatest(bucket: ProviderBucket, request: DataProviderRequestMode
 @Injectable()
 export class ExternalProviderDashboardService {
   constructor(
-    private readonly repository: ExternalDataRepository,
+    private readonly catalogRepository: ExternalProviderCatalogRepository,
     private readonly dashboardRepository: ExternalProviderDashboardRepository,
   ) {}
 
   async getDashboard(input: { days: number; tenantId?: string; healthPoints: number }) {
     const from = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
-    const providers = await this.repository.listProviders();
+    const providers = await this.catalogRepository.listProviders();
     const requests = await this.dashboardRepository.listRequestsInWindow({ from, tenantId: input.tenantId });
 
     const buckets = new Map<string, ProviderBucket>();
@@ -181,7 +181,7 @@ export class ExternalProviderDashboardService {
     limit: number;
     offset: number;
   }) {
-    const providers = await this.repository.listProviders();
+    const providers = await this.catalogRepository.listProviders();
     const provider = input.providerCode
       ? providers.find((item) => String(item.providerCode) === toProviderCode(input.providerCode ?? ''))
       : undefined;

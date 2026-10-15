@@ -9,9 +9,14 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad                                                         |
-| ------------------ | ----------------------------------------------------------------------- |
-| —                  | Esta carpeta funciona como agrupador; su contenido está en subcarpetas. |
+| Documento o código                                                                         | Responsabilidad                                                  |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| [`external-consent.repository.ts`](./external-consent.repository.ts)                       | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`external-customer-evidence.repository.ts`](./external-customer-evidence.repository.ts)   | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`external-provider-catalog.repository.ts`](./external-provider-catalog.repository.ts)     | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`external-provider-dashboard.repository.ts`](./external-provider-dashboard.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`external-provider-request.repository.ts`](./external-provider-request.repository.ts)     | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`external-provider.providers.ts`](./external-provider.providers.ts)                       | Artefacto de soporte específico de esta carpeta.                 |
 
 ## Subcarpetas
 
