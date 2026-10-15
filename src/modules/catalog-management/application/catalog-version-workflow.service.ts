@@ -16,10 +16,10 @@ import {
   assertAdmin,
   assertInternal,
   auditBase,
-  normalizeAlias,
   RequestContext,
   requireIdempotency,
 } from './catalog-management.shared.js';
+import { persistVersionItems } from './catalog-version-items.writer.js';
 import { assertDecisionAllowed } from './catalog-version-transitions.js';
 
 @Injectable()
@@ -58,60 +58,13 @@ export class CatalogVersionWorkflowService {
         { transaction },
       );
 
-      let aliasesCreated = 0;
-      let riskMappingsCreated = 0;
-      for (const item of input.body.items) {
-        let sourceId: string | null = null;
-        if (item.sourceCode) {
-          const source = await this.versions.findSourceByCode(item.sourceCode, { transaction });
-          sourceId = source ? String(source.id) : null;
-        }
-        const createdItem = await this.versions.createContextItem(
-          {
-            catalogVersionId: String(version.id),
-            itemCode: item.itemCode,
-            itemName: item.itemName,
-            itemType: item.itemType,
-            attributes: item.attributes,
-            sourceId,
-            confidenceScore: item.confidenceScore ?? null,
-            now,
-          },
-          { transaction },
-        );
-        for (const alias of item.aliases) {
-          aliasesCreated += 1;
-          await this.versions.createAlias(
-            {
-              contextItemId: String(createdItem.id),
-              aliasValue: alias.aliasValue,
-              aliasType: alias.aliasType,
-              normalizedAlias: normalizeAlias(alias.aliasValue),
-              confidenceScore: alias.confidenceScore ?? null,
-              now,
-            },
-            { transaction },
-          );
-        }
-        for (const mapping of item.riskMappings) {
-          riskMappingsCreated += 1;
-          await this.versions.createRiskMapping(
-            {
-              contextItemId: String(createdItem.id),
-              riskDimension: mapping.riskDimension,
-              riskBand: mapping.riskBand,
-              scorePointsSuggested: mapping.scorePointsSuggested ?? null,
-              reasonCode: mapping.reasonCode,
-              explanation: mapping.explanation ?? null,
-              modelUsage: mapping.modelUsage ?? null,
-              validFrom: mapping.validFrom ?? input.body.validFrom ?? null,
-              validUntil: mapping.validUntil ?? input.body.validUntil ?? null,
-              now,
-            },
-            { transaction },
-          );
-        }
-      }
+      const { aliasesCreated, riskMappingsCreated } = await persistVersionItems({
+        versions: this.versions,
+        versionId: String(version.id),
+        body: input.body,
+        now,
+        transaction,
+      });
 
       await this.versions.createApprovalEvent(
         {
