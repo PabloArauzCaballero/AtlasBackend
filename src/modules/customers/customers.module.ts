@@ -50,7 +50,10 @@ import { DocumentStorageService } from '../../common/storage/document-storage.se
 import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
 import { CustomersRepository } from './customers.repository.js';
 import { CustomersService } from './customers.service.js';
+import { CustomerEligibilityConsentsRepository } from './repositories/customer-eligibility-consents.repository.js';
+import { CustomerEligibilityIdentityRepository } from './repositories/customer-eligibility-identity.repository.js';
 import { CustomerEligibilityPhasesRepository } from './repositories/customer-eligibility-phases.repository.js';
+import { CustomerEligibilityProfileRepository } from './repositories/customer-eligibility-profile.repository.js';
 import { CustomerEligibilityRepository } from './repositories/customer-eligibility.repository.js';
 import { CustomerEligibilityRiskRepository } from './repositories/customer-eligibility-risk.repository.js';
 import { CustomerContactsRepository } from './repositories/customer-contacts.repository.js';
@@ -89,6 +92,9 @@ import { CustomerLifecycleRepository } from './repositories/customer-lifecycle.r
   controllers: [CustomersController, CustomerProfilePhotoController, CustomerEligibilityController, CustomerRecipientDirectoryController],
   providers: [
     CustomerEligibilityPhasesRepository,
+    CustomerEligibilityProfileRepository,
+    CustomerEligibilityIdentityRepository,
+    CustomerEligibilityConsentsRepository,
     PiiKeyCanaryService,
     // AT-020: Clientes implementa el directorio de destinatarios que Mensajería consume por puerto.
     CustomerRecipientDirectoryAdapter,

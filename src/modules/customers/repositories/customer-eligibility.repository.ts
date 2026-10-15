@@ -5,30 +5,15 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { FindOptions, Op } from 'sequelize';
-import { effectiveAt } from '../../../common/utils/query/effective-window.util.js';
-import {
-  AttributeDefinitionModel,
-  AuthCredentialModel,
-  ConsentDocumentModel,
-  CustomerAddressModel,
-  CustomerAttributeValueModel,
-  CustomerConsentModel,
-  CustomerContactMethodModel,
-  CustomerIdentityDocumentModel,
-  CustomerProfileVersionModel,
-  CustomerReferenceContactModel,
-  EvidenceDocumentModel,
-  EvidenceReviewModel,
-  IdentityVerificationAttemptModel,
-  OnboardingFlowModel,
-} from '../../../database/models/index.js';
+import { FindOptions } from 'sequelize';
+import { OnboardingFlowModel } from '../../../database/models/index.js';
+import { CustomerEligibilityConsentsRepository } from './customer-eligibility-consents.repository.js';
+import { CustomerEligibilityIdentityRepository } from './customer-eligibility-identity.repository.js';
+import { CustomerEligibilityPhasesRepository } from './customer-eligibility-phases.repository.js';
+import { CustomerEligibilityProfileRepository } from './customer-eligibility-profile.repository.js';
 import { CustomerEligibilityRiskRepository } from './customer-eligibility-risk.repository.js';
 import type { EligibilityFacts } from './customer-eligibility.facts.js';
-import { CustomerEligibilityPhasesRepository } from './customer-eligibility-phases.repository.js';
 import type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
-import { IDENTITY_ATTEMPT_LOOKBACK_LIMIT, pickIdentityAttemptForEligibility } from '../../../common/utils/identity/identity-result.util.js';
-import { identityRequiresHumanReview } from '../../../config/decision-engine-auto-apply.js';
 
 export type { EligibilityReadOptions } from './customer-eligibility.read-options.js';
 
@@ -43,20 +28,11 @@ export type { EligibilityReadOptions } from './customer-eligibility.read-options
 @Injectable()
 export class CustomerEligibilityRepository {
   constructor(
-    @InjectModel(AuthCredentialModel) private readonly credentialModel: typeof AuthCredentialModel,
-    @InjectModel(CustomerContactMethodModel) private readonly contactModel: typeof CustomerContactMethodModel,
-    @InjectModel(CustomerProfileVersionModel) private readonly profileModel: typeof CustomerProfileVersionModel,
-    @InjectModel(CustomerAttributeValueModel) private readonly attributeValueModel: typeof CustomerAttributeValueModel,
-    @InjectModel(AttributeDefinitionModel) private readonly attributeDefinitionModel: typeof AttributeDefinitionModel,
-    @InjectModel(CustomerAddressModel) private readonly addressModel: typeof CustomerAddressModel,
-    @InjectModel(CustomerReferenceContactModel) private readonly referenceModel: typeof CustomerReferenceContactModel,
-    @InjectModel(CustomerIdentityDocumentModel) private readonly identityDocumentModel: typeof CustomerIdentityDocumentModel,
-    @InjectModel(IdentityVerificationAttemptModel) private readonly identityAttemptModel: typeof IdentityVerificationAttemptModel,
-    @InjectModel(EvidenceDocumentModel) private readonly evidenceModel: typeof EvidenceDocumentModel,
-    @InjectModel(EvidenceReviewModel) private readonly evidenceReviewModel: typeof EvidenceReviewModel,
-    @InjectModel(CustomerConsentModel) private readonly consentModel: typeof CustomerConsentModel,
-    @InjectModel(ConsentDocumentModel) private readonly consentDocumentModel: typeof ConsentDocumentModel,
     @InjectModel(OnboardingFlowModel) private readonly onboardingFlowModel: typeof OnboardingFlowModel,
+    // Lo que el cliente declaró y completó: cuenta y datos, identidad y evidencia, consentimientos.
+    private readonly profileRepository: CustomerEligibilityProfileRepository,
+    private readonly identityRepository: CustomerEligibilityIdentityRepository,
+    private readonly consentsRepository: CustomerEligibilityConsentsRepository,
     // Cumplimiento y riesgo: qué encontró el banco sobre el cliente, frente a qué completó él.
     private readonly riskRepository: CustomerEligibilityRiskRepository,
     // Las fases nuevas del alta (permisos del teléfono y encuesta de hábitos): sus lecturas viven aparte.
@@ -83,17 +59,17 @@ export class CustomerEligibilityRepository {
       decidedDevicePermissionPurposes,
       answeredSurveyQuestionCodes,
     ] = await Promise.all([
-      this.hasCredentials(customerId, options),
-      this.countVerifiedContacts(tenantId, customerId, options),
-      this.findCurrentProfile(tenantId, customerId, options),
-      this.findFinancialAttributes(tenantId, customerId, options),
-      this.hasCurrentAddress(tenantId, customerId, options),
-      this.countReferenceContacts(tenantId, customerId, options),
-      this.findLatestIdentityDocument(tenantId, customerId, options),
-      this.findCurrentIdentityResult(tenantId, customerId, options),
-      this.countPendingEvidenceReviews(tenantId, customerId, options),
-      this.findGrantedConsentDocumentIds(tenantId, customerId, options),
-      this.findRequiredConsentDocumentIds(tenantId, options),
+      this.profileRepository.hasCredentials(customerId, options),
+      this.profileRepository.countVerifiedContacts(tenantId, customerId, options),
+      this.profileRepository.findCurrentProfile(tenantId, customerId, options),
+      this.profileRepository.findFinancialAttributes(tenantId, customerId, options),
+      this.profileRepository.hasCurrentAddress(tenantId, customerId, options),
+      this.profileRepository.countReferenceContacts(tenantId, customerId, options),
+      this.identityRepository.findLatestIdentityDocument(tenantId, customerId, options),
+      this.identityRepository.findCurrentIdentityResult(tenantId, customerId, options),
+      this.identityRepository.countPendingEvidenceReviews(tenantId, customerId, options),
+      this.consentsRepository.findGrantedConsentDocumentIds(tenantId, customerId, options),
+      this.consentsRepository.findRequiredConsentDocumentIds(tenantId, options),
       this.riskRepository.countOpenObservations(tenantId, customerId, options),
       this.riskRepository.countUnclearedWatchlistMatches(tenantId, customerId, options),
       this.riskRepository.findLatestRiskResult(tenantId, customerId, options),
@@ -123,166 +99,6 @@ export class CustomerEligibilityRepository {
       decidedDevicePermissionPurposes,
       answeredSurveyQuestionCodes,
     };
-  }
-
-  private async hasCredentials(customerId: string, options: EligibilityReadOptions): Promise<boolean> {
-    const count = await this.credentialModel.count({
-      where: { actorType: 'customer', actorId: customerId, deleted: false },
-      transaction: options.transaction,
-    });
-    return count > 0;
-  }
-
-  private countVerifiedContacts(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<number> {
-    return this.contactModel.count({
-      where: { tenantId, customerId, status: 'verified', deleted: { [Op.ne]: true } },
-      transaction: options.transaction,
-    });
-  }
-
-  private findCurrentProfile(
-    tenantId: string,
-    customerId: string,
-    options: EligibilityReadOptions,
-  ): Promise<CustomerProfileVersionModel | null> {
-    return this.profileModel.findOne({
-      where: { tenantId, customerId, validUntil: null },
-      order: [
-        ['validFrom', 'DESC'],
-        ['id', 'DESC'],
-      ],
-      transaction: options.transaction,
-    } as FindOptions);
-  }
-
-  /**
-   * Atributos económicos vigentes: qué códigos hay y, para los numéricos, su valor.
-   *
-   * Devuelve ambas cosas de una sola pasada porque salen de la misma consulta: la completitud
-   * (condición C5) mira los códigos y la elegibilidad por producto mira los valores. Separarlas
-   * duplicaría el par de consultas sin ganar nada.
-   */
-  private async findFinancialAttributes(
-    tenantId: string,
-    customerId: string,
-    options: EligibilityReadOptions,
-  ): Promise<{ codes: string[]; values: Record<string, number>; texts: Record<string, string> }> {
-    const rows = await this.attributeValueModel.findAll({
-      where: { tenantId, customerId, validUntil: null },
-      attributes: ['attributeDefinitionId', 'valueNumber', 'valueText'],
-      transaction: options.transaction,
-    } as FindOptions);
-    const definitionIds = rows.map((row) => String(row.attributeDefinitionId)).filter((id) => id !== 'null');
-    if (definitionIds.length === 0) return { codes: [], values: {}, texts: {} };
-
-    const definitions = await this.attributeDefinitionModel.findAll({
-      where: { id: { [Op.in]: definitionIds } },
-      attributes: ['id', 'attributeCode'],
-      transaction: options.transaction,
-    } as FindOptions);
-    const codeByDefinitionId = new Map(definitions.map((row) => [String(row.id), row.attributeCode]));
-
-    const codes: string[] = [];
-    const values: Record<string, number> = {};
-    /*
-     * El TEXTO hacía falta y no se leía.
-     *
-     * La habilitación sólo miraba los atributos numéricos, así que una regla que dependiera de un
-     * valor de catálogo —`employment_status`, por ejemplo— no tenía de dónde sacarlo. Se lee aquí,
-     * en la misma pasada, en vez de añadir otra consulta.
-     */
-    const texts: Record<string, string> = {};
-    for (const row of rows) {
-      const code = codeByDefinitionId.get(String(row.attributeDefinitionId));
-      if (!code) continue;
-      codes.push(code);
-      const numeric = row.valueNumber === null ? Number.NaN : Number(row.valueNumber);
-      if (Number.isFinite(numeric)) values[code] = numeric;
-      if (typeof row.valueText === 'string' && row.valueText.length > 0) texts[code] = row.valueText;
-    }
-    return { codes, values, texts };
-  }
-
-  private async hasCurrentAddress(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<boolean> {
-    const count = await this.addressModel.count({
-      where: { tenantId, customerId, currentVersionId: { [Op.ne]: null }, deleted: { [Op.ne]: true } },
-      transaction: options.transaction,
-    });
-    return count > 0;
-  }
-
-  private countReferenceContacts(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<number> {
-    return this.referenceModel.count({
-      where: { tenantId, customerId, deleted: { [Op.ne]: true } },
-      transaction: options.transaction,
-    });
-  }
-
-  private findLatestIdentityDocument(
-    tenantId: string,
-    customerId: string,
-    options: EligibilityReadOptions,
-  ): Promise<CustomerIdentityDocumentModel | null> {
-    return this.identityDocumentModel.findOne({
-      where: { tenantId, customerId },
-      order: [['id', 'DESC']],
-      transaction: options.transaction,
-    } as FindOptions);
-  }
-
-  /** El intento VIGENTE, no el último a secas: uno posterior sin resolver no tapa un `verified` (I-2, ver `pickCurrentIdentityAttempt`). */
-  private async findCurrentIdentityResult(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<string | null> {
-    const attempts = await this.identityAttemptModel.findAll({
-      where: { tenantId, customerId },
-      order: [['id', 'DESC']],
-      limit: IDENTITY_ATTEMPT_LOOKBACK_LIMIT,
-      transaction: options.transaction,
-    } as FindOptions);
-    return pickIdentityAttemptForEligibility(attempts, { requireHumanReview: identityRequiresHumanReview() })?.finalResult ?? null;
-  }
-
-  /**
-   * Revisiones de evidencia sin resolver. `evidence_reviews` no referencia al cliente: cuelga del
-   * documento. Se resuelve con dos consultas explícitas en vez de un JOIN implícito.
-   */
-  private async countPendingEvidenceReviews(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<number> {
-    const documents = await this.evidenceModel.findAll({
-      where: { tenantId, customerId },
-      attributes: ['id'],
-      transaction: options.transaction,
-    } as FindOptions);
-    const documentIds = documents.map((row) => String(row.id));
-    if (documentIds.length === 0) return 0;
-    return this.evidenceReviewModel.count({
-      where: { tenantId, evidenceDocumentId: { [Op.in]: documentIds }, reviewStatus: { [Op.notIn]: ['approved', 'accepted'] } },
-      transaction: options.transaction,
-    });
-  }
-
-  private async findGrantedConsentDocumentIds(tenantId: string, customerId: string, options: EligibilityReadOptions): Promise<string[]> {
-    const rows = await this.consentModel.findAll({
-      where: { tenantId, customerId, granted: true, revokedAt: null },
-      attributes: ['consentDocumentId'],
-      transaction: options.transaction,
-    } as FindOptions);
-    return rows.map((row) => String(row.consentDocumentId)).filter((id) => id !== 'null');
-  }
-
-  /**
-   * Documentos legales obligatorios del tenant.
-   *
-   * Se usa la columna ya existente `consent_documents.requires_explicit_action` como marca de
-   * obligatoriedad, en vez de inventar una tabla de configuración paralela: es exactamente la
-   * semántica que la columna declara y evita dos fuentes de verdad sobre qué hay que aceptar.
-   * Sólo los VIGENTES hoy: una versión programada todavía no se puede aceptar, y una relevada ya no.
-   */
-  async findRequiredConsentDocumentIds(tenantId: string, options: EligibilityReadOptions = {}): Promise<string[]> {
-    const rows = await this.consentDocumentModel.findAll({
-      where: { tenantId, status: 'published', requiresExplicitAction: true, [Op.and]: effectiveAt() },
-      attributes: ['id'],
-      transaction: options.transaction,
-    } as FindOptions);
-    return rows.map((row) => String(row.id));
   }
 
   /**
