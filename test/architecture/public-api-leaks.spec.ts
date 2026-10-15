@@ -57,7 +57,9 @@ const FRAMEWORK_ALLOWED = new Set(['src/platform/contracts/application-error.ts'
 const LEAK_BASELINE: Readonly<Record<string, string>> = {
   // Los tipos de la sesión se derivan del repositorio (y por tanto de los modelos). AT-025 los sustituye por valores propios.
   'src/modules/credit/application/ports/credit-unit-of-work.port.ts → ../../credit.repository.js': 'AT-025',
-  'src/modules/risk/application/ports/risk-assessment-store.port.ts → ../../risk.repository.js': 'AT-025',
+  'src/modules/risk/application/ports/risk-assessment-store.port.ts → ../../repositories/risk-assessment.repository.js': 'AT-025',
+  'src/modules/risk/application/ports/risk-assessment-store.port.ts → ../../repositories/risk-audit.repository.js': 'AT-025',
+  'src/modules/risk/application/ports/risk-assessment-store.port.ts → ../../repositories/risk-feature-evidence.repository.js': 'AT-025',
   // El consumidor local recibe la transacción del dispatcher (AT-035); el transporte del piloto (AT-056) la retira del puerto.
   'src/platform/events/event-consumer.port.ts → sequelize': 'AT-056',
 };

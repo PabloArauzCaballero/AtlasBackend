@@ -11,8 +11,11 @@ import { assertOwnCustomerResource } from '../../../common/utils/auth/ownership.
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { HeartbeatResponseDto } from '../sessions.dtos.js';
 import { SessionHeartbeatDto } from '../sessions.schemas.js';
-import { SessionsRepository } from '../sessions.repository.js';
+import { SessionsDeviceRepository } from '../repositories/sessions-device.repository.js';
 import { SessionsLifecycleRepository } from '../repositories/sessions-lifecycle.repository.js';
+import { SessionsTelemetryRepository } from '../repositories/sessions-telemetry.repository.js';
+import { SessionsOnboardingLinkRepository } from '../repositories/sessions-onboarding-link.repository.js';
+import { SessionsActivityAuditRepository } from '../repositories/sessions-activity-audit.repository.js';
 import { SessionGpsWriterService } from './session-gps-writer.service.js';
 import { decimal, hasLocationPermission, RequestContext, riskFlagsFromSnapshot, toDate } from './sessions.shared.js';
 import { phoneLookupHash } from '../../../common/utils/crypto/phone-hash.util.js';
@@ -20,11 +23,14 @@ import { phoneLookupHash } from '../../../common/utils/crypto/phone-hash.util.js
 @Injectable()
 export class SessionHeartbeatService {
   constructor(
-    private readonly sessionsRepository: SessionsRepository,
+    private readonly deviceRepository: SessionsDeviceRepository,
+    private readonly lifecycleRepository: SessionsLifecycleRepository,
+    private readonly telemetryRepository: SessionsTelemetryRepository,
+    private readonly onboardingLinkRepository: SessionsOnboardingLinkRepository,
+    private readonly activityAuditRepository: SessionsActivityAuditRepository,
     private readonly customersRepository: CustomersRepository,
     private readonly gpsWriter: SessionGpsWriterService,
     @InjectConnection() private readonly sequelize: Sequelize,
-    private readonly sessionLifecycle: SessionsLifecycleRepository,
   ) {}
 
   async heartbeat(input: {
@@ -42,7 +48,7 @@ export class SessionHeartbeatService {
 
     const capturedAt = toDate(input.body.capturedAt, new Date());
     return this.sequelize.transaction(async (transaction) => {
-      const session = await this.sessionsRepository.findSessionById(input.context.tenantId, input.customerId, input.sessionId, {
+      const session = await this.lifecycleRepository.findSessionById(input.context.tenantId, input.customerId, input.sessionId, {
         transaction,
       });
       if (!session) throw new NotFoundException('Sesión no encontrada.');
@@ -50,21 +56,21 @@ export class SessionHeartbeatService {
       if (session.deviceId && String(session.deviceId) !== input.body.deviceId)
         throw new ForbiddenException('El dispositivo no corresponde a la sesión.');
 
-      const device = await this.sessionsRepository.findDeviceById(input.context.tenantId, input.body.deviceId, { transaction });
+      const device = await this.deviceRepository.findDeviceById(input.context.tenantId, input.body.deviceId, { transaction });
       if (!device) throw new NotFoundException('Dispositivo no encontrado.');
-      const link = await this.sessionsRepository.findCustomerDeviceLink(input.context.tenantId, input.customerId, input.body.deviceId, {
+      const link = await this.deviceRepository.findCustomerDeviceLink(input.context.tenantId, input.customerId, input.body.deviceId, {
         transaction,
       });
       if (!link && input.currentUser.role === 'customer') throw new ForbiddenException('El dispositivo no está vinculado al cliente.');
 
       // Hora del SERVIDOR, no `capturedAt`: un reloj del cliente adelantado no puede aplazar la caducidad.
-      await this.sessionLifecycle.touchActivity(session, new Date(), { transaction });
-      await this.sessionsRepository.touchDevice(device, capturedAt, { transaction });
-      if (link) await this.sessionsRepository.touchCustomerDeviceLink(link, input.sessionId, capturedAt, { transaction });
+      await this.lifecycleRepository.touchActivity(session, new Date(), { transaction });
+      await this.deviceRepository.touchDevice(device, capturedAt, { transaction });
+      if (link) await this.deviceRepository.touchCustomerDeviceLink(link, input.sessionId, capturedAt, { transaction });
 
-      const flow = await this.sessionsRepository.findLatestOnboardingFlow(input.context.tenantId, input.customerId, { transaction });
+      const flow = await this.onboardingLinkRepository.findLatestOnboardingFlow(input.context.tenantId, input.customerId, { transaction });
       for (const permission of input.body.permissionChanges) {
-        await this.sessionsRepository.createPermissionEvent(
+        await this.telemetryRepository.createPermissionEvent(
           {
             tenantId: input.context.tenantId,
             customerId: input.customerId,
@@ -79,7 +85,7 @@ export class SessionHeartbeatService {
       }
 
       if (input.body.deviceSnapshot) {
-        await this.sessionsRepository.createDeviceSnapshot(
+        await this.deviceRepository.createDeviceSnapshot(
           {
             tenantId: input.context.tenantId,
             customerId: input.customerId,
@@ -110,7 +116,7 @@ export class SessionHeartbeatService {
       });
 
       if (input.body.simObservation) {
-        await this.sessionsRepository.createSimObservation(
+        await this.telemetryRepository.createSimObservation(
           {
             tenantId: input.context.tenantId,
             customerId: input.customerId,
@@ -128,7 +134,7 @@ export class SessionHeartbeatService {
       }
 
       if (input.body.ipReputation) {
-        await this.sessionsRepository.createIpReputation(
+        await this.telemetryRepository.createIpReputation(
           {
             tenantId: input.context.tenantId,
             customerId: input.customerId,
@@ -150,7 +156,7 @@ export class SessionHeartbeatService {
       let riskSignalsCreated = 0;
       for (const riskFlag of riskFlagsFromSnapshot(input.body.deviceSnapshot, 'sessions_heartbeat')) {
         riskSignalsCreated += 1;
-        await this.sessionsRepository.createDeviceRiskEvent(
+        await this.deviceRepository.createDeviceRiskEvent(
           {
             tenantId: input.context.tenantId,
             deviceId: input.body.deviceId,
@@ -163,7 +169,7 @@ export class SessionHeartbeatService {
         );
       }
 
-      await this.sessionsRepository.createCustomerAction(
+      await this.telemetryRepository.createCustomerAction(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,
@@ -176,7 +182,7 @@ export class SessionHeartbeatService {
         },
         { transaction },
       );
-      await this.sessionsRepository.createCustomerObservation(
+      await this.telemetryRepository.createCustomerObservation(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,
@@ -194,7 +200,7 @@ export class SessionHeartbeatService {
         },
         { transaction },
       );
-      await this.sessionsRepository.upsertActivitySummary(
+      await this.activityAuditRepository.upsertActivitySummary(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,
@@ -204,7 +210,7 @@ export class SessionHeartbeatService {
         },
         { transaction },
       );
-      await this.sessionsRepository.createAudit(
+      await this.activityAuditRepository.createAudit(
         {
           tenantId: input.context.tenantId,
           actorType: input.currentUser.role,

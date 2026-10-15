@@ -6,7 +6,7 @@
 import { Transaction } from 'sequelize';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { FeatureSnapshotModel } from '../../../database/models/index.js';
-import { RiskRepository } from '../risk.repository.js';
+import { RiskFeatureEvidenceRepository } from '../repositories/risk-feature-evidence.repository.js';
 
 export type EvidenceSubject = {
   tenantId: string;
@@ -30,7 +30,7 @@ export type EvidenceSubject = {
  * que nadie puede comprobar.
  */
 export interface WriteFeatureEvidenceInput {
-  repository: RiskRepository;
+  repository: RiskFeatureEvidenceRepository;
   subject: EvidenceSubject;
   featureMap: Record<string, number | boolean>;
   missing: string[];

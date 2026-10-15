@@ -10,13 +10,17 @@ import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../../common/utils/auth/ownership.util.js';
 import { EndSessionResponseDto } from '../sessions.dtos.js';
 import { EndSessionDto } from '../sessions.schemas.js';
-import { SessionsRepository } from '../sessions.repository.js';
+import { SessionsLifecycleRepository } from '../repositories/sessions-lifecycle.repository.js';
+import { SessionsTelemetryRepository } from '../repositories/sessions-telemetry.repository.js';
+import { SessionsActivityAuditRepository } from '../repositories/sessions-activity-audit.repository.js';
 import { RequestContext, toDate } from './sessions.shared.js';
 
 @Injectable()
 export class SessionEndService {
   constructor(
-    private readonly sessionsRepository: SessionsRepository,
+    private readonly lifecycleRepository: SessionsLifecycleRepository,
+    private readonly telemetryRepository: SessionsTelemetryRepository,
+    private readonly activityAuditRepository: SessionsActivityAuditRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -32,7 +36,7 @@ export class SessionEndService {
 
     const endedAt = toDate(input.body.endedAt, new Date());
     return this.sequelize.transaction(async (transaction) => {
-      const session = await this.sessionsRepository.findSessionById(input.context.tenantId, input.customerId, input.sessionId, {
+      const session = await this.lifecycleRepository.findSessionById(input.context.tenantId, input.customerId, input.sessionId, {
         transaction,
       });
       if (!session) throw new NotFoundException('Sesión no encontrada.');
@@ -41,8 +45,8 @@ export class SessionEndService {
         throw new ForbiddenException('El dispositivo no corresponde a la sesión.');
       }
       const deviceId = input.body.deviceId ?? (session.deviceId ? String(session.deviceId) : null);
-      const ended = await this.sessionsRepository.endSession(session, endedAt, { transaction });
-      await this.sessionsRepository.createAuthEvent(
+      const ended = await this.lifecycleRepository.endSession(session, endedAt, { transaction });
+      await this.telemetryRepository.createAuthEvent(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,
@@ -56,7 +60,7 @@ export class SessionEndService {
         },
         { transaction },
       );
-      await this.sessionsRepository.createCustomerAction(
+      await this.telemetryRepository.createCustomerAction(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,
@@ -70,12 +74,12 @@ export class SessionEndService {
         { transaction },
       );
       if (deviceId) {
-        await this.sessionsRepository.upsertActivitySummary(
+        await this.activityAuditRepository.upsertActivitySummary(
           { tenantId: input.context.tenantId, customerId: input.customerId, deviceId, now: endedAt, incrementSessionCount: false },
           { transaction },
         );
       }
-      await this.sessionsRepository.createAudit(
+      await this.activityAuditRepository.createAudit(
         {
           tenantId: input.context.tenantId,
           actorType: input.currentUser.role,

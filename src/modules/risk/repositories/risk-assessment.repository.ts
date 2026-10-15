@@ -1,80 +1,30 @@
 /**
  * @file Puerto de persistencia: encapsula consultas, locks y escrituras.
- * @business Esta pieza produce una recomendación explicable para reducir pérdida crediticia y trato inconsistente.
- * @system calcula evaluaciones versionadas, contribuciones y reglas disparadas sin presentarlas como un modelo validado.
+ * @business Guarda y consulta la evaluación de riesgo: corrida, contexto, reglas disparadas, contribuciones y resultado.
+ * @system es el agregado de la evaluación; el resultado se corrige sólo con la revisión humana de `applyManualReviewOutcome`.
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Transaction } from 'sequelize';
 import {
-  CustomerConsentModel,
-  CustomerContactMethodModel,
-  CustomerDeviceLinkModel,
-  CustomerIdentityDocumentModel,
-  CustomerSessionModel,
-  DataChangeLogModel,
-  FeatureComputationRunModel,
-  FeatureLineageLinkModel,
-  FeatureSnapshotModel,
-  FeatureValueModel,
-  FraudCaseModel,
-  OperationalAuditLogModel,
   RiskAssessmentContextModel,
   RiskAssessmentResultModel,
   RiskAssessmentRunModel,
   RiskFeatureContributionModel,
   RiskRuleFiredModel,
-  WatchlistMatchModel,
-} from '../../database/models/index.js';
+} from '../../../database/models/index.js';
 
 type RepositoryOptions = { transaction?: Transaction };
 
 @Injectable()
-export class RiskRepository {
+export class RiskAssessmentRepository {
   constructor(
-    @InjectModel(RiskAssessmentResultModel)
-    private readonly riskAssessmentResultModel: typeof RiskAssessmentResultModel,
+    @InjectModel(RiskAssessmentResultModel) private readonly riskAssessmentResultModel: typeof RiskAssessmentResultModel,
     @InjectModel(RiskAssessmentRunModel) private readonly riskAssessmentRunModel: typeof RiskAssessmentRunModel,
-    @InjectModel(RiskAssessmentContextModel)
-    private readonly riskAssessmentContextModel: typeof RiskAssessmentContextModel,
+    @InjectModel(RiskAssessmentContextModel) private readonly riskAssessmentContextModel: typeof RiskAssessmentContextModel,
     @InjectModel(RiskRuleFiredModel) private readonly riskRuleFiredModel: typeof RiskRuleFiredModel,
-    @InjectModel(RiskFeatureContributionModel)
-    private readonly riskFeatureContributionModel: typeof RiskFeatureContributionModel,
-    @InjectModel(FeatureComputationRunModel)
-    private readonly featureComputationRunModel: typeof FeatureComputationRunModel,
-    @InjectModel(FeatureValueModel) private readonly featureValueModel: typeof FeatureValueModel,
-    @InjectModel(FeatureLineageLinkModel) private readonly featureLineageLinkModel: typeof FeatureLineageLinkModel,
-    @InjectModel(FeatureSnapshotModel) private readonly featureSnapshotModel: typeof FeatureSnapshotModel,
-    @InjectModel(FraudCaseModel) private readonly fraudCaseModel: typeof FraudCaseModel,
-    @InjectModel(WatchlistMatchModel) private readonly watchlistMatchModel: typeof WatchlistMatchModel,
-    @InjectModel(DataChangeLogModel) private readonly dataChangeLogModel: typeof DataChangeLogModel,
-    @InjectModel(OperationalAuditLogModel) private readonly operationalAuditLogModel: typeof OperationalAuditLogModel,
-    @InjectModel(CustomerConsentModel) private readonly consentModel: typeof CustomerConsentModel,
-    @InjectModel(CustomerContactMethodModel) private readonly contactMethodModel: typeof CustomerContactMethodModel,
-    @InjectModel(CustomerIdentityDocumentModel)
-    private readonly identityDocumentModel: typeof CustomerIdentityDocumentModel,
-    @InjectModel(CustomerSessionModel) private readonly sessionModel: typeof CustomerSessionModel,
-    @InjectModel(CustomerDeviceLinkModel) private readonly deviceLinkModel: typeof CustomerDeviceLinkModel,
+    @InjectModel(RiskFeatureContributionModel) private readonly riskFeatureContributionModel: typeof RiskFeatureContributionModel,
   ) {}
-
-  /**
-   * Cuáles de las referencias que mandó quien pide la evaluación son DEL cliente evaluado. Un
-   * dispositivo es suyo si tiene vínculo con él o si una sesión suya lo usó; una sesión, si es suya.
-   */
-  async findOwnedDeviceReferences(
-    tenantId: string,
-    customerId: string,
-    refs: { deviceId?: string | null; sessionId?: string | null },
-  ): Promise<{ deviceOwned: boolean; sessionOwned: boolean }> {
-    const deviceOwned = refs.deviceId
-      ? (await this.deviceLinkModel.count({ where: { tenantId, customerId, deviceId: refs.deviceId } } as FindOptions)) > 0 ||
-        (await this.sessionModel.count({ where: { tenantId, customerId, deviceId: refs.deviceId } } as FindOptions)) > 0
-      : true;
-    const sessionOwned = refs.sessionId
-      ? (await this.sessionModel.count({ where: { tenantId, customerId, id: refs.sessionId } } as FindOptions)) > 0
-      : true;
-    return { deviceOwned, sessionOwned };
-  }
 
   findLatestCustomerRiskResult(tenantId: string, customerId: string): Promise<RiskAssessmentResultModel | null> {
     return this.riskAssessmentResultModel.findOne({
@@ -84,136 +34,6 @@ export class RiskRepository {
         ['id', 'DESC'],
       ],
     } as FindOptions);
-  }
-
-  findCustomerConsents(tenantId: string, customerId: string): Promise<CustomerConsentModel[]> {
-    return this.consentModel.findAll({ where: { tenantId, customerId, granted: true } } as FindOptions);
-  }
-
-  findCustomerContacts(tenantId: string, customerId: string): Promise<CustomerContactMethodModel[]> {
-    return this.contactMethodModel.findAll({ where: { tenantId, customerId } } as FindOptions);
-  }
-
-  findIdentityDocuments(tenantId: string, customerId: string): Promise<CustomerIdentityDocumentModel[]> {
-    return this.identityDocumentModel.findAll({ where: { tenantId, customerId } } as FindOptions);
-  }
-
-  createFeatureComputationRun(
-    values: {
-      tenantId: string;
-      customerId: string;
-      sessionId: string | null;
-      deviceId: string | null;
-      runReason: string;
-      triggerSource: string;
-      idempotencyKey: string;
-      now: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<FeatureComputationRunModel> {
-    return this.featureComputationRunModel.create(
-      {
-        tenantId: values.tenantId,
-        subjectType: 'customer',
-        subjectId: values.customerId,
-        customerId: values.customerId,
-        sessionId: values.sessionId,
-        onboardingFlowId: null,
-        deviceId: values.deviceId,
-        runReason: values.runReason,
-        triggerSource: values.triggerSource,
-        idempotencyKey: values.idempotencyKey,
-        featureSetVersion: 'atlas-mvp-v1',
-        codeVersion: 'rules-v1',
-        computedBy: 'backend',
-        retryCount: 0,
-        startedAt: values.now,
-        finishedAt: values.now,
-        status: 'completed',
-        errorMessage: null,
-        createdAtValue: values.now,
-      },
-      { transaction: options.transaction },
-    );
-  }
-
-  createFeatureValue(
-    values: {
-      tenantId: string;
-      computationRunId: string;
-      customerId: string;
-      sessionId: string | null;
-      deviceId: string | null;
-      featureCode: string;
-      valueNumber: string | null;
-      valueBoolean: boolean | null;
-      valueText: string | null;
-      valueJson: Record<string, unknown> | null;
-      now: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<FeatureValueModel> {
-    return this.featureValueModel.create(
-      {
-        tenantId: values.tenantId,
-        computationRunId: values.computationRunId,
-        featureDefinitionId: null,
-        subjectType: 'customer',
-        subjectId: values.customerId,
-        customerId: values.customerId,
-        sessionId: values.sessionId,
-        onboardingFlowId: null,
-        deviceId: values.deviceId,
-        valueText: values.valueText,
-        valueNumber: values.valueNumber,
-        valueBoolean: values.valueBoolean,
-        valueJson: values.valueJson,
-        confidenceScore: '1.0000',
-        derivationMethod: values.featureCode,
-        derivationVersion: 'v1',
-        validFrom: values.now,
-        validUntil: null,
-        createdAtValue: values.now,
-      },
-      { transaction: options.transaction },
-    );
-  }
-
-  createFeatureSnapshot(
-    values: {
-      tenantId: string;
-      customerId: string;
-      deviceId: string | null;
-      sessionId: string | null;
-      featuresJson: Record<string, unknown>;
-      missingFeaturesJson: Record<string, unknown>;
-      integrityHash: string;
-      now: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<FeatureSnapshotModel> {
-    return this.featureSnapshotModel.create(
-      {
-        tenantId: values.tenantId,
-        subjectType: 'customer',
-        subjectId: values.customerId,
-        customerId: values.customerId,
-        deviceId: values.deviceId,
-        snapshotReason: 'risk_assessment',
-        triggeringEntityType: 'customer',
-        triggeringEntityId: values.customerId,
-        riskAssessmentRunId: null,
-        sessionId: values.sessionId,
-        onboardingFlowId: null,
-        featureSetVersion: 'atlas-mvp-v1',
-        catalogVersionsJson: null,
-        featuresJson: values.featuresJson,
-        missingFeaturesJson: values.missingFeaturesJson,
-        integrityHash: values.integrityHash,
-        createdAtValue: values.now,
-      },
-      { transaction: options.transaction },
-    );
   }
 
   createRiskAssessmentRun(
@@ -259,11 +79,6 @@ export class RiskRepository {
       },
       { transaction: options.transaction },
     );
-  }
-
-  async attachSnapshotToRun(snapshot: FeatureSnapshotModel, runId: string, options: RepositoryOptions): Promise<void> {
-    snapshot.riskAssessmentRunId = runId;
-    await snapshot.save({ transaction: options.transaction });
   }
 
   createRiskAssessmentContext(
@@ -427,37 +242,6 @@ export class RiskRepository {
     );
   }
 
-  createAudit(
-    values: {
-      tenantId: string;
-      actorType: string;
-      actorInternalUserId: string | null;
-      actionCode: string;
-      targetId: string;
-      payload: Record<string, unknown>;
-      now: Date;
-    },
-    options: RepositoryOptions,
-  ): Promise<OperationalAuditLogModel> {
-    return this.operationalAuditLogModel.create(
-      {
-        tenantId: values.tenantId,
-        actorType: values.actorType,
-        actorInternalUserId: values.actorInternalUserId,
-        actorPlatformUserId: null,
-        actionCode: values.actionCode,
-        targetType: 'customer',
-        targetId: values.targetId,
-        ipAddress: null,
-        userAgent: null,
-        payloadJson: values.payload,
-        occurredAt: values.now,
-        createdAtValue: values.now,
-      },
-      { transaction: options.transaction },
-    );
-  }
-
   findRiskRun(tenantId: string, runId: string): Promise<RiskAssessmentRunModel | null> {
     return this.riskAssessmentRunModel.findOne({ where: { tenantId, id: runId } } as FindOptions);
   }
@@ -490,9 +274,5 @@ export class RiskRepository {
 
   findContributionsByRun(tenantId: string, runId: string): Promise<RiskFeatureContributionModel[]> {
     return this.riskFeatureContributionModel.findAll({ where: { tenantId, riskAssessmentRunId: runId } } as FindOptions);
-  }
-
-  findSnapshotByRun(tenantId: string, runId: string): Promise<FeatureSnapshotModel | null> {
-    return this.featureSnapshotModel.findOne({ where: { tenantId, riskAssessmentRunId: runId } } as FindOptions);
   }
 }

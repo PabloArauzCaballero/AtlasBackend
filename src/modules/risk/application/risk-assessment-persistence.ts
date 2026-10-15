@@ -5,8 +5,10 @@
  */
 import { Transaction } from 'sequelize';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
-import { RiskRepository } from '../risk.repository.js';
+import type { RiskAssessmentRepository } from '../repositories/risk-assessment.repository.js';
+import type { RiskFeatureEvidenceRepository } from '../repositories/risk-feature-evidence.repository.js';
 import type { RevisionManualRepository } from '../repositories/revision-manual.repository.js';
+import type { CreateRiskAssessmentDto } from '../risk.schemas.js';
 import { writeFeatureEvidence } from './risk-feature-evidence.js';
 
 /** Identidad de lo que se está evaluando. Viaja completa porque cada tabla escribe un trozo distinto. */
@@ -19,6 +21,30 @@ export type AssessmentSubject = {
   channel: string;
   idempotencyKey: string;
 };
+
+/**
+ * A quién y en qué contexto se está evaluando.
+ *
+ * Se arma una sola vez y viaja completo a cada escritura: la corrida, el snapshot y el resultado
+ * comparten esta identidad, y construirla por separado en cada sitio es como una fila acaba
+ * apuntando a una sesión y su vecina a ninguna.
+ */
+export function toAssessmentSubject(input: {
+  tenantId: string;
+  customerId: string;
+  body: CreateRiskAssessmentDto;
+  idempotencyKey: string;
+}): AssessmentSubject {
+  return {
+    tenantId: input.tenantId,
+    customerId: input.customerId,
+    sessionId: input.body.sessionId ?? null,
+    deviceId: input.body.deviceId ?? null,
+    assessmentType: input.body.assessmentType,
+    channel: input.body.channel,
+    idempotencyKey: input.idempotencyKey,
+  };
+}
 
 type FeatureMap = Record<string, number | boolean>;
 
@@ -35,7 +61,7 @@ type FeatureMap = Record<string, number | boolean>;
  * sin que el compilador diga nada.
  */
 export async function openAssessmentRun(input: {
-  repository: RiskRepository;
+  repositories: { assessments: RiskAssessmentRepository; evidence: RiskFeatureEvidenceRepository };
   subject: AssessmentSubject;
   featureMap: FeatureMap;
   missing: string[];
@@ -46,9 +72,14 @@ export async function openAssessmentRun(input: {
   now: Date;
   transaction: Transaction;
 }) {
-  const { repository, subject, now, transaction } = input;
+  const {
+    repositories: { assessments, evidence },
+    subject,
+    now,
+    transaction,
+  } = input;
   const snapshot = await writeFeatureEvidence({
-    repository,
+    repository: evidence,
     subject,
     featureMap: input.featureMap,
     missing: input.missing,
@@ -56,7 +87,7 @@ export async function openAssessmentRun(input: {
     transaction,
   });
 
-  const run = await repository.createRiskAssessmentRun(
+  const run = await assessments.createRiskAssessmentRun(
     {
       tenantId: subject.tenantId,
       customerId: subject.customerId,
@@ -73,8 +104,8 @@ export async function openAssessmentRun(input: {
     { transaction },
   );
 
-  await repository.attachSnapshotToRun(snapshot, String(run.id), { transaction });
-  await repository.createRiskAssessmentContext(
+  await evidence.attachSnapshotToRun(snapshot, String(run.id), { transaction });
+  await assessments.createRiskAssessmentContext(
     {
       tenantId: subject.tenantId,
       riskAssessmentRunId: String(run.id),
@@ -95,7 +126,7 @@ export async function openAssessmentRun(input: {
  * reclamar y un regulador al revisar.
  */
 export async function recordDecisionEvidence(input: {
-  repository: RiskRepository;
+  repository: RiskAssessmentRepository;
   tenantId: string;
   runId: string;
   reasons: readonly string[];

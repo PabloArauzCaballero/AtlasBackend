@@ -12,7 +12,11 @@ import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { toStartSessionResponse } from '../sessions.mapper.js';
 import { StartSessionDto } from '../sessions.schemas.js';
-import { SessionsRepository } from '../sessions.repository.js';
+import { SessionsDeviceRepository } from '../repositories/sessions-device.repository.js';
+import { SessionsLifecycleRepository } from '../repositories/sessions-lifecycle.repository.js';
+import { SessionsTelemetryRepository } from '../repositories/sessions-telemetry.repository.js';
+import { SessionsOnboardingLinkRepository } from '../repositories/sessions-onboarding-link.repository.js';
+import { SessionsActivityAuditRepository } from '../repositories/sessions-activity-audit.repository.js';
 import { SessionGpsWriterService } from './session-gps-writer.service.js';
 import { decimal, hasLocationPermission, RequestContext, riskFlagsFromSnapshot, toDate } from './sessions.shared.js';
 import { phoneLookupHash } from '../../../common/utils/crypto/phone-hash.util.js';
@@ -20,7 +24,11 @@ import { phoneLookupHash } from '../../../common/utils/crypto/phone-hash.util.js
 @Injectable()
 export class SessionStartService {
   constructor(
-    private readonly sessionsRepository: SessionsRepository,
+    private readonly deviceRepository: SessionsDeviceRepository,
+    private readonly lifecycleRepository: SessionsLifecycleRepository,
+    private readonly telemetryRepository: SessionsTelemetryRepository,
+    private readonly onboardingLinkRepository: SessionsOnboardingLinkRepository,
+    private readonly activityAuditRepository: SessionsActivityAuditRepository,
     private readonly customersRepository: CustomersRepository,
     private readonly gpsWriter: SessionGpsWriterService,
     @InjectConnection() private readonly sequelize: Sequelize,
@@ -41,14 +49,14 @@ export class SessionStartService {
       sha256Hex(`${input.customerId}:${input.body.device.deviceFingerprintHash}:${input.context.idempotencyKey}:${now.toISOString()}`);
 
     return this.sequelize.transaction(async (transaction) => {
-      const existingGlobalDevice = await this.sessionsRepository.findGlobalDevice(
+      const existingGlobalDevice = await this.deviceRepository.findGlobalDevice(
         input.body.device.deviceFingerprintHash,
         input.body.device.fingerprintVersion,
         { transaction },
       );
       const globalDevice =
         existingGlobalDevice ??
-        (await this.sessionsRepository.createGlobalDevice(
+        (await this.deviceRepository.createGlobalDevice(
           {
             deviceFingerprint: input.body.device.deviceFingerprintHash,
             fingerprintVersion: input.body.device.fingerprintVersion,
@@ -56,9 +64,9 @@ export class SessionStartService {
           },
           { transaction },
         ));
-      if (existingGlobalDevice) await this.sessionsRepository.touchGlobalDevice(existingGlobalDevice, now, { transaction });
+      if (existingGlobalDevice) await this.deviceRepository.touchGlobalDevice(existingGlobalDevice, now, { transaction });
 
-      const existingDevice = await this.sessionsRepository.findDevice(
+      const existingDevice = await this.deviceRepository.findDevice(
         input.context.tenantId,
         input.body.device.deviceFingerprintHash,
         input.body.device.fingerprintVersion,
@@ -66,7 +74,7 @@ export class SessionStartService {
       );
       const device =
         existingDevice ??
-        (await this.sessionsRepository.createDevice(
+        (await this.deviceRepository.createDevice(
           {
             tenantId: input.context.tenantId,
             globalDeviceFingerprintId: String(globalDevice.id),
@@ -76,22 +84,19 @@ export class SessionStartService {
           },
           { transaction },
         ));
-      if (existingDevice) await this.sessionsRepository.touchDevice(existingDevice, now, { transaction });
+      if (existingDevice) await this.deviceRepository.touchDevice(existingDevice, now, { transaction });
 
-      const existingLink = await this.sessionsRepository.findCustomerDeviceLink(
-        input.context.tenantId,
-        input.customerId,
-        String(device.id),
-        { transaction },
-      );
+      const existingLink = await this.deviceRepository.findCustomerDeviceLink(input.context.tenantId, input.customerId, String(device.id), {
+        transaction,
+      });
       const link =
         existingLink ??
-        (await this.sessionsRepository.createCustomerDeviceLink(
+        (await this.deviceRepository.createCustomerDeviceLink(
           { tenantId: input.context.tenantId, customerId: input.customerId, deviceId: String(device.id), now },
           { transaction },
         ));
 
-      const session = await this.sessionsRepository.createSession(
+      const session = await this.lifecycleRepository.createSession(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,
@@ -108,10 +113,10 @@ export class SessionStartService {
         },
         { transaction },
       );
-      await this.sessionsRepository.touchCustomerDeviceLink(link, String(session.id), now, { transaction });
+      await this.deviceRepository.touchCustomerDeviceLink(link, String(session.id), now, { transaction });
 
       if (input.body.device.snapshot) {
-        await this.sessionsRepository.createDeviceSnapshot(
+        await this.deviceRepository.createDeviceSnapshot(
           {
             tenantId: input.context.tenantId,
             customerId: input.customerId,
@@ -131,9 +136,9 @@ export class SessionStartService {
         );
       }
 
-      const flow = await this.sessionsRepository.findLatestOnboardingFlow(input.context.tenantId, input.customerId, { transaction });
+      const flow = await this.onboardingLinkRepository.findLatestOnboardingFlow(input.context.tenantId, input.customerId, { transaction });
       for (const permission of input.body.permissions) {
-        await this.sessionsRepository.createPermissionEvent(
+        await this.telemetryRepository.createPermissionEvent(
           {
             tenantId: input.context.tenantId,
             customerId: input.customerId,
@@ -158,7 +163,7 @@ export class SessionStartService {
       });
 
       if (input.body.simObservation) {
-        await this.sessionsRepository.createSimObservation(
+        await this.telemetryRepository.createSimObservation(
           {
             tenantId: input.context.tenantId,
             customerId: input.customerId,
@@ -176,7 +181,7 @@ export class SessionStartService {
       }
 
       if (input.body.ipReputation) {
-        await this.sessionsRepository.createIpReputation(
+        await this.telemetryRepository.createIpReputation(
           {
             tenantId: input.context.tenantId,
             customerId: input.customerId,
@@ -196,7 +201,7 @@ export class SessionStartService {
       }
 
       for (const riskFlag of riskFlagsFromSnapshot(input.body.device.snapshot, 'sessions_start')) {
-        await this.sessionsRepository.createDeviceRiskEvent(
+        await this.deviceRepository.createDeviceRiskEvent(
           {
             tenantId: input.context.tenantId,
             deviceId: String(device.id),
@@ -209,7 +214,7 @@ export class SessionStartService {
         );
       }
 
-      await this.sessionsRepository.createAuthEvent(
+      await this.telemetryRepository.createAuthEvent(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,
@@ -223,7 +228,7 @@ export class SessionStartService {
         },
         { transaction },
       );
-      await this.sessionsRepository.createCustomerAction(
+      await this.telemetryRepository.createCustomerAction(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,
@@ -236,7 +241,7 @@ export class SessionStartService {
         },
         { transaction },
       );
-      await this.sessionsRepository.createCustomerObservation(
+      await this.telemetryRepository.createCustomerObservation(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,
@@ -251,7 +256,7 @@ export class SessionStartService {
         { transaction },
       );
       if (flow) {
-        await this.sessionsRepository.createOnboardingStepEvent(
+        await this.onboardingLinkRepository.createOnboardingStepEvent(
           {
             tenantId: input.context.tenantId,
             onboardingFlowId: String(flow.id),
@@ -263,11 +268,11 @@ export class SessionStartService {
           { transaction },
         );
       }
-      await this.sessionsRepository.upsertActivitySummary(
+      await this.activityAuditRepository.upsertActivitySummary(
         { tenantId: input.context.tenantId, customerId: input.customerId, deviceId: String(device.id), now, incrementSessionCount: true },
         { transaction },
       );
-      await this.sessionsRepository.createAudit(
+      await this.activityAuditRepository.createAudit(
         {
           tenantId: input.context.tenantId,
           actorType: input.currentUser.role,

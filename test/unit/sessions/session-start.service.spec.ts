@@ -55,6 +55,10 @@ describe('SessionStartService.startSession', () => {
 
     const service = new SessionStartService(
       sessionsRepository as never,
+      sessionsRepository as never,
+      sessionsRepository as never,
+      sessionsRepository as never,
+      sessionsRepository as never,
       customersRepository as never,
       gpsWriter as never,
       sequelize as never,
