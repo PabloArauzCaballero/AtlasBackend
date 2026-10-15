@@ -16,7 +16,7 @@ import { NotificationEventHandlerService } from '../notification-event-handler.s
 
 @Injectable()
 export class NotificationEventConsumer implements EventConsumer {
-  readonly consumerId = 'notifications.eventHandler';
+  readonly consumerId = 'notifications.orchestrator';
   readonly subscriptions: Readonly<Record<string, readonly number[]>> = Object.freeze({ '*': [1] });
 
   constructor(private readonly eventHandler: NotificationEventHandlerService) {}
