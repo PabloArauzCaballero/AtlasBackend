@@ -51,7 +51,9 @@ import { SupportCaseService } from './application/support-case.service.js';
 import { SupportCaseCreationEventsService } from './application/support-case-creation-events.service.js';
 import { SupportCaseUnclassifiedService } from './application/support-case-unclassified.service.js';
 import { SupportCaseTransitionService } from './application/support-case-transition.service.js';
-import { SupportCaseWorkflowService } from './application/support-case-workflow.service.js';
+import { SupportCaseAssignmentService } from './application/support-case-assignment.service.js';
+import { SupportCaseTransferService } from './application/support-case-transfer.service.js';
+import { SupportCaseTriageService } from './application/support-case-triage.service.js';
 import { SupportChannelService } from './application/support-channel.service.js';
 import { SupportConversationService } from './application/support-conversation.service.js';
 import { SupportRealtimeService } from './application/support-realtime.service.js';
@@ -158,7 +160,9 @@ import { SupportMessageRepository } from './support-message.repository.js';
     SupportCaseCreationEventsService,
     SupportCaseUnclassifiedService,
     SupportCaseReadService,
-    SupportCaseWorkflowService,
+    SupportCaseTriageService,
+    SupportCaseAssignmentService,
+    SupportCaseTransferService,
     SupportCaseEscalationService,
     SupportCaseClosureService,
     SupportCaseCustomerService,

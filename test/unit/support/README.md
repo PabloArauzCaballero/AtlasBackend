@@ -9,14 +9,14 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`business-hours.spec.ts`](./business-hours.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`case-number.util.spec.ts`](./case-number.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`case-state-machine.spec.ts`](./case-state-machine.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`message-dlp.spec.ts`](./message-dlp.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`priority-policy.spec.ts`](./priority-policy.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`support-hash-chain.spec.ts`](./support-hash-chain.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| Documento o código                                                       | Responsabilidad                                               |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| [`business-hours.spec.ts`](./business-hours.spec.ts)                     | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`case-number.util.spec.ts`](./case-number.util.spec.ts)                 | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`case-state-machine.spec.ts`](./case-state-machine.spec.ts)             | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`message-dlp.spec.ts`](./message-dlp.spec.ts)                           | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`priority-policy.spec.ts`](./priority-policy.spec.ts)                   | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`support-hash-chain.spec.ts`](./support-hash-chain.spec.ts)             | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`support-realtime.service.spec.ts`](./support-realtime.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento

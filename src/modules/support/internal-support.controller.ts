@@ -16,7 +16,9 @@ import { SupportActorService } from './application/support-actor.service.js';
 import { SupportCaseClosureService } from './application/support-case-closure.service.js';
 import { SupportCaseEscalationService } from './application/support-case-escalation.service.js';
 import { SupportCaseReadService } from './application/support-case-read.service.js';
-import { SupportCaseWorkflowService } from './application/support-case-workflow.service.js';
+import { SupportCaseAssignmentService } from './application/support-case-assignment.service.js';
+import { SupportCaseTransferService } from './application/support-case-transfer.service.js';
+import { SupportCaseTriageService } from './application/support-case-triage.service.js';
 import {
   type AssignCaseDto,
   assignCaseSchema,
@@ -52,7 +54,9 @@ export class InternalSupportController {
   constructor(
     private readonly actors: SupportActorService,
     private readonly read: SupportCaseReadService,
-    private readonly workflow: SupportCaseWorkflowService,
+    private readonly triaging: SupportCaseTriageService,
+    private readonly assignment: SupportCaseAssignmentService,
+    private readonly transfers: SupportCaseTransferService,
     private readonly escalation: SupportCaseEscalationService,
     private readonly closure: SupportCaseClosureService,
   ) {}
@@ -103,7 +107,7 @@ export class InternalSupportController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     const actor = await this.actors.resolve(currentUser, tenantId);
-    return this.workflow.triage({ tenantId, actor, caseId, dto: body });
+    return this.triaging.triage({ tenantId, actor, caseId, dto: body });
   }
 
   @ApiOperation({ summary: 'Tomar el caso (o asignarlo, si eres supervisor)' })
@@ -119,7 +123,7 @@ export class InternalSupportController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     const actor = await this.actors.resolve(currentUser, tenantId);
-    return this.workflow.assign({ tenantId, actor, caseId, dto: body });
+    return this.assignment.assign({ tenantId, actor, caseId, dto: body });
   }
 
   @ApiOperation({ summary: 'Transferir el caso, dejando el contexto para quien sigue' })
@@ -133,7 +137,7 @@ export class InternalSupportController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     const actor = await this.actors.resolve(currentUser, tenantId);
-    return this.workflow.transfer({ tenantId, actor, caseId, dto: body });
+    return this.transfers.transfer({ tenantId, actor, caseId, dto: body });
   }
 
   @ApiOperation({ summary: 'Escalar (funcional, jerárquico, seguridad, fraude o privacidad)' })

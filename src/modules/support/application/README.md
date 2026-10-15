@@ -21,7 +21,9 @@
 | [`support-case-membership.service.ts`](./support-case-membership.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`support-case-read.service.ts`](./support-case-read.service.ts)             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`support-case-transition.service.ts`](./support-case-transition.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`support-case-workflow.service.ts`](./support-case-workflow.service.ts)     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-assignment.service.ts`](./support-case-assignment.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-transfer.service.ts`](./support-case-transfer.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`support-case-triage.service.ts`](./support-case-triage.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`support-case.service.ts`](./support-case.service.ts)                       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`support-channel.service.ts`](./support-channel.service.ts)                 | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`support-conversation.service.ts`](./support-conversation.service.ts)       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
