@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { InternalUserModel, MerchantUserModel, OperationalAuditLogModel } from '../../database/models/index.js';
 import { AuthCredentialModel } from '../../database/models/index.js';
+import { AuthRefreshTokensRepository } from './auth-refresh-tokens.repository.js';
 import { AuthRepository } from './auth.repository.js';
 import type { ActorType, AuthEventType } from './auth-vocabulary.js';
 
@@ -26,6 +27,7 @@ import type { ActorType, AuthEventType } from './auth-vocabulary.js';
 export class AuthPasswordChangeRepository {
   constructor(
     private readonly authRepository: AuthRepository,
+    private readonly refreshTokens: AuthRefreshTokensRepository,
     @InjectModel(InternalUserModel) private readonly internalUserModel: typeof InternalUserModel,
     @InjectModel(MerchantUserModel) private readonly merchantUserModel: typeof MerchantUserModel,
     @InjectModel(OperationalAuditLogModel) private readonly auditLogModel: typeof OperationalAuditLogModel,
@@ -65,7 +67,7 @@ export class AuthPasswordChangeRepository {
   }): Promise<void> {
     await this.authRepository.updatePasswordHash(input.credential, input.passwordHash);
     await this.clearMustChangePassword(input.actorType, input.actorId);
-    await this.authRepository.revokeAllRefreshTokensForActor(input.actorType, input.actorId, 'password_change');
+    await this.refreshTokens.revokeAllRefreshTokensForActor(input.actorType, input.actorId, 'password_change');
   }
 
   async recordEvent(input: {

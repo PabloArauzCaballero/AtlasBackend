@@ -30,6 +30,8 @@ import { AuthReauthenticationService } from './auth-reauthentication.service.js'
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
 import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
+import { AuthRefreshRotationService } from './auth-refresh-rotation.service.js';
+import { AuthRefreshTokensRepository } from './auth-refresh-tokens.repository.js';
 import { AuthRepository } from './auth.repository.js';
 import { MerchantActorRepository } from './merchant-actor.repository.js';
 import { AuthService } from './auth.service.js';
@@ -63,6 +65,8 @@ import { AuthCredentialsService } from './auth-credentials.service.js';
     AuthSecondFactorService,
     AuthTokenIssuerService,
     AuthRepository,
+    AuthRefreshTokensRepository,
+    AuthRefreshRotationService,
     AuthOneTimeCodeRepository,
     MerchantActorRepository,
     CredentialsNotifierService,

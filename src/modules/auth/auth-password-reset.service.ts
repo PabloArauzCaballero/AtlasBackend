@@ -10,6 +10,7 @@ import { generateNumericCode, hashOneTimeCode, verifyOneTimeCode } from '../../c
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
+import { AuthRefreshTokensRepository } from './auth-refresh-tokens.repository.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
 import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
 
@@ -43,6 +44,7 @@ export class AuthPasswordResetService {
 
   constructor(
     private readonly authRepository: AuthRepository,
+    private readonly refreshTokens: AuthRefreshTokensRepository,
     private readonly oneTimeCodeRepository: AuthOneTimeCodeRepository,
     private readonly tokenRevocationService: TokenRevocationService,
     private readonly mailSenderService: MailSenderService,
@@ -184,7 +186,7 @@ export class AuthPasswordResetService {
     // Cambio de contraseña = cerrar toda sesión previa: refresh tokens revocados y tokenVersion
     // incrementado vía TokenRevocationService (misma razón que logout allDevices: la caché Redis
     // de JwtAuthGuard debe invalidarse de inmediato, no al vencer su TTL).
-    await this.authRepository.revokeAllRefreshTokensForActor(input.actorType, actor.id, 'password_reset');
+    await this.refreshTokens.revokeAllRefreshTokensForActor(input.actorType, actor.id, 'password_reset');
     await this.tokenRevocationService.bumpTokenVersion(input.actorType, actor.id);
 
     await this.authRepository.recordLoginAttemptEvent({
