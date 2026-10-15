@@ -23,7 +23,7 @@ traducción HTTP). Tres fugas existen hoy y están en `LEAK_BASELINE` con la tar
 | Fuga | Retira |
 |---|---|
 | `credit-unit-of-work.port.ts` deriva tipos de `CreditRepository` (modelos) | AT-025 |
-| `risk-assessment-store.port.ts` deriva tipos de `RiskRepository` | AT-025 |
+| `risk-assessment-store.port.ts` deriva tipos de `RiskAssessmentRepository`, `RiskFeatureEvidenceRepository` y `RiskAuditRepository` | AT-025 |
 | `event-consumer.port.ts` recibe `Transaction` (despacho local) | AT-056 (transporte del piloto) |
 
 ## Cobertura

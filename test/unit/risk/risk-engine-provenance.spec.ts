@@ -55,7 +55,16 @@ function build(engineResponse: Record<string, unknown> | Error) {
   };
   const customers = { findById: jest.fn(async (..._args: unknown[]) => ({ lifecycleStatus: 'active' })) };
   const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-  const service = new RiskService(riskRepository as never, revisionManual as never, customers as never, policy, sequelize as never);
+  const service = new RiskService(
+    riskRepository as never,
+    riskRepository as never,
+    riskRepository as never,
+    riskRepository as never,
+    revisionManual as never,
+    customers as never,
+    policy,
+    sequelize as never,
+  );
 
   const restore = () => {
     (env as Mutable).DECISION_ENGINE_RISK_ARTIFACT = original;

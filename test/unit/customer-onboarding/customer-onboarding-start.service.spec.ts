@@ -85,9 +85,9 @@ describe('CustomerOnboardingStartService.startOnboarding', () => {
       tokenIssuer as never,
       guardsService as never,
       // Real: el dispositivo, la sesión y su instantánea salieron a su propio colaborador, pero
-      // siguen hablando con el mismo doble de `SessionsRepository`, así que las aserciones de estas
+      // siguen hablando con el mismo doble de los repositorios de sesiones, así que las aserciones de estas
       // pruebas no cambian.
-      new OnboardingDeviceSessionService(sessionsRepository as never),
+      new OnboardingDeviceSessionService(sessionsRepository as never, sessionsRepository as never),
       sequelize as never,
     );
 

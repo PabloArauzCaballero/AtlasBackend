@@ -30,7 +30,14 @@ describe('SessionQueryService', () => {
       findSessionAudits: jest.fn(async (..._args: unknown[]) => []),
     };
     const customersRepository = { findById: jest.fn() };
-    const service = new SessionQueryService(sessionsRepository as never, customersRepository as never);
+    const service = new SessionQueryService(
+      sessionsRepository as never,
+      sessionsRepository as never,
+      sessionsRepository as never,
+      sessionsRepository as never,
+      sessionsRepository as never,
+      customersRepository as never,
+    );
     return { service, sessionsRepository, customersRepository };
   }
 

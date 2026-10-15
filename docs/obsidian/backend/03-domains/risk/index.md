@@ -78,7 +78,7 @@ Persiste en 20 tabla(s):
 
 **Del que dependen:** [[03-domains/operations/index\|operations]]
 
-**Exporta:** `RiskRepository`, `RiskService`
+**Exporta:** `RiskAssessmentRepository`, `RiskService`
 
 > [!warning] Exporta un repositorio
 > Otros módulos pueden llegar a la persistencia de este dominio sin pasar por su servicio, saltándose las reglas que vivan ahí. La regla del proyecto solo lo admite con necesidad transaccional real y documentada.
@@ -89,7 +89,7 @@ Persiste en 20 tabla(s):
 |---|---|
 | Controllers | `risk.controller.ts` |
 | Services | `risk.service.ts`, `application/risk-policy-decision.service.ts` |
-| Repositories | `risk.repository.ts`, `repositories/risk-policy.repository.ts` |
+| Repositories | `repositories/risk-assessment.repository.ts`, `repositories/risk-feature-evidence.repository.ts`, `repositories/risk-customer-facts.repository.ts`, `repositories/risk-audit.repository.ts`, `repositories/risk-policy.repository.ts`, `repositories/revision-manual.repository.ts` |
 | Esquemas Zod | `risk.schemas.ts` |
 | Mappers | `risk.mapper.ts` |
 
@@ -109,7 +109,11 @@ Roles que alcanzan este módulo: `customer`, `internal_operator`, `risk_analyst`
 - `test/unit/risk/risk-ruleset-evaluator.spec.ts`
 - `test/unit/risk/risk.controller.spec.ts`
 - `test/unit/risk/risk.mapper.spec.ts`
-- `test/unit/risk/risk.repository.spec.ts`
+- `test/unit/risk/risk-assessment.repository.spec.ts`
+- `test/unit/risk/risk-feature-evidence.repository.spec.ts`
+- `test/unit/risk/risk-customer-facts.repository.spec.ts`
+- `test/unit/risk/risk-audit.repository.spec.ts`
+- `test/unit/risk/revision-manual.repository.spec.ts`
 - `test/unit/risk/risk.service.spec.ts`
 
 ## Referencias al código
