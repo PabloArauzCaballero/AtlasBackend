@@ -16,7 +16,7 @@ import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerEligibilityRepository } from '../../customers/repositories/customer-eligibility.repository.js';
 import { isIdentityVerified } from '../../../common/utils/identity/identity-result.util.js';
 import { UpdateProfileDto } from '../customer-onboarding-profile.schemas.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 import { CustomerProfileDataRepository } from '../repositories/customer-profile-data.repository.js';
 import { ConsentsRepository } from '../../consents/consents.repository.js';
 
@@ -45,7 +45,7 @@ export class CustomerProfileUpdateService {
   constructor(
     private readonly customersRepository: CustomersRepository,
     private readonly profileDataRepository: CustomerProfileDataRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly flowRepository: CustomerOnboardingFlowRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly eligibilityRepository: CustomerEligibilityRepository,
     private readonly consentsRepository: ConsentsRepository,
@@ -131,8 +131,8 @@ export class CustomerProfileUpdateService {
         transaction,
       });
 
-      const flow = await this.onboardingRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
-      await this.onboardingRepository.createOnboardingStepEvent(
+      const flow = await this.flowRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
+      await this.flowRepository.createOnboardingStepEvent(
         {
           tenantId: input.tenantId,
           onboardingFlowId: flow ? String(flow.id) : null,
@@ -157,7 +157,7 @@ export class CustomerProfileUpdateService {
         transaction,
       });
 
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,

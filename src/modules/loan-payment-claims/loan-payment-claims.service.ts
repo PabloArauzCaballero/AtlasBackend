@@ -165,7 +165,7 @@ export class LoanPaymentClaimsService {
 
       /*
        * El comprobante se guarda donde vive el resto de la evidencia del cliente, con su hash, su
-       * tipo y su bucket. Se escribe contra el modelo y no contra `CustomerOnboardingRepository`
+       * tipo y su bucket. Se escribe contra el modelo y no contra el repositorio de onboarding
        * porque ese repositorio no se exporta: importarlo obligaria a abrir el modulo de alta entero
        * para reutilizar una sola escritura.
        */

@@ -116,7 +116,6 @@ import { CustomerAddressStatusRepository } from './repositories/customer-address
 import { CustomerContactVerificationRepository } from './repositories/customer-contact-verification.repository.js';
 import { CustomerIdentityEvidenceRepository } from './repositories/customer-identity-evidence.repository.js';
 import { CustomerOnboardingFlowRepository } from './repositories/customer-onboarding-flow.repository.js';
-import { CustomerOnboardingRepository } from './customer-onboarding.repository.js';
 import { CustomerOnboardingService } from './customer-onboarding.service.js';
 import { IdentityReviewCallbackController } from './identity-review-callback.controller.js';
 import { IdentityVerdictEventPublisher } from './application/identity-verdict-event.publisher.js';
@@ -259,7 +258,6 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
     CustomerContactVerificationRepository,
     CustomerIdentityEvidenceRepository,
     CustomerAddressStatusRepository,
-    CustomerOnboardingRepository,
     ConsumerSurveyService,
     CustomerSupportingEvidenceService,
   ],

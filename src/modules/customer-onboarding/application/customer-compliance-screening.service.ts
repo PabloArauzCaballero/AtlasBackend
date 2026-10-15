@@ -11,7 +11,7 @@ import { hashSensitiveText } from '../../../common/utils/crypto/hash.util.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 import { CustomerProfileDataRepository } from '../repositories/customer-profile-data.repository.js';
 import { CustomerVerificationRepository } from '../repositories/customer-verification.repository.js';
 
@@ -37,7 +37,7 @@ export class CustomerComplianceScreeningService {
     private readonly customersRepository: CustomersRepository,
     private readonly profileDataRepository: CustomerProfileDataRepository,
     private readonly verificationRepository: CustomerVerificationRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly flowRepository: CustomerOnboardingFlowRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly eligibilityService: CustomerEligibilityService,
     @InjectConnection() private readonly sequelize: Sequelize,
@@ -101,7 +101,7 @@ export class CustomerComplianceScreeningService {
         });
       }
 
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,
@@ -163,7 +163,7 @@ export class CustomerComplianceScreeningService {
         );
       }
 
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,

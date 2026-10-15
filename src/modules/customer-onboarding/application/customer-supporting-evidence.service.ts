@@ -10,7 +10,7 @@ import { DocumentStorageService } from '../../../common/storage/document-storage
 import type { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../../common/utils/auth/ownership.util.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerIdentityEvidenceRepository } from '../repositories/customer-identity-evidence.repository.js';
 import type { SupportingEvidenceDto } from '../customer-supporting-evidence.schemas.js';
 import { IdentityEvidenceVerificationService } from './identity-evidence-verification.service.js';
 
@@ -30,7 +30,7 @@ import { IdentityEvidenceVerificationService } from './identity-evidence-verific
 export class CustomerSupportingEvidenceService {
   constructor(
     private readonly customersRepository: CustomersRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly identityEvidenceRepository: CustomerIdentityEvidenceRepository,
     private readonly verification: IdentityEvidenceVerificationService,
     private readonly storageService: DocumentStorageService,
     @InjectConnection() private readonly sequelize: Sequelize,
@@ -54,7 +54,7 @@ export class CustomerSupportingEvidenceService {
     const now = new Date();
 
     const evidenceId = await this.sequelize.transaction(async (transaction) => {
-      const evidence = await this.onboardingRepository.createEvidenceDocument(
+      const evidence = await this.identityEvidenceRepository.createEvidenceDocument(
         {
           tenantId: input.tenantId,
           customerId: input.customerId,
@@ -70,7 +70,7 @@ export class CustomerSupportingEvidenceService {
         },
         { transaction },
       );
-      await this.onboardingRepository.createEvidenceExtraction(
+      await this.identityEvidenceRepository.createEvidenceExtraction(
         {
           tenantId: input.tenantId,
           evidenceDocumentId: String(evidence.id),

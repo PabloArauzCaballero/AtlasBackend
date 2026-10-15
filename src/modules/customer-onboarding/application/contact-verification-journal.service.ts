@@ -6,7 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { Transaction } from 'sequelize';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 
 type JournalContext = {
   tenantId: string;
@@ -32,7 +32,7 @@ type JournalContext = {
  */
 @Injectable()
 export class ContactVerificationJournalService {
-  constructor(private readonly onboardingRepository: CustomerOnboardingRepository) {}
+  constructor(private readonly flowRepository: CustomerOnboardingFlowRepository) {}
 
   /**
    * `delivered` ya no se registra aquí: la entrega ocurre DESPUÉS del commit (ver
@@ -43,10 +43,10 @@ export class ContactVerificationJournalService {
     context: JournalContext,
     values: { verificationChannel: string; attemptId: string; contactMethodId: string },
   ): Promise<void> {
-    const flow = await this.onboardingRepository.findLatestOnboardingFlow(context.tenantId, context.customerId, {
+    const flow = await this.flowRepository.findLatestOnboardingFlow(context.tenantId, context.customerId, {
       transaction: context.transaction,
     });
-    await this.onboardingRepository.createOnboardingStepEvent(
+    await this.flowRepository.createOnboardingStepEvent(
       {
         tenantId: context.tenantId,
         onboardingFlowId: flow ? String(flow.id) : null,
@@ -78,10 +78,10 @@ export class ContactVerificationJournalService {
   }
 
   async recordVerified(context: JournalContext, values: { attemptId: string }): Promise<void> {
-    const flow = await this.onboardingRepository.findLatestOnboardingFlow(context.tenantId, context.customerId, {
+    const flow = await this.flowRepository.findLatestOnboardingFlow(context.tenantId, context.customerId, {
       transaction: context.transaction,
     });
-    await this.onboardingRepository.createOnboardingStepEvent(
+    await this.flowRepository.createOnboardingStepEvent(
       {
         tenantId: context.tenantId,
         onboardingFlowId: flow ? String(flow.id) : null,
@@ -104,7 +104,7 @@ export class ContactVerificationJournalService {
     context: JournalContext,
     values: { eventType: string; successful: boolean | null; failureReasonCode: string | null },
   ): Promise<unknown> {
-    return this.onboardingRepository.createAuthEvent(
+    return this.flowRepository.createAuthEvent(
       {
         tenantId: context.tenantId,
         customerId: context.customerId,
@@ -121,7 +121,7 @@ export class ContactVerificationJournalService {
   }
 
   private recordActionLog(context: JournalContext, values: { eventName: string }): Promise<unknown> {
-    return this.onboardingRepository.createCustomerActionLog(
+    return this.flowRepository.createCustomerActionLog(
       {
         tenantId: context.tenantId,
         customerId: context.customerId,
@@ -138,7 +138,7 @@ export class ContactVerificationJournalService {
   }
 
   private recordAudit(context: JournalContext, values: { actionCode: string; payload: Record<string, unknown> }): Promise<unknown> {
-    return this.onboardingRepository.createOperationalAuditLog(
+    return this.flowRepository.createOperationalAuditLog(
       {
         tenantId: context.tenantId,
         actorType: context.actorRole,

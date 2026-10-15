@@ -11,7 +11,7 @@ import { consentHappenedAt } from '../../consents/consent-time.util.js';
 import type { CustomersRepository } from '../../customers/customers.repository.js';
 import type { SessionsDeviceRepository } from '../../sessions/repositories/sessions-device.repository.js';
 import type { SessionsLifecycleRepository } from '../../sessions/repositories/sessions-lifecycle.repository.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 import type { RegistrationCommand } from './ports/onboarding-registration.port.js';
 
 type RegistrationInput = RegistrationCommand['registration'];
@@ -20,7 +20,7 @@ type RegistrationInput = RegistrationCommand['registration'];
 @Injectable()
 export class OnboardingRegistrationTrailService {
   constructor(
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly flowRepository: CustomerOnboardingFlowRepository,
     private readonly consentsRepository: ConsentsRepository,
   ) {}
 
@@ -37,7 +37,7 @@ export class OnboardingRegistrationTrailService {
     now: Date;
     transaction: Transaction;
   }) {
-    const onboardingFlow = await this.onboardingRepository.createOnboardingFlow(
+    const onboardingFlow = await this.flowRepository.createOnboardingFlow(
       {
         tenantId: input.tenantId,
         customerId: String(input.customer.id),
@@ -49,7 +49,7 @@ export class OnboardingRegistrationTrailService {
       { transaction: input.transaction },
     );
 
-    await this.onboardingRepository.createOnboardingStepEvent(
+    await this.flowRepository.createOnboardingStepEvent(
       {
         tenantId: input.tenantId,
         onboardingFlowId: String(onboardingFlow.id),
@@ -81,7 +81,7 @@ export class OnboardingRegistrationTrailService {
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
     session: Awaited<ReturnType<SessionsLifecycleRepository['createSession']>>;
     device: Awaited<ReturnType<SessionsDeviceRepository['findDevice']>>;
-    onboardingFlow: Awaited<ReturnType<CustomerOnboardingRepository['createOnboardingFlow']>>;
+    onboardingFlow: Awaited<ReturnType<CustomerOnboardingFlowRepository['createOnboardingFlow']>>;
     input: RegistrationInput;
     ipAddress: string | null;
     idempotencyKey: string;
@@ -98,14 +98,14 @@ export class OnboardingRegistrationTrailService {
     tenantId: string;
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
     session: Awaited<ReturnType<SessionsLifecycleRepository['createSession']>>;
-    onboardingFlow: Awaited<ReturnType<CustomerOnboardingRepository['createOnboardingFlow']>>;
+    onboardingFlow: Awaited<ReturnType<CustomerOnboardingFlowRepository['createOnboardingFlow']>>;
     input: RegistrationInput;
     now: Date;
     transaction: Transaction;
   }): Promise<void> {
     for (const permissionInput of input.input.permissions ?? []) {
       const decidedAt = permissionInput.decidedAt ? new Date(permissionInput.decidedAt) : input.now;
-      await this.onboardingRepository.createPermissionEvent(
+      await this.flowRepository.createPermissionEvent(
         {
           tenantId: input.tenantId,
           customerId: String(input.customer.id),
@@ -126,7 +126,7 @@ export class OnboardingRegistrationTrailService {
     customer: Awaited<ReturnType<CustomersRepository['createCustomer']>>;
     session: Awaited<ReturnType<SessionsLifecycleRepository['createSession']>>;
     device: Awaited<ReturnType<SessionsDeviceRepository['findDevice']>>;
-    onboardingFlow: Awaited<ReturnType<CustomerOnboardingRepository['createOnboardingFlow']>>;
+    onboardingFlow: Awaited<ReturnType<CustomerOnboardingFlowRepository['createOnboardingFlow']>>;
     input: RegistrationInput;
     ipAddress: string | null;
     idempotencyKey: string;
@@ -134,7 +134,7 @@ export class OnboardingRegistrationTrailService {
     now: Date;
     transaction: Transaction;
   }): Promise<void> {
-    await this.onboardingRepository.createCustomerActionLog(
+    await this.flowRepository.createCustomerActionLog(
       {
         tenantId: input.tenantId,
         customerId: String(input.customer.id),
@@ -152,7 +152,7 @@ export class OnboardingRegistrationTrailService {
       { transaction: input.transaction },
     );
 
-    await this.onboardingRepository.createOperationalAuditLog(
+    await this.flowRepository.createOperationalAuditLog(
       {
         tenantId: input.tenantId,
         actorType: 'customer',

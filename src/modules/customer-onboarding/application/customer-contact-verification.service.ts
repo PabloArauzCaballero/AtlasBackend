@@ -20,7 +20,7 @@ import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerContactVerificationRepository } from '../repositories/customer-contact-verification.repository.js';
 import { ContactVerificationRequestDto, ContactVerificationSubmitDto } from '../customer-onboarding.schemas.js';
 import { ContactVerificationCodeService } from './contact-verification-code.service.js';
 import { ContactVerificationJournalService } from './contact-verification-journal.service.js';
@@ -55,7 +55,7 @@ type FlowInput = {
 export class CustomerContactVerificationService {
   constructor(
     private readonly customersRepository: CustomersRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly contactRepository: CustomerContactVerificationRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly codeService: ContactVerificationCodeService,
     private readonly journal: ContactVerificationJournalService,
@@ -98,7 +98,7 @@ export class CustomerContactVerificationService {
       });
       if (contactMethod.status === 'verified') throw new ConflictException('CONTACT_ALREADY_VERIFIED');
 
-      const latestAttempt = await this.onboardingRepository.findLatestContactVerificationAttempt(input.tenantId, String(contactMethod.id), {
+      const latestAttempt = await this.contactRepository.findLatestContactVerificationAttempt(input.tenantId, String(contactMethod.id), {
         transaction,
       });
       if (latestAttempt?.attemptedAt && now.getTime() - latestAttempt.attemptedAt.getTime() < RESEND_COOLDOWN_MS) {
@@ -113,7 +113,7 @@ export class CustomerContactVerificationService {
         transaction,
       });
 
-      const attempt = await this.onboardingRepository.createContactVerificationAttempt(
+      const attempt = await this.contactRepository.createContactVerificationAttempt(
         {
           tenantId: input.tenantId,
           contactMethodId: String(contactMethod.id),
@@ -142,7 +142,7 @@ export class CustomerContactVerificationService {
       channel: input.body.verificationChannel,
       issued: issuedContext.issued,
       // Sólo se resuelve si el despliegue la tiene encendida; ver `otp-fallback-email.util.ts`.
-      fallbackEmail: await resolveOtpFallbackEmail(this.onboardingRepository, {
+      fallbackEmail: await resolveOtpFallbackEmail(this.contactRepository, {
         tenantId: input.tenantId,
         customerId: input.customerId,
         contactType: input.body.contactType,
@@ -154,7 +154,7 @@ export class CustomerContactVerificationService {
       // El intento ya está comprometido; lo que cambia es su desenlace. Se corrige en su propia
       // transacción para no reabrir la anterior, que ya cerró bien.
       await this.sequelize.transaction((transaction) =>
-        this.onboardingRepository.updateContactVerificationAttempt(
+        this.contactRepository.updateContactVerificationAttempt(
           issuedContext.attempt,
           { verificationStatus: 'delivery_failed', verifiedAt: null, failureReasonCode: delivery.errorCode, confidenceScore: null },
           { transaction },
@@ -193,7 +193,7 @@ export class CustomerContactVerificationService {
       });
       if (contactMethod.status === 'verified') throw new ConflictException('CONTACT_ALREADY_VERIFIED');
 
-      const attempt = await this.onboardingRepository.findLatestContactVerificationAttempt(input.tenantId, String(contactMethod.id), {
+      const attempt = await this.contactRepository.findLatestContactVerificationAttempt(input.tenantId, String(contactMethod.id), {
         transaction,
       });
       if (!attempt) throw new NotFoundException('VERIFICATION_ATTEMPT_NOT_FOUND');
@@ -209,7 +209,7 @@ export class CustomerContactVerificationService {
       });
 
       if (!verification.ok) {
-        await this.onboardingRepository.updateContactVerificationAttempt(
+        await this.contactRepository.updateContactVerificationAttempt(
           attempt,
           {
             verificationStatus: verification.reason === 'invalid' ? 'failed' : 'expired',
@@ -226,12 +226,12 @@ export class CustomerContactVerificationService {
         return { rejected: verification.reason };
       }
 
-      await this.onboardingRepository.updateContactVerificationAttempt(
+      await this.contactRepository.updateContactVerificationAttempt(
         attempt,
         { verificationStatus: 'verified', verifiedAt: now, failureReasonCode: null, confidenceScore: '1.00' },
         { transaction },
       );
-      await this.onboardingRepository.markContactMethodVerified(contactMethod, now, { transaction });
+      await this.contactRepository.markContactMethodVerified(contactMethod, now, { transaction });
 
       // Cierre de la corrección: el contacto que el cliente acaba de probar que controla pasa a ser
       // el principal. Sin esto, verificar el teléfono corregido no servía de nada — todo lo que mira

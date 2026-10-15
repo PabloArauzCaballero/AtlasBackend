@@ -11,7 +11,7 @@ import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/utils/auth/ownership.util.js';
 import { phoneLookupHash } from '../../../common/utils/crypto/phone-hash.util.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 import { CustomerContactsSnapshotRepository } from '../repositories/customer-contacts-snapshot.repository.js';
 import {
   type ContactsSnapshotDto,
@@ -60,7 +60,7 @@ export class CustomerContactsSnapshotService {
 
   constructor(
     private readonly customersRepository: CustomersRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly flowRepository: CustomerOnboardingFlowRepository,
     private readonly snapshots: CustomerContactsSnapshotRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
@@ -112,7 +112,7 @@ export class CustomerContactsSnapshotService {
 
     const now = new Date();
     const run = await this.sequelize.transaction(async (transaction) => {
-      const flow = await this.onboardingRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
+      const flow = await this.flowRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
 
       const created = await this.snapshots.createRun(
         {
@@ -157,7 +157,7 @@ export class CustomerContactsSnapshotService {
         );
       }
 
-      await this.onboardingRepository.createOnboardingStepEvent(
+      await this.flowRepository.createOnboardingStepEvent(
         {
           tenantId: input.tenantId,
           onboardingFlowId: flow ? String(flow.id) : null,
@@ -176,7 +176,7 @@ export class CustomerContactsSnapshotService {
         { transaction },
       );
 
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,

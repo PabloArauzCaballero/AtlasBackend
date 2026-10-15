@@ -15,7 +15,8 @@ import { CustomerEligibilityService } from '../../customers/application/customer
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
+import { CustomerIdentityEvidenceRepository } from '../repositories/customer-identity-evidence.repository.js';
 import { CustomerIdentityProviderVerificationService } from './customer-identity-provider-verification.service.js';
 import { IdentityEvidenceVerificationService } from './identity-evidence-verification.service.js';
 import { IdentityPackageDto } from '../customer-onboarding.schemas.js';
@@ -26,7 +27,8 @@ export class CustomerIdentityPackageService {
 
   constructor(
     private readonly customersRepository: CustomersRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly flowRepository: CustomerOnboardingFlowRepository,
+    private readonly evidenceRepository: CustomerIdentityEvidenceRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly storageService: DocumentStorageService,
     private readonly providerVerificationService: CustomerIdentityProviderVerificationService,
@@ -67,13 +69,11 @@ export class CustomerIdentityPackageService {
     this.evidenceVerification.assertBelongsToCustomer(input.tenantId, input.customerId, input.body.evidence);
 
     const verifiedEvidence = await this.evidenceVerification.verifyObjects(input.body.evidence);
-
     const now = new Date();
-
     const packageResult = await this.sequelize.transaction(async (transaction) => {
       let providerRequestId: string | null = null;
       if (input.body.provider) {
-        const providerRequest = await this.onboardingRepository.createDataProviderRequest(
+        const providerRequest = await this.evidenceRepository.createDataProviderRequest(
           {
             tenantId: input.tenantId,
             customerId: input.customerId,
@@ -86,7 +86,7 @@ export class CustomerIdentityPackageService {
           { transaction },
         );
         providerRequestId = String(providerRequest.id);
-        await this.onboardingRepository.createDataProviderResponse(
+        await this.evidenceRepository.createDataProviderResponse(
           {
             tenantId: input.tenantId,
             providerRequestId,
@@ -100,7 +100,7 @@ export class CustomerIdentityPackageService {
 
       const evidenceIds: Record<string, string> = {};
       for (const evidenceInput of input.body.evidence) {
-        const evidence = await this.onboardingRepository.createEvidenceDocument(
+        const evidence = await this.evidenceRepository.createEvidenceDocument(
           {
             tenantId: input.tenantId,
             customerId: input.customerId,
@@ -119,7 +119,7 @@ export class CustomerIdentityPackageService {
           { transaction },
         );
         evidenceIds[evidenceInput.evidenceType] = String(evidence.id);
-        await this.onboardingRepository.createEvidenceExtraction(
+        await this.evidenceRepository.createEvidenceExtraction(
           {
             tenantId: input.tenantId,
             evidenceDocumentId: String(evidence.id),
@@ -129,7 +129,7 @@ export class CustomerIdentityPackageService {
           },
           { transaction },
         );
-        await this.onboardingRepository.createEvidenceReview(
+        await this.evidenceRepository.createEvidenceReview(
           {
             tenantId: input.tenantId,
             evidenceDocumentId: String(evidence.id),
@@ -141,7 +141,7 @@ export class CustomerIdentityPackageService {
         );
       }
 
-      const identityDocument = await this.onboardingRepository.createIdentityDocument(
+      const identityDocument = await this.evidenceRepository.createIdentityDocument(
         {
           tenantId: input.tenantId,
           customerId: input.customerId,
@@ -158,7 +158,7 @@ export class CustomerIdentityPackageService {
         { transaction },
       );
 
-      const attempt = await this.onboardingRepository.createIdentityVerificationAttempt(
+      const attempt = await this.evidenceRepository.createIdentityVerificationAttempt(
         {
           tenantId: input.tenantId,
           customerId: input.customerId,
@@ -175,8 +175,8 @@ export class CustomerIdentityPackageService {
         { transaction },
       );
 
-      const flow = await this.onboardingRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
-      await this.onboardingRepository.createOnboardingStepEvent(
+      const flow = await this.flowRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
+      await this.flowRepository.createOnboardingStepEvent(
         {
           tenantId: input.tenantId,
           onboardingFlowId: flow ? String(flow.id) : null,
@@ -201,7 +201,7 @@ export class CustomerIdentityPackageService {
         notes: 'Paquete KYC recibido.',
         transaction,
       });
-      await this.onboardingRepository.createCustomerActionLog(
+      await this.flowRepository.createCustomerActionLog(
         {
           tenantId: input.tenantId,
           customerId: input.customerId,
@@ -214,7 +214,7 @@ export class CustomerIdentityPackageService {
         },
         { transaction },
       );
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,

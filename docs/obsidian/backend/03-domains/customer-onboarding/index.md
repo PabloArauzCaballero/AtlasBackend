@@ -161,7 +161,6 @@ Roles que alcanzan este módulo: `...CUSTOMER_AND_INTERNAL`, `customer`, `intern
 - `test/unit/customer-onboarding/customer-identity-provider-verification.service.spec.ts`
 - `test/unit/customer-onboarding/customer-onboarding-flow.repository.spec.ts`
 - `test/unit/customer-onboarding/customer-onboarding-guards.service.spec.ts`
-- `test/unit/customer-onboarding/customer-onboarding-repository-facade.spec.ts`
 - `test/unit/customer-onboarding/customer-onboarding-start.service.spec.ts`
 - `test/unit/customer-onboarding/customer-onboarding-status.service.spec.ts`
 - `test/unit/customer-onboarding/customer-onboarding.controller.spec.ts`

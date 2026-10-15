@@ -14,14 +14,16 @@ import { CustomerEligibilityService } from '../../customers/application/customer
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
+import { CustomerAddressStatusRepository } from '../repositories/customer-address-status.repository.js';
 import { AddressPackageDto } from '../customer-onboarding.schemas.js';
 
 @Injectable()
 export class CustomerAddressPackageService {
   constructor(
     private readonly customersRepository: CustomersRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly flowRepository: CustomerOnboardingFlowRepository,
+    private readonly addressStatusRepository: CustomerAddressStatusRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly eligibilityService: CustomerEligibilityService,
     @InjectConnection() private readonly sequelize: Sequelize,
@@ -51,14 +53,14 @@ export class CustomerAddressPackageService {
 
     const now = new Date();
     return this.sequelize.transaction(async (transaction) => {
-      let address = await this.onboardingRepository.findCurrentAddress(input.tenantId, input.customerId, 'home', { transaction });
+      let address = await this.addressStatusRepository.findCurrentAddress(input.tenantId, input.customerId, 'home', { transaction });
       if (!address) {
-        address = await this.onboardingRepository.createAddress(
+        address = await this.addressStatusRepository.createAddress(
           { tenantId: input.tenantId, customerId: input.customerId, addressType: 'home', now },
           { transaction },
         );
       } else {
-        await this.onboardingRepository.touchAddress(address, now, { transaction });
+        await this.addressStatusRepository.touchAddress(address, now, { transaction });
       }
 
       /*
@@ -81,7 +83,7 @@ export class CustomerAddressPackageService {
         : declaredAddressText
           ? sha256Hex(declaredAddressText)
           : null;
-      const version = await this.onboardingRepository.createAddressVersion(
+      const version = await this.addressStatusRepository.createAddressVersion(
         {
           tenantId: input.tenantId,
           customerAddressId: String(address.id),
@@ -96,11 +98,11 @@ export class CustomerAddressPackageService {
         },
         { transaction },
       );
-      await this.onboardingRepository.updateAddressCurrentVersion(address, String(version.id), now, { transaction });
+      await this.addressStatusRepository.updateAddressCurrentVersion(address, String(version.id), now, { transaction });
 
       if (input.body.gpsObservation) {
         const gps = input.body.gpsObservation;
-        await this.onboardingRepository.createGpsObservation(
+        await this.addressStatusRepository.createGpsObservation(
           {
             tenantId: input.tenantId,
             customerId: input.customerId,
@@ -114,7 +116,7 @@ export class CustomerAddressPackageService {
           },
           { transaction },
         );
-        await this.onboardingRepository.createCustomerObservation(
+        await this.addressStatusRepository.createCustomerObservation(
           {
             tenantId: input.tenantId,
             customerId: input.customerId,
@@ -145,8 +147,8 @@ export class CustomerAddressPackageService {
         transaction,
       });
 
-      const flow = await this.onboardingRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
-      await this.onboardingRepository.createOnboardingStepEvent(
+      const flow = await this.flowRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
+      await this.flowRepository.createOnboardingStepEvent(
         {
           tenantId: input.tenantId,
           onboardingFlowId: flow ? String(flow.id) : null,
@@ -157,7 +159,7 @@ export class CustomerAddressPackageService {
         },
         { transaction },
       );
-      await this.onboardingRepository.createCustomerActionLog(
+      await this.flowRepository.createCustomerActionLog(
         {
           tenantId: input.tenantId,
           customerId: input.customerId,
@@ -170,7 +172,7 @@ export class CustomerAddressPackageService {
         },
         { transaction },
       );
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,

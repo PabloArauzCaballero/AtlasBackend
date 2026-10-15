@@ -14,7 +14,7 @@ import {
 } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { UploadUrlRequestDto } from '../customer-onboarding-profile.schemas.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 
 /**
  * Emisión del permiso de subida de evidencia documental.
@@ -28,7 +28,7 @@ import { CustomerOnboardingRepository } from '../customer-onboarding.repository.
 export class CustomerDocumentUploadService {
   constructor(
     private readonly customersRepository: CustomersRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly flowRepository: CustomerOnboardingFlowRepository,
     private readonly storageService: DocumentStorageService,
   ) {}
 
@@ -72,7 +72,7 @@ export class CustomerDocumentUploadService {
       sizeBytes: input.body.sizeBytes,
     });
 
-    await this.onboardingRepository.createOperationalAuditLog(
+    await this.flowRepository.createOperationalAuditLog(
       {
         tenantId: input.tenantId,
         actorType: input.currentUser.role,

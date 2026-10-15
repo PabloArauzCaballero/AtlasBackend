@@ -14,7 +14,7 @@ import { CustomerLifecycleService } from '../../customers/application/customer-l
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { ExternalProviderConvenienceService } from '../../external-data/application/external-provider-convenience.service.js';
 import { VerifyIdentityDto } from '../customer-onboarding-profile.schemas.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 import { CustomerProfileDataRepository } from '../repositories/customer-profile-data.repository.js';
 import { CustomerVerificationRepository } from '../repositories/customer-verification.repository.js';
 import { resolveIdentityOutcome } from './identity-verification-outcome.js';
@@ -40,7 +40,7 @@ export class CustomerIdentityProviderVerificationService {
     private readonly customersRepository: CustomersRepository,
     private readonly verificationRepository: CustomerVerificationRepository,
     private readonly profileDataRepository: CustomerProfileDataRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly flowRepository: CustomerOnboardingFlowRepository,
     private readonly externalProviders: ExternalProviderConvenienceService,
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly eligibilityService: CustomerEligibilityService,
@@ -157,8 +157,8 @@ export class CustomerIdentityProviderVerificationService {
         });
       }
 
-      const flow = await this.onboardingRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
-      await this.onboardingRepository.createOnboardingStepEvent(
+      const flow = await this.flowRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
+      await this.flowRepository.createOnboardingStepEvent(
         {
           tenantId: input.tenantId,
           onboardingFlowId: flow ? String(flow.id) : null,
@@ -175,7 +175,7 @@ export class CustomerIdentityProviderVerificationService {
         { transaction },
       );
 
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,
