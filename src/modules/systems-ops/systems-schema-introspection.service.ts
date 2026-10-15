@@ -18,7 +18,7 @@ import {
 import { readCatalogVisibility, seesEverything } from './catalog-visibility.util.js';
 import { classifyColumn, humanizeIdentifier } from './column-classification.util.js';
 import { SystemsCatalogClassifierService } from './systems-catalog-classifier.service.js';
-import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SystemDataEntityCatalogRepository } from './system-data-entity-catalog.repository.js';
 
 /** Cuántas filas se procesan en paralelo por lote al reflejar el esquema. */
 const SEED_CONCURRENCY = 20;
@@ -51,7 +51,7 @@ export class SystemsSchemaIntrospectionService {
 
   constructor(
     @InjectConnection() private readonly sequelize: Sequelize,
-    private readonly catalogRepository: SystemsCatalogRepository,
+    private readonly dataEntityCatalog: SystemDataEntityCatalogRepository,
     private readonly classifier: SystemsCatalogClassifierService,
   ) {}
 
@@ -62,9 +62,9 @@ export class SystemsSchemaIntrospectionService {
     // lotes acotados en vez de uno a la vez o todos de golpe.
     const tables = await this.listDatabaseTables();
     await mapWithConcurrency(tables, SEED_CONCURRENCY, async (table) => {
-      const existing = await this.catalogRepository.findDataEntityByTable(table.schemaName, table.tableName);
+      const existing = await this.dataEntityCatalog.findDataEntityByTable(table.schemaName, table.tableName);
       if (!existing) {
-        await this.catalogRepository.upsertDataEntity({
+        await this.dataEntityCatalog.upsertDataEntity({
           ...this.classifier.classifyTable(table.tableName, null),
           schemaName: table.schemaName,
           detectedFrom: 'information_schema_enriched',
@@ -168,9 +168,9 @@ SELECT c.table_schema AS "schemaName",
 
   private async upsertCatalogColumn(column: IntrospectedColumn): Promise<void> {
     const [entity, referencedEntity] = await Promise.all([
-      this.catalogRepository.findDataEntityByTable(column.schemaName, column.tableName),
+      this.dataEntityCatalog.findDataEntityByTable(column.schemaName, column.tableName),
       column.referencedSchema && column.referencedTable
-        ? this.catalogRepository.findDataEntityByTable(column.referencedSchema, column.referencedTable)
+        ? this.dataEntityCatalog.findDataEntityByTable(column.referencedSchema, column.referencedTable)
         : Promise.resolve(null),
     ]);
     const signals = classifyColumn(column.columnName, column.tableName);
@@ -236,8 +236,8 @@ SELECT c.table_schema AS "schemaName",
 
   private async upsertCatalogRelationship(column: IntrospectedColumn): Promise<void> {
     const [source, target] = await Promise.all([
-      this.catalogRepository.findDataEntityByTable(column.schemaName, column.tableName),
-      this.catalogRepository.findDataEntityByTable(column.referencedSchema ?? column.schemaName, column.referencedTable ?? ''),
+      this.dataEntityCatalog.findDataEntityByTable(column.schemaName, column.tableName),
+      this.dataEntityCatalog.findDataEntityByTable(column.referencedSchema ?? column.schemaName, column.referencedTable ?? ''),
     ]);
     const existing = await this.sequelize.query<{ id: string }>(
       `

@@ -44,6 +44,8 @@ describe('SystemsCatalogQueryService', () => {
     const reviewRepository = { updateDataEntityMetadata: jest.fn(async (..._args: unknown[]) => null as unknown) };
     const service = new SystemsCatalogQueryService(
       catalogRepository as never,
+      catalogRepository as never,
+      catalogRepository as never,
       dashboardRepository as never,
       discovery as never,
       seedService as never,

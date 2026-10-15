@@ -42,7 +42,7 @@ export type UpsertDataImpactInput = {
 };
 
 /**
- * Sale de `SystemsCatalogRepository` porque aquel archivo llevaba dos catálogos en uno: las
+ * Sale del antiguo repositorio del catálogo (hoy partido por agregado) porque aquel archivo llevaba dos catálogos en uno: las
  * ENTIDADES —endpoints, herramientas y tablas, que se dan de alta y se actualizan— y los METADATOS
  * que las describen y las relacionan, que sólo se leen. Con 548 líneas era casi el doble del límite
  * de `check:file-size`, y la mitad de las consultas no tenían nada que ver con la otra mitad.

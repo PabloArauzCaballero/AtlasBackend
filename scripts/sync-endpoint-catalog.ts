@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   const { env } = await import('../src/config/env.js');
   const { buildOpenApiDocument } = await import('../src/config/swagger.js');
   const { OpenApiCatalogService } = await import('../src/modules/systems-ops/openapi-catalog.service.js');
-  const { SystemsCatalogRepository } = await import('../src/modules/systems-ops/systems-catalog.repository.js');
+  const { SystemEndpointCatalogRepository } = await import('../src/modules/systems-ops/system-endpoint-catalog.repository.js');
 
   // Una aplicación HTTP que NUNCA escucha: hace falta para que Swagger vea los controladores con
   // el mismo prefijo que `main.ts` —el catálogo guarda la ruta completa, `/api/v1/...`—, y sin
@@ -38,7 +38,7 @@ async function main(): Promise<void> {
   try {
     app.setGlobalPrefix(env.API_PREFIX, { exclude: ['metrics'] });
     const document = buildOpenApiDocument(app);
-    const repository = app.get(SystemsCatalogRepository);
+    const repository = app.get(SystemEndpointCatalogRepository);
     const seeds = app.get(OpenApiCatalogService).buildSeeds(document);
     let added = 0;
     // En serie: son ~570 consultas cortas una vez por despliegue, y el orden hace legible un fallo.

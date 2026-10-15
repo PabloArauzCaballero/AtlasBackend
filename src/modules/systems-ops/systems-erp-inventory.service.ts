@@ -6,7 +6,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SystemDataEntityCatalogRepository } from './system-data-entity-catalog.repository.js';
 import type { DataEntitySeed } from './systems-ops.types.js';
 
 /**
@@ -63,7 +63,7 @@ const PII_TABLE = /(partner|contact|user|address|person|employee)/i;
 export class SystemsErpInventoryService {
   private readonly logger = new Logger(SystemsErpInventoryService.name);
 
-  constructor(private readonly catalogRepository: SystemsCatalogRepository) {}
+  constructor(private readonly dataEntityCatalog: SystemDataEntityCatalogRepository) {}
 
   /** Escribe en el catálogo las entidades del ERP. Devuelve cuántas. */
   async seedErpEntities(): Promise<number> {
@@ -71,7 +71,7 @@ export class SystemsErpInventoryService {
     if (!inventory) return 0;
 
     for (const table of inventory.tables) {
-      await this.catalogRepository.upsertDataEntity(this.toSeed(inventory.sourceSystem, table));
+      await this.dataEntityCatalog.upsertDataEntity(this.toSeed(inventory.sourceSystem, table));
     }
     this.logger.log(`Catálogo: ${inventory.tables.length} entidades del ERP incorporadas.`);
     return inventory.tables.length;

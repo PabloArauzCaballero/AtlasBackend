@@ -33,6 +33,8 @@ function build(options: { acquired?: boolean; createFails?: boolean } = {}) {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
+    {} as never,
     jobRunModel as never,
     {} as never,
     {} as never,

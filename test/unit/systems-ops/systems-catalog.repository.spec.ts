@@ -1,33 +1,38 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { SystemsCatalogRepository } from '../../../src/modules/systems-ops/systems-catalog.repository.js';
+import { SystemDataEntityCatalogRepository } from '../../../src/modules/systems-ops/system-data-entity-catalog.repository.js';
+import { SystemEndpointCatalogRepository } from '../../../src/modules/systems-ops/system-endpoint-catalog.repository.js';
+import { SystemToolCatalogRepository } from '../../../src/modules/systems-ops/system-tool-catalog.repository.js';
 import { SystemsMetadataRepository } from '../../../src/modules/systems-ops/systems-metadata.repository.js';
 
 /**
- * Cobertura directa de `SystemsCatalogRepository` (Fase 1.2 del plan 10/10): los finders del catálogo
+ * Cobertura directa de los repositorios del catálogo de sistemas (Fase 1.2 del plan 10/10): los finders del catálogo
  * de endpoints, que de paso ejercitan los helpers de paginación y de construcción del `where` de
  * búsqueda. Los 11 modelos Sequelize se mockean.
  */
+type CatalogoCompleto = SystemEndpointCatalogRepository &
+  SystemToolCatalogRepository &
+  SystemDataEntityCatalogRepository &
+  Omit<SystemsMetadataRepository, 'constructor'>;
+
 /**
- * Pega los métodos de `SystemsMetadataRepository` sobre el repositorio del catálogo.
+ * Junta en un solo objeto los métodos de los tres repositorios del catálogo y del de metadatos.
  *
- * Los METADATOS salieron a su propio repositorio al partir el archivo por tamaño, pero este spec
- * los llama por docenas a través de `repo`. Copiar los métodos del prototipo —no `Object.assign`,
- * que sólo copia propiedades propias— deja las aserciones exactamente como estaban.
+ * El catálogo se partió por agregado (endpoints, herramientas, entidades de datos) y los METADATOS
+ * viven aparte, pero este spec llama a unos y otros por docenas a través de `repo`. Copiar los métodos
+ * del prototipo deja las aserciones exactamente como estaban.
  */
-function conMetadatos(
-  repo: SystemsCatalogRepository,
-  metadatos: SystemsMetadataRepository,
-): SystemsCatalogRepository & Omit<SystemsMetadataRepository, keyof SystemsCatalogRepository> {
-  const destino = repo as unknown as Record<string, unknown>;
-  for (const nombre of Object.getOwnPropertyNames(SystemsMetadataRepository.prototype)) {
-    if (nombre === 'constructor') continue;
-    const metodo = (metadatos as unknown as Record<string, (...args: unknown[]) => unknown>)[nombre];
-    destino[nombre] = metodo.bind(metadatos);
+function compuesto(...partes: object[]): CatalogoCompleto {
+  const destino: Record<string, unknown> = {};
+  for (const parte of partes) {
+    for (const nombre of Object.getOwnPropertyNames(Object.getPrototypeOf(parte))) {
+      if (nombre === 'constructor') continue;
+      destino[nombre] = (parte as Record<string, (...args: unknown[]) => unknown>)[nombre].bind(parte);
+    }
   }
-  return repo as SystemsCatalogRepository & Omit<SystemsMetadataRepository, keyof SystemsCatalogRepository>;
+  return destino as unknown as CatalogoCompleto;
 }
 
-describe('SystemsCatalogRepository', () => {
+describe('repositorios del catálogo de sistemas', () => {
   function buildRepo() {
     const make = () => {
       const model = {
@@ -46,7 +51,9 @@ describe('SystemsCatalogRepository', () => {
       return model;
     };
     const models = Array.from({ length: 11 }, make);
-    const repo = new SystemsCatalogRepository(models[0] as never, models[1] as never, models[3] as never);
+    const endpoints = new SystemEndpointCatalogRepository(models[0] as never);
+    const tools = new SystemToolCatalogRepository(models[1] as never);
+    const dataEntities = new SystemDataEntityCatalogRepository(models[3] as never);
     // Índices de los dobles: 0 endpoint, 1 tool, 2 endpointTool, 3 dataEntity, 4 dataImpact,
     // 5 fieldImpact, 6 dataField, 7 relationship, 8 operationalRule, 9 domain, 10 payloadContract.
     // El catálogo usa 0, 1 y 3; los metadatos reciben los once, en ese orden.
@@ -59,7 +66,7 @@ describe('SystemsCatalogRepository', () => {
       ...(models.map((m) => m as never) as [never, never, never, never, never, never, never, never, never, never, never]),
     );
     return {
-      repo: conMetadatos(repo, metadatos),
+      repo: compuesto(endpoints, tools, dataEntities, metadatos),
       endpointModel: models[0],
       models,
     };

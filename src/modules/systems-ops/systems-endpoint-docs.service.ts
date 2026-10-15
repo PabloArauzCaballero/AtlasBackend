@@ -8,7 +8,8 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { atlasSchemaFor } from '../../database/domain-schemas.js';
 import { pathExists } from './path-exists.util.js';
-import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SystemEndpointCatalogRepository } from './system-endpoint-catalog.repository.js';
+import { SystemDataEntityCatalogRepository } from './system-data-entity-catalog.repository.js';
 
 type DocsImpact = { method: string; path: string; reads: string[]; writes: string[] };
 
@@ -22,7 +23,8 @@ import { SystemsMetadataRepository } from './systems-metadata.repository.js';
 @Injectable()
 export class SystemsEndpointDocsService {
   constructor(
-    private readonly catalogRepository: SystemsCatalogRepository,
+    private readonly endpointCatalog: SystemEndpointCatalogRepository,
+    private readonly dataEntityCatalog: SystemDataEntityCatalogRepository,
     private readonly metadatos: SystemsMetadataRepository,
   ) {}
 
@@ -30,7 +32,7 @@ export class SystemsEndpointDocsService {
     const docs = await this.parseEndpointDocs();
     let count = 0;
     for (const doc of docs) {
-      const endpoint = await this.catalogRepository.findEndpointByMethodAndPath(doc.method, doc.path);
+      const endpoint = await this.endpointCatalog.findEndpointByMethodAndPath(doc.method, doc.path);
       if (!endpoint) continue;
       for (const table of doc.reads) {
         if (await this.upsertImpactForTable(String(endpoint.id), table, 'READ', false)) count += 1;
@@ -48,7 +50,7 @@ export class SystemsEndpointDocsService {
     operationType: string,
     isPrimaryEntity: boolean,
   ): Promise<boolean> {
-    const entity = await this.catalogRepository.findDataEntityByTable(atlasSchemaFor(tableName), tableName);
+    const entity = await this.dataEntityCatalog.findDataEntityByTable(atlasSchemaFor(tableName), tableName);
     if (!entity) return false;
     await this.metadatos.upsertDataImpact({
       endpointId,

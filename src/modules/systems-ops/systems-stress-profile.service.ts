@@ -9,7 +9,7 @@ import { mapEndpoint } from './systems-ops.mapper.js';
 import { mapStressProfile } from './systems-ops.test-run.mapper.js';
 import { SystemsListQueryDto, SystemsStressProfileQueryDto, UpsertStressProfileDto } from './systems-ops.schemas.js';
 import { actorId } from '../../common/utils/auth/actor.util.js';
-import { SystemsCatalogRepository } from './systems-catalog.repository.js';
+import { SystemEndpointCatalogRepository } from './system-endpoint-catalog.repository.js';
 import { SystemsStressProfileRepository } from './systems-stress-profile.repository.js';
 import { SYSTEMS_OPS_GOVERNANCE_ROLES } from './systems-ops.constants.js';
 
@@ -20,7 +20,7 @@ function stressCode(endpointCode: string, bodyCode?: string): string {
 @Injectable()
 export class SystemsStressProfileService {
   constructor(
-    private readonly catalogRepository: SystemsCatalogRepository,
+    private readonly endpointCatalog: SystemEndpointCatalogRepository,
     private readonly stressRepository: SystemsStressProfileRepository,
   ) {}
 
@@ -36,7 +36,7 @@ export class SystemsStressProfileService {
   }
 
   async upsertStressProfile(body: UpsertStressProfileDto, user: AuthenticatedUser) {
-    const endpoint = await this.catalogRepository.findEndpointById(body.endpointId);
+    const endpoint = await this.endpointCatalog.findEndpointById(body.endpointId);
     if (!endpoint) throw new NotFoundException('SYSTEM_ENDPOINT_NOT_FOUND');
     const code = stressCode(endpoint.code, body.code);
     await this.assertApprovalNotWaivedByRunner(code, body, user);
