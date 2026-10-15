@@ -17,31 +17,11 @@ import {
   OperationalAuditLogModel,
 } from '../../database/models/index.js';
 import { PaginationInput } from '../../common/utils/pagination/pagination.util.js';
-import { CreateInternalUserInput, InternalAccessProfile } from './internal-users.types.js';
-import { expandPermissionAliases, hasPermissionOrAlias } from '../../common/utils/permission-aliases.js';
+import { CreateInternalUserInput, InternalAccessProfile, InternalAuditInput } from './internal-users.types.js';
+import { hasPermissionOrAlias } from '../../common/utils/permission-aliases.js';
+import { ROLE_PERMISSIONS_FOR_USER_SQL, ROLE_PERMISSIONS_FOR_USERS_SQL } from './internal-rbac.sql.js';
+import { InternalRolePermissionRow, groupRolePermissionRowsByUser, mapAccessProfile } from './internal-access-profile.mapper.js';
 import { InternalUsersListFilter, ListedUsers, internalUsersListQuery } from './internal-users-list.filter.js';
-
-export type InternalRolePermissionRow = {
-  roleCode: string;
-  legacyRoleCode: string | null;
-  permissionCode: string | null;
-};
-
-export type InternalAuditInput = {
-  tenantId: string;
-  actorInternalUserId: string | null;
-  actionCode: string;
-  targetType: string;
-  targetId: string | null;
-  reason: string | null;
-  metadata?: Record<string, unknown>;
-  ipAddress?: string | null;
-  userAgent?: string | null;
-};
-
-function uniqueSorted(values: Array<string | null | undefined>): string[] {
-  return [...new Set(values.filter((value): value is string => typeof value === 'string' && value.length > 0))].sort();
-}
 
 @Injectable()
 export class InternalRbacRepository {
@@ -252,27 +232,10 @@ export class InternalRbacRepository {
   }
 
   async getRolePermissionRows(tenantId: string, internalUserId: string): Promise<InternalRolePermissionRow[]> {
-    return this.sequelize.query<InternalRolePermissionRow>(
-      `
-        SELECT r.role_code AS "roleCode", r.legacy_role_code AS "legacyRoleCode", p.permission_code AS "permissionCode"
-        FROM internal_user_roles ur
-        JOIN internal_roles r
-          ON r._id = ur.role_id
-         AND r.status = 'active'
-         AND r._deleted = false
-        LEFT JOIN internal_role_permissions rp
-          ON rp.role_id = r._id
-        LEFT JOIN internal_permissions p
-          ON p._id = rp.permission_id
-         AND p.status = 'active'
-         AND p._deleted = false
-        WHERE ur._tenant_id = :tenantId
-          AND ur.internal_user_id = :internalUserId
-          AND ur.revoked_at IS NULL
-        ORDER BY r.role_code ASC, p.permission_code ASC
-      `,
-      { replacements: { tenantId, internalUserId }, type: QueryTypes.SELECT },
-    );
+    return this.sequelize.query<InternalRolePermissionRow>(ROLE_PERMISSIONS_FOR_USER_SQL, {
+      replacements: { tenantId, internalUserId },
+      type: QueryTypes.SELECT,
+    });
   }
 
   /**
@@ -286,55 +249,15 @@ export class InternalRbacRepository {
     internalUserIds: readonly string[],
   ): Promise<Array<InternalRolePermissionRow & { internalUserId: string }>> {
     if (internalUserIds.length === 0) return [];
-    return this.sequelize.query<InternalRolePermissionRow & { internalUserId: string }>(
-      `
-        SELECT ur.internal_user_id AS "internalUserId",
-               r.role_code AS "roleCode", r.legacy_role_code AS "legacyRoleCode", p.permission_code AS "permissionCode"
-        FROM internal_user_roles ur
-        JOIN internal_roles r
-          ON r._id = ur.role_id
-         AND r.status = 'active'
-         AND r._deleted = false
-        LEFT JOIN internal_role_permissions rp
-          ON rp.role_id = r._id
-        LEFT JOIN internal_permissions p
-          ON p._id = rp.permission_id
-         AND p.status = 'active'
-         AND p._deleted = false
-        WHERE ur._tenant_id = :tenantId
-          AND ur.internal_user_id IN (:internalUserIds)
-          AND ur.revoked_at IS NULL
-        ORDER BY ur.internal_user_id ASC, r.role_code ASC, p.permission_code ASC
-      `,
-      { replacements: { tenantId, internalUserIds: [...internalUserIds] }, type: QueryTypes.SELECT },
-    );
-  }
-
-  private mapAccessProfile(user: InternalUserModel, rows: InternalRolePermissionRow[]): InternalAccessProfile {
-    const permissions = expandPermissionAliases(uniqueSorted(rows.map((row) => row.permissionCode)));
-    return {
-      user: {
-        id: user.id,
-        tenantId: user.tenantId,
-        email: user.email ?? '',
-        fullName: user.fullName ?? '',
-        name: user.fullName ?? '',
-        userCode: user.userCode,
-        status: user.status ?? 'unknown',
-        department: user.department,
-        jobTitle: user.jobTitle,
-        mustChangePassword: user.mustChangePassword,
-        mfaEnabled: user.mfaEnabled,
-        roles: uniqueSorted(rows.map((row) => row.roleCode)),
-        legacyRoles: uniqueSorted(rows.map((row) => row.legacyRoleCode)),
-        permissions,
-      },
-    };
+    return this.sequelize.query<InternalRolePermissionRow & { internalUserId: string }>(ROLE_PERMISSIONS_FOR_USERS_SQL, {
+      replacements: { tenantId, internalUserIds: [...internalUserIds] },
+      type: QueryTypes.SELECT,
+    });
   }
 
   async buildAccessProfile(user: InternalUserModel): Promise<InternalAccessProfile> {
     const rows = await this.getRolePermissionRows(user.tenantId, user.id);
-    return this.mapAccessProfile(user, rows);
+    return mapAccessProfile(user, rows);
   }
 
   async buildAccessProfiles(users: readonly InternalUserModel[]): Promise<InternalAccessProfile[]> {
@@ -344,16 +267,8 @@ export class InternalRbacRepository {
       tenantId,
       users.map((user) => user.id),
     );
-    const rowsByUser = new Map<string, InternalRolePermissionRow[]>();
-    for (const row of rows) {
-      const existing = rowsByUser.get(row.internalUserId);
-      if (existing) {
-        existing.push(row);
-      } else {
-        rowsByUser.set(row.internalUserId, [row]);
-      }
-    }
-    return users.map((user) => this.mapAccessProfile(user, rowsByUser.get(user.id) ?? []));
+    const rowsByUser = groupRolePermissionRowsByUser(rows);
+    return users.map((user) => mapAccessProfile(user, rowsByUser.get(user.id) ?? []));
   }
 
   async hasPermissions(tenantId: string, internalUserId: string, requiredPermissions: readonly string[]): Promise<boolean> {

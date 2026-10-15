@@ -57,3 +57,15 @@ export type CreateInternalUserInput = {
 };
 
 export type InternalUserListItem = InternalAccessProfile['user'];
+
+export type InternalAuditInput = {
+  tenantId: string;
+  actorInternalUserId: string | null;
+  actionCode: string;
+  targetType: string;
+  targetId: string | null;
+  reason: string | null;
+  metadata?: Record<string, unknown>;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+};
