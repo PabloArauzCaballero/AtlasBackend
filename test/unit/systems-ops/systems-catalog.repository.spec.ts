@@ -46,21 +46,10 @@ describe('SystemsCatalogRepository', () => {
       return model;
     };
     const models = Array.from({ length: 11 }, make);
-    const repo = new SystemsCatalogRepository(
-      models[0] as never,
-      models[1] as never,
-      models[2] as never,
-      models[3] as never,
-      models[4] as never,
-      models[5] as never,
-      models[6] as never,
-      models[7] as never,
-      models[8] as never,
-      models[9] as never,
-      models[10] as never,
-    );
-    // Índices del constructor: 0 endpoint, 1 tool, 2 endpointTool, 3 dataEntity, 4 dataImpact,
+    const repo = new SystemsCatalogRepository(models[0] as never, models[1] as never, models[3] as never);
+    // Índices de los dobles: 0 endpoint, 1 tool, 2 endpointTool, 3 dataEntity, 4 dataImpact,
     // 5 fieldImpact, 6 dataField, 7 relationship, 8 operationalRule, 9 domain, 10 payloadContract.
+    // El catálogo usa 0, 1 y 3; los metadatos reciben los once, en ese orden.
     /*
      * Los METADATOS —campos, relaciones, reglas, dominios, contratos e impactos— salieron a
      * `SystemsMetadataRepository` al partir el archivo por tamaño. Se construye con los MISMOS

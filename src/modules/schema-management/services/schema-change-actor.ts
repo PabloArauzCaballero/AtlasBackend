@@ -5,7 +5,7 @@
  */
 import { ForbiddenException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../../common/types/auth.types.js';
-import type { SchemaChangeLogRow } from '../schema-management.repository.js';
+import type { SchemaChangeLogRow } from '../schema-management.rows.js';
 
 /**
  * Las dos poblaciones que pueden firmar en el change log. Un id sólo tiene sentido junto a su

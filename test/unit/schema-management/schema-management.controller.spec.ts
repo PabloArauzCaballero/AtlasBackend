@@ -4,7 +4,7 @@ import { SchemaManagementController } from '../../../src/modules/schema-manageme
 
 /**
  * `SchemaManagementController` (catálogo DDL solo-lectura + propuestas 4-ojos) desempaqueta los
- * campos de la query al delegar en `SchemaManagementService`. Spec directo que verifica ese
+ * campos de la query al delegar en `SchemaCatalogService` y `SchemaManagementService`. Spec directo que verifica ese
  * desempaquetado y el paso del user en las mutaciones.
  */
 describe('SchemaManagementController', () => {
@@ -18,7 +18,7 @@ describe('SchemaManagementController', () => {
       listSchemaChangeLog: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
       approveSchemaChange: jest.fn(async (..._args: unknown[]) => ({ decided: true })),
     };
-    return { controller: new SchemaManagementController(service as never), service };
+    return { controller: new SchemaManagementController(service as never, service as never), service };
   }
   const user = { role: 'platform_admin', tenantId: '1', internalUserId: 'u1' } as never;
 

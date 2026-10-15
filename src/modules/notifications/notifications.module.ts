@@ -49,8 +49,16 @@ import { NotificationBroadcastController } from './notification-broadcast.contro
 import { NotificationProviderCallbacksController } from './notification-provider-callbacks.controller.js';
 import { NotificationProviderCallbacksService } from './notification-provider-callbacks.service.js';
 import { NotificationDeliveryStatusRepository } from './notification-delivery-status.repository.js';
-import { NotificationsRepository } from './notifications.repository.js';
-import { NotificationsService } from './notifications.service.js';
+import { NotificationMessagesRepository } from './notification-messages.repository.js';
+import { NotificationInboxRepository } from './notification-inbox.repository.js';
+import { NotificationBroadcastRepository } from './notification-broadcast.repository.js';
+import { NotificationDeliveriesRepository } from './notification-deliveries.repository.js';
+import { NotificationDeviceTokensRepository } from './notification-device-tokens.repository.js';
+import { NotificationMessagesService } from './notification-messages.service.js';
+import { NotificationTemplatesService } from './notification-templates.service.js';
+import { NotificationPreferencesService } from './notification-preferences.service.js';
+import { NotificationInboxService } from './notification-inbox.service.js';
+import { NotificationDeviceTokensService } from './notification-device-tokens.service.js';
 import { NotificationAudienceSegmentModel, NotificationCampaignModel } from '../../database/models/index.js';
 import { CAMPAIGN_AUDIENCE_PORT } from '../../platform/contracts/campaign-audience.js';
 import { CustomerCampaignAudienceAdapter } from '../customers/infrastructure/customer-campaign-audience.adapter.js';
@@ -115,13 +123,21 @@ import { NotificationCampaignsRepository } from './campaigns/notification-campai
     // Baja de los tokens que el proveedor declara muertos (410 de APNs).
     SequelizeDeviceTokenRegistryAdapter,
     { provide: DEVICE_TOKEN_REGISTRY_PORT, useExisting: SequelizeDeviceTokenRegistryAdapter },
-    NotificationsRepository,
+    NotificationMessagesRepository,
+    NotificationInboxRepository,
+    NotificationBroadcastRepository,
+    NotificationDeliveriesRepository,
+    NotificationDeviceTokensRepository,
     NotificationDeliveryStatusRepository,
     NotificationProviderCallbacksService,
     NotificationTemplatesRepository,
     NotificationPoliciesRepository,
     NotificationPreferencesRepository,
-    NotificationsService,
+    NotificationMessagesService,
+    NotificationTemplatesService,
+    NotificationPreferencesService,
+    NotificationInboxService,
+    NotificationDeviceTokensService,
     NotificationRulesService,
     NotificationTemplateRendererService,
     NotificationOrchestratorService,
@@ -146,8 +162,8 @@ import { NotificationCampaignsRepository } from './campaigns/notification-campai
     EVENT_CONSUMERS,
     NotificationOrchestratorService,
     NotificationPoliciesRepository,
-    NotificationsService,
-    NotificationsRepository,
+    NotificationCampaignRunnerService,
+    NotificationMessagesRepository,
     NotificationBroadcastService,
     SmsNotificationAdapter,
     WhatsAppNotificationAdapter,

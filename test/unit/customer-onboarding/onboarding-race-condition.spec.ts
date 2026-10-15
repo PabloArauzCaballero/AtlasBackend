@@ -2,6 +2,8 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock } from '../../support/jest-mocks.js';
 import { ConflictException } from '@nestjs/common';
 import { UniqueConstraintError } from 'sequelize';
+import { OnboardingCustomerRecordService } from '../../../src/modules/customer-onboarding/application/onboarding-customer-record.service.js';
+import { OnboardingRegistrationTrailService } from '../../../src/modules/customer-onboarding/application/onboarding-registration-trail.service.js';
 import { CustomerOnboardingStartService } from '../../../src/modules/customer-onboarding/application/customer-onboarding-start.service.js';
 import { CustomerOnboardingService } from '../../../src/modules/customer-onboarding/customer-onboarding.service.js';
 
@@ -34,11 +36,8 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
     const guardsService = { assertNoDuplicateCustomer: asyncMock(), assertConsentDocumentsAreValid: asyncMock() };
 
     const startService = new CustomerOnboardingStartService(
-      customersRepository as never,
-      customersRepository as never,
-      consentsRepository as never,
-      onboardingRepository as never,
-      authRepository as never,
+      new OnboardingCustomerRecordService(customersRepository as never, customersRepository as never, authRepository as never),
+      new OnboardingRegistrationTrailService(onboardingRepository as never, consentsRepository as never),
       authService as never,
       guardsService as never,
       { resolveDeviceAndLink: asyncMock(), createOnboardingSession: asyncMock(), captureDeviceSnapshotIfProvided: asyncMock() } as never,

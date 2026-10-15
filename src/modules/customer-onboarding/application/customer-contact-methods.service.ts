@@ -15,7 +15,7 @@ import { CustomerEligibilityService } from '../../customers/application/customer
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { AddContactMethodDto } from '../customer-onboarding-profile.schemas.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 import { CustomerProfileDataRepository } from '../repositories/customer-profile-data.repository.js';
 
 function emailDomainOf(value: string): string | null {
@@ -38,7 +38,7 @@ export class CustomerContactMethodsService {
   constructor(
     private readonly customersRepository: CustomersRepository,
     private readonly profileDataRepository: CustomerProfileDataRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly flowRepository: CustomerOnboardingFlowRepository,
     private readonly eligibilityService: CustomerEligibilityService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
@@ -125,7 +125,7 @@ export class CustomerContactMethodsService {
         { transaction },
       );
 
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,

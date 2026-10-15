@@ -62,6 +62,7 @@ describe('CustomerIdentityPackageService.submitIdentityPackage', () => {
     const service = new CustomerIdentityPackageService(
       customersRepository as never,
       onboardingRepository as never,
+      onboardingRepository as never, // evidencia de identidad: mismo doble
       lifecycleService as never,
       storageService as never,
       providerVerificationService as never,

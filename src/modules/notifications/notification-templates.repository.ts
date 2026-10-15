@@ -22,7 +22,7 @@ type CachedTemplate = { value: NotificationTemplateModel | null; expiresAt: numb
 /**
  * Repositorio del agregado de PLANTILLAS de notificación (Fase 2.3 del plan 10/10). Toca
  * EXCLUSIVAMENTE `notification_templates` — sin acceso a mensajes, entregas, preferencias, tokens de
- * dispositivo ni contactos. `NotificationsRepository` delega en él para conservar su API pública.
+ * dispositivo ni contactos.
  *
  * Resolución de plantilla: primero la del tenant, y si no existe cae a la global (`tenantId: null`),
  * siempre la versión más alta activa para ese `code`+`channel`+`locale`.

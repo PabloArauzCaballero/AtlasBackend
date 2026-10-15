@@ -1,8 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { NotificationsService } from '../../../src/modules/notifications/notifications.service.js';
-import { buildNotificationsTestApp, authHeader } from './support/notifications-test-app.js';
+import { buildNotificationsTestApp, authHeader, notificationServiceStubs } from './support/notifications-test-app.js';
 
 /**
  * Tests HTTP end-to-end (Supertest) del endpoint nuevo de broadcast de admin. A diferencia de los
@@ -17,7 +16,7 @@ describe('NotificationsController — POST /operations/notifications/broadcast (
   };
 
   beforeAll(async () => {
-    app = await buildNotificationsTestApp([{ provide: NotificationsService, useValue: service }]);
+    app = await buildNotificationsTestApp(notificationServiceStubs(service));
   });
 
   afterAll(async () => {
@@ -125,7 +124,7 @@ describe('NotificationTemplatesController — plantillas y preferencias (e2e/sup
   };
 
   beforeAll(async () => {
-    app = await buildNotificationsTestApp([{ provide: NotificationsService, useValue: service }]);
+    app = await buildNotificationsTestApp(notificationServiceStubs(service));
   });
 
   afterAll(async () => {

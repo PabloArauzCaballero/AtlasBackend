@@ -26,7 +26,8 @@ import { NotificationOrchestratorService } from '../../../src/modules/notificati
 import { NotificationRulesService } from '../../../src/modules/notifications/notification-rules.service.js';
 import { NotificationTemplateRendererService } from '../../../src/modules/notifications/notification-template-renderer.service.js';
 import { NotificationTemplatesRepository } from '../../../src/modules/notifications/notification-templates.repository.js';
-import { NotificationsRepository } from '../../../src/modules/notifications/notifications.repository.js';
+import { NotificationDeliveriesRepository } from '../../../src/modules/notifications/notification-deliveries.repository.js';
+import { NotificationMessagesRepository } from '../../../src/modules/notifications/notification-messages.repository.js';
 import { SupportSlaService } from '../../../src/modules/support/application/support-sla.service.js';
 import { SupportCaseRepository } from '../../../src/modules/support/support-case.repository.js';
 import { SupportCaseTimelineRepository } from '../../../src/modules/support/support-case-timeline.repository.js';
@@ -91,18 +92,14 @@ beforeAll(async () => {
 
   // Se ejerce la regla y la plantilla REALES; los adaptadores de otros canales y las preferencias (sólo las
   // consultan los destinatarios cliente) no intervienen en un aviso a operaciones.
-  const notifications = new NotificationsRepository(
-    NotificationMessageModel,
-    NotificationDeliveryModel,
-    {} as never,
-    {} as never,
-    new NotificationTemplatesRepository(NotificationTemplateModel),
-    {} as never,
-  );
   const unused = {} as never;
   orchestrator = new NotificationOrchestratorService(
     new NotificationRulesService(),
-    notifications,
+    new NotificationMessagesRepository(NotificationMessageModel),
+    new NotificationDeliveriesRepository(NotificationDeliveryModel),
+    unused,
+    new NotificationTemplatesRepository(NotificationTemplateModel),
+    unused,
     new NotificationTemplateRendererService(),
     new InAppNotificationAdapter(),
     unused,

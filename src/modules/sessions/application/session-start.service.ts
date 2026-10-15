@@ -14,6 +14,7 @@ import { toStartSessionResponse } from '../sessions.mapper.js';
 import { StartSessionDto } from '../sessions.schemas.js';
 import { SessionsDeviceRepository } from '../repositories/sessions-device.repository.js';
 import { SessionsLifecycleRepository } from '../repositories/sessions-lifecycle.repository.js';
+import { SessionsCustomerActivityRepository } from '../repositories/sessions-customer-activity.repository.js';
 import { SessionsTelemetryRepository } from '../repositories/sessions-telemetry.repository.js';
 import { SessionsOnboardingLinkRepository } from '../repositories/sessions-onboarding-link.repository.js';
 import { SessionsActivityAuditRepository } from '../repositories/sessions-activity-audit.repository.js';
@@ -27,6 +28,7 @@ export class SessionStartService {
     private readonly deviceRepository: SessionsDeviceRepository,
     private readonly lifecycleRepository: SessionsLifecycleRepository,
     private readonly telemetryRepository: SessionsTelemetryRepository,
+    private readonly customerActivityRepository: SessionsCustomerActivityRepository,
     private readonly onboardingLinkRepository: SessionsOnboardingLinkRepository,
     private readonly activityAuditRepository: SessionsActivityAuditRepository,
     private readonly customersRepository: CustomersRepository,
@@ -228,7 +230,7 @@ export class SessionStartService {
         },
         { transaction },
       );
-      await this.telemetryRepository.createCustomerAction(
+      await this.customerActivityRepository.createCustomerAction(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,
@@ -241,7 +243,7 @@ export class SessionStartService {
         },
         { transaction },
       );
-      await this.telemetryRepository.createCustomerObservation(
+      await this.customerActivityRepository.createCustomerObservation(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,

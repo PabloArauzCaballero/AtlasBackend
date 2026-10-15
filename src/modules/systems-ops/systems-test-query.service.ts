@@ -5,7 +5,7 @@
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { mapTestRun, mapTestStep, mapTestStepRun, mapTestSuite } from './systems-ops.mapper.js';
+import { mapTestRun, mapTestStep, mapTestStepRun, mapTestSuite } from './systems-ops.test-run.mapper.js';
 import { RunTestSuiteDto, SystemsRunsQueryDto, SystemsSuiteQueryDto } from './systems-ops.schemas.js';
 import { SystemsTestExecutionRepository } from './systems-test-execution.repository.js';
 import { SystemsTestRunnerService } from './systems-test-runner.service.js';

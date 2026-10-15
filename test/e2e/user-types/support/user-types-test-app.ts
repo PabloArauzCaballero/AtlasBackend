@@ -19,7 +19,11 @@ import { INTERNAL_PERMISSIONS_CHECKER } from '../../../../src/common/guards/inte
 import { ROLE_PERMISSION_CODES, type InternalRoleCode } from '../../../../src/modules/internal-users/internal-rbac.seed-data.js';
 import { CustomerNotificationsController } from '../../../../src/modules/notifications/customer-notifications.controller.js';
 import { NotificationsController } from '../../../../src/modules/notifications/notifications.controller.js';
-import { NotificationsService } from '../../../../src/modules/notifications/notifications.service.js';
+import { NotificationDeviceTokensService } from '../../../../src/modules/notifications/notification-device-tokens.service.js';
+import { NotificationInboxService } from '../../../../src/modules/notifications/notification-inbox.service.js';
+import { NotificationMessagesService } from '../../../../src/modules/notifications/notification-messages.service.js';
+import { NotificationPreferencesService } from '../../../../src/modules/notifications/notification-preferences.service.js';
+import { NotificationTemplatesService } from '../../../../src/modules/notifications/notification-templates.service.js';
 
 /**
  * Soporte de los smoke tests por TIPO DE USUARIO. Atlas tiene tres vocabularios de identidad que
@@ -204,7 +208,13 @@ export async function buildNotificationsSelfServiceApp(): Promise<{ app: INestAp
     RolesGuard,
     TenantGuard,
     { provide: TokenRevocationService, useValue: { getCurrentTokenVersion: jest.fn() } },
-    { provide: NotificationsService, useValue: service },
+    ...[
+      NotificationMessagesService,
+      NotificationInboxService,
+      NotificationDeviceTokensService,
+      NotificationPreferencesService,
+      NotificationTemplatesService,
+    ].map((token) => ({ provide: token, useValue: service })),
   ];
 
   // El inbox del CLIENTE vive en `CustomerNotificationsController` desde que se partió el controlador por tamaño (5f6c238):

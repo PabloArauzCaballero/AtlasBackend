@@ -12,6 +12,7 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../../common/types/auth.types.js';
+import { SchemaCatalogService } from './services/schema-catalog.service.js';
 import { SchemaManagementService } from './services/schema-management.service.js';
 import { InternalPermissions } from '../internal-users/internal-permissions.decorator.js';
 import { SchemaChangeAuthorizationGuard } from './schema-change-authorization.guard.js';
@@ -64,7 +65,10 @@ const SCHEMA_WRITE_ROLES = [
 @Controller('operations/schema')
 @UseGuards(JwtAuthGuard, RolesGuard, SchemaChangeAuthorizationGuard)
 export class SchemaManagementController {
-  constructor(private readonly schemaService: SchemaManagementService) {}
+  constructor(
+    private readonly catalog: SchemaCatalogService,
+    private readonly schemaService: SchemaManagementService,
+  ) {}
 
   @ApiOperation({ summary: 'Listar versiones de esquema (catálogo DDL)' })
   @ApiQuery({ name: 'limit', required: false, schema: zodObjectPropertySchemas(schemaVersionsListQuerySchema).limit })
@@ -83,7 +87,7 @@ export class SchemaManagementController {
     @Query(new ZodValidationPipe(schemaVersionsListQuerySchema))
     query: SchemaVersionsListQuery,
   ) {
-    return this.schemaService.listSchemaVersions(query.limit, query.offset, query.includeInactive, query.q);
+    return this.catalog.listSchemaVersions(query.limit, query.offset, query.includeInactive, query.q);
   }
 
   @ApiOperation({ summary: 'Obtener una versión de esquema' })
@@ -93,7 +97,7 @@ export class SchemaManagementController {
   @Get('versions/:versionId')
   @Roles('internal_operator', 'admin', 'platform_admin', 'risk_analyst', 'readonly_auditor')
   getVersion(@Param('versionId', new ZodValidationPipe(numericIdParamSchema)) versionId: string) {
-    return this.schemaService.getSchemaVersion(versionId);
+    return this.catalog.getSchemaVersion(versionId);
   }
 
   @ApiOperation({
@@ -106,7 +110,7 @@ export class SchemaManagementController {
   @Get('versions/:versionId/schemas')
   @Roles('internal_operator', 'admin', 'platform_admin', 'risk_analyst', 'readonly_auditor')
   listVersionSchemas(@Param('versionId', new ZodValidationPipe(numericIdParamSchema)) versionId: string) {
-    return this.schemaService.listSchemaNames(versionId);
+    return this.catalog.listSchemaNames(versionId);
   }
 
   @ApiOperation({ summary: 'Listar tablas del catálogo de esquema' })
@@ -133,7 +137,7 @@ export class SchemaManagementController {
     @Query(new ZodValidationPipe(schemaTablesListQuerySchema))
     query: SchemaTablesListQuery,
   ) {
-    return this.schemaService.listSchemaTables(query.versionId, query.tableType, query.limit, query.offset, {
+    return this.catalog.listSchemaTables(query.versionId, query.tableType, query.limit, query.offset, {
       schemaName: query.schemaName,
       q: query.q,
     });
@@ -146,7 +150,7 @@ export class SchemaManagementController {
   @Get('tables/:tableId')
   @Roles('internal_operator', 'admin', 'platform_admin', 'risk_analyst', 'readonly_auditor')
   getTable(@Param('tableId', new ZodValidationPipe(numericIdParamSchema)) tableId: string) {
-    return this.schemaService.getSchemaTable(tableId);
+    return this.catalog.getSchemaTable(tableId);
   }
 
   @ApiOperation({

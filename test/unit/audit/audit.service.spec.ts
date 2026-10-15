@@ -10,10 +10,12 @@ describe('AuditService', () => {
   function build() {
     const repository = {
       findCustomerAuditEvents: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
+    };
+    const feed = {
       findCustomerAuditEventsWithCursor: jest.fn(async (..._args: unknown[]) => ({ items: [] as unknown[], nextCursor: null })),
     };
-    const service = new AuditService(repository as never);
-    return { service, repository };
+    const service = new AuditService(repository as never, feed as never);
+    return { service, repository, feed };
   }
 
   const evt = (eventType: string, iso: string) => ({
@@ -51,8 +53,8 @@ describe('AuditService', () => {
   });
 
   it('getCustomerAuditFeed mapea las filas de la vista y propaga nextCursor', async () => {
-    const { service, repository } = build();
-    (repository.findCustomerAuditEventsWithCursor as jest.Mock).mockResolvedValueOnce({
+    const { service, feed } = build();
+    (feed.findCustomerAuditEventsWithCursor as jest.Mock).mockResolvedValueOnce({
       items: [
         {
           source_table: 'auth_events',

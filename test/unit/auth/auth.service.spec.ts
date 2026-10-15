@@ -17,6 +17,7 @@ jest.mock('../../../src/common/utils/crypto/refresh-token.util.js', () => ({
 }));
 
 import { AuthService, isLoginPinChallenge, LoginOutcome } from '../../../src/modules/auth/auth.service.js';
+import { AuthRefreshRotationService } from '../../../src/modules/auth/auth-refresh-rotation.service.js';
 import { AuthTokenIssuerService } from '../../../src/modules/auth/auth-token-issuer.service.js';
 import { AuthActorResolverService } from '../../../src/modules/auth/auth-actor-resolver.service.js';
 import { AuthPasswordResetService } from '../../../src/modules/auth/auth-password-reset.service.js';
@@ -127,6 +128,7 @@ function buildService(
   const passwordReset = new AuthPasswordResetService(
     authRepository as never,
     authRepository as never,
+    authRepository as never,
     tokenRevocationService as never,
     mailSenderService as never,
     actorResolver,
@@ -140,15 +142,21 @@ function buildService(
   // Emisor real: la emisión de tokens salió de `AuthService`, pero sigue apoyándose en el mismo
   // doble de repositorio, así que las aserciones sobre `createRefreshToken` no cambian.
   const tokenIssuer = new AuthTokenIssuerService(authRepository as never);
-  const service = new AuthService(
+  const rotation = new AuthRefreshRotationService(
+    authRepository as never,
     authRepository as never,
     actorResolver,
-    passwordReset,
+    tokenIssuer,
+    sequelize as never,
+  );
+  const service = new AuthService(
+    authRepository as never,
+    authRepository as never,
+    rotation,
+    actorResolver,
     secondFactor,
     tokenIssuer,
     tokenRevocationService as never,
-    mailSenderService as never,
-    sequelize as never,
     metrics as never,
   );
 

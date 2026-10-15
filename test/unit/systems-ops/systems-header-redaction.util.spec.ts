@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { redactSecretHeaders, restoreRedactedHeaders } from '../../../src/modules/systems-ops/systems-header-redaction.util.js';
-import { mapTestStep } from '../../../src/modules/systems-ops/systems-ops.mapper.js';
+import { mapTestStep } from '../../../src/modules/systems-ops/systems-ops.test-run.mapper.js';
 
 /**
  * Las llaves que QA pone en las cabeceras de una suite: ni salen en claro al leer el paso, ni se

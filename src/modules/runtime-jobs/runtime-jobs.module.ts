@@ -48,7 +48,7 @@ import { OnboardingAbandonmentService } from '../customer-onboarding/application
 import { CreditSubmittedReconciliationService } from '../credit/application/credit-submitted-reconciliation.service.js';
 import { buildScheduledJobs, SCHEDULED_JOBS, SCHEDULER_ACTOR } from './scheduled-jobs.catalog.js';
 import { buildCreditScheduledJobs } from './scheduled-jobs.credit.js';
-import { NotificationsService } from '../notifications/notifications.service.js';
+import { NotificationCampaignRunnerService } from '../notifications/campaigns/notification-campaign-runner.service.js';
 import { ExpedientesModule } from '../expedientes/expedientes.module.js';
 import { SystemsOpsModule } from '../systems-ops/systems-ops.module.js';
 import { QaOrchestrationModule } from '../qa-orchestration/qa-orchestration.module.js';
@@ -127,7 +127,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         debtRating: DebtRatingService,
         outcomeDispatch: OutcomeDispatchService,
         partnerKybSync: PartnerKybSyncService,
-        notifications: NotificationsService,
+        campaignRunner: NotificationCampaignRunnerService,
         jobRuns: JobRunRecorderService,
         stressConsumer: SystemsStressConsumerService,
         creditUnderwriting: CreditUnderwritingService,
@@ -153,7 +153,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
           notificationCampaigns: {
             tick: (tenantId: string) =>
               jobRuns.run({ tenantId, jobCode: 'run_notification_campaigns', body: {}, currentUser: SCHEDULER_ACTOR }, () =>
-                notifications.runCampaignTick(tenantId),
+                campaignRunner.tick(tenantId),
               ),
           },
           // El consumidor de la cola de estrés vive en `systems-ops`; aqui solo se le da cadencia y
@@ -191,7 +191,7 @@ import { ErpEventDeliveryService } from '../erp-integration/erp-event-delivery.s
         DebtRatingService,
         OutcomeDispatchService,
         PartnerKybSyncService,
-        NotificationsService,
+        NotificationCampaignRunnerService,
         JobRunRecorderService,
         SystemsStressConsumerService,
         CreditUnderwritingService,

@@ -32,6 +32,7 @@ describe('SessionQueryService', () => {
     const customersRepository = { findById: jest.fn() };
     const service = new SessionQueryService(
       sessionsRepository as never,
+      sessionsRepository as never, // actividad del cliente: mismo doble
       sessionsRepository as never,
       sessionsRepository as never,
       sessionsRepository as never,

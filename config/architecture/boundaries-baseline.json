@@ -1,6 +1,6 @@
 {
   "$comment": "Deuda heredada de fronteras (AT-012). Generada por yarn check:architecture --update-baseline; sólo puede encoger.",
-  "updatedOn": "2026-10-14",
+  "updatedOn": "2026-10-15",
   "count": 77,
   "byRule": {
     "domain-purity": 3,
@@ -62,8 +62,8 @@
     "import:src/modules/runtime-jobs/expedientes-jobs.controller.ts->src/modules/expedientes/jobs/expedientes-mantenimiento.service.ts",
     "import:src/modules/runtime-jobs/runtime-decision-jobs.controller.ts->src/modules/credit-rating/application/debt-rating.service.ts",
     "import:src/modules/runtime-jobs/runtime-decision-jobs.controller.ts->src/modules/decision-engine/outcome-dispatch.service.ts",
+    "import:src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts->src/modules/notifications/notification-messages.repository.ts",
     "import:src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts->src/modules/notifications/notification-orchestrator.service.ts",
-    "import:src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts->src/modules/notifications/notifications.repository.ts",
     "import:src/modules/runtime-jobs/scheduled-jobs.catalog.ts->src/modules/credit-rating/application/debt-rating.service.ts",
     "import:src/modules/runtime-jobs/scheduled-jobs.catalog.ts->src/modules/credit/application/bank-statement-review.worker.ts",
     "import:src/modules/runtime-jobs/scheduled-jobs.catalog.ts->src/modules/credit/application/credit-line-refresh.service.ts",

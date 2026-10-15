@@ -5,7 +5,7 @@ import { NotificationBroadcastController } from '../../../src/modules/notificati
 import { CustomerNotificationsController } from '../../../src/modules/notifications/customer-notifications.controller.js';
 
 /**
- * `NotificationsController` (19 endpoints) delega todo en `NotificationsService`. Spec representativo:
+ * `NotificationsController` (19 endpoints) delega todo en los servicios de notificaciones. Spec representativo:
  * operaciones (tenant 1-arg + idempotency), autoservicio de cliente y de usuario interno (tenant 2-arg
  * con fallback al token). Con el servicio mockeado.
  */
@@ -18,7 +18,7 @@ describe('NotificationsController', () => {
       listCustomerNotifications: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
       listMyNotifications: jest.fn(async (..._args: unknown[]) => ({ items: [] })),
     };
-    return { controller: new NotificationsController(service as never), service };
+    return { controller: new NotificationsController(service as never, service as never, service as never), service };
   }
   const customer = { role: 'customer', tenantId: '1', customerId: '9' } as never;
   const internal = { role: 'internal_operator', tenantId: '1', internalUserId: 'u1' } as never;
@@ -46,7 +46,7 @@ describe('NotificationsController', () => {
   it('el autoservicio de cliente usa el tenant con fallback al token', async () => {
     const { service } = build();
     // El autoservicio vive en `CustomerNotificationsController` desde el corte por tamaño.
-    const autoservicio = new CustomerNotificationsController(service as never);
+    const autoservicio = new CustomerNotificationsController(service as never, service as never);
     await autoservicio.listCustomerNotifications('1', { customerId: '9' } as never, { status: 'unread' } as never, customer);
     expect(service.listCustomerNotifications).toHaveBeenCalledWith(tenantIdFromHeader('1', customer), '9', { status: 'unread' }, customer);
   });

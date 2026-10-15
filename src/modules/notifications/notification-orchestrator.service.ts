@@ -15,7 +15,12 @@ import { SmsNotificationAdapter } from './adapters/sms.adapter.js';
 import { WhatsAppNotificationAdapter } from './adapters/whatsapp.adapter.js';
 import { NotificationRulesService } from './notification-rules.service.js';
 import { NotificationTemplateRendererService } from './notification-template-renderer.service.js';
-import { NotificationsRepository } from './notifications.repository.js';
+import { NotificationDeliveriesRepository } from './notification-deliveries.repository.js';
+import { NotificationDeviceTokensRepository } from './notification-device-tokens.repository.js';
+import { NotificationMessagesRepository } from './notification-messages.repository.js';
+import { NotificationPreferencesRepository } from './notification-preferences.repository.js';
+import { NotificationTemplatesRepository } from './notification-templates.repository.js';
+import { decryptDeliveryTargets } from './notification-delivery-targets.util.js';
 import { NotificationChannel, NotificationMessagePayload, RecipientType } from './notification-types.js';
 
 function getPayloadValue(payload: Record<string, unknown>, path: string[] | undefined): string | null {
@@ -77,7 +82,11 @@ export class NotificationOrchestratorService {
 
   constructor(
     private readonly rulesService: NotificationRulesService,
-    private readonly repository: NotificationsRepository,
+    private readonly messages: NotificationMessagesRepository,
+    private readonly deliveries: NotificationDeliveriesRepository,
+    private readonly recipientTargets: NotificationDeviceTokensRepository,
+    private readonly templates: NotificationTemplatesRepository,
+    private readonly preferences: NotificationPreferencesRepository,
     private readonly renderer: NotificationTemplateRendererService,
     private readonly inAppAdapter: InAppNotificationAdapter,
     private readonly emailAdapter: EmailNotificationAdapter,
@@ -100,7 +109,7 @@ export class NotificationOrchestratorService {
       if (!recipientId) continue;
       for (const channel of rule.channels) {
         if (rule.recipientType === 'customer') {
-          const enabled = await this.repository.isChannelEnabled({
+          const enabled = await this.preferences.isChannelEnabled({
             tenantId: String(event.tenantId),
             customerId: recipientId,
             eventCode: event.eventCode,
@@ -111,7 +120,7 @@ export class NotificationOrchestratorService {
         }
 
         const templateCode = `${rule.templatePrefix ?? event.eventCode.replaceAll('.', '_')}_${channel}`;
-        const template = await this.repository.findTemplate({
+        const template = await this.templates.findTemplate({
           tenantId: event.tenantId === null ? null : String(event.tenantId),
           code: templateCode,
           channel,
@@ -122,7 +131,7 @@ export class NotificationOrchestratorService {
           channel === 'email' ? this.renderer.render(template?.subjectTemplate, payload, fallback.subject ?? fallback.title) : null;
         const body = this.renderer.render(template?.bodyTemplate, payload, fallback.body);
         const idempotencyKey = `${event.idempotencyKey ?? event.eventCode}-${event.id}-${recipientId}-${channel}`;
-        const message = await this.repository.createMessage({
+        const message = await this.messages.createMessage({
           tenantId: event.tenantId === null ? null : String(event.tenantId),
           outboxEventId: String(event.id),
           recipientType: rule.recipientType,
@@ -165,7 +174,7 @@ export class NotificationOrchestratorService {
   }
 
   private async dispatchMessage(messageOrId: string | NotificationMessageModel): Promise<void> {
-    const message = typeof messageOrId === 'string' ? await this.repository.getMessageForDelivery(messageOrId) : messageOrId;
+    const message = typeof messageOrId === 'string' ? await this.messages.getMessageForDelivery(messageOrId) : messageOrId;
     if (['sent', 'delivered', 'read', 'cancelled'].includes(message.status)) return;
     const channel = message.channel as NotificationChannel;
     const adapter = this.adapters.find((candidate) => candidate.supports(channel));
@@ -177,11 +186,13 @@ export class NotificationOrchestratorService {
     const tenantId = message.tenantId === null ? null : String(message.tenantId);
     const pushDevices =
       channel === 'push' && message.recipientType === 'customer'
-        ? await this.repository.getActivePushDevices(tenantId, message.recipientId)
+        ? await this.recipientTargets.getActivePushDevices(tenantId, message.recipientId)
         : [];
     const customerContactTargets =
-      message.recipientType === 'customer' ? await this.repository.getCustomerContactTargets(tenantId, message.recipientId, channel) : [];
-    const storedTargets = await this.repository.getMessageDeliveryTargets(message);
+      message.recipientType === 'customer'
+        ? await this.recipientTargets.getCustomerContactTargets(tenantId, message.recipientId, channel)
+        : [];
+    const storedTargets = await decryptDeliveryTargets(message.deliveryTargetsJson);
     const payload: NotificationMessagePayload = {
       id: messageId,
       tenantId,
@@ -203,10 +214,10 @@ export class NotificationOrchestratorService {
     if (!adapter.validatePayload(payload)) throw new Error(`INVALID_PAYLOAD_FOR_CHANNEL_${channel}`);
     this.tracing.setAttributes({ 'notification.channel': channel, 'notification.provider': adapter.getProviderName() });
     // Otra tanda lo reclamó entre la lectura y aquí: es suyo, no se envía dos veces.
-    if (!(await this.repository.markMessageSending(message))) return;
+    if (!(await this.messages.markMessageSending(message))) return;
     try {
       const result = await adapter.send(payload);
-      await this.repository.recordDelivery(message, payload, result);
+      await this.deliveries.recordDelivery(message, payload, result);
       this.tracing.setAttribute('notification.outcome', result.status);
     } catch (error: unknown) {
       // El error se ABSORBE para no tumbar la tanda, pero el span sí queda marcado: una entrega
@@ -220,7 +231,7 @@ export class NotificationOrchestratorService {
         `Entrega FALLIDA del mensaje ${messageId} por ${channel}/${adapter.getProviderName()}: ` +
           `${error instanceof Error ? error.message : 'error desconocido'}`,
       );
-      await this.repository.recordDelivery(message, payload, {
+      await this.deliveries.recordDelivery(message, payload, {
         status: 'failed',
         provider: adapter.getProviderName(),
         providerMessageId: null,

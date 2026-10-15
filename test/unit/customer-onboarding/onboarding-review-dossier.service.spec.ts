@@ -157,7 +157,8 @@ function build(datos: Partial<Datos> & Record<string, unknown> = completo()) {
   const service = new OnboardingReviewDossierService(
     customers as never,
     answers as never,
-    repository as never,
+    repository as never, // record
+    repository as never, // device
     contacts as never,
     behavior as never,
   );

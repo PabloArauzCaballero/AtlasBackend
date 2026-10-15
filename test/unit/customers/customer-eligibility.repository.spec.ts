@@ -7,6 +7,9 @@ import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import { Op } from 'sequelize';
 import { env } from '../../../src/config/env.js';
 import { CustomerEligibilityRepository } from '../../../src/modules/customers/repositories/customer-eligibility.repository.js';
+import { CustomerEligibilityConsentsRepository } from '../../../src/modules/customers/repositories/customer-eligibility-consents.repository.js';
+import { CustomerEligibilityIdentityRepository } from '../../../src/modules/customers/repositories/customer-eligibility-identity.repository.js';
+import { CustomerEligibilityProfileRepository } from '../../../src/modules/customers/repositories/customer-eligibility-profile.repository.js';
 import { CustomerEligibilityRiskRepository } from '../../../src/modules/customers/repositories/customer-eligibility-risk.repository.js';
 
 function model() {
@@ -49,20 +52,23 @@ function build() {
     models.reviewCase as never,
   );
   const repository = new CustomerEligibilityRepository(
-    models.credential as never,
-    models.contact as never,
-    models.profile as never,
-    models.attributeValue as never,
-    models.attributeDefinition as never,
-    models.address as never,
-    models.reference as never,
-    models.identityDocument as never,
-    models.identityAttempt as never,
-    models.evidence as never,
-    models.evidenceReview as never,
-    models.consent as never,
-    models.consentDocument as never,
     models.onboardingFlow as never,
+    new CustomerEligibilityProfileRepository(
+      models.credential as never,
+      models.contact as never,
+      models.profile as never,
+      models.attributeValue as never,
+      models.attributeDefinition as never,
+      models.address as never,
+      models.reference as never,
+    ),
+    new CustomerEligibilityIdentityRepository(
+      models.identityDocument as never,
+      models.identityAttempt as never,
+      models.evidence as never,
+      models.evidenceReview as never,
+    ),
+    new CustomerEligibilityConsentsRepository(models.consent as never, models.consentDocument as never),
     riskRepository,
     { findDecidedDevicePermissionPurposes: async () => [], findAnsweredSurveyQuestionCodes: async () => [] } as never,
   );

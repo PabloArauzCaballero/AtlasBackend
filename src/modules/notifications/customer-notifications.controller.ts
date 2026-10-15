@@ -14,7 +14,8 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
-import { NotificationsService } from './notifications.service.js';
+import { NotificationInboxService } from './notification-inbox.service.js';
+import { NotificationPreferencesService } from './notification-preferences.service.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../common/utils/auth/ownership.util.js';
 import {
   customerNotificationIdParamsSchema,
@@ -40,7 +41,10 @@ import {
 @Controller()
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class CustomerNotificationsController {
-  constructor(private readonly service: NotificationsService) {}
+  constructor(
+    private readonly inbox: NotificationInboxService,
+    private readonly preferences: NotificationPreferencesService,
+  ) {}
 
   @ApiOperation({ summary: 'Listar notificaciones del cliente (autoservicio)' })
   @ApiHeader({ name: 'x-tenant-id', required: false, description: 'Opcional para customer (se toma del token).' })
@@ -57,7 +61,7 @@ export class CustomerNotificationsController {
     @Query(new ZodValidationPipe(customerNotificationsQuerySchema)) query: CustomerNotificationsQueryDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.listCustomerNotifications(tenantId, params.customerId, query, currentUser);
+    return this.inbox.listCustomerNotifications(tenantId, params.customerId, query, currentUser);
   }
 
   @ApiOperation({
@@ -76,7 +80,7 @@ export class CustomerNotificationsController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
-    return this.service.getPreferences(tenantId, params.customerId);
+    return this.preferences.getPreferences(tenantId, params.customerId);
   }
 
   @ApiOperation({
@@ -99,7 +103,7 @@ export class CustomerNotificationsController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     assertOwnCustomerResourceOrInternalOperational(currentUser, params.customerId);
-    return this.service.updatePreferences(tenantId, params.customerId, body);
+    return this.preferences.updatePreferences(tenantId, params.customerId, body);
   }
 
   @ApiOperation({ summary: 'Contador de notificaciones no leídas del cliente' })
@@ -114,7 +118,7 @@ export class CustomerNotificationsController {
     @Param(new ZodValidationPipe(customerNotificationsParamsSchema)) params: CustomerNotificationsParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.unreadCount(tenantId, params.customerId, currentUser);
+    return this.inbox.unreadCount(tenantId, params.customerId, currentUser);
   }
 
   @ApiOperation({ summary: 'Marcar una notificación como leída' })
@@ -132,6 +136,6 @@ export class CustomerNotificationsController {
     @Param(new ZodValidationPipe(customerNotificationIdParamsSchema)) params: CustomerNotificationIdParamsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.service.markCustomerNotificationRead(tenantId, params.customerId, params.notificationId, currentUser);
+    return this.inbox.markCustomerNotificationRead(tenantId, params.customerId, params.notificationId, currentUser);
   }
 }

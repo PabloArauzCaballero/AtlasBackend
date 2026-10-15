@@ -13,7 +13,8 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
-import { NotificationsService } from './notifications.service.js';
+import { NotificationPreferencesService } from './notification-preferences.service.js';
+import { NotificationTemplatesService } from './notification-templates.service.js';
 import {
   createTemplateSchema,
   listTemplatesQuerySchema,
@@ -37,7 +38,10 @@ import {
 @Controller()
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class NotificationTemplatesController {
-  constructor(private readonly service: NotificationsService) {}
+  constructor(
+    private readonly templates: NotificationTemplatesService,
+    private readonly preferences: NotificationPreferencesService,
+  ) {}
 
   @ApiOperation({ summary: 'Listar plantillas de notificación' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
@@ -58,7 +62,7 @@ export class NotificationTemplatesController {
     'system',
   )
   listTemplates(@CurrentTenant() tenantId: string, @Query(new ZodValidationPipe(listTemplatesQuerySchema)) query: ListTemplatesQueryDto) {
-    return this.service.listTemplates(tenantId, query);
+    return this.templates.listTemplates(tenantId, query);
   }
 
   @ApiOperation({ summary: 'Crear plantilla de notificación' })
@@ -76,7 +80,7 @@ export class NotificationTemplatesController {
     @Body(new ZodValidationPipe(createTemplateSchema)) body: CreateTemplateDto,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.createTemplate(tenantId, body);
+    return this.templates.createTemplate(tenantId, body);
   }
 
   @ApiOperation({ summary: 'Editar plantilla de notificación' })
@@ -95,7 +99,7 @@ export class NotificationTemplatesController {
     @Body(new ZodValidationPipe(updateTemplateSchema)) body: UpdateTemplateDto,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.updateTemplate(tenantId, params.templateId, body);
+    return this.templates.updateTemplate(tenantId, params.templateId, body);
   }
 
   @ApiOperation({ summary: 'Preferencias de notificación de un cliente (operaciones)' })
@@ -114,7 +118,7 @@ export class NotificationTemplatesController {
     'system',
   )
   getPreferences(@CurrentTenant() tenantId: string, @Param(new ZodValidationPipe(preferencesParamsSchema)) params: PreferencesParamsDto) {
-    return this.service.getPreferences(tenantId, params.customerId);
+    return this.preferences.getPreferences(tenantId, params.customerId);
   }
 
   @ApiOperation({
@@ -136,6 +140,6 @@ export class NotificationTemplatesController {
     @Body(new ZodValidationPipe(updatePreferencesSchema)) body: UpdatePreferencesDto,
   ) {
     requireIdempotencyKey(idempotencyKey);
-    return this.service.updatePreferences(tenantId, params.customerId, body);
+    return this.preferences.updatePreferences(tenantId, params.customerId, body);
   }
 }

@@ -16,7 +16,7 @@ import { MAXIMUM_REFERENCE_CONTACTS } from '../../customers/customer-eligibility
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { ReferenceContactsDto } from '../customer-onboarding-profile.schemas.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 import { CustomerProfileDataRepository } from '../repositories/customer-profile-data.repository.js';
 
 /**
@@ -32,7 +32,7 @@ export class CustomerReferenceContactsService {
   constructor(
     private readonly customersRepository: CustomersRepository,
     private readonly profileDataRepository: CustomerProfileDataRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly flowRepository: CustomerOnboardingFlowRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
@@ -110,8 +110,8 @@ export class CustomerReferenceContactsService {
         created.push(String(row.id));
       }
 
-      const flow = await this.onboardingRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
-      await this.onboardingRepository.createOnboardingStepEvent(
+      const flow = await this.flowRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
+      await this.flowRepository.createOnboardingStepEvent(
         {
           tenantId: input.tenantId,
           onboardingFlowId: flow ? String(flow.id) : null,
@@ -134,7 +134,7 @@ export class CustomerReferenceContactsService {
         transaction,
       });
 
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,
@@ -180,7 +180,7 @@ export class CustomerReferenceContactsService {
       // cliente afirmó, aunque después la retire.
       await this.profileDataRepository.softDeleteReference(target, now, { transaction });
 
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,

@@ -12,7 +12,7 @@ import { UpdatePreferencesDto } from './notifications.schemas.js';
 
 /**
  * Repositorio del agregado de PREFERENCIAS de notificación del cliente (Fase 2.3 del plan 10/10).
- * Toca EXCLUSIVAMENTE `user_notification_preferences`. `NotificationsRepository` delega en él.
+ * Toca EXCLUSIVAMENTE `user_notification_preferences`.
  *
  * Regla de negocio que vive aquí: una notificación marcada `isRequired` no se puede desactivar
  * (avisos legales/transaccionales), y ante la ausencia de preferencia el canal se considera

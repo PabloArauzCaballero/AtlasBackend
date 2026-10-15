@@ -21,6 +21,7 @@ import {
   SystemEndpointCatalogModel,
 } from '../../database/models/index.js';
 import { AuditController } from './audit.controller.js';
+import { AuditFeedRepository } from './audit-feed.repository.js';
 import { AuditRepository } from './audit.repository.js';
 import { AuditService } from './audit.service.js';
 import { HttpActionLogService } from './http-action-log.service.js';
@@ -44,7 +45,7 @@ import { HttpActionLogService } from './http-action-log.service.js';
     ]),
   ],
   controllers: [AuditController],
-  providers: [AuditService, AuditRepository, HttpActionLogService],
+  providers: [AuditService, AuditRepository, AuditFeedRepository, HttpActionLogService],
   exports: [HttpActionLogService],
 })
 export class AuditModule {}

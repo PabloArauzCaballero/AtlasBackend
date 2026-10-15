@@ -13,7 +13,7 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { requireIdempotencyKey } from '../../common/utils/http/headers.util.js';
-import { NotificationsService } from './notifications.service.js';
+import { NotificationBroadcastService } from './notification-broadcast.service.js';
 import { createBroadcastNotificationSchema, CreateBroadcastNotificationDto } from './notifications.schemas.js';
 
 /**
@@ -25,7 +25,7 @@ import { createBroadcastNotificationSchema, CreateBroadcastNotificationDto } fro
 @Controller()
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class NotificationBroadcastController {
-  constructor(private readonly service: NotificationsService) {}
+  constructor(private readonly service: NotificationBroadcastService) {}
 
   @ApiOperation({
     summary: 'Enviar notificación in-app personalizada (broadcast de admin)',

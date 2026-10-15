@@ -11,7 +11,7 @@ import { CustomerEligibilityService } from '../../customers/application/customer
 import { CustomerLifecycleService } from '../../customers/application/customer-lifecycle.service.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { IdentityDecisionDto } from '../customer-onboarding-profile.schemas.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
+import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 import { CustomerVerificationRepository } from '../repositories/customer-verification.repository.js';
 import { identityResultForRow } from '../../../common/utils/identity/identity-result.util.js';
 import { IdentityVerdictEventPublisher } from './identity-verdict-event.publisher.js';
@@ -53,7 +53,7 @@ export class CustomerVerificationService {
   constructor(
     private readonly customersRepository: CustomersRepository,
     private readonly verificationRepository: CustomerVerificationRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
+    private readonly flowRepository: CustomerOnboardingFlowRepository,
     private readonly lifecycleService: CustomerLifecycleService,
     private readonly eligibilityService: CustomerEligibilityService,
     @InjectConnection() private readonly sequelize: Sequelize,
@@ -158,7 +158,7 @@ export class CustomerVerificationService {
         });
       }
 
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,

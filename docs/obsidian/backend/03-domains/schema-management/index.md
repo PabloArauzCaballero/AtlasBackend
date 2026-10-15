@@ -87,7 +87,9 @@ Roles que alcanzan este módulo: `internal_operator`, `admin`, `platform_admin`,
 
 - `test/unit/schema-management/schema-management-validation.service.spec.ts`
 - `test/unit/schema-management/schema-management.controller.spec.ts`
-- `test/unit/schema-management/schema-management.repository.spec.ts`
+- `test/unit/schema-management/schema-change-log.repository.spec.ts`
+- `test/unit/schema-management/schema-tables.repository.spec.ts`
+- `test/unit/schema-management/schema-versions.repository.spec.ts`
 - `test/unit/schema-management/schema-management.schemas.spec.ts`
 - `test/unit/schema-management/schema-management.service.spec.ts`
 

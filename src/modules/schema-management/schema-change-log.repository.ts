@@ -8,7 +8,7 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { QueryTypes, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { containsLikePattern } from '../../common/utils/strings/like-pattern.util.js';
-import type { CreateChangeLogEntryInput, ResolveChangeLogEntryInput, SchemaChangeLogRow } from './schema-management.repository.js';
+import type { CreateChangeLogEntryInput, ResolveChangeLogEntryInput, SchemaChangeLogRow } from './schema-management.rows.js';
 
 /** Columnas que se devuelven de cada fila: una sola lista para las cinco consultas. */
 const CHANGE_LOG_COLUMNS = `_id, schema_version_id, change_type, affected_entity_id, affected_entity_type,

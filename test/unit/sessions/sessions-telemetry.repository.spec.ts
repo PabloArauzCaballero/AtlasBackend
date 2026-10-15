@@ -4,7 +4,7 @@ import { SessionsTelemetryRepository } from '../../../src/modules/sessions/repos
 
 /**
  * Cobertura directa de `SessionsTelemetryRepository` (Fase 1.2 del plan 10/10): las escrituras y
- * lecturas de la telemetría por sesión (permisos, auth, IP, SIM, acciones, observaciones). Sub-repo
+ * lecturas de la telemetría por sesión (permisos, auth, IP, SIM). Sub-repo
  * con lógica real (mapeo de fechas de la decisión). Modelos Sequelize mockeados.
  */
 describe('SessionsTelemetryRepository', () => {
@@ -15,16 +15,12 @@ describe('SessionsTelemetryRepository', () => {
       authEvent: make(),
       ipReputation: make(),
       simObservation: make(),
-      customerActionLog: make(),
-      customerObservation: make(),
     };
     const repo = new SessionsTelemetryRepository(
       models.permissionEvent as never,
       models.authEvent as never,
       models.ipReputation as never,
       models.simObservation as never,
-      models.customerActionLog as never,
-      models.customerObservation as never,
     );
     return { repo, models };
   }
@@ -56,23 +52,11 @@ describe('SessionsTelemetryRepository', () => {
     ]);
   });
 
-  it('findSessionAuthEvents y findSessionCustomerActions filtran por tenant+sesión', async () => {
+  it('findSessionAuthEvents filtra por tenant+sesión', async () => {
     const { repo, models } = buildRepo();
     (models.authEvent.findAll as jest.Mock).mockResolvedValue([] as never);
-    (models.customerActionLog.findAll as jest.Mock).mockResolvedValue([] as never);
     await repo.findSessionAuthEvents('t1', 's1');
-    await repo.findSessionCustomerActions('t1', 's1');
     expect(callArg<CallArgRecord>(models.authEvent.findAll, 0, 0).where).toMatchObject({ tenantId: 't1', sessionId: 's1' });
-    expect(callArg<CallArgRecord>(models.customerActionLog.findAll, 0, 0).where).toMatchObject({ tenantId: 't1', sessionId: 's1' });
-    // límite por defecto distinto para acciones (30).
-    expect(callArg<CallArgRecord>(models.customerActionLog.findAll, 0, 0).limit).toBe(30);
-  });
-
-  it('findSessionCustomerObservations acepta un límite explícito', async () => {
-    const { repo, models } = buildRepo();
-    (models.customerObservation.findAll as jest.Mock).mockResolvedValue([] as never);
-    await repo.findSessionCustomerObservations('t1', 's1', 5);
-    expect(callArg<CallArgRecord>(models.customerObservation.findAll, 0, 0).limit).toBe(5);
   });
 
   it('createAuthEvent copia occurredAt a createdAtValue', async () => {
@@ -148,48 +132,6 @@ describe('SessionsTelemetryRepository', () => {
       simCount: 2,
       sourceType: 'mobile_app',
       lastSimSwapAt: null,
-    });
-  });
-
-  it('createCustomerAction mapea eventName/screenName', async () => {
-    const { repo, models } = buildRepo();
-    await repo.createCustomerAction(
-      {
-        tenantId: 't1',
-        customerId: 'c1',
-        sessionId: 's1',
-        deviceId: 'd1',
-        eventName: 'tap',
-        screenName: 'home',
-        payload: { x: 1 },
-        occurredAt: new Date('2026-01-05'),
-      },
-      opts,
-    );
-    expect((models.customerActionLog.create as jest.Mock).mock.calls[0][0]).toMatchObject({ eventName: 'tap', screenName: 'home' });
-  });
-
-  it('createCustomerObservation fija verificationStatus observed y payload->valueJson', async () => {
-    const { repo, models } = buildRepo();
-    await repo.createCustomerObservation(
-      {
-        tenantId: 't1',
-        customerId: 'c1',
-        sessionId: 's1',
-        deviceId: null,
-        observationCode: 'rooted',
-        valueBoolean: true,
-        payload: { a: 1 },
-        sourceType: 'mobile_app',
-        capturedAt: new Date('2026-01-06'),
-      },
-      opts,
-    );
-    expect((models.customerObservation.create as jest.Mock).mock.calls[0][0]).toMatchObject({
-      observationCode: 'rooted',
-      valueBoolean: true,
-      valueJson: { a: 1 },
-      verificationStatus: 'observed',
     });
   });
 

@@ -1,6 +1,6 @@
 /**
  * @file AT-061 — los accesos heredados a Mensajería sólo pueden encoger, y el piloto no reabre ninguno.
- * @business Reintroducir un import profundo de `NotificationsRepository` desde otro módulo, ampliar las
+ * @business Reintroducir un import profundo de `NotificationMessagesRepository` desde otro módulo, ampliar las
  *   exportaciones legadas de `NotificationsModule` o dar al rol de Mensajería permisos sobre Crédito/IAM
  *   devolvería el piloto al monolito sin que nadie lo note. Y el estado del piloto no puede decir «listo»
  *   mientras haya un bloqueo abierto.
@@ -53,8 +53,8 @@ const LEGACY_IMPORTERS: Readonly<Record<string, string>> = {
 const LEGACY_EXPORTS = [
   'NotificationOrchestratorService',
   'NotificationPoliciesRepository',
-  'NotificationsService',
-  'NotificationsRepository',
+  'NotificationCampaignRunnerService',
+  'NotificationMessagesRepository',
   'NotificationBroadcastService',
   'SmsNotificationAdapter',
   'WhatsAppNotificationAdapter',

@@ -7,18 +7,14 @@ import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@ne
 import { truncate } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { Collection, MongoClient } from 'mongodb';
+import type { Collection } from 'mongodb';
 import { env } from '../../config/env.js';
 import { redactSensitiveText } from '../../common/utils/privacy/redact-text.util.js';
 import { countLines, formatError, getFileSize, mongoSyncHint, readLogDelta, trimLogFileToTail } from './log-sync.reader.util.js';
 
-// Retención de la colección de logs en Mongo. Sin TTL la colección crece sin límite y, como el
-// archivo local se trunca tras sincronizar, Mongo pasa a ser la única copia. 30 días es un punto
-// intermedio entre trazabilidad forense y coste/PII residual. Constante local (no env) a propósito:
-// cambiarla es una decisión de gobernanza, no de configuración por entorno.
-const LOG_RETENTION_SECONDS = 30 * 24 * 60 * 60;
-
 import type { LogSource, RemoteLogDocument } from './log-sync.documents.js';
+import { LogSyncMongoConnection, resolveInitialLogOffset } from './log-sync.mongo-connection.js';
+
 @Injectable()
 export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(ArchivoLogMongoSyncService.name);
@@ -29,8 +25,7 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
     fileName: basename(this.logFilePath),
   };
 
-  private client: MongoClient | null = null;
-  private collection: Collection<RemoteLogDocument> | null = null;
+  private readonly mongo = new LogSyncMongoConnection();
   private timer: NodeJS.Timeout | null = null;
   private flushInFlight: Promise<void> | null = null;
   private startupInserted = false;
@@ -101,7 +96,7 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
     }
 
     await this.flushInFlight;
-    await this.client?.close();
+    await this.mongo.close();
   }
 
   private async flushWithLock(): Promise<void> {
@@ -118,7 +113,7 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
     if (Date.now() < this.pausedUntil) return;
 
     try {
-      const collection = await this.getCollection();
+      const collection = await this.mongo.getCollection();
       await this.ensureStartupDocument(collection);
 
       const offset = this.currentOffset ?? 0;
@@ -172,7 +167,7 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
       await this.maybeResetLogFileAfterFullSync(delta.offsetTo, delta.fileSize, collection);
       this.markSyncSuccess();
     } catch (error) {
-      await this.resetMongoClient();
+      await this.mongo.reset();
       this.registerFailure(error);
       // Con el destino remoto caido nadie mas va a truncar: la valvula tiene que actuar aqui.
       await this.enforceLocalSizeCap();
@@ -220,39 +215,6 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
     this.logger.log(`${this.source.fileName} reiniciado: ${fileSizeAtSync} bytes ya confirmados en MongoDB.`);
   }
 
-  private async getCollection(): Promise<Collection<RemoteLogDocument>> {
-    if (this.collection) return this.collection;
-
-    if (!env.MONGO_DB_URL_CONNECTION) {
-      throw new Error('MONGO_DB_URL_CONNECTION no configurado.');
-    }
-
-    const client = new MongoClient(env.MONGO_DB_URL_CONNECTION, {
-      serverSelectionTimeoutMS: env.LOG_SYNC_MONGO_SERVER_SELECTION_TIMEOUT_MS,
-    });
-    await client.connect();
-    this.client = client;
-
-    const collection = client.db(env.MONGO_LOGS_DB_NAME).collection<RemoteLogDocument>(env.MONGO_LOGS_COLLECTION);
-    await collection.createIndexes([
-      { key: { bootId: 1, capturedAt: 1 }, name: 'idx_boot_captured_at' },
-      { key: { 'source.filePath': 1, capturedAt: -1 }, name: 'idx_source_captured_at' },
-      // TTL: Mongo purga documentos cuyo capturedAt supere la retención. Evita crecimiento ilimitado
-      // y acota la ventana de PII residual. Si el valor cambia, Mongo actualiza el TTL en caliente.
-      { key: { capturedAt: 1 }, name: 'idx_ttl_captured_at', expireAfterSeconds: LOG_RETENTION_SECONDS },
-    ]);
-
-    this.collection = collection;
-    return collection;
-  }
-
-  private async resetMongoClient(): Promise<void> {
-    this.collection = null;
-    const client = this.client;
-    this.client = null;
-    await client?.close().catch(() => undefined);
-  }
-
   private markSyncSuccess(): void {
     this.consecutiveFailures = 0;
     this.pausedUntil = 0;
@@ -280,7 +242,7 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
     if (this.startupInserted) return;
 
     const fileSizeAtStartup = await getFileSize(this.logFilePath);
-    this.currentOffset = await this.resolveInitialOffset(collection, fileSizeAtStartup);
+    this.currentOffset = await resolveInitialLogOffset(collection, this.source.filePath, fileSizeAtStartup);
 
     await collection.insertOne({
       type: 'startup',
@@ -301,25 +263,5 @@ export class ArchivoLogMongoSyncService implements OnApplicationBootstrap, OnMod
     });
 
     this.startupInserted = true;
-  }
-
-  private async resolveInitialOffset(collection: Collection<RemoteLogDocument>, fileSizeAtStartup: number): Promise<number> {
-    const latestAppend = await collection.findOne(
-      {
-        type: 'append',
-        'source.filePath': this.source.filePath,
-      },
-      { sort: { capturedAt: -1 } },
-    );
-
-    if (latestAppend?.type === 'append' && latestAppend.offsetTo <= fileSizeAtStartup) {
-      return latestAppend.offsetTo;
-    }
-
-    if (latestAppend?.type === 'append' && latestAppend.offsetTo > fileSizeAtStartup) {
-      return 0;
-    }
-
-    return env.LOG_SYNC_IMPORT_EXISTING_ON_FIRST_BOOT ? 0 : fileSizeAtStartup;
   }
 }

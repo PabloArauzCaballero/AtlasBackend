@@ -6,7 +6,8 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { OnboardingBehaviorSummaryService } from '../../customer-telemetry/application/onboarding-behavior-summary.service.js';
-import { OnboardingReviewDossierRepository } from '../repositories/onboarding-review-dossier.repository.js';
+import { OnboardingDossierDeviceRepository } from '../repositories/onboarding-dossier-device.repository.js';
+import { OnboardingDossierRecordRepository } from '../repositories/onboarding-dossier-record.repository.js';
 import { CustomerContactsSnapshotService } from './customer-contacts-snapshot.service.js';
 import { CustomerOnboardingAnswersService } from './customer-onboarding-answers.service.js';
 import {
@@ -32,7 +33,8 @@ export class OnboardingReviewDossierService {
   constructor(
     private readonly customers: CustomersRepository,
     private readonly answers: CustomerOnboardingAnswersService,
-    private readonly repository: OnboardingReviewDossierRepository,
+    private readonly record: OnboardingDossierRecordRepository,
+    private readonly device: OnboardingDossierDeviceRepository,
     private readonly contacts: CustomerContactsSnapshotService,
     private readonly behavior: OnboardingBehaviorSummaryService,
   ) {}
@@ -44,17 +46,17 @@ export class OnboardingReviewDossierService {
 
     const [answers, document, contactMethods, attempts, statement, evidence] = await Promise.all([
       this.answers.read(tenantId, customerId),
-      this.repository.findCurrentIdentityDocument(tenantId, customerId),
-      this.repository.findContactMethods(tenantId, customerId),
-      this.repository.findRecentAttempts(tenantId, customerId),
-      this.seguro('extracto', this.repository.findLatestBankStatement(tenantId, customerId), null),
-      this.seguro('evidencias', this.repository.findEvidence(tenantId, customerId), []),
+      this.record.findCurrentIdentityDocument(tenantId, customerId),
+      this.record.findContactMethods(tenantId, customerId),
+      this.record.findRecentAttempts(tenantId, customerId),
+      this.seguro('extracto', this.record.findLatestBankStatement(tenantId, customerId), null),
+      this.seguro('evidencias', this.record.findEvidence(tenantId, customerId), []),
     ]);
     const [cronometro, dispositivo, senales, pings, agenda] = await Promise.all([
       this.seguro('cronometro', this.cronometro(tenantId, customerId), null),
-      this.seguro('dispositivo', this.repository.findDevice(tenantId, customerId).then(dispositivoDe), null),
+      this.seguro('dispositivo', this.device.findDevice(tenantId, customerId).then(dispositivoDe), null),
       this.seguro('permisos', this.permisosYConsentimientos(tenantId, customerId), { permisos: [], consentimientos: [] }),
-      this.seguro('ubicacion', this.repository.findPings(tenantId, customerId), []),
+      this.seguro('ubicacion', this.device.findPings(tenantId, customerId), []),
       this.seguro('agenda', this.agenda(tenantId, customerId), null),
     ]);
 
@@ -84,15 +86,15 @@ export class OnboardingReviewDossierService {
   private async cronometro(tenantId: string, customerId: string): Promise<OnboardingReviewDossier['cronometro']> {
     const [resumen, flow] = await Promise.all([
       this.behavior.ultimo(tenantId, customerId),
-      this.repository.findLatestFlow(tenantId, customerId),
+      this.record.findLatestFlow(tenantId, customerId),
     ]);
     return cronometroDe(resumen, flow);
   }
 
   private async permisosYConsentimientos(tenantId: string, customerId: string) {
     const [eventos, consentimientos] = await Promise.all([
-      this.repository.findPermissionEvents(tenantId, customerId),
-      this.repository.findConsents(tenantId, customerId),
+      this.device.findPermissionEvents(tenantId, customerId),
+      this.device.findConsents(tenantId, customerId),
     ]);
     return { permisos: ultimosPermisos(eventos), consentimientos: ultimosConsentimientos(consentimientos) };
   }
@@ -100,8 +102,8 @@ export class OnboardingReviewDossierService {
   private async agenda(tenantId: string, customerId: string): Promise<AgendaLeida> {
     const [features, alcance, sincronizados] = await Promise.all([
       this.contacts.featuresFor(tenantId, customerId),
-      this.repository.findAddressBookScope(tenantId, customerId),
-      this.repository.countSyncedContacts(tenantId, customerId),
+      this.record.findAddressBookScope(tenantId, customerId),
+      this.device.countSyncedContacts(tenantId, customerId),
     ]);
     return { ...features, alcance, sincronizados };
   }

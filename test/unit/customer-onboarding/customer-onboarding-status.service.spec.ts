@@ -45,7 +45,8 @@ describe('CustomerOnboardingStatusService', () => {
       createOnboardingStepEvent: jest.fn(),
       createOperationalAuditLog: jest.fn(),
     };
-    const flowRepository = { closeOnboardingFlow: jest.fn() };
+    // Un solo repositorio de flujo: las lecturas y escrituras del flujo comparten los dobles de `onboardingRepository`.
+    const flowRepository = { ...onboardingRepository, closeOnboardingFlow: jest.fn() };
     const eligibilityService = {
       evaluate: jest.fn(async (..._args: unknown[]) => assessment),
       evaluateAndRecord: jest.fn(async (..._args: unknown[]) => ({
@@ -80,7 +81,6 @@ describe('CustomerOnboardingStatusService', () => {
 
     const service = new CustomerOnboardingStatusService(
       customersRepository as never,
-      onboardingRepository as never,
       flowRepository as never,
       eligibilityService as never,
       eligibilityRepository as never,

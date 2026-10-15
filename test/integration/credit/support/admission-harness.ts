@@ -22,6 +22,9 @@ import {
 } from '../../../../src/modules/customers/customer-eligibility.constants.js';
 import { CustomersRepository } from '../../../../src/modules/customers/customers.repository.js';
 import type { EligibilityFacts } from '../../../../src/modules/customers/repositories/customer-eligibility.facts.js';
+import { CustomerEligibilityConsentsRepository } from '../../../../src/modules/customers/repositories/customer-eligibility-consents.repository.js';
+import { CustomerEligibilityIdentityRepository } from '../../../../src/modules/customers/repositories/customer-eligibility-identity.repository.js';
+import { CustomerEligibilityProfileRepository } from '../../../../src/modules/customers/repositories/customer-eligibility-profile.repository.js';
 import { CustomerEligibilityRepository } from '../../../../src/modules/customers/repositories/customer-eligibility.repository.js';
 import { CustomerEligibilityRiskRepository } from '../../../../src/modules/customers/repositories/customer-eligibility-risk.repository.js';
 import { CustomerLifecycleRepository } from '../../../../src/modules/customers/repositories/customer-lifecycle.repository.js';
@@ -143,20 +146,23 @@ export async function buildAdmissionHarness(sequelize: Sequelize): Promise<Admis
     ManualReviewCaseModel,
   );
   const eligibilityRepository = new CustomerEligibilityRepository(
-    AuthCredentialModel,
-    CustomerContactMethodModel,
-    CustomerProfileVersionModel,
-    CustomerAttributeValueModel,
-    AttributeDefinitionModel,
-    CustomerAddressModel,
-    CustomerReferenceContactModel,
-    CustomerIdentityDocumentModel,
-    IdentityVerificationAttemptModel,
-    EvidenceDocumentModel,
-    EvidenceReviewModel,
-    CustomerConsentModel,
-    ConsentDocumentModel,
     OnboardingFlowModel,
+    new CustomerEligibilityProfileRepository(
+      AuthCredentialModel,
+      CustomerContactMethodModel,
+      CustomerProfileVersionModel,
+      CustomerAttributeValueModel,
+      AttributeDefinitionModel,
+      CustomerAddressModel,
+      CustomerReferenceContactModel,
+    ),
+    new CustomerEligibilityIdentityRepository(
+      CustomerIdentityDocumentModel,
+      IdentityVerificationAttemptModel,
+      EvidenceDocumentModel,
+      EvidenceReviewModel,
+    ),
+    new CustomerEligibilityConsentsRepository(CustomerConsentModel, ConsentDocumentModel),
     riskRepository,
     {
       findDecidedDevicePermissionPurposes: async () => ['device_address_book', 'location_tracking'],

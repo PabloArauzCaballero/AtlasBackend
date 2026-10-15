@@ -7,7 +7,8 @@
  */
 import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { NotificationOrchestratorService } from '../notification-orchestrator.service.js';
-import { NotificationsRepository } from '../notifications.repository.js';
+import { NotificationDeliveriesRepository } from '../notification-deliveries.repository.js';
+import { NotificationMessagesRepository } from '../notification-messages.repository.js';
 import { NotificationCampaignService } from './notification-campaign.service.js';
 import { buildCampaignMessageRows, testCorrelationId } from './notification-campaign-messages.js';
 import { NotificationCampaignsRepository } from './notification-campaigns.repository.js';
@@ -18,7 +19,8 @@ export class NotificationCampaignTestSendService {
   constructor(
     private readonly campaigns: NotificationCampaignService,
     private readonly repository: NotificationCampaignsRepository,
-    private readonly notifications: NotificationsRepository,
+    private readonly messages: NotificationMessagesRepository,
+    private readonly deliveries: NotificationDeliveriesRepository,
     private readonly orchestrator: NotificationOrchestratorService,
   ) {}
 
@@ -34,7 +36,7 @@ export class NotificationCampaignTestSendService {
     }));
     if (rows.length === 0) throw new UnprocessableEntityException('NOTIFICATION_CAMPAIGN_NO_CHANNELS');
     await this.repository.insertCampaignMessages(rows);
-    const created = await this.notifications.listMessages(tenantId, {
+    const created = await this.messages.listMessages(tenantId, {
       page: 1,
       limit: rows.length,
       recipientType: 'customer',
@@ -46,8 +48,8 @@ export class NotificationCampaignTestSendService {
     const results = [];
     for (const message of created.rows) {
       await this.orchestrator.deliverMessage(message).catch(() => undefined);
-      const after = await this.notifications.getMessage(tenantId, String(message.id));
-      const deliveries = await this.notifications.listDeliveries(tenantId, String(message.id)).catch(() => []);
+      const after = await this.messages.getMessage(tenantId, String(message.id));
+      const deliveries = await this.deliveries.listDeliveries(tenantId, String(message.id)).catch(() => []);
       const last = deliveries[deliveries.length - 1];
       results.push({
         channel: after.channel,

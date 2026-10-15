@@ -5,12 +5,16 @@
  */
 import { Injectable } from '@nestjs/common';
 import { buildPaginationMeta } from '../../common/utils/pagination/pagination.util.js';
+import { AuditFeedRepository } from './audit-feed.repository.js';
 import { AuditRepository } from './audit.repository.js';
 import { AuditCustomerParamsDto, AuditQueryDto } from './audit.schemas.js';
 
 @Injectable()
 export class AuditService {
-  constructor(private readonly repository: AuditRepository) {}
+  constructor(
+    private readonly repository: AuditRepository,
+    private readonly feed: AuditFeedRepository,
+  ) {}
 
   async getCustomerAudit(tenantId: string, params: AuditCustomerParamsDto, query: AuditQueryDto) {
     const rows = await this.repository.findCustomerAuditEvents(tenantId, params.customerId, query);
@@ -34,7 +38,7 @@ export class AuditService {
    * volumen de auditoría crezca.
    */
   async getCustomerAuditFeed(tenantId: string, customerId: string, query: { limit: number; cursor?: string }) {
-    const result = await this.repository.findCustomerAuditEventsWithCursor(tenantId, customerId, query);
+    const result = await this.feed.findCustomerAuditEventsWithCursor(tenantId, customerId, query);
     return {
       events: result.items.map((row) => ({
         sourceTable: row.source_table,

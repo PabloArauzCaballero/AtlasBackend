@@ -39,7 +39,9 @@ import { NotificationPreferencesRepository } from '../modules/notifications/noti
 import { NotificationRulesService } from '../modules/notifications/notification-rules.service.js';
 import { NotificationTemplateRendererService } from '../modules/notifications/notification-template-renderer.service.js';
 import { NotificationTemplatesRepository } from '../modules/notifications/notification-templates.repository.js';
-import { NotificationsRepository } from '../modules/notifications/notifications.repository.js';
+import { NotificationMessagesRepository } from '../modules/notifications/notification-messages.repository.js';
+import { NotificationDeliveriesRepository } from '../modules/notifications/notification-deliveries.repository.js';
+import { NotificationDeviceTokensRepository } from '../modules/notifications/notification-device-tokens.repository.js';
 import { EVENT_CONSUMERS } from '../platform/events/event-consumer.port.js';
 import { OutboxRelayService } from '../platform/events/outbox-relay.service.js';
 import { PlatformModule } from '../platform/platform.module.js';
@@ -82,7 +84,9 @@ export const MESSAGING_FORBIDDEN_MODULES = Object.freeze([
     // Baja de tokens muertos: el worker entrega push igual que el API, asi que la necesita igual.
     SequelizeDeviceTokenRegistryAdapter,
     { provide: DEVICE_TOKEN_REGISTRY_PORT, useExisting: SequelizeDeviceTokenRegistryAdapter },
-    NotificationsRepository,
+    NotificationMessagesRepository,
+    NotificationDeliveriesRepository,
+    NotificationDeviceTokensRepository,
     NotificationTemplatesRepository,
     NotificationPoliciesRepository,
     NotificationPreferencesRepository,

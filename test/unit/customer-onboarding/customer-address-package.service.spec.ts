@@ -35,6 +35,7 @@ describe('CustomerAddressPackageService.submitAddressPackage', () => {
     const service = new CustomerAddressPackageService(
       customersRepository as never,
       onboardingRepository as never,
+      onboardingRepository as never, // estado de dirección: mismo doble
       lifecycleService as never,
       eligibilityService as never,
       sequelize as never,

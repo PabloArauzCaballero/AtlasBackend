@@ -136,7 +136,7 @@ Roles que alcanzan este módulo: `internal_operator`, `risk_analyst`, `complianc
 - `test/unit/notifications/notification-rules.service.spec.ts`
 - `test/unit/notifications/notification-template-renderer.service.spec.ts`
 - `test/unit/notifications/notification-templates.repository.spec.ts`
-- `test/unit/notifications/notifications-repository-recipient.spec.ts`
+- `test/unit/notifications/notification-inbox.repository.spec.ts`
 - `test/unit/notifications/notifications.controller.spec.ts`
 - `test/unit/notifications/notifications.mapper.spec.ts`
 - … y 6 más

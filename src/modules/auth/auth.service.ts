@@ -5,27 +5,18 @@
  */ import { TracingService } from '../../common/observability/tracing.service.js';
 
 import { Injectable, UnauthorizedException, Optional } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/sequelize';
 import { MetricsService } from '../../common/observability/metrics.service.js';
-import { Transaction } from 'sequelize';
-import { Sequelize } from 'sequelize-typescript';
 import { env } from '../../config/env.js';
 
 import { verifyPassword, verifyPasswordAgainstDummy } from '../../common/utils/crypto/password.util.js';
 import { hashRefreshToken } from '../../common/utils/crypto/refresh-token.util.js';
 import { TokenRevocationService } from '../../common/services/token-revocation.service.js';
-import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
-import { AuthPasswordResetService } from './auth-password-reset.service.js';
+import { AuthRefreshRotationService } from './auth-refresh-rotation.service.js';
+import { AuthRefreshTokensRepository } from './auth-refresh-tokens.repository.js';
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
-import {
-  SESSION_EXPIRED_CODE,
-  SESSION_EXPIRED_REVOKE_REASON,
-  hasAbsoluteSessionCap,
-  isCustomerSessionExpired,
-  sessionStartOf,
-} from './customer-session-lifetime.js';
+import { SESSION_EXPIRED_CODE } from './customer-session-lifetime.js';
 import { ActorType, AuthRepository } from './auth.repository.js';
 import { LoginPinChallengeResponseDto, LoginResponseDto, LogoutResponseDto } from './auth.dtos.js';
 import { LoginDto } from './auth.schemas.js';
@@ -54,13 +45,12 @@ export function isLoginPinChallenge(outcome: LoginOutcome): outcome is LoginPinC
 export class AuthService {
   constructor(
     private readonly authRepository: AuthRepository,
+    private readonly refreshTokens: AuthRefreshTokensRepository,
+    private readonly rotation: AuthRefreshRotationService,
     private readonly actorResolver: AuthActorResolverService,
-    private readonly passwordReset: AuthPasswordResetService,
     private readonly secondFactor: AuthSecondFactorService,
     private readonly tokenIssuer: AuthTokenIssuerService,
     private readonly tokenRevocationService: TokenRevocationService,
-    private readonly mailSenderService: MailSenderService,
-    @InjectConnection() private readonly sequelize: Sequelize,
     // `@Optional()` y ÚLTIMO a propósito: los specs lo construyen posicionalmente.
     @Optional() private readonly metrics?: MetricsService,
     @Optional() private readonly tracing: TracingService = new TracingService(),
@@ -187,30 +177,14 @@ export class AuthService {
     });
   }
 
-  /**
-   * ATLAS-P0-AUTH-001: la rotación entera (leer, validar, revocar el viejo, crear el nuevo) corre
-   * dentro de una única transacción con el token bloqueado por `FOR UPDATE`
-   * (`AuthRepository.findRefreshTokenForUpdate`). Dos refresh concurrentes con el mismo token ya
-   * no pueden leer ambos "todavía activo" y rotar dos veces: el segundo espera a que el primero
-   * haga commit, y al releer ve el token ya revocado — cae en la rama de reuso.
-   *
-   * La transacción SIEMPRE resuelve (nunca lanza) y retorna un resultado discriminado; las
-   * excepciones se lanzan recién afuera, después del commit. Esto es deliberado: si lanzáramos
-   * dentro del callback de `sequelize.transaction`, Sequelize haría rollback automático — y en el
-   * caso de reuso detectado, la revocación de la cadena de descendientes es justo lo que NO
-   * queremos perder aunque la solicitud en sí termine en 401.
-   */
+  /** Rotación del refresh token (ver `AuthRefreshRotationService`); aquí se traduce el resultado a la respuesta HTTP. */
   async refresh(input: {
     refreshToken: string;
     ip: string | null;
     userAgent: string | null;
     expectedActorType?: ActorType;
   }): Promise<LoginResult> {
-    const tokenHash = hashRefreshToken(input.refreshToken);
-
-    const outcome = await this.sequelize.transaction((transaction) =>
-      this.rotateRefreshTokenWithinTransaction(tokenHash, input, transaction),
-    );
+    const outcome = await this.rotation.rotate(input.refreshToken, input);
 
     if (outcome.kind === 'success') {
       return { accessToken: outcome.accessToken, refreshToken: outcome.refreshToken, tokenType: 'Bearer', expiresIn: outcome.expiresIn };
@@ -240,81 +214,9 @@ export class AuthService {
     throw new UnauthorizedException('Refresh token inválido o expirado.');
   }
 
-  private async rotateRefreshTokenWithinTransaction(
-    tokenHash: string,
-    input: { ip: string | null; userAgent: string | null; expectedActorType?: ActorType },
-    transaction: Transaction,
-  ): Promise<
-    | { kind: 'success'; accessToken: string; refreshToken: string; expiresIn: string }
-    | { kind: 'session_expired' }
-    | { kind: 'invalid' }
-    | { kind: 'actor_unavailable' }
-    | { kind: 'reused'; actorType: ActorType; actorId: string }
-  > {
-    const stored = await this.authRepository.findRefreshTokenForUpdate(tokenHash, transaction);
-    if (!stored) return { kind: 'invalid' };
-
-    const actorType = stored.actorType as ActorType;
-    // Un token de otro tipo de actor llegado a la ruta equivocada se rechaza SIN rotarlo ni revocarlo.
-    if (input.expectedActorType && actorType !== input.expectedActorType) return { kind: 'invalid' };
-
-    if (stored.revokedAt) {
-      // El token ya fue consumido antes. Si fue consumido específicamente por una rotación
-      // (no por logout), que se vuelva a presentar es indicio de robo/reuso: alguien más tiene
-      // una copia de un token que ya avanzó. Se corta toda la cadena de descendientes todavía
-      // activos — no solo este token — porque el atacante pudo haber seguido rotando.
-      if (stored.revokedReason === 'rotated') {
-        const revokedDescendantIds = await this.authRepository.revokeDescendantChain(stored.id, transaction);
-        await this.authRepository.recordRefreshReuseEvent(
-          { tenantId: stored.tenantId, actorType, actorId: stored.actorId, reusedTokenId: stored.id, revokedDescendantIds },
-          transaction,
-        );
-        return { kind: 'reused', actorType, actorId: stored.actorId };
-      }
-      return { kind: 'invalid' };
-    }
-
-    // Tope absoluto del cliente, contado desde el inicio de sesión con credenciales y no desde la última rotación.
-    // Va antes del vencimiento porque su refresh token ya vence en ese mismo instante: así se responde con su código.
-    const sessionStartedAt = sessionStartOf(stored);
-    if (hasAbsoluteSessionCap(actorType) && isCustomerSessionExpired(sessionStartedAt)) {
-      await this.authRepository.revokeRefreshToken(stored, SESSION_EXPIRED_REVOKE_REASON, undefined, { transaction });
-      return { kind: 'session_expired' };
-    }
-
-    if (stored.expiresAt.getTime() < Date.now()) return { kind: 'invalid' };
-
-    const credential = await this.authRepository.findCredentialsByActor(actorType, stored.actorId, { transaction });
-    if (!credential) return { kind: 'invalid' };
-
-    // El rol/tenant vigentes se re-resuelven antes de emitir un refresh token nuevo.
-    const refreshedActor = await this.actorResolver.reResolveActorRole(actorType, stored.actorId, stored.tenantId);
-    if (!refreshedActor) return { kind: 'actor_unavailable' };
-
-    // Rotación: el refresh token usado queda revocado y se emite uno nuevo, en la misma
-    // transacción y con la fila todavía bloqueada. `replacedByTokenId` queda registrado para
-    // poder reconstruir la cadena de rotación completa en una investigación de robo de tokens.
-    const newRefreshToken = await this.tokenIssuer.issueRefreshToken(
-      {
-        tenantId: refreshedActor.tenantId,
-        actorType,
-        actorId: refreshedActor.id,
-        userAgent: input.userAgent,
-        ipAddress: input.ip,
-        sessionStartedAt,
-      },
-      { transaction },
-    );
-    await this.authRepository.revokeRefreshToken(stored, 'rotated', newRefreshToken.id, { transaction });
-
-    const accessToken = this.tokenIssuer.issueAccessToken(refreshedActor, actorType, credential.tokenVersion, sessionStartedAt);
-    const expiresIn = this.tokenIssuer.accessTokenExpiresIn(actorType, sessionStartedAt);
-    return { kind: 'success', accessToken, refreshToken: newRefreshToken.token, expiresIn };
-  }
-
   async logout(input: { refreshToken: string; allDevices: boolean }): Promise<LogoutResponseDto> {
     const tokenHash = hashRefreshToken(input.refreshToken);
-    const stored = await this.authRepository.findActiveRefreshTokenByHash(tokenHash);
+    const stored = await this.refreshTokens.findActiveRefreshTokenByHash(tokenHash);
     if (!stored) {
       // Idempotente: cerrar sesión con un token ya inválido/inexistente no es un error.
       return { loggedOut: true };
@@ -332,14 +234,14 @@ export class AuthService {
     });
 
     if (input.allDevices) {
-      await this.authRepository.revokeAllRefreshTokensForActor(stored.actorType as ActorType, stored.actorId, 'logout_all_devices');
+      await this.refreshTokens.revokeAllRefreshTokensForActor(stored.actorType as ActorType, stored.actorId, 'logout_all_devices');
       const credential = await this.authRepository.findCredentialsByActor(stored.actorType as ActorType, stored.actorId);
       if (credential) {
         // `TokenRevocationService` actualiza base de datos y caché para invalidar access tokens.
         await this.tokenRevocationService.bumpTokenVersion(credential.actorType, credential.actorId);
       }
     } else {
-      await this.authRepository.revokeRefreshToken(stored, 'logout');
+      await this.refreshTokens.revokeRefreshToken(stored, 'logout');
     }
 
     return { loggedOut: true };

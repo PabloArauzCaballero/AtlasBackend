@@ -11,6 +11,7 @@ import { assertOwnCustomerResource } from '../../../common/utils/auth/ownership.
 import { EndSessionResponseDto } from '../sessions.dtos.js';
 import { EndSessionDto } from '../sessions.schemas.js';
 import { SessionsLifecycleRepository } from '../repositories/sessions-lifecycle.repository.js';
+import { SessionsCustomerActivityRepository } from '../repositories/sessions-customer-activity.repository.js';
 import { SessionsTelemetryRepository } from '../repositories/sessions-telemetry.repository.js';
 import { SessionsActivityAuditRepository } from '../repositories/sessions-activity-audit.repository.js';
 import { RequestContext, toDate } from './sessions.shared.js';
@@ -20,6 +21,7 @@ export class SessionEndService {
   constructor(
     private readonly lifecycleRepository: SessionsLifecycleRepository,
     private readonly telemetryRepository: SessionsTelemetryRepository,
+    private readonly customerActivityRepository: SessionsCustomerActivityRepository,
     private readonly activityAuditRepository: SessionsActivityAuditRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
@@ -60,7 +62,7 @@ export class SessionEndService {
         },
         { transaction },
       );
-      await this.telemetryRepository.createCustomerAction(
+      await this.customerActivityRepository.createCustomerAction(
         {
           tenantId: input.context.tenantId,
           customerId: input.customerId,

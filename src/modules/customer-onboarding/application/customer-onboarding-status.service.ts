@@ -16,7 +16,6 @@ import { CustomerEligibilityRepository } from '../../customers/repositories/cust
 import { CustomerEligibilityRiskRepository } from '../../customers/repositories/customer-eligibility-risk.repository.js';
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { OnboardingBehaviorSummaryService } from '../../customer-telemetry/application/onboarding-behavior-summary.service.js';
-import { CustomerOnboardingRepository } from '../customer-onboarding.repository.js';
 import { CustomerOnboardingFlowRepository } from '../repositories/customer-onboarding-flow.repository.js';
 import { OnboardingRiskTriggerService } from './onboarding-risk-trigger.service.js';
 import { OnboardingReviewDossierPublisher } from './onboarding-review-dossier.publisher.js';
@@ -39,7 +38,6 @@ const SUBMITTABLE_STATUSES = ['registered', 'onboarding_in_progress', 'observed'
 export class CustomerOnboardingStatusService {
   constructor(
     private readonly customersRepository: CustomersRepository,
-    private readonly onboardingRepository: CustomerOnboardingRepository,
     private readonly flowRepository: CustomerOnboardingFlowRepository,
     private readonly eligibilityService: CustomerEligibilityService,
     private readonly eligibilityRepository: CustomerEligibilityRepository,
@@ -61,7 +59,7 @@ export class CustomerOnboardingStatusService {
 
     const [assessment, flow] = await Promise.all([
       this.eligibilityService.evaluate(input.tenantId, input.customerId),
-      this.onboardingRepository.findLatestOnboardingFlow(input.tenantId, input.customerId),
+      this.flowRepository.findLatestOnboardingFlow(input.tenantId, input.customerId),
     ]);
 
     return {
@@ -159,11 +157,11 @@ export class CustomerOnboardingStatusService {
         transaction,
       });
 
-      const flow = await this.onboardingRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
+      const flow = await this.flowRepository.findLatestOnboardingFlow(input.tenantId, input.customerId, { transaction });
       if (flow) {
         // Cierre real del flujo: sin esto no existen tasa de conversión ni tiempo por etapa.
         await this.flowRepository.closeOnboardingFlow(flow, { completionStatus: 'completed', closedAt: now }, { transaction });
-        await this.onboardingRepository.createOnboardingStepEvent(
+        await this.flowRepository.createOnboardingStepEvent(
           {
             tenantId: input.tenantId,
             onboardingFlowId: String(flow.id),
@@ -176,7 +174,7 @@ export class CustomerOnboardingStatusService {
         );
       }
 
-      await this.onboardingRepository.createOperationalAuditLog(
+      await this.flowRepository.createOperationalAuditLog(
         {
           tenantId: input.tenantId,
           actorType: input.currentUser.role,

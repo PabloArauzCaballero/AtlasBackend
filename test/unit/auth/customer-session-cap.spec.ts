@@ -9,6 +9,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import jwt from 'jsonwebtoken';
 import { env } from '../../../src/config/env.js';
 import { AuthService } from '../../../src/modules/auth/auth.service.js';
+import { AuthRefreshRotationService } from '../../../src/modules/auth/auth-refresh-rotation.service.js';
 import { AuthTokenIssuerService } from '../../../src/modules/auth/auth-token-issuer.service.js';
 import type { ResolvedActor } from '../../../src/modules/auth/auth-actor-resolver.service.js';
 import {
@@ -56,15 +57,21 @@ function build(stored: StoredToken) {
   const tokenIssuer = new AuthTokenIssuerService(authRepository as never);
   const tokenRevocation = { bumpTokenVersion: jest.fn(async (..._args: unknown[]) => undefined) };
   const sequelize = { transaction: jest.fn((work: (transaction: unknown) => unknown) => work({})) };
-  const service = new AuthService(
+  const rotation = new AuthRefreshRotationService(
+    authRepository as never,
     authRepository as never,
     actorResolver as never,
-    {} as never,
+    tokenIssuer,
+    sequelize as never,
+  );
+  const service = new AuthService(
+    authRepository as never,
+    authRepository as never,
+    rotation,
+    actorResolver as never,
     {} as never,
     tokenIssuer,
     tokenRevocation as never,
-    {} as never,
-    sequelize as never,
   );
   return { service, authRepository, tokenIssuer };
 }
