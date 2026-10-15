@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-09-12T01:17:47.240Z",
+  "generatedAt": "2026-10-15T03:59:30.179Z",
   "summary": {
-    "files": 1200,
-    "edges": 4417,
-    "crossModuleEdges": 299,
-    "modules": 41,
+    "files": 1891,
+    "edges": 6843,
+    "crossModuleEdges": 403,
+    "modules": 44,
     "cycles": [
       [
         "modules/auth",
@@ -14,13 +14,18 @@
       ]
     ],
     "leaksByKind": {
-      "repository": 66,
-      "service": 102
+      "repository": 83,
+      "service": 143
     },
     "unresolvedDynamic": 2
   },
   "modules": {
     "modules/app-content": {
+      "imports": [],
+      "importedBy": [],
+      "crossModuleEdges": 0
+    },
+    "modules/assist": {
       "imports": [],
       "importedBy": [],
       "crossModuleEdges": 0
@@ -40,30 +45,36 @@
       "importedBy": [
         "modules/customer-onboarding",
         "modules/internal-users",
-        "modules/merchant-identity"
+        "modules/merchant-identity",
+        "modules/partner-onboarding"
       ],
       "crossModuleEdges": 9
     },
     "modules/catalog-management": {
-      "imports": [],
+      "imports": [
+        "modules/internal-users"
+      ],
       "importedBy": [],
-      "crossModuleEdges": 0
+      "crossModuleEdges": 1
     },
     "modules/consents": {
       "imports": [
-        "modules/customers"
+        "modules/customers",
+        "modules/internal-users"
       ],
       "importedBy": [
         "modules/customer-onboarding",
         "modules/customer-privacy"
       ],
-      "crossModuleEdges": 1
+      "crossModuleEdges": 2
     },
     "modules/credit": {
       "imports": [
         "modules/customers",
         "modules/decision-engine",
+        "modules/events",
         "modules/expedientes",
+        "modules/internal-users",
         "modules/partner-onboarding"
       ],
       "importedBy": [
@@ -71,7 +82,7 @@
         "modules/loans",
         "modules/runtime-jobs"
       ],
-      "crossModuleEdges": 29
+      "crossModuleEdges": 50
     },
     "modules/credit-rating": {
       "imports": [
@@ -84,16 +95,19 @@
     },
     "modules/customer-device-signals": {
       "imports": [
-        "modules/customers"
+        "modules/customers",
+        "modules/internal-users"
       ],
       "importedBy": [],
-      "crossModuleEdges": 3
+      "crossModuleEdges": 5
     },
     "modules/customer-onboarding": {
       "imports": [
         "modules/auth",
         "modules/consents",
+        "modules/customer-telemetry",
         "modules/customers",
+        "modules/decision-engine",
         "modules/expedientes",
         "modules/external-data",
         "modules/mail-sender",
@@ -106,21 +120,29 @@
         "modules/operations",
         "modules/runtime-jobs"
       ],
-      "crossModuleEdges": 84
+      "crossModuleEdges": 103
     },
     "modules/customer-privacy": {
       "imports": [
         "modules/consents",
-        "modules/customers"
+        "modules/customers",
+        "modules/decision-engine",
+        "modules/internal-users"
       ],
-      "importedBy": [],
-      "crossModuleEdges": 4
+      "importedBy": [
+        "modules/runtime-jobs"
+      ],
+      "crossModuleEdges": 11
     },
     "modules/customer-telemetry": {
       "imports": [
         "modules/customers"
       ],
-      "importedBy": [],
+      "importedBy": [
+        "modules/customer-onboarding",
+        "modules/mobile-identity",
+        "modules/operations"
+      ],
       "crossModuleEdges": 2
     },
     "modules/customers": {
@@ -153,18 +175,30 @@
       "crossModuleEdges": 0
     },
     "modules/data-quality": {
-      "imports": [],
+      "imports": [
+        "modules/internal-users"
+      ],
       "importedBy": [],
-      "crossModuleEdges": 0
+      "crossModuleEdges": 1
     },
     "modules/decision-engine": {
       "imports": [],
       "importedBy": [
         "modules/credit",
+        "modules/customer-onboarding",
+        "modules/customer-privacy",
         "modules/loans",
         "modules/mobile-identity",
         "modules/partner-onboarding",
         "modules/risk",
+        "modules/runtime-jobs",
+        "modules/systems-ops"
+      ],
+      "crossModuleEdges": 0
+    },
+    "modules/erp-integration": {
+      "imports": [],
+      "importedBy": [
         "modules/runtime-jobs"
       ],
       "crossModuleEdges": 0
@@ -174,12 +208,13 @@
         "modules/notifications"
       ],
       "importedBy": [
+        "modules/credit",
         "modules/loan-payment-claims",
         "modules/runtime-jobs",
         "modules/support",
         "modules/systems-ops"
       ],
-      "crossModuleEdges": 2
+      "crossModuleEdges": 3
     },
     "modules/expedientes": {
       "imports": [
@@ -190,6 +225,7 @@
         "modules/credit",
         "modules/customer-onboarding",
         "modules/loan-payment-claims",
+        "modules/partner-onboarding",
         "modules/runtime-jobs"
       ],
       "crossModuleEdges": 5
@@ -197,7 +233,8 @@
     "modules/external-data": {
       "imports": [],
       "importedBy": [
-        "modules/customer-onboarding"
+        "modules/customer-onboarding",
+        "modules/systems-ops"
       ],
       "crossModuleEdges": 0
     },
@@ -208,7 +245,7 @@
       "importedBy": [
         "modules/operations"
       ],
-      "crossModuleEdges": 2
+      "crossModuleEdges": 4
     },
     "modules/health": {
       "imports": [],
@@ -225,13 +262,23 @@
         "modules/auth"
       ],
       "importedBy": [
+        "modules/catalog-management",
+        "modules/consents",
+        "modules/credit",
+        "modules/customer-device-signals",
+        "modules/customer-privacy",
+        "modules/data-quality",
         "modules/expedientes",
+        "modules/loans",
         "modules/merchant-identity",
         "modules/notifications",
         "modules/partner-onboarding",
-        "modules/systems-ops"
+        "modules/qa-orchestration",
+        "modules/schema-management",
+        "modules/systems-ops",
+        "modules/workflow-catalog"
       ],
-      "crossModuleEdges": 5
+      "crossModuleEdges": 6
     },
     "modules/loan-payment-claims": {
       "imports": [
@@ -242,13 +289,14 @@
         "modules/partner-onboarding"
       ],
       "importedBy": [],
-      "crossModuleEdges": 17
+      "crossModuleEdges": 19
     },
     "modules/loans": {
       "imports": [
         "modules/credit",
         "modules/customers",
         "modules/decision-engine",
+        "modules/internal-users",
         "modules/partner-onboarding"
       ],
       "importedBy": [
@@ -256,7 +304,7 @@
         "modules/loan-payment-claims",
         "modules/runtime-jobs"
       ],
-      "crossModuleEdges": 12
+      "crossModuleEdges": 19
     },
     "modules/log-sync": {
       "imports": [
@@ -272,6 +320,7 @@
       "importedBy": [
         "modules/auth",
         "modules/customer-onboarding",
+        "modules/notifications",
         "modules/partner-onboarding"
       ],
       "crossModuleEdges": 5
@@ -287,10 +336,11 @@
     "modules/mobile-identity": {
       "imports": [
         "modules/customer-onboarding",
+        "modules/customer-telemetry",
         "modules/decision-engine"
       ],
       "importedBy": [],
-      "crossModuleEdges": 9
+      "crossModuleEdges": 15
     },
     "modules/mobile-welcome-audio": {
       "imports": [
@@ -302,7 +352,8 @@
     "modules/notifications": {
       "imports": [
         "modules/customers",
-        "modules/internal-users"
+        "modules/internal-users",
+        "modules/mail-sender"
       ],
       "importedBy": [
         "modules/customer-onboarding",
@@ -311,21 +362,24 @@
         "modules/runtime-jobs",
         "modules/systems-ops"
       ],
-      "crossModuleEdges": 4
+      "crossModuleEdges": 7
     },
     "modules/operations": {
       "imports": [
         "modules/customer-onboarding",
+        "modules/customer-telemetry",
         "modules/customers",
         "modules/fraud",
         "modules/risk"
       ],
       "importedBy": [],
-      "crossModuleEdges": 12
+      "crossModuleEdges": 15
     },
     "modules/partner-onboarding": {
       "imports": [
+        "modules/auth",
         "modules/decision-engine",
+        "modules/expedientes",
         "modules/internal-users",
         "modules/mail-sender"
       ],
@@ -336,7 +390,17 @@
         "modules/runtime-jobs",
         "modules/support"
       ],
-      "crossModuleEdges": 12
+      "crossModuleEdges": 18
+    },
+    "modules/qa-orchestration": {
+      "imports": [
+        "modules/internal-users",
+        "modules/systems-ops"
+      ],
+      "importedBy": [
+        "modules/runtime-jobs"
+      ],
+      "crossModuleEdges": 4
     },
     "modules/risk": {
       "imports": [
@@ -347,7 +411,7 @@
         "modules/customer-onboarding",
         "modules/operations"
       ],
-      "crossModuleEdges": 4
+      "crossModuleEdges": 6
     },
     "modules/runtime-hardening": {
       "imports": [],
@@ -359,21 +423,27 @@
         "modules/credit",
         "modules/credit-rating",
         "modules/customer-onboarding",
+        "modules/customer-privacy",
         "modules/decision-engine",
+        "modules/erp-integration",
         "modules/events",
         "modules/expedientes",
         "modules/loans",
         "modules/notifications",
         "modules/partner-onboarding",
-        "modules/support"
+        "modules/qa-orchestration",
+        "modules/support",
+        "modules/systems-ops"
       ],
       "importedBy": [],
-      "crossModuleEdges": 34
+      "crossModuleEdges": 46
     },
     "modules/schema-management": {
-      "imports": [],
+      "imports": [
+        "modules/internal-users"
+      ],
       "importedBy": [],
-      "crossModuleEdges": 0
+      "crossModuleEdges": 1
     },
     "modules/sessions": {
       "imports": [
@@ -389,7 +459,7 @@
         "modules/data-notebook"
       ],
       "importedBy": [],
-      "crossModuleEdges": 3
+      "crossModuleEdges": 4
     },
     "modules/support": {
       "imports": [
@@ -403,13 +473,17 @@
     },
     "modules/systems-ops": {
       "imports": [
+        "modules/decision-engine",
         "modules/events",
+        "modules/external-data",
         "modules/internal-users",
         "modules/notifications"
       ],
       "importedBy": [
         "modules/audit",
         "modules/log-sync",
+        "modules/qa-orchestration",
+        "modules/runtime-jobs",
         "modules/workflow-catalog"
       ],
       "crossModuleEdges": 9
@@ -417,10 +491,11 @@
     "modules/workflow-catalog": {
       "imports": [
         "modules/customers",
+        "modules/internal-users",
         "modules/systems-ops"
       ],
       "importedBy": [],
-      "crossModuleEdges": 7
+      "crossModuleEdges": 8
     }
   },
   "cycles": [
@@ -477,7 +552,7 @@
     {
       "leak": "service",
       "symbol": "MailSenderService",
-      "source": "src/modules/auth/auth.service.ts",
+      "source": "src/modules/auth/credentials-notifier.service.ts",
       "target": "src/modules/mail-sender/mail-sender.service.ts",
       "kind": "runtime"
     },
@@ -491,34 +566,6 @@
     {
       "leak": "service",
       "symbol": "CustomerEligibilityService",
-      "source": "src/modules/credit/application/credit-application-admission.service.ts",
-      "target": "src/modules/customers/application/customer-eligibility.service.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "repository",
-      "symbol": "CustomerEligibilityRepository",
-      "source": "src/modules/credit/application/credit-application-admission.service.ts",
-      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "service",
-      "symbol": "PartnerDirectoryService",
-      "source": "src/modules/credit/application/credit-application-admission.service.ts",
-      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "service",
-      "symbol": "PartnerProfileService",
-      "source": "src/modules/credit/application/credit-application-admission.service.ts",
-      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "service",
-      "symbol": "CustomerEligibilityService",
       "source": "src/modules/credit/application/credit-application.service.ts",
       "target": "src/modules/customers/application/customer-eligibility.service.ts",
       "kind": "runtime"
@@ -555,6 +602,34 @@
       "leak": "service",
       "symbol": "PartnerProfileService",
       "source": "src/modules/credit/application/credit-business-acceptance.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "EventsService",
+      "source": "src/modules/credit/application/credit-decision-event-publisher.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "type-only"
+    },
+    {
+      "leak": "service",
+      "symbol": "CreditDecisionEngineService",
+      "source": "src/modules/credit/application/credit-decision-product-resolution.ts",
+      "target": "src/modules/decision-engine/credit-decision-engine.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerDirectoryService",
+      "source": "src/modules/credit/application/credit-down-payment.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerProfileService",
+      "source": "src/modules/credit/application/credit-down-payment.service.ts",
       "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
       "kind": "runtime"
     },
@@ -598,6 +673,20 @@
       "symbol": "UnderwritingFeaturesService",
       "source": "src/modules/credit/application/credit-line-writer.service.ts",
       "target": "src/modules/decision-engine/underwriting-features.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerDirectoryService",
+      "source": "src/modules/credit/application/credit-pos-origin.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerProfileService",
+      "source": "src/modules/credit/application/credit-pos-origin.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
       "kind": "runtime"
     },
     {
@@ -622,6 +711,41 @@
       "kind": "runtime"
     },
     {
+      "leak": "service",
+      "symbol": "EventsService",
+      "source": "src/modules/credit/application/credit-underwriting.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerDirectoryService",
+      "source": "src/modules/credit/infrastructure/integrations/partner-resolution.adapter.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PartnerProfileService",
+      "source": "src/modules/credit/infrastructure/integrations/partner-resolution.adapter.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/credit/infrastructure/persistence/sequelize-credit-unit-of-work.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerEligibilityRepository",
+      "source": "src/modules/credit/infrastructure/persistence/sequelize-credit-unit-of-work.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime"
+    },
+    {
       "leak": "repository",
       "symbol": "CustomersRepository",
       "source": "src/modules/customer-device-signals/application/customer-address-book.service.ts",
@@ -633,6 +757,20 @@
       "symbol": "CustomersRepository",
       "source": "src/modules/customer-device-signals/application/device-signals-access.service.ts",
       "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "InternalRbacRepository",
+      "source": "src/modules/customer-device-signals/application/device-signals-access.service.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "RiskService",
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/risk/risk.service.ts",
       "kind": "runtime"
     },
     {
@@ -840,9 +978,16 @@
     },
     {
       "leak": "service",
-      "symbol": "ExternalDataService",
+      "symbol": "ExternalProviderConvenienceService",
       "source": "src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts",
-      "target": "src/modules/external-data/external-data.service.ts",
+      "target": "src/modules/external-data/application/external-provider-convenience.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-answers.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
       "kind": "runtime"
     },
     {
@@ -857,13 +1002,6 @@
       "symbol": "CustomersRepository",
       "source": "src/modules/customer-onboarding/application/customer-onboarding-guards.service.ts",
       "target": "src/modules/customers/customers.repository.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "repository",
-      "symbol": "AuthRepository",
-      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
-      "target": "src/modules/auth/auth.repository.ts",
       "kind": "runtime"
     },
     {
@@ -871,34 +1009,6 @@
       "symbol": "AuthTokenIssuerService",
       "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
       "target": "src/modules/auth/auth-token-issuer.service.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "repository",
-      "symbol": "ConsentsRepository",
-      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
-      "target": "src/modules/consents/consents.repository.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "repository",
-      "symbol": "CustomersRepository",
-      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
-      "target": "src/modules/customers/customers.repository.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "repository",
-      "symbol": "CustomerContactsRepository",
-      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
-      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
-      "kind": "runtime"
-    },
-    {
-      "leak": "repository",
-      "symbol": "SessionsRepository",
-      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
-      "target": "src/modules/sessions/sessions.repository.ts",
       "kind": "runtime"
     },
     {
@@ -945,9 +1055,9 @@
     },
     {
       "leak": "service",
-      "symbol": "RiskService",
+      "symbol": "OnboardingBehaviorSummaryService",
       "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
-      "target": "src/modules/risk/risk.service.ts",
+      "target": "src/modules/customer-telemetry/application/onboarding-behavior-summary.service.ts",
       "kind": "runtime"
     },
     {
@@ -993,6 +1103,13 @@
       "kind": "runtime"
     },
     {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/customer-supporting-evidence.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
       "leak": "service",
       "symbol": "CustomerEligibilityService",
       "source": "src/modules/customer-onboarding/application/customer-verification.service.ts",
@@ -1021,6 +1138,34 @@
       "kind": "runtime"
     },
     {
+      "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/customer-onboarding/application/identity-manual-review-outcome.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "AuthRepository",
+      "source": "src/modules/customer-onboarding/application/onboarding-customer-record.service.ts",
+      "target": "src/modules/auth/auth.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/onboarding-customer-record.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomerContactsRepository",
+      "source": "src/modules/customer-onboarding/application/onboarding-customer-record.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime"
+    },
+    {
       "leak": "repository",
       "symbol": "CustomersRepository",
       "source": "src/modules/customer-onboarding/application/onboarding-device-session.service.ts",
@@ -1029,9 +1174,65 @@
     },
     {
       "leak": "repository",
-      "symbol": "SessionsRepository",
+      "symbol": "SessionsDeviceRepository",
       "source": "src/modules/customer-onboarding/application/onboarding-device-session.service.ts",
-      "target": "src/modules/sessions/sessions.repository.ts",
+      "target": "src/modules/sessions/repositories/sessions-device.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "SessionsLifecycleRepository",
+      "source": "src/modules/customer-onboarding/application/onboarding-device-session.service.ts",
+      "target": "src/modules/sessions/repositories/sessions-lifecycle.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "ConsentsRepository",
+      "source": "src/modules/customer-onboarding/application/onboarding-registration-trail.service.ts",
+      "target": "src/modules/consents/consents.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/onboarding-registration-trail.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "type-only"
+    },
+    {
+      "leak": "repository",
+      "symbol": "SessionsDeviceRepository",
+      "source": "src/modules/customer-onboarding/application/onboarding-registration-trail.service.ts",
+      "target": "src/modules/sessions/repositories/sessions-device.repository.ts",
+      "kind": "type-only"
+    },
+    {
+      "leak": "repository",
+      "symbol": "SessionsLifecycleRepository",
+      "source": "src/modules/customer-onboarding/application/onboarding-registration-trail.service.ts",
+      "target": "src/modules/sessions/repositories/sessions-lifecycle.repository.ts",
+      "kind": "type-only"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/application/onboarding-review-dossier.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "OnboardingBehaviorSummaryService",
+      "source": "src/modules/customer-onboarding/application/onboarding-review-dossier.service.ts",
+      "target": "src/modules/customer-telemetry/application/onboarding-behavior-summary.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/customer-onboarding/consumer-survey/consumer-survey.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
       "kind": "runtime"
     },
     {
@@ -1046,6 +1247,20 @@
       "symbol": "CustomersRepository",
       "source": "src/modules/customer-privacy/customer-privacy.service.ts",
       "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "DecisionArtifactBindingService",
+      "source": "src/modules/customer-privacy/application/privacy-request-decision.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "SubjectReferenceService",
+      "source": "src/modules/customer-privacy/application/privacy-request-decision.service.ts",
+      "target": "src/modules/decision-engine/subject-reference.service.ts",
       "kind": "runtime"
     },
     {
@@ -1084,6 +1299,13 @@
       "kind": "runtime"
     },
     {
+      "leak": "service",
+      "symbol": "CustomerLifecycleService",
+      "source": "src/modules/fraud/fraud.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime"
+    },
+    {
       "leak": "repository",
       "symbol": "CustomersRepository",
       "source": "src/modules/fraud/fraud.service.ts",
@@ -1102,6 +1324,13 @@
       "symbol": "AuthSecondFactorService",
       "source": "src/modules/internal-users/internal-users.service.ts",
       "target": "src/modules/auth/auth-second-factor.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CredentialsNotifierService",
+      "source": "src/modules/internal-users/internal-users.service.ts",
+      "target": "src/modules/auth/credentials-notifier.service.ts",
       "kind": "runtime"
     },
     {
@@ -1155,6 +1384,13 @@
     },
     {
       "leak": "service",
+      "symbol": "CreditPosOriginService",
+      "source": "src/modules/loan-payment-claims/partner-portfolio.service.ts",
+      "target": "src/modules/credit/application/credit-pos-origin.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
       "symbol": "PartnerProfileService",
       "source": "src/modules/loan-payment-claims/partner-portfolio.service.ts",
       "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
@@ -1190,6 +1426,13 @@
     },
     {
       "leak": "service",
+      "symbol": "CreditPosOriginService",
+      "source": "src/modules/loan-payment-claims/pos-history.service.ts",
+      "target": "src/modules/credit/application/credit-pos-origin.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
       "symbol": "OutcomeDispatchService",
       "source": "src/modules/loans/loans-operations.controller.ts",
       "target": "src/modules/decision-engine/outcome-dispatch.service.ts",
@@ -1211,9 +1454,37 @@
     },
     {
       "leak": "repository",
+      "symbol": "InternalRbacRepository",
+      "source": "src/modules/loans/application/loan-disbursement-rate.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "InternalRbacRepository",
+      "source": "src/modules/loans/application/loan-disbursement-terms.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
       "symbol": "CreditRepository",
       "source": "src/modules/loans/application/loan-disbursement.service.ts",
       "target": "src/modules/credit/credit.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExposureReservationService",
+      "source": "src/modules/loans/application/loan-disbursement.service.ts",
+      "target": "src/modules/credit/application/exposure-reservation.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "InternalRbacRepository",
+      "source": "src/modules/loans/application/loan-disbursement.service.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
       "kind": "runtime"
     },
     {
@@ -1228,6 +1499,13 @@
       "symbol": "PartnerDirectoryService",
       "source": "src/modules/loans/application/loan-spending.service.ts",
       "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CreditRepository",
+      "source": "src/modules/loans/application/purchase-disbursement.service.ts",
+      "target": "src/modules/credit/credit.repository.ts",
       "kind": "runtime"
     },
     {
@@ -1253,6 +1531,13 @@
     },
     {
       "leak": "service",
+      "symbol": "AuthReauthenticationService",
+      "source": "src/modules/merchant-identity/merchant-auth.controller.ts",
+      "target": "src/modules/auth/auth-reauthentication.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
       "symbol": "AuthService",
       "source": "src/modules/merchant-identity/merchant-auth.service.ts",
       "target": "src/modules/auth/auth.service.ts",
@@ -1263,6 +1548,13 @@
       "symbol": "MerchantActorRepository",
       "source": "src/modules/merchant-identity/merchant-auth.service.ts",
       "target": "src/modules/auth/merchant-actor.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CredentialsNotifierService",
+      "source": "src/modules/merchant-identity/merchant-user-requests.service.ts",
+      "target": "src/modules/auth/credentials-notifier.service.ts",
       "kind": "runtime"
     },
     {
@@ -1295,6 +1587,20 @@
     },
     {
       "leak": "service",
+      "symbol": "OnboardingBehaviorSummaryService",
+      "source": "src/modules/mobile-identity/mobile-identity-signals.service.ts",
+      "target": "src/modules/customer-telemetry/application/onboarding-behavior-summary.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "IdentityReviewCaseRepository",
+      "source": "src/modules/mobile-identity/mobile-identity.human-review.ts",
+      "target": "src/modules/customer-onboarding/repositories/identity-review-case.repository.ts",
+      "kind": "type-only"
+    },
+    {
+      "leak": "service",
       "symbol": "DecisionArtifactBindingService",
       "source": "src/modules/mobile-identity/mobile-identity.service.ts",
       "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
@@ -1305,6 +1611,13 @@
       "symbol": "CustomerContactsSnapshotService",
       "source": "src/modules/mobile-identity/mobile-identity.service.ts",
       "target": "src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "IdentityReviewCaseRepository",
+      "source": "src/modules/mobile-identity/mobile-identity.service.ts",
+      "target": "src/modules/customer-onboarding/repositories/identity-review-case.repository.ts",
       "kind": "runtime"
     },
     {
@@ -1330,9 +1643,30 @@
     },
     {
       "leak": "service",
+      "symbol": "MailSenderService",
+      "source": "src/modules/notifications/infrastructure/local-otp-delivery.adapter.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/operations/operations-work-queue.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
       "symbol": "FraudService",
       "source": "src/modules/operations/operations.controller.ts",
       "target": "src/modules/fraud/fraud.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "OnboardingBehaviorSummaryService",
+      "source": "src/modules/operations/operations.controller.ts",
+      "target": "src/modules/customer-telemetry/application/onboarding-behavior-summary.service.ts",
       "kind": "runtime"
     },
     {
@@ -1365,9 +1699,44 @@
     },
     {
       "leak": "repository",
-      "symbol": "RiskRepository",
+      "symbol": "RiskAssessmentRepository",
       "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/risk/risk.repository.ts",
+      "target": "src/modules/risk/repositories/risk-assessment.repository.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "AuthReauthenticationService",
+      "source": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "target": "src/modules/auth/auth-reauthentication.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "MailSenderService",
+      "source": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExpedienteHooksService",
+      "source": "src/modules/partner-onboarding/application/erp-documents.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExpedienteHooksService",
+      "source": "src/modules/partner-onboarding/application/erp-merchant-expediente.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "ExpedientesRepository",
+      "source": "src/modules/partner-onboarding/application/erp-merchant-expediente.service.ts",
+      "target": "src/modules/expedientes/repositories/expedientes.repository.ts",
       "kind": "runtime"
     },
     {
@@ -1385,6 +1754,34 @@
       "kind": "runtime"
     },
     {
+      "leak": "service",
+      "symbol": "ExpedienteHooksService",
+      "source": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExpedienteHooksService",
+      "source": "src/modules/partner-onboarding/application/partner-qr.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExpedienteHooksService",
+      "source": "src/modules/partner-onboarding/application/partner-representative.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "probePlatformService",
+      "source": "src/modules/qa-orchestration/application/qa-environment.ts",
+      "target": "src/modules/systems-ops/platform-service-health.probe.ts",
+      "kind": "runtime"
+    },
+    {
       "leak": "repository",
       "symbol": "CustomersRepository",
       "source": "src/modules/risk/risk.service.ts",
@@ -1393,9 +1790,23 @@
     },
     {
       "leak": "service",
+      "symbol": "CustomerEligibilityService",
+      "source": "src/modules/risk/application/risk-manual-review-outcome.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
       "symbol": "RiskDecisionEngineService",
       "source": "src/modules/risk/application/risk-policy-decision.service.ts",
       "target": "src/modules/decision-engine/risk-decision-engine.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "repository",
+      "symbol": "CustomersRepository",
+      "source": "src/modules/risk/infrastructure/local-risk-input-facts.adapter.ts",
+      "target": "src/modules/customers/customers.repository.ts",
       "kind": "runtime"
     },
     {
@@ -1456,6 +1867,13 @@
     },
     {
       "leak": "service",
+      "symbol": "CreditUnderwritingService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/credit/application/credit-underwriting.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
       "symbol": "LoanDelinquencyService",
       "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
       "target": "src/modules/loans/application/loan-delinquency.service.ts",
@@ -1463,9 +1881,58 @@
     },
     {
       "leak": "service",
+      "symbol": "PurchaseDisbursementService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/loans/application/purchase-disbursement.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
       "symbol": "OnboardingAbandonmentService",
       "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
       "target": "src/modules/customer-onboarding/application/onboarding-abandonment.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "CreditSubmittedReconciliationService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/credit/application/credit-submitted-reconciliation.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "NotificationCampaignRunnerService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/notifications/campaigns/notification-campaign-runner.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "QaJourneyConsumerService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/qa-orchestration/application/qa-journey-consumer.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "SystemsStressConsumerService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/systems-ops/systems-stress-consumer.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "PrivacyRequestDecisionService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/customer-privacy/application/privacy-request-decision.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ErpEventDeliveryService",
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/erp-integration/erp-event-delivery.service.ts",
       "kind": "runtime"
     },
     {
@@ -1491,9 +1958,9 @@
     },
     {
       "leak": "repository",
-      "symbol": "NotificationsRepository",
+      "symbol": "NotificationMessagesRepository",
       "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
-      "target": "src/modules/notifications/notifications.repository.ts",
+      "target": "src/modules/notifications/notification-messages.repository.ts",
       "kind": "runtime"
     },
     {
@@ -1599,6 +2066,20 @@
       "symbol": "NotificationBroadcastService",
       "source": "src/modules/systems-ops/systems-health-monitor.service.ts",
       "target": "src/modules/notifications/notification-broadcast.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "ExternalProviderDashboardService",
+      "source": "src/modules/systems-ops/systems-monitor.module.ts",
+      "target": "src/modules/external-data/application/external-provider-dashboard.service.ts",
+      "kind": "runtime"
+    },
+    {
+      "leak": "service",
+      "symbol": "OutcomeDispatchService",
+      "source": "src/modules/systems-ops/systems-monitor.module.ts",
+      "target": "src/modules/decision-engine/outcome-dispatch.service.ts",
       "kind": "runtime"
     },
     {
@@ -1723,11 +2204,20 @@
       "viaReexport": false
     },
     {
-      "source": "src/modules/auth/auth.service.ts",
+      "source": "src/modules/auth/credentials-notifier.service.ts",
       "target": "src/modules/mail-sender/mail-sender.service.ts",
       "kind": "runtime",
       "symbols": [
         "MailSenderService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/catalog-management/catalog-management.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
       ],
       "viaReexport": false
     },
@@ -1737,6 +2227,15 @@
       "kind": "runtime",
       "symbols": [
         "CustomersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/consents/consents.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
       ],
       "viaReexport": false
     },
@@ -1777,6 +2276,43 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/credit/credit.module.ts",
+      "target": "src/modules/events/events.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/credit.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/bank-statement-human-review.sync.ts",
+      "target": "src/modules/decision-engine/bank-statement-engine.client.ts",
+      "kind": "runtime",
+      "symbols": [
+        "BankStatementEngineClient",
+        "StatementRun"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/bank-statement-review.outcomes.ts",
+      "target": "src/modules/decision-engine/bank-statement-engine.client.ts",
+      "kind": "type-only",
+      "symbols": [
+        "StatementRun"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/credit/application/bank-statement-review.worker.ts",
       "target": "src/modules/decision-engine/bank-statement-engine.client.ts",
       "kind": "runtime",
@@ -1805,42 +2341,6 @@
       "viaReexport": false
     },
     {
-      "source": "src/modules/credit/application/credit-application-admission.service.ts",
-      "target": "src/modules/customers/application/customer-eligibility.service.ts",
-      "kind": "runtime",
-      "symbols": [
-        "CustomerEligibilityService"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/credit/application/credit-application-admission.service.ts",
-      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
-      "kind": "runtime",
-      "symbols": [
-        "CustomerEligibilityRepository"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/credit/application/credit-application-admission.service.ts",
-      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
-      "kind": "runtime",
-      "symbols": [
-        "PartnerDirectoryService"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/credit/application/credit-application-admission.service.ts",
-      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
-      "kind": "runtime",
-      "symbols": [
-        "PartnerProfileService"
-      ],
-      "viaReexport": false
-    },
-    {
       "source": "src/modules/credit/application/credit-application.service.ts",
       "target": "src/modules/customers/application/customer-eligibility.service.ts",
       "kind": "runtime",
@@ -1895,6 +2395,71 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/credit/application/credit-decision-event-publisher.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "type-only",
+      "symbols": [
+        "EventsService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-decision-mapping.ts",
+      "target": "src/modules/decision-engine/decision-engine.types.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionResponse"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-decision-pricing.mapper.ts",
+      "target": "src/modules/decision-engine/decision-engine.types.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionResponse"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-decision-pricing.mapper.ts",
+      "target": "src/modules/decision-engine/rate-units.ts",
+      "kind": "runtime",
+      "symbols": [
+        "unitRateToPercent"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-decision-product-resolution.ts",
+      "target": "src/modules/decision-engine/credit-decision-engine.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditDecisionEngineService",
+        "CreditDecisionRequest",
+        "CreditDecisionResult"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-down-payment.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerDirectoryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-down-payment.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerProfileService"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/credit/application/credit-line-recalculation.service.ts",
       "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
       "kind": "runtime",
@@ -1917,7 +2482,6 @@
       "target": "src/modules/decision-engine/subject-reference.service.ts",
       "kind": "runtime",
       "symbols": [
-        "CREDIT_DECISION_PURPOSE",
         "SubjectReferenceService"
       ],
       "viaReexport": false
@@ -1928,6 +2492,33 @@
       "kind": "runtime",
       "symbols": [
         "UnderwritingFeaturesService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-line-recalculation.service.ts",
+      "target": "src/modules/decision-engine/underwriting-features-line-metadata.ts",
+      "kind": "runtime",
+      "symbols": [
+        "lineVariableMetadata"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-line-recalculation.service.ts",
+      "target": "src/modules/decision-engine/rate-units.ts",
+      "kind": "runtime",
+      "symbols": [
+        "percentToUnitRate"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-line-recalculation.service.ts",
+      "target": "src/modules/decision-engine/underwriting-income-basis.ts",
+      "kind": "runtime",
+      "symbols": [
+        "affordabilityRatioFor"
       ],
       "viaReexport": false
     },
@@ -1964,6 +2555,24 @@
       "kind": "runtime",
       "symbols": [
         "UnderwritingFeaturesService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-pos-origin.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerDirectoryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-pos-origin.service.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerProfileService"
       ],
       "viaReexport": false
     },
@@ -2005,6 +2614,87 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/credit/application/credit-underwriting.service.ts",
+      "target": "src/modules/events/events.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "EventsService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/credit-verdict-hold.ts",
+      "target": "src/modules/decision-engine/decision-engine.types.ts",
+      "kind": "type-only",
+      "symbols": [
+        "DecisionResponse"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/ports/credit-unit-of-work.port.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "type-only",
+      "symbols": [
+        "RecordedEligibility"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/ports/credit-unit-of-work.port.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.facts.ts",
+      "kind": "type-only",
+      "symbols": [
+        "EligibilityFacts"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/application/use-cases/submit-credit-application.use-case.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "type-only",
+      "symbols": [
+        "RecordedEligibility"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/infrastructure/integrations/partner-resolution.adapter.ts",
+      "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerDirectoryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/infrastructure/integrations/partner-resolution.adapter.ts",
+      "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PartnerProfileService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/infrastructure/persistence/sequelize-credit-unit-of-work.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/credit/infrastructure/persistence/sequelize-credit-unit-of-work.ts",
+      "target": "src/modules/customers/repositories/customer-eligibility.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityRepository"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/credit-rating/application/debt-rating.service.ts",
       "target": "src/modules/loans/domain/money.util.ts",
       "kind": "runtime",
@@ -2035,6 +2725,15 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/customer-device-signals/customer-device-signals.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/customer-device-signals/application/customer-address-book.service.ts",
       "target": "src/modules/customers/customers.repository.ts",
       "kind": "runtime",
@@ -2053,14 +2752,25 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/customer-device-signals/application/device-signals-access.service.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalRbacRepository"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/customer-onboarding/customer-onboarding-profile.schemas.ts",
       "target": "src/modules/customers/customer-eligibility.constants.ts",
       "kind": "runtime",
       "symbols": [
         "EMPLOYMENT_STATUS_VALUES",
+        "INCOME_FREQUENCY_VALUES",
         "MAXIMUM_CUSTOMER_AGE_YEARS",
         "MAXIMUM_REFERENCE_CONTACTS",
         "MINIMUM_CUSTOMER_AGE_YEARS",
+        "MONTHLY_INCOME_BAND_VALUES",
         "SOURCE_OF_FUNDS_VALUES"
       ],
       "viaReexport": false
@@ -2082,6 +2792,24 @@
         "ONBOARDING_SECTION_CODES"
       ],
       "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/notifications/infrastructure/local-otp-delivery.adapter.ts",
+      "kind": "runtime",
+      "symbols": [
+        "LocalOtpDeliveryAdapter"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/notifications/application/ports/otp-delivery.port.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OTP_DELIVERY_PORT"
+      ],
+      "viaReexport": true
     },
     {
       "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
@@ -2165,6 +2893,42 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/risk/risk.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "RiskService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/decision-engine/decision-engine.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/decision-engine/decision-engine.client.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineClient"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/customer-onboarding.module.ts",
+      "target": "src/modules/customer-telemetry/customer-telemetry.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerTelemetryModule"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/customer-onboarding/customer-onboarding.service.ts",
       "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
       "kind": "runtime",
@@ -2225,6 +2989,16 @@
       "kind": "runtime",
       "symbols": [
         "NotificationChannelAdapter"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/contact-verification-code.service.ts",
+      "target": "src/modules/notifications/public/index.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OTP_DELIVERY_PORT",
+        "OtpDeliveryPort"
       ],
       "viaReexport": false
     },
@@ -2507,10 +3281,28 @@
     },
     {
       "source": "src/modules/customer-onboarding/application/customer-identity-provider-verification.service.ts",
-      "target": "src/modules/external-data/external-data.service.ts",
+      "target": "src/modules/external-data/application/external-provider-convenience.service.ts",
       "kind": "runtime",
       "symbols": [
-        "ExternalDataService"
+        "ExternalProviderConvenienceService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-answers.service.ts",
+      "target": "src/modules/customers/customer-eligibility.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "FINANCIAL_ATTRIBUTE_CODES"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/customer-onboarding-answers.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
       ],
       "viaReexport": false
     },
@@ -2529,15 +3321,6 @@
       "kind": "runtime",
       "symbols": [
         "CustomersRepository"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
-      "target": "src/modules/auth/auth.repository.ts",
-      "kind": "runtime",
-      "symbols": [
-        "AuthRepository"
       ],
       "viaReexport": false
     },
@@ -2547,51 +3330,6 @@
       "kind": "runtime",
       "symbols": [
         "AuthTokenIssuerService"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
-      "target": "src/modules/consents/consents.repository.ts",
-      "kind": "runtime",
-      "symbols": [
-        "ConsentsRepository"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
-      "target": "src/modules/customers/customers.repository.ts",
-      "kind": "runtime",
-      "symbols": [
-        "CustomersRepository"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
-      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
-      "kind": "runtime",
-      "symbols": [
-        "CustomerContactsRepository"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
-      "target": "src/modules/sessions/sessions.repository.ts",
-      "kind": "runtime",
-      "symbols": [
-        "SessionsRepository"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/customer-onboarding/application/customer-onboarding-start.service.ts",
-      "target": "src/modules/customers/customer-lifecycle.constants.ts",
-      "kind": "runtime",
-      "symbols": [
-        "INITIAL_CUSTOMER_LIFECYCLE_STATUS"
       ],
       "viaReexport": false
     },
@@ -2660,10 +3398,10 @@
     },
     {
       "source": "src/modules/customer-onboarding/application/customer-onboarding-status.service.ts",
-      "target": "src/modules/risk/risk.service.ts",
+      "target": "src/modules/customer-telemetry/application/onboarding-behavior-summary.service.ts",
       "kind": "runtime",
       "symbols": [
-        "RiskService"
+        "OnboardingBehaviorSummaryService"
       ],
       "viaReexport": false
     },
@@ -2715,15 +3453,6 @@
     },
     {
       "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
-      "target": "src/modules/customers/customer-eligibility.constants.ts",
-      "kind": "runtime",
-      "symbols": [
-        "IDENTITY_VERIFIED_RESULT"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/customer-onboarding/application/customer-profile-update.service.ts",
       "target": "src/modules/consents/consents.repository.ts",
       "kind": "runtime",
       "symbols": [
@@ -2769,6 +3498,15 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/customer-onboarding/application/customer-supporting-evidence.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/customer-onboarding/application/customer-verification.service.ts",
       "target": "src/modules/customers/application/customer-eligibility.service.ts",
       "kind": "runtime",
@@ -2805,6 +3543,51 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/customer-onboarding/application/identity-manual-review-outcome.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-customer-record.service.ts",
+      "target": "src/modules/auth/auth.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-customer-record.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-customer-record.service.ts",
+      "target": "src/modules/customers/repositories/customer-contacts.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerContactsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-customer-record.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "INITIAL_CUSTOMER_LIFECYCLE_STATUS"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/customer-onboarding/application/onboarding-device-session.service.ts",
       "target": "src/modules/customers/customers.repository.ts",
       "kind": "runtime",
@@ -2815,10 +3598,109 @@
     },
     {
       "source": "src/modules/customer-onboarding/application/onboarding-device-session.service.ts",
-      "target": "src/modules/sessions/sessions.repository.ts",
+      "target": "src/modules/sessions/repositories/sessions-device.repository.ts",
       "kind": "runtime",
       "symbols": [
-        "SessionsRepository"
+        "SessionsDeviceRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-device-session.service.ts",
+      "target": "src/modules/sessions/repositories/sessions-lifecycle.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SessionsLifecycleRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-registration-trail.service.ts",
+      "target": "src/modules/consents/consents.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ConsentsRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-registration-trail.service.ts",
+      "target": "src/modules/consents/consent-time.util.ts",
+      "kind": "runtime",
+      "symbols": [
+        "consentHappenedAt"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-registration-trail.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "type-only",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-registration-trail.service.ts",
+      "target": "src/modules/sessions/repositories/sessions-device.repository.ts",
+      "kind": "type-only",
+      "symbols": [
+        "SessionsDeviceRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-registration-trail.service.ts",
+      "target": "src/modules/sessions/repositories/sessions-lifecycle.repository.ts",
+      "kind": "type-only",
+      "symbols": [
+        "SessionsLifecycleRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-review-dossier.bloques.ts",
+      "target": "src/modules/customers/application/customer-eligibility.evaluator.ts",
+      "kind": "runtime",
+      "symbols": [
+        "calculateAgeInYears"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-review-dossier.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/application/onboarding-review-dossier.service.ts",
+      "target": "src/modules/customer-telemetry/application/onboarding-behavior-summary.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OnboardingBehaviorSummaryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/consumer-survey/consumer-survey.catalog.ts",
+      "target": "src/modules/customers/consumer-survey.catalog.ts",
+      "kind": "runtime",
+      "symbols": [
+        "*"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-onboarding/consumer-survey/consumer-survey.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
       ],
       "viaReexport": false
     },
@@ -2841,6 +3723,24 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/customer-privacy/customer-privacy.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-privacy/customer-privacy.service.ts",
+      "target": "src/modules/consents/consent-time.util.ts",
+      "kind": "runtime",
+      "symbols": [
+        "consentHappenedAt"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/customer-privacy/customer-privacy.service.ts",
       "target": "src/modules/consents/consents.repository.ts",
       "kind": "runtime",
@@ -2855,6 +3755,51 @@
       "kind": "runtime",
       "symbols": [
         "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-privacy/privacy-decision.module.ts",
+      "target": "src/modules/decision-engine/decision-engine.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-privacy/application/privacy-request-decision.service.ts",
+      "target": "src/modules/decision-engine/decision-artifact-binding.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionArtifactBindingService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-privacy/application/privacy-request-decision.service.ts",
+      "target": "src/modules/decision-engine/decision-engine.client.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineClient"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-privacy/application/privacy-request-decision.service.ts",
+      "target": "src/modules/decision-engine/decision-engine.types.ts",
+      "kind": "type-only",
+      "symbols": [
+        "DecisionResponse"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/customer-privacy/application/privacy-request-decision.service.ts",
+      "target": "src/modules/decision-engine/subject-reference.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SubjectReferenceService"
       ],
       "viaReexport": false
     },
@@ -2877,6 +3822,15 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/data-quality/data-quality.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/events/events.module.ts",
       "target": "src/modules/notifications/notifications.module.ts",
       "kind": "runtime",
@@ -2891,6 +3845,15 @@
       "kind": "runtime",
       "symbols": [
         "NotificationOrchestratorService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/events/events.service.ts",
+      "target": "src/modules/notifications/notification-rules.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "hasNotificationRule"
       ],
       "viaReexport": false
     },
@@ -2950,6 +3913,24 @@
     },
     {
       "source": "src/modules/fraud/fraud.service.ts",
+      "target": "src/modules/customers/application/customer-lifecycle.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/fraud/fraud.service.ts",
+      "target": "src/modules/customers/customer-lifecycle.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerLifecycleStatus"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/fraud/fraud.service.ts",
       "target": "src/modules/customers/customers.repository.ts",
       "kind": "runtime",
       "symbols": [
@@ -3002,6 +3983,15 @@
       "kind": "runtime",
       "symbols": [
         "AuthSecondFactorService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/internal-users/internal-users.service.ts",
+      "target": "src/modules/auth/credentials-notifier.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CredentialsNotifierService"
       ],
       "viaReexport": false
     },
@@ -3115,6 +4105,16 @@
     },
     {
       "source": "src/modules/loan-payment-claims/partner-portfolio.service.ts",
+      "target": "src/modules/credit/application/credit-pos-origin.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditPosOriginService",
+        "SIN_ORIGEN"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/partner-portfolio.service.ts",
       "target": "src/modules/partner-onboarding/application/partner-profile.service.ts",
       "kind": "runtime",
       "symbols": [
@@ -3155,6 +4155,19 @@
       "kind": "runtime",
       "symbols": [
         "PartnerQrService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loan-payment-claims/pos-history.service.ts",
+      "target": "src/modules/credit/application/credit-pos-origin.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditPosOriginService",
+        "SIN_ORIGEN",
+        "MovimientoDeSolicitud",
+        "OrigenDeCaja",
+        "RangoDeFechas"
       ],
       "viaReexport": false
     },
@@ -3204,6 +4217,15 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/loans/loans.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/loans/application/loan-calendar.service.ts",
       "target": "src/modules/partner-onboarding/application/partner-directory.service.ts",
       "kind": "runtime",
@@ -3222,11 +4244,57 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/loans/application/loan-disbursement-rate.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalRbacRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/loan-disbursement-terms.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalRbacRepository"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/loans/application/loan-disbursement.service.ts",
       "target": "src/modules/credit/credit.repository.ts",
       "kind": "runtime",
       "symbols": [
         "CreditRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/loan-disbursement.service.ts",
+      "target": "src/modules/credit/application/exposure-reservation.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "decisionExpiresAt",
+        "ExposureReservationService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/loan-disbursement.service.ts",
+      "target": "src/modules/credit/application/origination-consent-check.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OriginationConsentCheck"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/loan-disbursement.service.ts",
+      "target": "src/modules/internal-users/internal-rbac.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalRbacRepository"
       ],
       "viaReexport": false
     },
@@ -3245,6 +4313,15 @@
       "kind": "runtime",
       "symbols": [
         "PartnerDirectoryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/loans/application/purchase-disbursement.service.ts",
+      "target": "src/modules/credit/credit.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditRepository"
       ],
       "viaReexport": false
     },
@@ -3322,6 +4399,16 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/merchant-identity/merchant-auth.controller.ts",
+      "target": "src/modules/auth/auth-reauthentication.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthReauthenticationService",
+        "REAUTH_TTL_SECONDS"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/merchant-identity/merchant-auth.service.ts",
       "target": "src/modules/auth/auth.service.ts",
       "kind": "runtime",
@@ -3359,20 +4446,11 @@
       "viaReexport": false
     },
     {
-      "source": "src/modules/merchant-identity/merchant-users.controller.ts",
-      "target": "src/modules/internal-users/guards/internal-permissions.guard.ts",
+      "source": "src/modules/merchant-identity/merchant-user-requests.service.ts",
+      "target": "src/modules/auth/credentials-notifier.service.ts",
       "kind": "runtime",
       "symbols": [
-        "InternalPermissionsGuard"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/merchant-identity/merchant-users.controller.ts",
-      "target": "src/modules/internal-users/internal-permissions.decorator.ts",
-      "kind": "runtime",
-      "symbols": [
-        "InternalPermissions"
+        "CredentialsNotifierService"
       ],
       "viaReexport": false
     },
@@ -3431,6 +4509,35 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/mobile-identity/mobile-identity-signals.service.ts",
+      "target": "src/modules/customer-telemetry/application/onboarding-behavior-summary.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OnboardingBehaviorSummaryService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity.human-review.ts",
+      "target": "src/modules/customer-onboarding/repositories/identity-review-case.repository.ts",
+      "kind": "type-only",
+      "symbols": [
+        "IdentityReviewCaseRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity.human-review.ts",
+      "target": "src/modules/customer-onboarding/application/onboarding-review-dossier.publisher.ts",
+      "kind": "runtime",
+      "symbols": [
+        "IDENTITY_REVIEW_QUEUE",
+        "MOTIVO_REVISION_HUMANA_OBLIGATORIA",
+        "OnboardingReviewDossierPublisher"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/mobile-identity/mobile-identity.module.ts",
       "target": "src/modules/decision-engine/decision-engine.module.ts",
       "kind": "runtime",
@@ -3445,6 +4552,15 @@
       "kind": "runtime",
       "symbols": [
         "CustomerOnboardingModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity.module.ts",
+      "target": "src/modules/customer-telemetry/customer-telemetry.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerTelemetryModule"
       ],
       "viaReexport": false
     },
@@ -3472,6 +4588,24 @@
       "kind": "runtime",
       "symbols": [
         "CustomerContactsSnapshotService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity.service.ts",
+      "target": "src/modules/customer-onboarding/repositories/identity-review-case.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "IdentityReviewCaseRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/mobile-identity/mobile-identity.service.ts",
+      "target": "src/modules/customer-onboarding/application/onboarding-review-dossier.publisher.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OnboardingReviewDossierPublisher"
       ],
       "viaReexport": false
     },
@@ -3513,6 +4647,15 @@
     },
     {
       "source": "src/modules/notifications/notifications.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/notifications/notifications.module.ts",
       "target": "src/modules/customers/customers.module.ts",
       "kind": "runtime",
       "symbols": [
@@ -3522,10 +4665,37 @@
     },
     {
       "source": "src/modules/notifications/notifications.module.ts",
-      "target": "src/modules/internal-users/internal-users.module.ts",
+      "target": "src/modules/customers/infrastructure/customer-recipient-directory.adapter.ts",
       "kind": "runtime",
       "symbols": [
-        "InternalUsersModule"
+        "CustomerRecipientDirectoryAdapter"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/notifications/notifications.module.ts",
+      "target": "src/modules/customers/infrastructure/customer-campaign-audience.adapter.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerCampaignAudienceAdapter"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/notifications/infrastructure/local-otp-delivery.adapter.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations-work-queue.service.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
       ],
       "viaReexport": false
     },
@@ -3547,6 +4717,15 @@
         "FraudDecisionParamsDto",
         "fraudDecisionSchema",
         "FraudDecisionDto"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.controller.ts",
+      "target": "src/modules/customer-telemetry/application/onboarding-behavior-summary.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OnboardingBehaviorSummaryService"
       ],
       "viaReexport": false
     },
@@ -3583,6 +4762,15 @@
       "kind": "runtime",
       "symbols": [
         "CustomerOnboardingModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/operations/operations.module.ts",
+      "target": "src/modules/customer-telemetry/customer-telemetry.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerTelemetryModule"
       ],
       "viaReexport": false
     },
@@ -3633,28 +4821,10 @@
     },
     {
       "source": "src/modules/operations/operations.service.ts",
-      "target": "src/modules/risk/risk.repository.ts",
+      "target": "src/modules/risk/repositories/risk-assessment.repository.ts",
       "kind": "runtime",
       "symbols": [
-        "RiskRepository"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/partner-onboarding/partner-contract-templates.controller.ts",
-      "target": "src/modules/internal-users/internal-permissions.decorator.ts",
-      "kind": "runtime",
-      "symbols": [
-        "InternalPermissions"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/partner-onboarding/partner-contract-templates.controller.ts",
-      "target": "src/modules/internal-users/guards/internal-permissions.guard.ts",
-      "kind": "runtime",
-      "symbols": [
-        "InternalPermissionsGuard"
+        "RiskAssessmentRepository"
       ],
       "viaReexport": false
     },
@@ -3669,10 +4839,46 @@
     },
     {
       "source": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "target": "src/modules/expedientes/expedientes.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedientesModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/partner-onboarding.module.ts",
       "target": "src/modules/internal-users/internal-users.module.ts",
       "kind": "runtime",
       "symbols": [
         "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "target": "src/modules/auth/auth.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "target": "src/modules/auth/auth-reauthentication.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "AuthReauthenticationService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/partner-onboarding.module.ts",
+      "target": "src/modules/mail-sender/mail-sender.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "MailSenderService"
       ],
       "viaReexport": false
     },
@@ -3686,20 +4892,29 @@
       "viaReexport": false
     },
     {
-      "source": "src/modules/partner-onboarding/partner-operations.controller.ts",
-      "target": "src/modules/internal-users/internal-permissions.decorator.ts",
+      "source": "src/modules/partner-onboarding/application/erp-documents.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
       "kind": "runtime",
       "symbols": [
-        "InternalPermissions"
+        "ExpedienteHooksService"
       ],
       "viaReexport": false
     },
     {
-      "source": "src/modules/partner-onboarding/partner-operations.controller.ts",
-      "target": "src/modules/internal-users/guards/internal-permissions.guard.ts",
+      "source": "src/modules/partner-onboarding/application/erp-merchant-expediente.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
       "kind": "runtime",
       "symbols": [
-        "InternalPermissionsGuard"
+        "ExpedienteHooksService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/application/erp-merchant-expediente.service.ts",
+      "target": "src/modules/expedientes/repositories/expedientes.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedientesRepository"
       ],
       "viaReexport": false
     },
@@ -3749,6 +4964,69 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/partner-onboarding/application/partner-profile.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedienteHooksService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/application/partner-qr.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedienteHooksService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/partner-onboarding/application/partner-representative.service.ts",
+      "target": "src/modules/expedientes/application/expediente-hooks.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExpedienteHooksService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/qa-orchestration/qa-orchestration.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/qa-orchestration/qa-runs.controller.ts",
+      "target": "src/modules/systems-ops/systems-controller.decorators.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SystemsOpsControllerSecurity"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/qa-orchestration/qa-runs.controller.ts",
+      "target": "src/modules/systems-ops/systems-ops.constants.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SYSTEMS_OPS_FINE_PERMISSION_ROLES"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/qa-orchestration/application/qa-environment.ts",
+      "target": "src/modules/systems-ops/platform-service-health.probe.ts",
+      "kind": "runtime",
+      "symbols": [
+        "probePlatformService"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/risk/risk.module.ts",
       "target": "src/modules/customers/customers.module.ts",
       "kind": "runtime",
@@ -3776,11 +5054,29 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/risk/application/risk-manual-review-outcome.service.ts",
+      "target": "src/modules/customers/application/customer-eligibility.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomerEligibilityService"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/risk/application/risk-policy-decision.service.ts",
       "target": "src/modules/decision-engine/risk-decision-engine.service.ts",
       "kind": "runtime",
       "symbols": [
         "RiskDecisionEngineService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/risk/infrastructure/local-risk-input-facts.adapter.ts",
+      "target": "src/modules/customers/customers.repository.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CustomersRepository"
       ],
       "viaReexport": false
     },
@@ -3948,10 +5244,28 @@
     },
     {
       "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/credit/application/credit-underwriting.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditUnderwritingService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
       "target": "src/modules/loans/application/loan-delinquency.service.ts",
       "kind": "runtime",
       "symbols": [
         "LoanDelinquencyService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/loans/application/purchase-disbursement.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PurchaseDisbursementService"
       ],
       "viaReexport": false
     },
@@ -3966,10 +5280,100 @@
     },
     {
       "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/credit/application/credit-submitted-reconciliation.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "CreditSubmittedReconciliationService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/notifications/campaigns/notification-campaign-runner.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "NotificationCampaignRunnerService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
       "target": "src/modules/expedientes/expedientes.module.ts",
       "kind": "runtime",
       "symbols": [
         "ExpedientesModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/systems-ops/systems-ops.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SystemsOpsModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/qa-orchestration/qa-orchestration.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "QaOrchestrationModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/qa-orchestration/application/qa-journey-consumer.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "QaJourneyConsumerService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/systems-ops/systems-stress-consumer.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "SystemsStressConsumerService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/customer-privacy/privacy-decision.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PrivacyDecisionModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/customer-privacy/application/privacy-request-decision.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "PrivacyRequestDecisionService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/erp-integration/erp-integration.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ErpIntegrationModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/runtime-jobs/runtime-jobs.module.ts",
+      "target": "src/modules/erp-integration/erp-event-delivery.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ErpEventDeliveryService"
       ],
       "viaReexport": false
     },
@@ -4011,10 +5415,10 @@
     },
     {
       "source": "src/modules/runtime-jobs/runtime-maintenance-jobs.service.ts",
-      "target": "src/modules/notifications/notifications.repository.ts",
+      "target": "src/modules/notifications/notification-messages.repository.ts",
       "kind": "runtime",
       "symbols": [
-        "NotificationsRepository"
+        "NotificationMessagesRepository"
       ],
       "viaReexport": false
     },
@@ -4091,6 +5495,15 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/schema-management/schema-management.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/sessions/sessions.module.ts",
       "target": "src/modules/customers/customers.module.ts",
       "kind": "runtime",
@@ -4123,6 +5536,15 @@
       "kind": "runtime",
       "symbols": [
         "CustomersRepository"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/sql-console/sql-console-query.service.ts",
+      "target": "src/modules/data-notebook/data-notebook-size.ts",
+      "kind": "runtime",
+      "symbols": [
+        "recortarPorTamano"
       ],
       "viaReexport": false
     },
@@ -4200,47 +5622,11 @@
       "viaReexport": false
     },
     {
-      "source": "src/modules/systems-ops/system-flows-review.controller.ts",
-      "target": "src/modules/internal-users/internal-permissions.decorator.ts",
-      "kind": "runtime",
-      "symbols": [
-        "InternalPermissions"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/systems-ops/system-flows-review.controller.ts",
-      "target": "src/modules/internal-users/guards/internal-permissions.guard.ts",
-      "kind": "runtime",
-      "symbols": [
-        "InternalPermissionsGuard"
-      ],
-      "viaReexport": false
-    },
-    {
       "source": "src/modules/systems-ops/system-flows.async.service.ts",
       "target": "src/modules/events/event-registry.ts",
       "kind": "runtime",
       "symbols": [
         "listEventDefinitions"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/systems-ops/system-flows.controller.ts",
-      "target": "src/modules/internal-users/internal-permissions.decorator.ts",
-      "kind": "runtime",
-      "symbols": [
-        "InternalPermissions"
-      ],
-      "viaReexport": false
-    },
-    {
-      "source": "src/modules/systems-ops/system-flows.controller.ts",
-      "target": "src/modules/internal-users/guards/internal-permissions.guard.ts",
-      "kind": "runtime",
-      "symbols": [
-        "InternalPermissionsGuard"
       ],
       "viaReexport": false
     },
@@ -4259,6 +5645,42 @@
       "kind": "runtime",
       "symbols": [
         "NotificationBroadcastService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/systems-monitor.module.ts",
+      "target": "src/modules/decision-engine/decision-engine.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "DecisionEngineModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/systems-monitor.module.ts",
+      "target": "src/modules/external-data/external-data.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExternalDataModule"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/systems-monitor.module.ts",
+      "target": "src/modules/external-data/application/external-provider-dashboard.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "ExternalProviderDashboardService"
+      ],
+      "viaReexport": false
+    },
+    {
+      "source": "src/modules/systems-ops/systems-monitor.module.ts",
+      "target": "src/modules/decision-engine/outcome-dispatch.service.ts",
+      "kind": "runtime",
+      "symbols": [
+        "OutcomeDispatchService"
       ],
       "viaReexport": false
     },
@@ -4290,6 +5712,15 @@
       "viaReexport": false
     },
     {
+      "source": "src/modules/workflow-catalog/workflow-catalog.module.ts",
+      "target": "src/modules/internal-users/internal-users.module.ts",
+      "kind": "runtime",
+      "symbols": [
+        "InternalUsersModule"
+      ],
+      "viaReexport": false
+    },
+    {
       "source": "src/modules/workflow-catalog/workflow-progress.controller.ts",
       "target": "src/modules/customers/customers.schemas.ts",
       "kind": "runtime",
@@ -4304,7 +5735,8 @@
       "target": "src/modules/customers/application/customer-eligibility.evaluator.ts",
       "kind": "runtime",
       "symbols": [
-        "EligibilityAssessment"
+        "EligibilityAssessment",
+        "isRetiredOnboardingSection"
       ],
       "viaReexport": false
     },
