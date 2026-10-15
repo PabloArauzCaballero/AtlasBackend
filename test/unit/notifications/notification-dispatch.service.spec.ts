@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { buildService, fakeEvent } from './support/notification-fixtures.js';
+import { buildService } from './support/notification-fixtures.js';
 
 describe('NotificationDispatchService', () => {
   describe('deliverMessage', () => {
