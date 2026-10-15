@@ -9,13 +9,13 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                                       | Responsabilidad                                                           |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
 | [`exposed-route-scanner.service.ts`](./exposed-route-scanner.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`workflow-completion-rule.util.ts`](./workflow-completion-rule.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
-| [`workflow-consistency.service.ts`](./workflow-consistency.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`workflow-progress.service.ts`](./workflow-progress.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`workflow-transition.service.ts`](./workflow-transition.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`workflow-completion-rule.util.ts`](./workflow-completion-rule.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa.                   |
+| [`workflow-consistency.service.ts`](./workflow-consistency.service.ts)   | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`workflow-progress.service.ts`](./workflow-progress.service.ts)         | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`workflow-transition.service.ts`](./workflow-transition.service.ts)     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento
 

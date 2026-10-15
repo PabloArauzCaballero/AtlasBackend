@@ -9,12 +9,12 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`debt-rating.service.ts`](./debt-rating.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| Documento o código                                       | Responsabilidad                                                           |
+| -------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [`debt-rating.service.ts`](./debt-rating.service.ts)     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`rating-policy.service.ts`](./rating-policy.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`rating-query.service.ts`](./rating-query.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`rating-scale-catalog.ts`](./rating-scale-catalog.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`rating-query.service.ts`](./rating-query.service.ts)   | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`rating-scale-catalog.ts`](./rating-scale-catalog.ts)   | Artefacto de soporte específico de esta carpeta.                          |
 
 ## Reglas de mantenimiento
 

@@ -9,10 +9,10 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                               | Responsabilidad                                                                |
+| ------------------------------------------------ | ------------------------------------------------------------------------------ |
 | [`health.controller.ts`](./health.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`health.module.ts`](./health.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
+| [`health.module.ts`](./health.module.ts)         | Módulo NestJS: declara el límite de inyección y sus dependencias.              |
 
 ## Reglas de mantenimiento
 

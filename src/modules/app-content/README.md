@@ -9,14 +9,14 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                                               | Responsabilidad                                                                |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | [`app-content-operations.controller.ts`](./app-content-operations.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`app-content.controller.ts`](./app-content.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
-| [`app-content.module.ts`](./app-content.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`app-content.schemas.ts`](./app-content.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
-| [`app-content.service.ts`](./app-content.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`app-content.types.ts`](./app-content.types.ts) | Tipos de dominio: hacen explícitos estados y contratos internos. |
+| [`app-content.controller.ts`](./app-content.controller.ts)                       | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
+| [`app-content.module.ts`](./app-content.module.ts)                               | Módulo NestJS: declara el límite de inyección y sus dependencias.              |
+| [`app-content.schemas.ts`](./app-content.schemas.ts)                             | Esquemas Zod: validan entradas y parámetros en el borde del sistema.           |
+| [`app-content.service.ts`](./app-content.service.ts)                             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`app-content.types.ts`](./app-content.types.ts)                                 | Tipos de dominio: hacen explícitos estados y contratos internos.               |
 
 ## Reglas de mantenimiento
 

@@ -4,9 +4,9 @@ import { tenantIdFromHeader } from '../../../src/common/utils/http/headers.util.
 import { ROLES_KEY } from '../../../src/common/decorators/roles.decorator.js';
 
 /**
- * `OperationsController` combina la cola de revisión manual (OperationsService) y la de fraude
+ * `OperationsController` combina la cola de revisión manual (OperationsInvestigationService, ManualReviewDecisionService) y la de fraude
  * (FraudService). Spec directo: verifica el parseo de tenant, la exigencia de x-idempotency-key en
- * las decisiones y, en particular, que decideFraudCase rutea a FraudService (no a OperationsService).
+ * las decisiones y, en particular, que decideFraudCase rutea a FraudService (no a ManualReviewDecisionService).
  */
 describe('OperationsController', () => {
   function build() {
@@ -22,6 +22,7 @@ describe('OperationsController', () => {
     const fraudService = { decideFraudCase: jest.fn(async (..._args: unknown[]) => ({ resolved: true })) };
     return {
       controller: new OperationsController(
+        operationsService as never,
         operationsService as never,
         workQueue as never,
         fraudService as never,
@@ -58,7 +59,7 @@ describe('OperationsController', () => {
     expect(operationsService.getInvestigationSummary).toHaveBeenCalledWith(tenantIdFromHeader('1'), { customerId: '9' });
   });
 
-  it('decideManualReviewCase delega en OperationsService y exige idempotency-key', async () => {
+  it('decideManualReviewCase delega en ManualReviewDecisionService y exige idempotency-key', async () => {
     const { controller, operationsService } = build();
     const params = { caseId: '3' } as never;
     const body = { decision: 'approved' } as never;
@@ -73,7 +74,7 @@ describe('OperationsController', () => {
     expect(() => controller.decideManualReviewCase('1', undefined, params, body, user)).toThrow();
   });
 
-  it('decideFraudCase rutea a FraudService (no a OperationsService) y exige idempotency-key', async () => {
+  it('decideFraudCase rutea a FraudService (no a ManualReviewDecisionService) y exige idempotency-key', async () => {
     const { controller, fraudService, operationsService } = build();
     const params = { caseId: '4' } as never;
     const body = { decision: 'confirmed_fraud' } as never;

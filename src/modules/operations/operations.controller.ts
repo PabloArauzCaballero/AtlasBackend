@@ -16,7 +16,8 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { FraudService } from '../fraud/fraud.service.js';
 import { fraudDecisionParamsSchema, FraudDecisionParamsDto, fraudDecisionSchema, FraudDecisionDto } from '../fraud/fraud.schemas.js';
-import { OperationsService } from './operations.service.js';
+import { ManualReviewDecisionService } from './manual-review-decision.service.js';
+import { OperationsInvestigationService } from './operations-investigation.service.js';
 import { OperationsWorkQueueService } from './operations-work-queue.service.js';
 import { PendingContactVerificationService } from './pending-contact-verification.service.js';
 import { OnboardingBehaviorSummaryService } from '../customer-telemetry/application/onboarding-behavior-summary.service.js';
@@ -42,7 +43,8 @@ import {
 @Roles('internal_operator', 'risk_analyst', 'compliance_analyst', 'admin', 'platform_admin')
 export class OperationsController {
   constructor(
-    private readonly operationsService: OperationsService,
+    private readonly investigation: OperationsInvestigationService,
+    private readonly manualReviewDecisions: ManualReviewDecisionService,
     private readonly workQueue: OperationsWorkQueueService,
     private readonly fraudService: FraudService,
     private readonly pendingContacts: PendingContactVerificationService,
@@ -109,7 +111,7 @@ export class OperationsController {
 
   /**
    * ATLAS-P11-T10: endpoints por cursor de las colas individuales (no combinadas). Ver la nota
-   * de alcance en `operations.repository.ts` sobre por qué `work-queue` (combinado) sigue OFFSET.
+   * de alcance en `operations-queue.repository.ts` sobre por qué `work-queue` (combinado) sigue OFFSET.
    */
   @ApiOperation({ summary: 'Cola de revisión manual (paginada por cursor)' })
   @ApiHeader({ name: 'x-tenant-id', required: true })
@@ -207,7 +209,7 @@ export class OperationsController {
     @CurrentTenant() tenantId: string,
     @Param(new ZodValidationPipe(operationsCustomerIdParamsSchema)) params: OperationsCustomerIdParamsDto,
   ) {
-    return this.operationsService.getInvestigationSummary(tenantId, params);
+    return this.investigation.getInvestigationSummary(tenantId, params);
   }
 
   @ApiOperation({
@@ -234,7 +236,7 @@ export class OperationsController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     if (!idempotencyKey) throw new BadRequestException('X-Idempotency-Key header is required.');
-    return this.operationsService.decideManualReviewCase({ tenantId, params, body, currentUser, idempotencyKey });
+    return this.manualReviewDecisions.decideManualReviewCase({ tenantId, params, body, currentUser, idempotencyKey });
   }
 
   /**

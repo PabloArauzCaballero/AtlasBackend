@@ -16,7 +16,7 @@ export type EngineManualReviewDecision = 'APPROVE' | 'DECLINE';
  * Lo que pasa cuando el analista resuelve EN el Motor un caso de riesgo de onboarding.
  *
  * Antes no pasaba nada. `openManualReviewCase` dejaba el caso local delegado (con
- * `decision_execution_id`), `OperationsService` lo rechazaba con `MANUAL_REVIEW_DELEGADA_AL_MOTOR`,
+ * `decision_execution_id`), `ManualReviewDecisionService` lo rechazaba con `MANUAL_REVIEW_DELEGADA_AL_MOTOR`,
  * y el Motor sólo avisaba de vuelta para la cola de IDENTIDAD. El cliente se quedaba con
  * `RISK_NOT_APPROVED` para siempre y ninguna de las dos consolas podía moverlo: un callejón sin
  * salida con las dos puertas cerradas a propósito.

@@ -57,7 +57,7 @@ export const ONBOARDING_RISK_ASSESSMENT: WorkflowDefinitionFixture = {
     'src/modules/decision-engine/risk-decision-engine.service.ts',
     'src/modules/decision-engine/decision-engine.client.ts',
     'src/modules/operations/operations.controller.ts',
-    'src/modules/operations/operations.service.ts',
+    'src/modules/operations/manual-review-decision.service.ts',
     'src/modules/operations/manual-review-decision-guards.ts',
     'src/modules/catalog-management/catalog-governance.controller.ts',
     'src/modules/customers/customer-eligibility.constants.ts',

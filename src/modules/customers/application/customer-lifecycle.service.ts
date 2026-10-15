@@ -32,7 +32,7 @@ export type LifecycleTransitionResult = {
  *
  * Resuelve tres defectos concretos del código anterior:
  *
- *   1. `OperationsService.decideManualReviewCase` insertaba el evento de historial y NUNCA
+ *   1. `ManualReviewDecisionService.decideManualReviewCase` insertaba el evento de historial y NUNCA
  *      actualizaba el estado del cliente. El historial decía "aprobado" y el cliente seguía en
  *      `pending_identity_review`.
  *   2. Ese mismo evento se escribía con `previous_status: null`, rompiendo la reconstrucción de la

@@ -9,25 +9,25 @@ catálogo versionado creado en la Fase 4A.
 
 ## Entidades / tablas involucradas
 
-| Tabla | Rol |
-|---|---|
-| `schema_versions` | Versiones del schema (append-only: v1.0, v1.1...) |
-| `schema_tables` | Inventario de tablas por versión |
-| `schema_columns` | Metadatos de columnas (`is_immutable`, `is_pii`, `is_indexed`) |
-| `schema_relationships` | FK del catálogo — **siempre `is_immutable = true`** |
-| `schema_change_log` | Auditoría de cada propuesta: quién, qué, cuándo, decisión, resultado |
+| Tabla                  | Rol                                                                  |
+| ---------------------- | -------------------------------------------------------------------- |
+| `schema_versions`      | Versiones del schema (append-only: v1.0, v1.1...)                    |
+| `schema_tables`        | Inventario de tablas por versión                                     |
+| `schema_columns`       | Metadatos de columnas (`is_immutable`, `is_pii`, `is_indexed`)       |
+| `schema_relationships` | FK del catálogo — **siempre `is_immutable = true`**                  |
+| `schema_change_log`    | Auditoría de cada propuesta: quién, qué, cuándo, decisión, resultado |
 
 ## Endpoints
 
-| Método | Ruta | Roles | Descripción |
-|---|---|---|---|
-| GET | `/operations/schema/versions` | internos + `readonly_auditor` | Lista versiones con conteos |
-| GET | `/operations/schema/versions/:versionId` | internos + auditor | Detalle de versión |
-| GET | `/operations/schema/tables?versionId=` | internos + auditor | Tablas de una versión |
-| GET | `/operations/schema/tables/:tableId` | internos + auditor | Tabla + columnas + FK |
-| POST | `/operations/schema/tables` | sesión interna con `governance.schema.propose`; plataforma: `internal_operator`, `admin`, `platform_admin` | Proponer tabla (queda `pending`) |
-| GET | `/operations/schema/change-log` | internos + auditor | Auditoría filtrable |
-| PATCH | `/operations/schema/change-log/:changeId/approve` | sesión interna con `governance.schema.approve`; plataforma: `platform_admin` | Aprobar o rechazar |
+| Método | Ruta                                              | Roles                                                                                                      | Descripción                      |
+| ------ | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| GET    | `/operations/schema/versions`                     | internos + `readonly_auditor`                                                                              | Lista versiones con conteos      |
+| GET    | `/operations/schema/versions/:versionId`          | internos + auditor                                                                                         | Detalle de versión               |
+| GET    | `/operations/schema/tables?versionId=`            | internos + auditor                                                                                         | Tablas de una versión            |
+| GET    | `/operations/schema/tables/:tableId`              | internos + auditor                                                                                         | Tabla + columnas + FK            |
+| POST   | `/operations/schema/tables`                       | sesión interna con `governance.schema.propose`; plataforma: `internal_operator`, `admin`, `platform_admin` | Proponer tabla (queda `pending`) |
+| GET    | `/operations/schema/change-log`                   | internos + auditor                                                                                         | Auditoría filtrable              |
+| PATCH  | `/operations/schema/change-log/:changeId/approve` | sesión interna con `governance.schema.approve`; plataforma: `platform_admin`                               | Aprobar o rechazar               |
 
 ## Reglas de negocio
 

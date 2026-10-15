@@ -12485,7 +12485,7 @@
       "src/modules/notifications/infrastructure/pilot/messaging-backfill.ts"
     ],
     "operations": [
-      "src/modules/operations/operations.service.ts"
+      "src/modules/operations/manual-review-decision.service.ts"
     ],
     "partner-onboarding": [
       "src/modules/partner-onboarding/application/partner-contact-verification.service.ts",

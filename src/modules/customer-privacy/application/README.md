@@ -9,11 +9,11 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
+| Documento o código                                                             | Responsabilidad                                                           |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
 | [`privacy-request-decision.service.ts`](./privacy-request-decision.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`privacy-request-facts.repository.ts`](./privacy-request-facts.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`privacy-request-features.ts`](./privacy-request-features.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`privacy-request-facts.repository.ts`](./privacy-request-facts.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras.          |
+| [`privacy-request-features.ts`](./privacy-request-features.ts)                 | Artefacto de soporte específico de esta carpeta.                          |
 
 ## Subcarpetas
 

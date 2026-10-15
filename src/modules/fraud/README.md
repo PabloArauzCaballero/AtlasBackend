@@ -9,12 +9,12 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`fraud.module.ts`](./fraud.module.ts) | Módulo NestJS: declara el límite de inyección y sus dependencias. |
-| [`fraud.repository.ts`](./fraud.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`fraud.schemas.ts`](./fraud.schemas.ts) | Esquemas Zod: validan entradas y parámetros en el borde del sistema. |
-| [`fraud.service.ts`](./fraud.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| Documento o código                             | Responsabilidad                                                           |
+| ---------------------------------------------- | ------------------------------------------------------------------------- |
+| [`fraud.module.ts`](./fraud.module.ts)         | Módulo NestJS: declara el límite de inyección y sus dependencias.         |
+| [`fraud.repository.ts`](./fraud.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras.          |
+| [`fraud.schemas.ts`](./fraud.schemas.ts)       | Esquemas Zod: validan entradas y parámetros en el borde del sistema.      |
+| [`fraud.service.ts`](./fraud.service.ts)       | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 
 ## Reglas de mantenimiento
 

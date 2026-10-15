@@ -9,14 +9,14 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`business-hours.ts`](./business-hours.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`case-number.util.ts`](./case-number.util.ts) | Utilidad pura o acotada reutilizable dentro de su capa. |
-| [`case-state-machine.ts`](./case-state-machine.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`message-dlp.ts`](./message-dlp.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`priority-policy.ts`](./priority-policy.ts) | Artefacto de soporte específico de esta carpeta. |
-| [`support-hash-chain.ts`](./support-hash-chain.ts) | Artefacto de soporte específico de esta carpeta. |
+| Documento o código                                 | Responsabilidad                                         |
+| -------------------------------------------------- | ------------------------------------------------------- |
+| [`business-hours.ts`](./business-hours.ts)         | Artefacto de soporte específico de esta carpeta.        |
+| [`case-number.util.ts`](./case-number.util.ts)     | Utilidad pura o acotada reutilizable dentro de su capa. |
+| [`case-state-machine.ts`](./case-state-machine.ts) | Artefacto de soporte específico de esta carpeta.        |
+| [`message-dlp.ts`](./message-dlp.ts)               | Artefacto de soporte específico de esta carpeta.        |
+| [`priority-policy.ts`](./priority-policy.ts)       | Artefacto de soporte específico de esta carpeta.        |
+| [`support-hash-chain.ts`](./support-hash-chain.ts) | Artefacto de soporte específico de esta carpeta.        |
 
 ## Reglas de mantenimiento
 

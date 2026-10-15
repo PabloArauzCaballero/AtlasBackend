@@ -7,7 +7,6 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import {
   CustomerObservationModel,
-  CustomerStatusEventModel,
   IdentityVerificationAttemptModel,
   DataChangeLogModel,
   FraudCaseModel,
@@ -21,9 +20,13 @@ import { FraudModule } from '../fraud/fraud.module.js';
 import { CustomerOnboardingModule } from '../customer-onboarding/customer-onboarding.module.js';
 import { CustomerTelemetryModule } from '../customer-telemetry/customer-telemetry.module.js';
 import { OperationsController } from './operations.controller.js';
-import { OperationsRepository } from './operations.repository.js';
+import { CustomerInvestigationRepository } from './customer-investigation.repository.js';
+import { CustomerObservationRepository } from './customer-observation.repository.js';
+import { ManualReviewCaseRepository } from './manual-review-case.repository.js';
+import { ManualReviewDecisionService } from './manual-review-decision.service.js';
+import { OperationsAuditRepository } from './operations-audit.repository.js';
+import { OperationsInvestigationService } from './operations-investigation.service.js';
 import { OperationsQueueRepository } from './operations-queue.repository.js';
-import { OperationsService } from './operations.service.js';
 import { OperationsWorkQueueService } from './operations-work-queue.service.js';
 import { PendingContactVerificationService } from './pending-contact-verification.service.js';
 
@@ -33,7 +36,6 @@ import { PendingContactVerificationService } from './pending-contact-verificatio
       ManualReviewCaseModel,
       FraudCaseModel,
       ManualReviewEventModel,
-      CustomerStatusEventModel,
       OperationalAuditLogModel,
       DataChangeLogModel,
       CustomerObservationModel,
@@ -49,9 +51,13 @@ import { PendingContactVerificationService } from './pending-contact-verificatio
   ],
   controllers: [OperationsController],
   providers: [
-    OperationsRepository,
+    ManualReviewCaseRepository,
+    CustomerInvestigationRepository,
+    CustomerObservationRepository,
+    OperationsAuditRepository,
     OperationsQueueRepository,
-    OperationsService,
+    OperationsInvestigationService,
+    ManualReviewDecisionService,
     OperationsWorkQueueService,
     PendingContactVerificationService,
   ],

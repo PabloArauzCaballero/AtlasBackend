@@ -58,7 +58,7 @@ Este documento propone (§7 y §9.7) un **estado agregado calculado** `credit_el
 ### Riesgos principales
 
 1. **El estado del cliente no es una máquina de estados.** `lifecycle_status` es `STRING(40)` *nullable* sin CHECK ni enum en TypeScript, y hoy conviven al menos **11 valores distintos** escritos o leídos por módulos que no se conocen entre sí. Sobre eso no se puede construir una regla de habilitación confiable.
-2. **La decisión del analista no cambia el estado del cliente.** `operations.service.ts:155-180` escribe el evento de historial pero nunca hace el `UPDATE` de `customers.lifecycle_status`. El historial y el estado divergen desde la primera decisión manual.
+2. **La decisión del analista no cambia el estado del cliente.** `manual-review-decision.service.ts:155-180` escribe el evento de historial pero nunca hace el `UPDATE` de `customers.lifecycle_status`. El historial y el estado divergen desde la primera decisión manual.
 3. **No hay índice único por teléfono.** Solo existe `ux_customers_tenant_email_hash`. Dos registros concurrentes con el mismo teléfono crean dos clientes.
 4. **Un cliente puede quedar sin forma de entrar nunca.** La contraseña es opcional en el registro y no hay ningún camino para fijarla después.
 5. **No hay guardado parcial estructurado.** No existe endpoint para datos laborales/económicos ni para referencias, aunque las tablas están creadas y vacías de uso.
@@ -193,8 +193,8 @@ Esto es directamente relevante: **el modelo para datos laborales/económicos y p
 | R13 | La evaluación de riesgo exige al menos un consentimiento vigente. | `risk.service.ts:63` | EXISTENTE |
 | R14 | Sin documento de identidad o sin contacto verificado ⇒ `manual_review_required` + caso + `data_quality_issues`. | `risk.service.ts:90, 237-259` | EXISTENTE |
 | R15 | Score ≥ 65 ⇒ `approved_for_next_step`; nivel: ≥75 low, ≥55 medium, resto high. | `risk.service.ts:90-91` | **PARCIAL** — umbrales hardcodeados. |
-| R16 | Rechazar o pedir más información exige nota obligatoria. | `operations.service.ts:126-128` | EXISTENTE |
-| R17 | Un caso ya cerrado no se puede volver a decidir (`CASE_ALREADY_CLOSED`). | `operations.service.ts:133` | EXISTENTE |
+| R16 | Rechazar o pedir más información exige nota obligatoria. | `manual-review-decision.service.ts:126-128` | EXISTENTE |
+| R17 | Un caso ya cerrado no se puede volver a decidir (`CASE_ALREADY_CLOSED`). | `manual-review-decision.service.ts:133` | EXISTENTE |
 | R18 | El detalle del scoring nunca se expone al rol `customer`. | `risk.controller.ts:70` | EXISTENTE |
 | R19 | En producción la verificación de contacto falla siempre. | `customer-contact-verification.service.ts:180` | **PARCIAL, intencional** |
 
@@ -760,7 +760,7 @@ Diseño propuesto:
 ## 7.3 Hallazgos de integridad — los cuatro que bloquean el flujo
 
 **H1 · CRÍTICO — La decisión del analista no cambia el estado del cliente.**
-`operations.service.ts:155-180` inserta en `customer_status_events` con `newStatus: input.body.nextCustomerStatus` y **`previousStatus: null`**, pero nunca ejecuta el `UPDATE` sobre `customers.lifecycle_status`. Consecuencia: el historial dice “aprobado” y el cliente sigue en `pending_identity_review`; `previous_status: null` además rompe la reconstrucción de la cadena de estados. Cualquier regla de habilitación construida sobre `lifecycle_status` dará el resultado equivocado desde la primera decisión manual.
+`manual-review-decision.service.ts:155-180` inserta en `customer_status_events` con `newStatus: input.body.nextCustomerStatus` y **`previousStatus: null`**, pero nunca ejecuta el `UPDATE` sobre `customers.lifecycle_status`. Consecuencia: el historial dice “aprobado” y el cliente sigue en `pending_identity_review`; `previous_status: null` además rompe la reconstrucción de la cadena de estados. Cualquier regla de habilitación construida sobre `lifecycle_status` dará el resultado equivocado desde la primera decisión manual.
 **Corrección:** actualizar estado y evento en la misma transacción, con el `previousStatus` real leído del cliente, y validar la transición contra la máquina de estados.
 
 **H2 · CRÍTICO — Sin índice único por teléfono.**
@@ -1439,8 +1439,8 @@ Registro · login · verificación de OTP · guardado de cada sección · consul
 | La verificación de contacto está bloqueada en producción | `customer-contact-verification.service.ts:180` |
 | No se envía ningún OTP | `customer-contact-verification.service.ts:60-131` (no invoca `notifications`) |
 | El motor de riesgo usa constantes en código | `src/modules/risk/risk.service.ts:78-88` |
-| La decisión manual no actualiza `lifecycle_status` | `src/modules/operations/operations.service.ts:155-180` y `operations.repository.ts:284-313` |
-| `previous_status` se escribe `null` en la decisión manual | `operations.service.ts:160` |
+| La decisión manual no actualiza `lifecycle_status` | `src/modules/operations/manual-review-decision.service.ts:155-180` y `operations-audit.repository.ts:284-313` |
+| `previous_status` se escribe `null` en la decisión manual | `manual-review-decision.service.ts:160` |
 | `onboarding` de `/me` está fijado en `null` | `src/modules/customers/customers.mapper.ts:81` |
 | `deriveNextStep` usa estados que nadie escribe | `customers.mapper.ts:11-20` |
 | `completion_status` solo se escribe `in_progress` | `customer-onboarding-start.service.ts:467`; sin `UPDATE` en todo `src/` |

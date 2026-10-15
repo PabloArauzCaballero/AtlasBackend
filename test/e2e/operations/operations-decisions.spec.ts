@@ -2,7 +2,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@je
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { OperationsController } from '../../../src/modules/operations/operations.controller.js';
-import { OperationsService } from '../../../src/modules/operations/operations.service.js';
+import { ManualReviewDecisionService } from '../../../src/modules/operations/manual-review-decision.service.js';
+import { OperationsInvestigationService } from '../../../src/modules/operations/operations-investigation.service.js';
 import { FraudService } from '../../../src/modules/fraud/fraud.service.js';
 import { OperationsWorkQueueService } from '../../../src/modules/operations/operations-work-queue.service.js';
 import { PendingContactVerificationService } from '../../../src/modules/operations/pending-contact-verification.service.js';
@@ -40,7 +41,8 @@ describe('OperationsController (e2e/supertest) — decisiones', () => {
     app = await buildGenericTestApp(
       [OperationsController],
       [
-        { provide: OperationsService, useValue: operationsService },
+        { provide: OperationsInvestigationService, useValue: operationsService },
+        { provide: ManualReviewDecisionService, useValue: operationsService },
         { provide: OperationsWorkQueueService, useValue: { list: jest.fn(), summary: jest.fn() } },
         { provide: FraudService, useValue: fraudService },
         { provide: PendingContactVerificationService, useValue: pendingContacts },
