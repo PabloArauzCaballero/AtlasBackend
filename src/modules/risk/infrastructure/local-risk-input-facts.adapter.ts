@@ -2,7 +2,7 @@
  * @file Adaptador local del puerto de hechos de Riesgo (AT-027).
  * @business Lee del cliente lo que Riesgo tiene autorizado a leer: estado, consentimiento, contactos
  *   verificados e identidad; con la misma lógica que tenía el servicio, ahora detrás de un contrato.
- * @system Envuelve `CustomersRepository` y las lecturas de `RiskRepository`; la sustitución por un
+ * @system Envuelve `CustomersRepository` y las lecturas de `RiskCustomerFactsRepository`; la sustitución por un
  *   adaptador remoto no toca el motor.
  */
 import { Injectable, Optional } from '@nestjs/common';
@@ -10,7 +10,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import type { FindOptions } from 'sequelize';
 import { OnboardingBehaviorSummaryModel } from '../../../database/models/index.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
-import { RiskRepository } from '../risk.repository.js';
+import { RiskCustomerFactsRepository } from '../repositories/risk-customer-facts.repository.js';
 import { LocalRiskFraudFactsReader } from './local-risk-fraud-facts.reader.js';
 import type { RiskInputFacts, RiskInputFactsPort } from '../application/ports/risk-input-facts.port.js';
 
@@ -18,7 +18,7 @@ import type { RiskInputFacts, RiskInputFactsPort } from '../application/ports/ri
 export class LocalRiskInputFactsAdapter implements RiskInputFactsPort {
   constructor(
     private readonly customers: CustomersRepository,
-    private readonly risk: RiskRepository,
+    private readonly risk: RiskCustomerFactsRepository,
     // Opcional: la construcción a mano (pruebas, scripts) no lo trae y entonces el comportamiento viaja «no medido».
     @Optional() @InjectModel(OnboardingBehaviorSummaryModel) private readonly behavior?: typeof OnboardingBehaviorSummaryModel,
     @Optional() private readonly fraudFacts?: LocalRiskFraudFactsReader,

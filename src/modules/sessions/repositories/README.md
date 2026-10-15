@@ -9,14 +9,14 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`sessions-activity-audit.repository.ts`](./sessions-activity-audit.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`sessions-device.repository.ts`](./sessions-device.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`sessions-lifecycle.repository.ts`](./sessions-lifecycle.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`sessions-location.repository.ts`](./sessions-location.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| Documento o código                                                                   | Responsabilidad                                                  |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| [`sessions-activity-audit.repository.ts`](./sessions-activity-audit.repository.ts)   | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`sessions-device.repository.ts`](./sessions-device.repository.ts)                   | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`sessions-lifecycle.repository.ts`](./sessions-lifecycle.repository.ts)             | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`sessions-location.repository.ts`](./sessions-location.repository.ts)               | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 | [`sessions-onboarding-link.repository.ts`](./sessions-onboarding-link.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
-| [`sessions-telemetry.repository.ts`](./sessions-telemetry.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`sessions-telemetry.repository.ts`](./sessions-telemetry.repository.ts)             | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 
 ## Reglas de mantenimiento
 

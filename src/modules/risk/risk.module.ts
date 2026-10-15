@@ -43,7 +43,10 @@ import { RiskReviewCallbackController } from './risk-review-callback.controller.
 import { RiskManualReviewOutcomeService } from './application/risk-manual-review-outcome.service.js';
 import { RiskPolicyDecisionService } from './application/risk-policy-decision.service.js';
 import { RiskPolicyRepository } from './repositories/risk-policy.repository.js';
-import { RiskRepository } from './risk.repository.js';
+import { RiskAssessmentRepository } from './repositories/risk-assessment.repository.js';
+import { RiskAuditRepository } from './repositories/risk-audit.repository.js';
+import { RiskCustomerFactsRepository } from './repositories/risk-customer-facts.repository.js';
+import { RiskFeatureEvidenceRepository } from './repositories/risk-feature-evidence.repository.js';
 import { RevisionManualRepository } from './repositories/revision-manual.repository.js';
 import { RiskService } from './risk.service.js';
 
@@ -90,13 +93,16 @@ import { RiskService } from './risk.service.js';
     LocalRiskFraudFactsReader,
     LocalRiskInputFactsAdapter,
     { provide: RISK_INPUT_FACTS_PORT, useExisting: LocalRiskInputFactsAdapter },
-    RiskRepository,
+    RiskAssessmentRepository,
+    RiskFeatureEvidenceRepository,
+    RiskCustomerFactsRepository,
+    RiskAuditRepository,
     RevisionManualRepository,
     RiskPolicyRepository,
     RiskPolicyDecisionService,
     RiskService,
     RiskManualReviewOutcomeService,
   ],
-  exports: [RiskRepository, RiskService],
+  exports: [RiskAssessmentRepository, RiskService],
 })
 export class RiskModule {}

@@ -13,7 +13,7 @@ import { RepositoryOptions } from './catalog-repository.helpers.js';
  * Repositorio del agregado de POLÍTICA DE RIESGO de catalog-management (Fase 2.3 del plan 10/10):
  * versiones de modelo/ruleset de riesgo, reglas de política y semillas de señales, más la activación
  * y retiro de rulesets. Toca EXCLUSIVAMENTE sus 4 tablas — sin acceso al resto del esquema de
- * catálogo, definiciones, gobierno o auditoría. `CatalogManagementRepository` delega en este repo.
+ * catálogo, definiciones, gobierno o auditoría. Los servicios de aplicación lo inyectan directamente.
  */
 @Injectable()
 export class CatalogRiskPolicyRepository {

@@ -6,12 +6,12 @@
 import { Injectable } from '@nestjs/common';
 import { Transaction } from 'sequelize';
 import { SessionGpsResult } from '../sessions.dtos.js';
-import { SessionsRepository } from '../sessions.repository.js';
+import { SessionsLocationRepository } from '../repositories/sessions-location.repository.js';
 import { decimal, toDate } from './sessions.shared.js';
 
 @Injectable()
 export class SessionGpsWriterService {
-  constructor(private readonly sessionsRepository: SessionsRepository) {}
+  constructor(private readonly locationRepository: SessionsLocationRepository) {}
 
   async createSessionGpsIfAllowed(input: {
     tenantId: string;
@@ -29,11 +29,11 @@ export class SessionGpsWriterService {
       return { gpsObservationId: null, gpsObservationCreated: false, gpsObservationSkippedReason: 'location_permission_not_granted' };
     }
 
-    const addressContext = await this.sessionsRepository.findCurrentAddressContext(input.tenantId, input.customerId, {
+    const addressContext = await this.locationRepository.findCurrentAddressContext(input.tenantId, input.customerId, {
       transaction: input.transaction,
     });
     const capturedAt = toDate(input.gpsObservation.capturedAt, input.defaultCapturedAt);
-    const gps = await this.sessionsRepository.createGpsObservation(
+    const gps = await this.locationRepository.createGpsObservation(
       {
         tenantId: input.tenantId,
         customerId: input.customerId,

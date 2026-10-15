@@ -9,9 +9,14 @@
 
 ## Contenido
 
-| Documento o código                                         | Responsabilidad                                                  |
-| ---------------------------------------------------------- | ---------------------------------------------------------------- |
-| [`risk-policy.repository.ts`](./risk-policy.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| Documento o código                                                             | Responsabilidad                                                  |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| [`revision-manual.repository.ts`](./revision-manual.repository.ts)             | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`risk-assessment.repository.ts`](./risk-assessment.repository.ts)             | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`risk-audit.repository.ts`](./risk-audit.repository.ts)                       | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`risk-customer-facts.repository.ts`](./risk-customer-facts.repository.ts)     | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`risk-feature-evidence.repository.ts`](./risk-feature-evidence.repository.ts) | Puerto de persistencia: encapsula consultas, locks y escrituras. |
+| [`risk-policy.repository.ts`](./risk-policy.repository.ts)                     | Puerto de persistencia: encapsula consultas, locks y escrituras. |
 
 ## Reglas de mantenimiento
 

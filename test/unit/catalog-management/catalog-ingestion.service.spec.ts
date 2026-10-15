@@ -28,7 +28,7 @@ describe('CatalogIngestionService', () => {
       createApprovalEvent: jest.fn(),
     };
     const sequelize = { transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb({})) };
-    const service = new CatalogIngestionService(repository as never, sequelize as never);
+    const service = new CatalogIngestionService(repository as never, repository as never, repository as never, sequelize as never);
     return { service, repository };
   }
 

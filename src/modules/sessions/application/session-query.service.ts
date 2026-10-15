@@ -7,13 +7,21 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { assertOwnCustomerResource } from '../../../common/utils/auth/ownership.util.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
-import { SessionsRepository } from '../sessions.repository.js';
+import { SessionsDeviceRepository } from '../repositories/sessions-device.repository.js';
+import { SessionsLifecycleRepository } from '../repositories/sessions-lifecycle.repository.js';
+import { SessionsLocationRepository } from '../repositories/sessions-location.repository.js';
+import { SessionsTelemetryRepository } from '../repositories/sessions-telemetry.repository.js';
+import { SessionsActivityAuditRepository } from '../repositories/sessions-activity-audit.repository.js';
 import { assertInternalAccess } from './sessions.shared.js';
 
 @Injectable()
 export class SessionQueryService {
   constructor(
-    private readonly sessionsRepository: SessionsRepository,
+    private readonly deviceRepository: SessionsDeviceRepository,
+    private readonly lifecycleRepository: SessionsLifecycleRepository,
+    private readonly locationRepository: SessionsLocationRepository,
+    private readonly telemetryRepository: SessionsTelemetryRepository,
+    private readonly activityAuditRepository: SessionsActivityAuditRepository,
     private readonly customersRepository: CustomersRepository,
   ) {}
 
@@ -21,7 +29,7 @@ export class SessionQueryService {
     assertOwnCustomerResource(input.currentUser, input.customerId);
     const customer = await this.customersRepository.findById(input.tenantId, input.customerId);
     if (!customer) throw new NotFoundException('Cliente no encontrado.');
-    const session = await this.sessionsRepository.findLatestActiveSession(input.tenantId, input.customerId);
+    const session = await this.lifecycleRepository.findLatestActiveSession(input.tenantId, input.customerId);
     if (!session) {
       return {
         customerId: input.customerId,
@@ -34,10 +42,10 @@ export class SessionQueryService {
     // Los 4 lookups son independientes entre sí (ninguno necesita el resultado de otro, solo
     // deviceId/session.id ya conocidos) — se piden en paralelo en vez de en secuencia.
     const [device, link, latestGps, latestSnapshot] = await Promise.all([
-      deviceId ? this.sessionsRepository.findDeviceById(input.tenantId, deviceId) : Promise.resolve(null),
-      deviceId ? this.sessionsRepository.findCustomerDeviceLink(input.tenantId, input.customerId, deviceId, {}) : Promise.resolve(null),
-      this.sessionsRepository.findLatestGpsObservation(input.tenantId, String(session.id)),
-      this.sessionsRepository.findLatestDeviceSnapshot(input.tenantId, String(session.id)),
+      deviceId ? this.deviceRepository.findDeviceById(input.tenantId, deviceId) : Promise.resolve(null),
+      deviceId ? this.deviceRepository.findCustomerDeviceLink(input.tenantId, input.customerId, deviceId, {}) : Promise.resolve(null),
+      this.locationRepository.findLatestGpsObservation(input.tenantId, String(session.id)),
+      this.deviceRepository.findLatestDeviceSnapshot(input.tenantId, String(session.id)),
     ]);
 
     return {
@@ -72,13 +80,13 @@ export class SessionQueryService {
 
   async getOperationsSessionSummary(input: { tenantId: string; sessionId: string; currentUser: AuthenticatedUser }) {
     assertInternalAccess(input.currentUser);
-    const session = await this.sessionsRepository.findSessionForOperations(input.tenantId, input.sessionId);
+    const session = await this.lifecycleRepository.findSessionForOperations(input.tenantId, input.sessionId);
     if (!session) throw new NotFoundException('Sesión no encontrada.');
 
     const customerId = session.customerId ? String(session.customerId) : null;
     const deviceId = session.deviceId ? String(session.deviceId) : null;
     const customer = customerId ? await this.customersRepository.findById(input.tenantId, customerId) : null;
-    const device = deviceId ? await this.sessionsRepository.findDeviceById(input.tenantId, deviceId) : null;
+    const device = deviceId ? await this.deviceRepository.findDeviceById(input.tenantId, deviceId) : null;
     const [
       gpsObservations,
       deviceSnapshots,
@@ -91,16 +99,16 @@ export class SessionQueryService {
       observations,
       auditTrail,
     ] = await Promise.all([
-      this.sessionsRepository.findSessionGpsObservations(input.tenantId, input.sessionId),
-      this.sessionsRepository.findSessionDeviceSnapshots(input.tenantId, input.sessionId),
-      this.sessionsRepository.findSessionPermissionEvents(input.tenantId, input.sessionId),
-      this.sessionsRepository.findSessionAuthEvents(input.tenantId, input.sessionId),
-      this.sessionsRepository.findSessionIpReputation(input.tenantId, input.sessionId),
-      this.sessionsRepository.findSessionSimObservations(input.tenantId, input.sessionId),
-      deviceId ? this.sessionsRepository.findDeviceRiskEvents(input.tenantId, deviceId) : Promise.resolve([]),
-      this.sessionsRepository.findSessionCustomerActions(input.tenantId, input.sessionId),
-      this.sessionsRepository.findSessionCustomerObservations(input.tenantId, input.sessionId),
-      this.sessionsRepository.findSessionAudits(input.tenantId, input.sessionId),
+      this.locationRepository.findSessionGpsObservations(input.tenantId, input.sessionId),
+      this.deviceRepository.findSessionDeviceSnapshots(input.tenantId, input.sessionId),
+      this.telemetryRepository.findSessionPermissionEvents(input.tenantId, input.sessionId),
+      this.telemetryRepository.findSessionAuthEvents(input.tenantId, input.sessionId),
+      this.telemetryRepository.findSessionIpReputation(input.tenantId, input.sessionId),
+      this.telemetryRepository.findSessionSimObservations(input.tenantId, input.sessionId),
+      deviceId ? this.deviceRepository.findDeviceRiskEvents(input.tenantId, deviceId) : Promise.resolve([]),
+      this.telemetryRepository.findSessionCustomerActions(input.tenantId, input.sessionId),
+      this.telemetryRepository.findSessionCustomerObservations(input.tenantId, input.sessionId),
+      this.activityAuditRepository.findSessionAudits(input.tenantId, input.sessionId),
     ]);
 
     return {

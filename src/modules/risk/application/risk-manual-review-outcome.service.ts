@@ -8,7 +8,7 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { RevisionManualRepository } from '../repositories/revision-manual.repository.js';
-import { RiskRepository } from '../risk.repository.js';
+import { RiskAssessmentRepository } from '../repositories/risk-assessment.repository.js';
 
 export type EngineManualReviewDecision = 'APPROVE' | 'DECLINE';
 
@@ -31,7 +31,7 @@ export class RiskManualReviewOutcomeService {
 
   constructor(
     private readonly revisionManual: RevisionManualRepository,
-    private readonly riskRepository: RiskRepository,
+    private readonly riskAssessmentRepository: RiskAssessmentRepository,
     private readonly eligibility: CustomerEligibilityService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
@@ -61,10 +61,10 @@ export class RiskManualReviewOutcomeService {
       );
 
       const result = reviewCase.riskAssessmentRunId
-        ? await this.riskRepository.findRiskResultByRun(input.tenantId, reviewCase.riskAssessmentRunId)
+        ? await this.riskAssessmentRepository.findRiskResultByRun(input.tenantId, reviewCase.riskAssessmentRunId)
         : null;
       if (result) {
-        await this.riskRepository.applyManualReviewOutcome(
+        await this.riskAssessmentRepository.applyManualReviewOutcome(
           result,
           { recommendedAction: approved ? 'approved_for_next_step' : 'rejected', reason: input.reason, now },
           { transaction },

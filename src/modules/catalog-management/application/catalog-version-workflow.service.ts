@@ -8,7 +8,8 @@ import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
 import { sha256Hex } from '../../../common/utils/crypto/hash.util.js';
-import { CatalogManagementRepository } from '../catalog-management.repository.js';
+import { CatalogAuditRepository } from '../catalog-audit.repository.js';
+import { CatalogVersionsRepository } from '../catalog-versions.repository.js';
 import { CatalogDecisionDto, CreateCatalogVersionDto, SubmitCatalogVersionDto } from '../catalog-management.schemas.js';
 import {
   actorPlatformUserId,
@@ -24,7 +25,8 @@ import { assertDecisionAllowed } from './catalog-version-transitions.js';
 @Injectable()
 export class CatalogVersionWorkflowService {
   constructor(
-    private readonly repository: CatalogManagementRepository,
+    private readonly audit: CatalogAuditRepository,
+    private readonly versions: CatalogVersionsRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -36,12 +38,12 @@ export class CatalogVersionWorkflowService {
   }) {
     assertInternal(input.currentUser);
     requireIdempotency(input.context);
-    const catalog = await this.repository.findCatalogByCode(input.catalogCode);
+    const catalog = await this.versions.findCatalogByCode(input.catalogCode);
     if (!catalog) throw new NotFoundException('Catálogo no encontrado.');
     const now = new Date();
 
     return this.sequelize.transaction(async (transaction) => {
-      const version = await this.repository.createCatalogVersion(
+      const version = await this.versions.createCatalogVersion(
         {
           catalogId: String(catalog.id),
           versionCode: input.body.versionCode,
@@ -61,10 +63,10 @@ export class CatalogVersionWorkflowService {
       for (const item of input.body.items) {
         let sourceId: string | null = null;
         if (item.sourceCode) {
-          const source = await this.repository.findSourceByCode(item.sourceCode, { transaction });
+          const source = await this.versions.findSourceByCode(item.sourceCode, { transaction });
           sourceId = source ? String(source.id) : null;
         }
-        const createdItem = await this.repository.createContextItem(
+        const createdItem = await this.versions.createContextItem(
           {
             catalogVersionId: String(version.id),
             itemCode: item.itemCode,
@@ -79,7 +81,7 @@ export class CatalogVersionWorkflowService {
         );
         for (const alias of item.aliases) {
           aliasesCreated += 1;
-          await this.repository.createAlias(
+          await this.versions.createAlias(
             {
               contextItemId: String(createdItem.id),
               aliasValue: alias.aliasValue,
@@ -93,7 +95,7 @@ export class CatalogVersionWorkflowService {
         }
         for (const mapping of item.riskMappings) {
           riskMappingsCreated += 1;
-          await this.repository.createRiskMapping(
+          await this.versions.createRiskMapping(
             {
               contextItemId: String(createdItem.id),
               riskDimension: mapping.riskDimension,
@@ -111,7 +113,7 @@ export class CatalogVersionWorkflowService {
         }
       }
 
-      await this.repository.createApprovalEvent(
+      await this.versions.createApprovalEvent(
         {
           stagingItemId: null,
           catalogVersionId: String(version.id),
@@ -122,7 +124,7 @@ export class CatalogVersionWorkflowService {
         },
         { transaction },
       );
-      await this.repository.createAudit(
+      await this.audit.createAudit(
         {
           ...auditBase(input.context, input.currentUser),
           actionCode: 'catalog.version.create',
@@ -140,7 +142,7 @@ export class CatalogVersionWorkflowService {
         },
         { transaction },
       );
-      await this.repository.createDataChange(
+      await this.audit.createDataChange(
         {
           tenantId: input.context.tenantId,
           tableName: 'context_catalog_versions',
@@ -176,21 +178,21 @@ export class CatalogVersionWorkflowService {
   }) {
     assertInternal(input.currentUser);
     requireIdempotency(input.context);
-    const catalog = await this.repository.findCatalogByCode(input.catalogCode);
+    const catalog = await this.versions.findCatalogByCode(input.catalogCode);
     if (!catalog) throw new NotFoundException('Catálogo no encontrado.');
-    const version = await this.repository.findCatalogVersion(String(catalog.id), input.versionId);
+    const version = await this.versions.findCatalogVersion(String(catalog.id), input.versionId);
     if (!version) throw new NotFoundException('Versión de catálogo no encontrada.');
     if (version.status !== 'draft') throw new UnprocessableEntityException('CATALOG_VERSION_NOT_DRAFT');
-    const items = await this.repository.findItemsByVersion(input.versionId);
+    const items = await this.versions.findItemsByVersion(input.versionId);
     if (items.length === 0) throw new UnprocessableEntityException('CATALOG_VERSION_WITHOUT_ITEMS');
     const now = new Date();
     return this.sequelize.transaction(async (transaction) => {
-      const updated = await this.repository.updateCatalogVersionStatus(
+      const updated = await this.versions.updateCatalogVersionStatus(
         version,
         { status: 'pending_approval', notes: input.body.notes },
         { transaction },
       );
-      await this.repository.createApprovalEvent(
+      await this.versions.createApprovalEvent(
         {
           stagingItemId: null,
           catalogVersionId: input.versionId,
@@ -201,7 +203,7 @@ export class CatalogVersionWorkflowService {
         },
         { transaction },
       );
-      await this.repository.createAudit(
+      await this.audit.createAudit(
         {
           ...auditBase(input.context, input.currentUser),
           actionCode: 'catalog.version.submit_for_approval',
@@ -212,7 +214,7 @@ export class CatalogVersionWorkflowService {
         },
         { transaction },
       );
-      await this.repository.createDataChange(
+      await this.audit.createDataChange(
         {
           tenantId: input.context.tenantId,
           tableName: 'context_catalog_versions',
@@ -240,9 +242,9 @@ export class CatalogVersionWorkflowService {
   }) {
     assertAdmin(input.currentUser);
     requireIdempotency(input.context);
-    const catalog = await this.repository.findCatalogByCode(input.catalogCode);
+    const catalog = await this.versions.findCatalogByCode(input.catalogCode);
     if (!catalog) throw new NotFoundException('Catálogo no encontrado.');
-    const version = await this.repository.findCatalogVersion(String(catalog.id), input.versionId);
+    const version = await this.versions.findCatalogVersion(String(catalog.id), input.versionId);
     if (!version) throw new NotFoundException('Versión de catálogo no encontrada.');
     const now = new Date();
     const nextStatus =
@@ -255,7 +257,7 @@ export class CatalogVersionWorkflowService {
             : 'rejected';
     assertDecisionAllowed(input.body.decision, version.status);
     return this.sequelize.transaction(async (transaction) => {
-      const updated = await this.repository.updateCatalogVersionStatus(
+      const updated = await this.versions.updateCatalogVersionStatus(
         version,
         {
           status: nextStatus,
@@ -267,7 +269,7 @@ export class CatalogVersionWorkflowService {
         },
         { transaction },
       );
-      await this.repository.createApprovalEvent(
+      await this.versions.createApprovalEvent(
         {
           stagingItemId: null,
           catalogVersionId: input.versionId,
@@ -278,7 +280,7 @@ export class CatalogVersionWorkflowService {
         },
         { transaction },
       );
-      await this.repository.createAudit(
+      await this.audit.createAudit(
         {
           ...auditBase(input.context, input.currentUser),
           actionCode: `catalog.version.${input.body.decision}`,
@@ -289,7 +291,7 @@ export class CatalogVersionWorkflowService {
         },
         { transaction },
       );
-      await this.repository.createDataChange(
+      await this.audit.createDataChange(
         {
           tenantId: input.context.tenantId,
           tableName: 'context_catalog_versions',

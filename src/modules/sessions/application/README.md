@@ -9,14 +9,14 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`session-end.service.ts`](./session-end.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| Documento o código                                                 | Responsabilidad                                                           |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| [`session-end.service.ts`](./session-end.service.ts)               | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
 | [`session-gps-writer.service.ts`](./session-gps-writer.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`session-heartbeat.service.ts`](./session-heartbeat.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`session-query.service.ts`](./session-query.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`session-start.service.ts`](./session-start.service.ts) | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
-| [`sessions.shared.ts`](./sessions.shared.ts) | Artefacto de soporte específico de esta carpeta. |
+| [`session-heartbeat.service.ts`](./session-heartbeat.service.ts)   | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`session-query.service.ts`](./session-query.service.ts)           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`session-start.service.ts`](./session-start.service.ts)           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias. |
+| [`sessions.shared.ts`](./sessions.shared.ts)                       | Artefacto de soporte específico de esta carpeta.                          |
 
 ## Reglas de mantenimiento
 

@@ -34,7 +34,6 @@ import { SessionsLifecycleRepository } from './repositories/sessions-lifecycle.r
 import { SessionsLocationRepository } from './repositories/sessions-location.repository.js';
 import { SessionsOnboardingLinkRepository } from './repositories/sessions-onboarding-link.repository.js';
 import { SessionsTelemetryRepository } from './repositories/sessions-telemetry.repository.js';
-import { SessionsRepository } from './sessions.repository.js';
 import { SessionsService } from './sessions.service.js';
 import { SessionEndService } from './application/session-end.service.js';
 import { SessionGpsWriterService } from './application/session-gps-writer.service.js';
@@ -75,7 +74,6 @@ import { SessionStartService } from './application/session-start.service.js';
     SessionsTelemetryRepository,
     SessionsOnboardingLinkRepository,
     SessionsActivityAuditRepository,
-    SessionsRepository,
     SessionGpsWriterService,
     SessionStartService,
     SessionHeartbeatService,
@@ -83,6 +81,6 @@ import { SessionStartService } from './application/session-start.service.js';
     SessionQueryService,
     SessionsService,
   ],
-  exports: [SessionsRepository, SessionsService],
+  exports: [SessionsDeviceRepository, SessionsLifecycleRepository, SessionsService],
 })
 export class SessionsModule {}

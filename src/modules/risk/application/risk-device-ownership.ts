@@ -4,7 +4,7 @@
  * @system consulta la propiedad por el repositorio y falla con 422 sin escribir nada.
  */
 import { UnprocessableEntityException } from '@nestjs/common';
-import type { RiskRepository } from '../risk.repository.js';
+import type { RiskCustomerFactsRepository } from '../repositories/risk-customer-facts.repository.js';
 import type { CreateRiskAssessmentDto } from '../risk.schemas.js';
 
 /**
@@ -13,7 +13,7 @@ import type { CreateRiskAssessmentDto } from '../risk.schemas.js';
  * el servidor (alta) ya traen un vínculo propio y pasan sin más.
  */
 export async function assertOwnDeviceReferences(
-  riskRepository: Pick<RiskRepository, 'findOwnedDeviceReferences'>,
+  riskRepository: Pick<RiskCustomerFactsRepository, 'findOwnedDeviceReferences'>,
   input: { tenantId: string; customerId: string; body: CreateRiskAssessmentDto },
 ): Promise<void> {
   const { deviceId, sessionId } = input.body;
