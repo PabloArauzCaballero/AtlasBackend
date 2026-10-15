@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { describe, expect, it, jest } from '@jest/globals';
 import { BankStatementReviewWorker } from '../../../src/modules/credit/application/bank-statement-review.worker.js';
 
@@ -261,5 +262,29 @@ describe('BankStatementReviewWorker', () => {
     expect(resultado.breachingSoon).toBe(4);
     const consulta = reviews.count.mock.calls[0][0] as unknown as { where: { status: string[] } };
     expect(consulta.where.status).toEqual(['received', 'processing']);
+  });
+
+  /* 2026-10-15: dos extractos esperaron ocho días a una persona del Motor y el log sólo decía «2 a punto de vencer». */
+  it('nombra cada extracto ya vencido, cuánto lleva y dónde está parado', async () => {
+    const { worker, reviews } = montar({ enRiesgo: 2 });
+    const vencida = {
+      id: '41',
+      status: 'processing',
+      reviewReason: 'UNKNOWN_BANK',
+      engineRequestId: 'bs-41',
+      promisedBy: new Date(AHORA.getTime() - 48 * 3_600_000),
+    };
+    // La primera lectura es la de pendientes (`received`); la segunda, la de las vencidas.
+    reviews.findAll.mockResolvedValueOnce([]).mockResolvedValueOnce([vencida]);
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+
+    await correr(worker);
+
+    const linea = error.mock.calls.map((c) => String(c[0])).find((m) => m.includes('Extracto 41'));
+    expect(linea).toContain('VENCIDO hace 48 h');
+    expect(linea).toContain('Procesadores automáticos → Extractos bancarios');
+    expect(linea).toContain('UNKNOWN_BANK');
+    expect(linea).toContain('bs-41');
+    error.mockRestore();
   });
 });

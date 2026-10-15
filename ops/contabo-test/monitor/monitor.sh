@@ -246,6 +246,7 @@ chequeo copia "$([ "$edad_h" -lt 0 ] || [ "$edad_h" -ge 7 ] && echo 1 || echo 0)
   "la copia de bases vuelve a estar al día."
 
 [ -f "$DIR/sondas.sh" ] && . "$DIR/sondas.sh"   # sondas de extremo a extremo (ver sondas.sh)
+[ -f "$DIR/colas.sh" ] && . "$DIR/colas.sh"     # colas de revisión humana que nadie mira (ver colas.sh)
 # --- 6. Puerta SSH (ver ssh.sh) ---------------------------------------------------------------
 command -v vigilar_ssh >/dev/null && vigilar_ssh
 
