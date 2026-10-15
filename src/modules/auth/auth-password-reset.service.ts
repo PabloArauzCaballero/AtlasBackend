@@ -11,7 +11,9 @@ import { TokenRevocationService } from '../../common/services/token-revocation.s
 import { MailSenderService } from '../mail-sender/mail-sender.service.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthRefreshTokensRepository } from './auth-refresh-tokens.repository.js';
-import { ActorType, AuthRepository } from './auth.repository.js';
+import { ActorType } from './auth-vocabulary.js';
+import { AuthCredentialRepository } from './auth-credential.repository.js';
+import { AuthEventRepository } from './auth-event.repository.js';
 import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
 
 /**
@@ -43,7 +45,8 @@ export class AuthPasswordResetService {
   private readonly logger = new Logger(AuthPasswordResetService.name);
 
   constructor(
-    private readonly authRepository: AuthRepository,
+    private readonly authCredentials: AuthCredentialRepository,
+    private readonly authEvents: AuthEventRepository,
     private readonly refreshTokens: AuthRefreshTokensRepository,
     private readonly oneTimeCodeRepository: AuthOneTimeCodeRepository,
     private readonly tokenRevocationService: TokenRevocationService,
@@ -76,7 +79,7 @@ export class AuthPasswordResetService {
       return this.sinEnvio(input, `el actor ${actor.id} existe pero no tiene correo de contacto registrado`);
     }
 
-    const credential = await this.authRepository.findCredentialsByActor(input.actorType, actor.id);
+    const credential = await this.authCredentials.findCredentialsByActor(input.actorType, actor.id);
     if (!credential) {
       return this.sinEnvio(input, `el actor ${actor.id} no tiene credencial: nunca fijó una contraseña que restablecer`);
     }
@@ -110,7 +113,7 @@ export class AuthPasswordResetService {
       reference: `password-reset-${input.actorType}-${actor.id}`,
     });
 
-    await this.authRepository.recordLoginAttemptEvent({
+    await this.authEvents.recordLoginAttemptEvent({
       tenantId: actor.tenantId,
       actorType: input.actorType,
       actorId: actor.id,
@@ -177,11 +180,11 @@ export class AuthPasswordResetService {
       throw invalidCodeError;
     }
 
-    const credential = await this.authRepository.findCredentialsByActor(input.actorType, actor.id);
+    const credential = await this.authCredentials.findCredentialsByActor(input.actorType, actor.id);
     if (!credential) throw invalidCodeError;
 
     if (!(await this.oneTimeCodeRepository.consumeOneTimeCode(oneTimeCode))) throw invalidCodeError;
-    await this.authRepository.updatePasswordHash(credential, await hashPassword(input.newPassword));
+    await this.authCredentials.updatePasswordHash(credential, await hashPassword(input.newPassword));
 
     // Cambio de contraseña = cerrar toda sesión previa: refresh tokens revocados y tokenVersion
     // incrementado vía TokenRevocationService (misma razón que logout allDevices: la caché Redis
@@ -189,7 +192,7 @@ export class AuthPasswordResetService {
     await this.refreshTokens.revokeAllRefreshTokensForActor(input.actorType, actor.id, 'password_reset');
     await this.tokenRevocationService.bumpTokenVersion(input.actorType, actor.id);
 
-    await this.authRepository.recordLoginAttemptEvent({
+    await this.authEvents.recordLoginAttemptEvent({
       tenantId: actor.tenantId,
       actorType: input.actorType,
       actorId: actor.id,

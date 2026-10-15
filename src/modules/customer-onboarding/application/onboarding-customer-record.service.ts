@@ -8,7 +8,7 @@ import { Injectable } from '@nestjs/common';
 import { Transaction } from 'sequelize';
 import { createStableCode, lastCharacters } from '../../../common/utils/crypto/hash.util.js';
 import { encryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
-import { AuthRepository } from '../../auth/auth.repository.js';
+import { AuthCredentialRepository } from '../../auth/auth-credential.repository.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
 import { CustomerContactsRepository } from '../../customers/repositories/customer-contacts.repository.js';
 import { INITIAL_CUSTOMER_LIFECYCLE_STATUS } from '../../customers/customer-lifecycle.constants.js';
@@ -23,7 +23,7 @@ export class OnboardingCustomerRecordService {
   constructor(
     private readonly customersRepository: CustomersRepository,
     private readonly customerContactsRepository: CustomerContactsRepository,
-    private readonly authRepository: AuthRepository,
+    private readonly authCredentials: AuthCredentialRepository,
   ) {}
 
   // 1 + 1b. Create customer, then credenciales de autenticación si se envió contraseña.
@@ -52,7 +52,7 @@ export class OnboardingCustomerRecordService {
     );
 
     // Credenciales siempre presentes: sin ellas el cliente no puede iniciar sesión nunca más.
-    const credential = await this.authRepository.createCredentials(
+    const credential = await this.authCredentials.createCredentials(
       { tenantId: input.tenantId, actorType: 'customer', actorId: String(customer.id), passwordHash: input.passwordHash },
       { transaction: input.transaction },
     );

@@ -12,8 +12,8 @@ import { MerchantUserModel } from '../../database/models/index.js';
  * Lectura de la identidad del comercio afiliado, la cuarta población autenticable
  * (`ActorType = 'merchant_user'`).
  *
- * Vive fuera de `AuthRepository` a propósito: ese archivo arrastra deuda de tamaño congelada y la
- * regla del repositorio es no empeorarla. La separación además deja explícito que esta población
+ * Vive aparte de los repositorios de actores internos y de plataforma porque se resuelve por otra
+ * tabla. La separación deja explícito que esta población
  * comparte credenciales, refresh tokens y bloqueo por intentos con las demás, y se distingue sólo
  * por la tabla que la resuelve.
  */

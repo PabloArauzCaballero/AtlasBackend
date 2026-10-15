@@ -8,7 +8,7 @@ import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { MerchantUserModel, OperationalAuditLogModel } from '../../database/models/index.js';
-import { AuthRepository } from '../auth/auth.repository.js';
+import { AuthCredentialRepository } from '../auth/auth-credential.repository.js';
 import { MerchantActorRepository } from '../auth/merchant-actor.repository.js';
 import { hashPassword, isPasswordStrongEnough } from '../../common/utils/crypto/password.util.js';
 import { ListMerchantUsersQueryDto, UpdateMerchantUserStatusDto } from './merchant-identity.schemas.js';
@@ -42,7 +42,7 @@ export function toMerchantUserProfile(model: MerchantUserModel): MerchantUserPro
 export class MerchantUsersService {
   constructor(
     @InjectModel(MerchantUserModel) private readonly merchantUserModel: typeof MerchantUserModel,
-    private readonly authRepository: AuthRepository,
+    private readonly authCredentials: AuthCredentialRepository,
     private readonly merchantActorRepository: MerchantActorRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
     @InjectModel(OperationalAuditLogModel) private readonly auditModel: typeof OperationalAuditLogModel,
@@ -110,7 +110,7 @@ export class MerchantUsersService {
       { transaction },
     );
 
-    await this.authRepository.createCredentials(
+    await this.authCredentials.createCredentials(
       {
         tenantId: actor.tenantId,
         actorType: 'merchant_user',

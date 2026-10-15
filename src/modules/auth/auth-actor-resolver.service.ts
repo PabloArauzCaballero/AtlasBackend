@@ -10,7 +10,8 @@ import { hashSensitiveText } from '../../common/utils/crypto/hash.util.js';
 import { phoneLookupHashFromPlain } from '../../common/utils/crypto/phone-hash.util.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { CustomerContactsRepository } from '../customers/repositories/customer-contacts.repository.js';
-import { ActorType, AuthRepository } from './auth.repository.js';
+import { ActorType } from './auth-vocabulary.js';
+import { AuthActorRepository } from './auth-actor.repository.js';
 import { MerchantActorRepository } from './merchant-actor.repository.js';
 
 /** Actor autenticable ya resuelto (cliente, usuario interno o de plataforma), con su rol vigente. */
@@ -40,7 +41,7 @@ export function isKnownRole(value: string): value is AtlasUserRole {
 @Injectable()
 export class AuthActorResolverService {
   constructor(
-    private readonly authRepository: AuthRepository,
+    private readonly authActors: AuthActorRepository,
     private readonly customersRepository: CustomersRepository,
     private readonly customerContactsRepository: CustomerContactsRepository,
     private readonly merchantActorRepository: MerchantActorRepository,
@@ -66,7 +67,7 @@ export class AuthActorResolverService {
 
     if (actorType === 'internal_user') {
       // La búsqueda normaliza email en el repositorio para tolerar diferencias de mayúsculas.
-      const internalUser = await this.authRepository.findInternalUserByEmail(identifier, tenantId);
+      const internalUser = await this.authActors.findInternalUserByEmail(identifier, tenantId);
       if (!internalUser || internalUser.status !== 'active' || !internalUser.roleCode || !isKnownRole(internalUser.roleCode)) {
         return null;
       }
@@ -84,7 +85,7 @@ export class AuthActorResolverService {
     }
 
     // platform_user
-    const platformUser = await this.authRepository.findPlatformUserByEmail(identifier);
+    const platformUser = await this.authActors.findPlatformUserByEmail(identifier);
     if (!platformUser || platformUser.status !== 'active' || !platformUser.roleCode || !isKnownRole(platformUser.roleCode)) {
       return null;
     }
@@ -170,7 +171,7 @@ export class AuthActorResolverService {
       return { id: actorId, tenantId, role: 'customer', email: null, displayName: null };
     }
     if (actorType === 'internal_user') {
-      const internalUser = await this.authRepository.findInternalUserById(actorId);
+      const internalUser = await this.authActors.findInternalUserById(actorId);
       if (!internalUser || internalUser.status !== 'active' || !internalUser.roleCode || !isKnownRole(internalUser.roleCode)) return null;
       return {
         id: actorId,
@@ -186,7 +187,7 @@ export class AuthActorResolverService {
       return this.resolveMerchantActor(await this.merchantActorRepository.findMerchantUserById(actorId));
     }
 
-    const platformUser = await this.authRepository.findPlatformUserById(actorId);
+    const platformUser = await this.authActors.findPlatformUserById(actorId);
     if (!platformUser || platformUser.status !== 'active' || !platformUser.roleCode || !isKnownRole(platformUser.roleCode)) return null;
     return { id: actorId, tenantId: null, role: platformUser.roleCode, email: platformUser.email, displayName: platformUser.fullName };
   }

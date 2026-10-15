@@ -3,7 +3,6 @@ import { UnauthorizedException } from '@nestjs/common';
 import { AuthPasswordChangeController } from '../../../src/modules/auth/auth-password-change.controller.js';
 import { AuthPasswordChangeRepository } from '../../../src/modules/auth/auth-password-change.repository.js';
 import type { AuthPasswordChangeService } from '../../../src/modules/auth/auth-password-change.service.js';
-import type { AuthRepository } from '../../../src/modules/auth/auth.repository.js';
 import type { AuthCredentialModel, InternalUserModel, MerchantUserModel } from '../../../src/database/models/index.js';
 import type { AuthenticatedUser } from '../../../src/common/types/auth.types.js';
 import type { RequestWithNetwork } from '../../../src/common/utils/http/headers.util.js';
@@ -65,7 +64,8 @@ describe('AuthPasswordChangeRepository', () => {
       }),
     };
     repo = new AuthPasswordChangeRepository(
-      authRepository as unknown as AuthRepository,
+      authRepository as never,
+      authRepository as never,
       authRepository as never, // refresh tokens: mismo doble
       internalUsers as unknown as typeof InternalUserModel,
       merchantUsers as unknown as typeof MerchantUserModel,
@@ -231,7 +231,14 @@ describe('AuthPasswordChangeController', () => {
 describe('AuthPasswordChangeRepository.countRecentPinFailures', () => {
   it('cuenta los fallos de PIN de la cuenta en la bitácora, por código de acción y desde la fecha dada', async () => {
     const count = jest.fn(async (..._args: unknown[]) => 3);
-    const conBitacora = new AuthPasswordChangeRepository({} as never, {} as never, {} as never, {} as never, { count } as never);
+    const conBitacora = new AuthPasswordChangeRepository(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      { count } as never,
+    );
 
     await expect(conBitacora.countRecentPinFailures('42', new Date('2026-10-04T12:00:00Z'))).resolves.toBe(3);
     const [opciones] = count.mock.calls[0] as [{ where: Record<string, unknown> }];

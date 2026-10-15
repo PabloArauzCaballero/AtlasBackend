@@ -13,7 +13,7 @@ export type LoginAttemptLimits = { maxAttempts: number; lockoutMinutes: number }
  * Va en SQL (`x = x + 1`) y no sobre la instancia leída: N logins concurrentes suman N —antes todos
  * leían k y escribían k+1— y, con el bloqueo puesto, la condición no casa y ninguno más llega a
  * argon2. El intento que alcanza el máximo fija el bloqueo, reinicia el contador y es el último que
- * se evalúa. Vive aparte porque `auth.repository.ts` tiene el tamaño congelado.
+ * se evalúa. Vive aparte para que `auth-credential.repository.ts` sólo persista.
  */
 export function loginAttemptReservation(credentialId: string, limits: LoginAttemptLimits, now = new Date()): [never, { where: never }] {
   const lockUntil = new Date(now.getTime() + limits.lockoutMinutes * 60_000).toISOString();

@@ -36,7 +36,6 @@ describe('ContactVerificationCodeService', () => {
       send: jest.fn(async (..._args: unknown[]) => ({ status: 'sent', provider: 'whatsapp', errorCode: null })),
     };
     const service = new ContactVerificationCodeService(
-      authRepository as never,
       // Los códigos de un solo uso viven en `AuthOneTimeCodeRepository`; el doble ya los expone.
       authRepository as never,
       mailSenderService as never,

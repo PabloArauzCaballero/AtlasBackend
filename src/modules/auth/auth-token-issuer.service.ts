@@ -10,7 +10,7 @@ import { env } from '../../config/env.js';
 import { accessTokenSignOptions, actorIdClaim } from '../../common/utils/auth/jwt-claims.util.js';
 import { generateRefreshToken, hashRefreshToken } from '../../common/utils/crypto/refresh-token.util.js';
 import { AuthRefreshTokensRepository } from './auth-refresh-tokens.repository.js';
-import type { ActorType } from './auth.repository.js';
+import type { ActorType } from './auth-vocabulary.js';
 import { ResolvedActor } from './auth-actor-resolver.service.js';
 import { LoginResponseDto } from './auth.dtos.js';
 import { accessTokenTtlSeconds, describeTtl, refreshTokenExpiry } from './customer-session-lifetime.js';

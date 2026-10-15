@@ -43,7 +43,12 @@ describe('AuthReauthenticationService', () => {
     const actorResolver = {
       reResolveActorRole: jest.fn(async (..._args: unknown[]) => ({ id: '55', tenantId: '1', role: 'merchant' }) as unknown),
     };
-    const service = new AuthReauthenticationService(authRepository as never, oneTimeCodeRepository as never, actorResolver as never);
+    const service = new AuthReauthenticationService(
+      authRepository as never,
+      authRepository as never,
+      oneTimeCodeRepository as never,
+      actorResolver as never,
+    );
     return { service, authRepository, oneTimeCodeRepository, actorResolver };
   }
 

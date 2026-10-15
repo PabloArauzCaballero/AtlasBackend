@@ -67,7 +67,7 @@ describe('OtpDeliveryPort (AT-040)', () => {
 
   it('el servicio de verificación delega en el puerto y conserva su contrato de respuesta', async () => {
     const { adapter } = build({ mailEnabled: false });
-    const service = new ContactVerificationCodeService({} as never, {} as never, {} as never, {} as never, {} as never, adapter);
+    const service = new ContactVerificationCodeService({} as never, {} as never, {} as never, {} as never, adapter);
     expect(service.availableChannels()).toEqual(['sms']);
     const outcome = await service.deliverIssuedCode({
       tenantId: '1',

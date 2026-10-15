@@ -9,7 +9,8 @@ import { generateChallengeToken, hashOneTimeCode } from '../../common/utils/cryp
 import { verifyPassword } from '../../common/utils/crypto/password.util.js';
 import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthOneTimeCodeRepository } from './auth-one-time-code.repository.js';
-import { AuthRepository } from './auth.repository.js';
+import { AuthCredentialRepository } from './auth-credential.repository.js';
+import { AuthEventRepository } from './auth-event.repository.js';
 import type { ActorType } from './auth-vocabulary.js';
 
 /** Cabecera con la que viaja la prueba hasta la operación sensible. */
@@ -56,14 +57,15 @@ export type ReauthProof = { reauthToken: string; expiresInSeconds: number; expir
 @Injectable()
 export class AuthReauthenticationService {
   constructor(
-    private readonly authRepository: AuthRepository,
+    private readonly authCredentials: AuthCredentialRepository,
+    private readonly authEvents: AuthEventRepository,
     private readonly oneTimeCodeRepository: AuthOneTimeCodeRepository,
     private readonly actorResolver: AuthActorResolverService,
   ) {}
 
   async issue(input: Requester & { password: string }): Promise<ReauthProof> {
     const actor = await this.actorResolver.reResolveActorRole(input.actorType, input.actorId, input.tenantId);
-    const credential = actor ? await this.authRepository.findCredentialsByActor(input.actorType, actor.id) : null;
+    const credential = actor ? await this.authCredentials.findCredentialsByActor(input.actorType, actor.id) : null;
     if (!actor || !credential) {
       throw new UnauthorizedException('Tu cuenta ya no está disponible.');
     }
@@ -72,7 +74,7 @@ export class AuthReauthenticationService {
       await this.recordEvent(input, actor.tenantId, false, 'account_locked');
       throw lockedError(credential.lockedUntil);
     }
-    const locked = await this.authRepository.reserveLoginAttempt(credential.id, {
+    const locked = await this.authCredentials.reserveLoginAttempt(credential.id, {
       maxAttempts: env.AUTH_MAX_FAILED_LOGIN_ATTEMPTS,
       lockoutMinutes: env.AUTH_LOCKOUT_MINUTES,
     });
@@ -87,7 +89,7 @@ export class AuthReauthenticationService {
       // «sesión caducada» y expulsa al usuario por una contraseña mal escrita.
       throw new BadRequestException({ code: 'REAUTH_INVALID_PASSWORD', message: 'La contraseña no es correcta.' });
     }
-    await this.authRepository.clearFailedAttempts(credential.id);
+    await this.authCredentials.clearFailedAttempts(credential.id);
 
     const reauthToken = generateChallengeToken();
     const tokenHash = hashOneTimeCode(reauthToken);
@@ -137,7 +139,7 @@ export class AuthReauthenticationService {
   }
 
   private recordEvent(input: Requester, tenantId: string | null, successful: boolean, failureReasonCode: string | null) {
-    return this.authRepository.recordLoginAttemptEvent({
+    return this.authEvents.recordLoginAttemptEvent({
       tenantId,
       actorType: input.actorType,
       actorId: input.actorId,
