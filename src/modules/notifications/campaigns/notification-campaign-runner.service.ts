@@ -16,7 +16,7 @@ import {
   CAMPAIGN_AUDIENCE_PORT,
   type CampaignAudiencePort,
 } from '../../../platform/contracts/campaign-audience.js';
-import { NotificationOrchestratorService } from '../notification-orchestrator.service.js';
+import { NotificationDispatchService } from '../notification-dispatch.service.js';
 import { buildCampaignMessageRows } from './notification-campaign-messages.js';
 import { NotificationCampaignsRepository } from './notification-campaigns.repository.js';
 
@@ -34,7 +34,7 @@ export class NotificationCampaignRunnerService {
 
   constructor(
     private readonly repository: NotificationCampaignsRepository,
-    private readonly orchestrator: NotificationOrchestratorService,
+    private readonly dispatch: NotificationDispatchService,
     @Inject(CAMPAIGN_AUDIENCE_PORT) private readonly audience: CampaignAudiencePort,
   ) {}
 
@@ -101,7 +101,7 @@ export class NotificationCampaignRunnerService {
     const due = await this.repository.listDeliverableMessages(String(campaign.id), now, DELIVERY_BATCH);
     await mapWithConcurrency(due, DELIVERY_CONCURRENCY, async (message) => {
       try {
-        await this.orchestrator.deliverMessage(message);
+        await this.dispatch.deliverMessage(message);
         result.delivered += 1;
       } catch (error) {
         result.failed += 1;

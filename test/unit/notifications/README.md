@@ -9,28 +9,29 @@
 
 ## Contenido
 
-| Documento o código | Responsabilidad |
-|---|---|
-| [`email.adapter.spec.ts`](./email.adapter.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`gmail-mime.util.spec.ts`](./gmail-mime.util.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`gmail.adapter.spec.ts`](./gmail.adapter.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`in-app-notification.adapter.spec.ts`](./in-app-notification.adapter.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notification-broadcast.deferred.spec.ts`](./notification-broadcast.deferred.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notification-broadcast.service.spec.ts`](./notification-broadcast.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notification-orchestrator.service.spec.ts`](./notification-orchestrator.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notification-preferences.repository.spec.ts`](./notification-preferences.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notification-provider-config.service.spec.ts`](./notification-provider-config.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notification-rules.service.spec.ts`](./notification-rules.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| Documento o código                                                                                   | Responsabilidad                                               |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [`email.adapter.spec.ts`](./email.adapter.spec.ts)                                                   | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`gmail-mime.util.spec.ts`](./gmail-mime.util.spec.ts)                                               | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`gmail.adapter.spec.ts`](./gmail.adapter.spec.ts)                                                   | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`in-app-notification.adapter.spec.ts`](./in-app-notification.adapter.spec.ts)                       | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notification-broadcast.deferred.spec.ts`](./notification-broadcast.deferred.spec.ts)               | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notification-broadcast.service.spec.ts`](./notification-broadcast.service.spec.ts)                 | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notification-dispatch.service.spec.ts`](./notification-dispatch.service.spec.ts)                   | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notification-event-handler.service.spec.ts`](./notification-event-handler.service.spec.ts)         | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notification-preferences.repository.spec.ts`](./notification-preferences.repository.spec.ts)       | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notification-provider-config.service.spec.ts`](./notification-provider-config.service.spec.ts)     | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notification-rules.service.spec.ts`](./notification-rules.service.spec.ts)                         | Prueba automatizada: fija comportamiento y evita regresiones. |
 | [`notification-template-renderer.service.spec.ts`](./notification-template-renderer.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notification-templates.repository.spec.ts`](./notification-templates.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notifications-repository-recipient.spec.ts`](./notifications-repository-recipient.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notifications.controller.spec.ts`](./notifications.controller.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notifications.mapper.spec.ts`](./notifications.mapper.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notifications.repository.spec.ts`](./notifications.repository.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`notifications.service.spec.ts`](./notifications.service.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`push.adapter.spec.ts`](./push.adapter.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`sms.adapter.spec.ts`](./sms.adapter.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
-| [`whatsapp.adapter.spec.ts`](./whatsapp.adapter.spec.ts) | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notification-templates.repository.spec.ts`](./notification-templates.repository.spec.ts)           | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notifications-repository-recipient.spec.ts`](./notifications-repository-recipient.spec.ts)         | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notifications.controller.spec.ts`](./notifications.controller.spec.ts)                             | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notifications.mapper.spec.ts`](./notifications.mapper.spec.ts)                                     | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notifications.repository.spec.ts`](./notifications.repository.spec.ts)                             | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`notifications.service.spec.ts`](./notifications.service.spec.ts)                                   | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`push.adapter.spec.ts`](./push.adapter.spec.ts)                                                     | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`sms.adapter.spec.ts`](./sms.adapter.spec.ts)                                                       | Prueba automatizada: fija comportamiento y evita regresiones. |
+| [`whatsapp.adapter.spec.ts`](./whatsapp.adapter.spec.ts)                                             | Prueba automatizada: fija comportamiento y evita regresiones. |
 
 ## Reglas de mantenimiento
 

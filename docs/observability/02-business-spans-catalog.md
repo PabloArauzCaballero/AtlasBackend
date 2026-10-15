@@ -80,7 +80,7 @@ dentro de una misma operación, no llamadas a otro componente.
 
 | | |
 | --- | --- |
-| Archivo | `src/modules/notifications/notification-orchestrator.service.ts` |
+| Archivo | `src/modules/notifications/notification-dispatch.service.ts` |
 | Tipo | INTERNAL |
 | Módulo | `notifications` |
 | Atributos | `app.module`, `app.operation`, `notification.channel`, `notification.provider`, `notification.outcome` |

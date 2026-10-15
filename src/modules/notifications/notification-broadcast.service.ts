@@ -12,7 +12,7 @@ import { deliversNotificationsInProcess } from '../../config/app-role.js';
 import { TenantModel } from '../../database/models/index.js';
 import { CustomersRepository } from '../customers/customers.repository.js';
 import { InternalRbacRepository } from '../internal-users/internal-rbac.repository.js';
-import { NotificationOrchestratorService } from './notification-orchestrator.service.js';
+import { NotificationDispatchService } from './notification-dispatch.service.js';
 import { NotificationBroadcastRepository } from './notification-broadcast.repository.js';
 import { CreateBroadcastNotificationDto } from './notifications.schemas.js';
 import { RecipientType } from './notification-types.js';
@@ -49,7 +49,7 @@ export class NotificationBroadcastService {
 
   constructor(
     private readonly broadcastMessages: NotificationBroadcastRepository,
-    private readonly orchestrator: NotificationOrchestratorService,
+    private readonly notificationDispatch: NotificationDispatchService,
     private readonly customersRepository: CustomersRepository,
     private readonly internalRbacRepository: InternalRbacRepository,
     @InjectModel(TenantModel) private readonly tenantModel: typeof TenantModel,
@@ -58,7 +58,7 @@ export class NotificationBroadcastService {
   /**
    * Notificación in-app personalizada disparada por un admin — real de punta a punta: crea una
    * fila `notification_messages` por destinatario y la entrega (marca delivered + registra
-   * `notification_deliveries`) vía el mismo `NotificationOrchestratorService` que usan los
+   * `notification_deliveries`) vía el mismo `NotificationDispatchService` que usan los
    * eventos de dominio. Nada de esto es un mock.
    */
   async broadcast(tenantId: string, input: CreateBroadcastNotificationDto): Promise<BroadcastResult> {
@@ -185,7 +185,7 @@ export class NotificationBroadcastService {
 
   private async deliverBroadcastMessages(messages: Array<{ id: string | number }>, broadcastId: string): Promise<void> {
     await mapWithConcurrency(messages, deliveryConcurrency(), (message) =>
-      this.orchestrator.deliverMessage(String(message.id)).catch((error: unknown) => {
+      this.notificationDispatch.deliverMessage(String(message.id)).catch((error: unknown) => {
         this.logger.warn(
           `Fallo entregando mensaje ${String(message.id)} del broadcast ${broadcastId}: ${error instanceof Error ? error.message : error}`,
         );

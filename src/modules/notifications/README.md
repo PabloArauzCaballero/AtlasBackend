@@ -13,7 +13,11 @@
 | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | [`notification-broadcast.service.ts`](./notification-broadcast.service.ts)                           | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
 | [`notification-delivery-targets.util.ts`](./notification-delivery-targets.util.ts)                   | Utilidad pura o acotada reutilizable dentro de su capa.                        |
-| [`notification-orchestrator.service.ts`](./notification-orchestrator.service.ts)                     | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`notification-channel-registry.service.ts`](./notification-channel-registry.service.ts)             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`notification-delivery-payload.builder.ts`](./notification-delivery-payload.builder.ts)             | Constructor: arma el payload de entrega de un mensaje.                         |
+| [`notification-dispatch.service.ts`](./notification-dispatch.service.ts)                             | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
+| [`notification-event-content.util.ts`](./notification-event-content.util.ts)                         | Utilidad pura o acotada reutilizable dentro de su capa.                        |
+| [`notification-event-handler.service.ts`](./notification-event-handler.service.ts)                   | Servicio de aplicación o dominio: ejecuta reglas y coordina dependencias.      |
 | [`notification-policies-operations.controller.ts`](./notification-policies-operations.controller.ts) | Adaptador HTTP: valida y autoriza la petición antes de delegar el caso de uso. |
 | [`notification-policies.repository.ts`](./notification-policies.repository.ts)                       | Puerto de persistencia: encapsula consultas, locks y escrituras.               |
 | [`notification-preferences.repository.ts`](./notification-preferences.repository.ts)                 | Puerto de persistencia: encapsula consultas, locks y escrituras.               |

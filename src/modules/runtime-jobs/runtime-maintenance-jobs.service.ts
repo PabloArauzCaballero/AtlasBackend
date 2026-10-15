@@ -9,7 +9,7 @@ import { Op } from 'sequelize';
 import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { IdempotencyKeyModel, OutboxEventModel } from '../../database/models/index.js';
 import { EventsService } from '../events/events.service.js';
-import { NotificationOrchestratorService } from '../notifications/notification-orchestrator.service.js';
+import { NotificationDispatchService } from '../notifications/notification-dispatch.service.js';
 import { NotificationMessagesRepository } from '../notifications/notification-messages.repository.js';
 import { JobRunRecorderService } from './job-run-recorder.service.js';
 import {
@@ -38,7 +38,7 @@ export class RuntimeMaintenanceJobsService {
   constructor(
     @InjectModel(IdempotencyKeyModel) private readonly idempotencyKeyModel: typeof IdempotencyKeyModel,
     private readonly notificationMessages: NotificationMessagesRepository,
-    private readonly notificationOrchestrator: NotificationOrchestratorService,
+    private readonly dispatch: NotificationDispatchService,
     private readonly jobRuns: JobRunRecorderService,
     // Va AL FINAL a propósito, siguiendo el mismo criterio que `MetricsService` en
     // `RuntimeJobsService`: varias pruebas construyen este servicio posicionalmente, y una
@@ -109,7 +109,7 @@ export class RuntimeMaintenanceJobsService {
         let failed = 0;
         for (const message of stuck) {
           try {
-            await this.notificationOrchestrator.deliverMessage(message);
+            await this.dispatch.deliverMessage(message);
             retried += 1;
           } catch (error) {
             failed += 1;
@@ -153,7 +153,7 @@ export class RuntimeMaintenanceJobsService {
         let failed = 0;
         for (const message of pending) {
           try {
-            await this.notificationOrchestrator.deliverMessage(message);
+            await this.dispatch.deliverMessage(message);
             delivered += 1;
           } catch (error) {
             failed += 1;
