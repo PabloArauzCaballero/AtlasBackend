@@ -3,7 +3,6 @@
  * @business Esta pieza define qué trabajo de fondo corre solo y con qué frecuencia.
  * @system declara el catálogo de trabajos programados que ejecuta el planificador.
  */
-import { AuthenticatedUser } from '../../common/types/auth.types.js';
 import { env } from '../../config/env.js';
 import { BankStatementReviewWorker } from '../credit/application/bank-statement-review.worker.js';
 import { CreditLineRefreshService } from '../credit/application/credit-line-refresh.service.js';
@@ -13,7 +12,11 @@ import { DebtRatingService } from '../credit-rating/application/debt-rating.serv
 import { OutcomeDispatchService } from '../decision-engine/outcome-dispatch.service.js';
 import { PartnerKybSyncService } from '../partner-onboarding/application/partner-kyb-sync.service.js';
 import { SupportSlaService } from '../support/application/support-sla.service.js';
-import { RuntimeJobsService } from './runtime-jobs.service.js';
+import { DataQualityJobService } from './data-quality-job.service.js';
+import { OutboxJobsService } from './outbox-jobs.service.js';
+import { RetentionJobService } from './retention-job.service.js';
+import { SCHEDULER_ACTOR, buildRuntimeScheduledJobs } from './scheduled-jobs.runtime.js';
+import { SessionExpiryJobService } from './session-expiry-job.service.js';
 import { RuntimeMaintenanceJobsService } from './runtime-maintenance-jobs.service.js';
 import { buildOptionalJobs, type DeferredUnderwriting } from './optional-jobs.catalog.js';
 
@@ -22,7 +25,7 @@ import { buildOptionalJobs, type DeferredUnderwriting } from './optional-jobs.ca
  * `role: 'system'` es el mismo rol que ya autoriza el controller para disparos máquina-a-máquina, y
  * `sub` deja rastro de que el disparo vino del planificador y no de un operador.
  */
-export const SCHEDULER_ACTOR: AuthenticatedUser = { sub: 'runtime-jobs-scheduler', role: 'system' };
+export { SCHEDULER_ACTOR };
 
 /**
  * Token de inyección del catálogo ya construido.
@@ -51,7 +54,10 @@ export type ScheduledJob = {
  * desde HTTP, y aquí se pasa `false` explícito porque la razón de ser del planificador es ejecutar.
  */
 export function buildScheduledJobs(deps: {
-  runtimeJobs: RuntimeJobsService;
+  outboxJobs: OutboxJobsService;
+  sessionExpiry: SessionExpiryJobService;
+  retention: RetentionJobService;
+  dataQuality: DataQualityJobService;
   maintenance: RuntimeMaintenanceJobsService;
   onboardingAbandonment: OnboardingAbandonmentService;
   delinquency: LoanDelinquencyService;
@@ -73,34 +79,21 @@ export function buildScheduledJobs(deps: {
   qaRuns: { drain: () => Promise<unknown> };
 }): ScheduledJob[] {
   const limit = env.RUNTIME_JOBS_BATCH_LIMIT;
-  const { runtimeJobs, maintenance, onboardingAbandonment, delinquency, creditLineRefresh, bankStatements, supportSla } = deps;
+  const {
+    outboxJobs,
+    sessionExpiry,
+    retention,
+    dataQuality,
+    maintenance,
+    onboardingAbandonment,
+    delinquency,
+    creditLineRefresh,
+    bankStatements,
+    supportSla,
+  } = deps;
   const { debtRating, outcomeDispatch, partnerKybSync } = deps;
   return [
-    {
-      jobCode: 'process_outbox',
-      intervalMs: env.RUNTIME_JOBS_OUTBOX_INTERVAL_MS,
-      run: (tenantId) => runtimeJobs.processOutbox({ tenantId, body: { limit, dryRun: false }, currentUser: SCHEDULER_ACTOR }),
-    },
-    {
-      jobCode: 'process_events',
-      intervalMs: env.RUNTIME_JOBS_EVENTS_INTERVAL_MS,
-      run: (tenantId) => runtimeJobs.processEvents({ tenantId, body: { limit, dryRun: false }, currentUser: SCHEDULER_ACTOR }),
-    },
-    {
-      jobCode: 'expire_stale_sessions',
-      intervalMs: env.RUNTIME_JOBS_SESSIONS_INTERVAL_MS,
-      run: (tenantId) =>
-        runtimeJobs.expireStaleSessions({
-          tenantId,
-          body: { maxIdleMinutes: env.RUNTIME_JOBS_SESSION_MAX_IDLE_MINUTES, dryRun: false },
-          currentUser: SCHEDULER_ACTOR,
-        }),
-    },
-    {
-      jobCode: 'apply_retention_policies',
-      intervalMs: env.RUNTIME_JOBS_RETENTION_INTERVAL_MS,
-      run: (tenantId) => runtimeJobs.applyRetentionPolicies({ tenantId, body: { dryRun: false }, currentUser: SCHEDULER_ACTOR }),
-    },
+    ...buildRuntimeScheduledJobs({ outboxJobs, sessionExpiry, retention, dataQuality, limit }),
     {
       jobCode: 'retry_stuck_notifications',
       intervalMs: env.RUNTIME_JOBS_NOTIFICATION_RETRY_INTERVAL_MS,
@@ -147,11 +140,6 @@ export function buildScheduledJobs(deps: {
           olderThanDays: env.RUNTIME_JOBS_ONBOARDING_ABANDONMENT_DAYS,
           limit,
         }),
-    },
-    {
-      jobCode: 'recalculate_data_quality',
-      intervalMs: env.RUNTIME_JOBS_DATA_QUALITY_INTERVAL_MS,
-      run: (tenantId) => runtimeJobs.recalculateDataQuality({ tenantId, body: { dryRun: false }, currentUser: SCHEDULER_ACTOR }),
     },
     /*
      * Lo que se le prometió a quien está esperando una respuesta.

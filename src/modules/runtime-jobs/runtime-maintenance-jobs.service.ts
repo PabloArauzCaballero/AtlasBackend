@@ -25,7 +25,7 @@ import {
  *
  * Separados de `RuntimeJobsService` (outbox, eventos, sesiones, retención, calidad de datos) porque
  * responden a una pregunta distinta — no "¿qué hay que procesar?" sino "¿qué quedó sin procesar?" —
- * y porque `runtime-jobs.service.ts` ya estaba muy por encima del límite de tamaño: meterles 84
+ * y porque `runtime-jobs.service.ts` (hoy dividido por trabajo) ya estaba muy por encima del límite de tamaño: meterles 84
  * líneas más era justo lo que `yarn check:file-size` existe para impedir.
  *
  * Ambos cierran el resto del hallazgo A-03 de `docs/audit/auditoria-integral-2026-07-30.md`: dos

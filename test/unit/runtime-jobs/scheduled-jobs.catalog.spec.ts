@@ -16,7 +16,10 @@ describe('buildScheduledJobs · cartera y desenlaces', () => {
       registrarCreditosNuevos: jest.fn(async (..._args: unknown[]) => ({ registrados: 1, rechazados: 0 })),
     };
     const jobs = buildScheduledJobs({
-      runtimeJobs: {} as never,
+      outboxJobs: {} as never,
+      sessionExpiry: {} as never,
+      retention: {} as never,
+      dataQuality: {} as never,
       maintenance: {} as never,
       onboardingAbandonment: {} as never,
       delinquency: { sweep: jest.fn() } as never,

@@ -12495,8 +12495,11 @@
       "src/modules/risk/risk.service.ts"
     ],
     "runtime-jobs": [
+      "src/modules/runtime-jobs/data-quality-job.service.ts",
       "src/modules/runtime-jobs/job-run-recorder.service.ts",
-      "src/modules/runtime-jobs/runtime-jobs.service.ts"
+      "src/modules/runtime-jobs/outbox-jobs.service.ts",
+      "src/modules/runtime-jobs/retention-job.service.ts",
+      "src/modules/runtime-jobs/session-expiry-job.service.ts"
     ],
     "schema-management": [
       "src/modules/schema-management/schema-change-log.repository.ts",

@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { asyncMock } from '../../support/jest-mocks.js';
-import { RuntimeJobsService } from '../../../src/modules/runtime-jobs/runtime-jobs.service.js';
+import { buildJobServices } from './support/build-job-services.js';
 import { Op } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 
@@ -13,7 +13,7 @@ import { Sequelize } from 'sequelize-typescript';
  * `docs/architecture/risk-fraud-retention-proposal.md`) no ejecuta ninguna acción destructiva
  * mientras no exista esa aprobación.
  */
-describe('RuntimeJobsService', () => {
+describe('jobs de fondo de runtime-jobs (outbox, sesiones, retención, calidad de datos)', () => {
   function buildRun() {
     return { id: 'run-1', status: 'running', save: jest.fn(async (..._args: unknown[]) => undefined) };
   }
@@ -46,20 +46,20 @@ describe('RuntimeJobsService', () => {
       }),
     };
 
-    const service = new RuntimeJobsService(
-      outboxModel as never,
-      sessionModel as never,
-      retentionPolicyModel as never,
-      dataQualityIssueModel as never,
-      gpsObservationModel as never,
-      deviceSnapshotModel as never,
-      formInteractionModel as never,
-      systemJobRunModel as never,
-      systemActionLogModel as never,
-      sequelize as never,
-      eventsService as never,
-      jobRuns as never,
-    );
+    const service = buildJobServices({
+      outboxModel,
+      sessionModel,
+      retentionPolicyModel,
+      dataQualityIssueModel,
+      gpsObservationModel,
+      deviceSnapshotModel,
+      formInteractionModel,
+      systemJobRunModel,
+      systemActionLogModel,
+      sequelize,
+      eventsService,
+      jobRuns,
+    });
 
     return {
       service,
@@ -527,20 +527,20 @@ describe('RuntimeJobsService', () => {
           return { jobRunId: 'jr1', status: 'completed' as const, result: await handler() };
         }),
       };
-      const service = new RuntimeJobsService(
-        outboxModel as never,
-        sessionModel as never,
-        retentionPolicyModel as never,
-        dataQualityIssueModel as never,
-        gpsObservationModel as never,
-        deviceSnapshotModel as never,
-        formInteractionModel as never,
-        systemJobRunModel as never,
-        systemActionLogModel as never,
-        sequelize as never,
-        eventsService as never,
-        jobRuns as never,
-      );
+      const service = buildJobServices({
+        outboxModel,
+        sessionModel,
+        retentionPolicyModel,
+        dataQualityIssueModel,
+        gpsObservationModel,
+        deviceSnapshotModel,
+        formInteractionModel,
+        systemJobRunModel,
+        systemActionLogModel,
+        sequelize,
+        eventsService,
+        jobRuns,
+      });
       return { service, dataQualityIssueModel };
     }
 
