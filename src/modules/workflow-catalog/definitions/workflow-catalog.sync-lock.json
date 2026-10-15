@@ -1,6 +1,6 @@
 {
   "processes": {
-    "migration": "20261014190000-sync-workflow-catalog-11",
+    "migration": "20261015140000-sync-workflow-catalog-12",
     "hashes": {
       "customer_credit_journey": "46e9c949ee21f967",
       "post_login_first_screen": "6b88e3d8745e29e5",
@@ -9,8 +9,8 @@
       "account_signup_to_login": "fd42001e5bdce026",
       "customer_onboarding_kyc": "07dfc70b18d366fc",
       "identity_verification": "ce328afbe3d80d1a",
-      "onboarding_risk_assessment": "249833550c27b456",
-      "customer_eligibility_lifecycle": "52e88ae5cd606cfa",
+      "onboarding_risk_assessment": "511a0ddfd13821d9",
+      "customer_eligibility_lifecycle": "671efeb844c25561",
       "credit_line_and_application": "630892826753a7f4",
       "bank_statement_capacity": "8f20e85e6269c056",
       "purchase_and_disbursement": "2837523c574dffea",
@@ -20,7 +20,7 @@
       "customer_support_case": "e1ddbde8aaa2900f",
       "notifications_and_campaigns": "0fade41e683f4563",
       "atlas_assist_help": "739bca0ece3307b7",
-      "device_signals_and_sessions": "f399ca99c47f0d56",
+      "device_signals_and_sessions": "33623e848cbacd45",
       "merchant_onboarding_chain": "d53ed57ab2990bb0",
       "merchant_qr_pos_and_file": "d56d590190da9c64",
       "merchant_users_and_access": "b7cef5e4ef437709",

@@ -60,103 +60,103 @@ flowchart LR
   signals_customer_investigation --> signals_behavior_summary
 ```
 
-| Etapa                            | Nombre                               | Actor         | Cliente      | Pantalla                                                            | Pasos |
-| -------------------------------- | ------------------------------------ | ------------- | ------------ | ------------------------------------------------------------------- | ----- |
-| `signals_consent`                | Consentimiento de agenda y ubicación | customer      | CONSUMER_APP | `/permisos`                                                         | 1     |
-| `signals_session_open`           | Apertura de sesión                   | customer      | CONSUMER_APP | **sin pantalla declarada**                                          | 3     |
-| `signals_collection`             | Envío de señales desde el teléfono   | customer      | CONSUMER_APP | **sin pantalla declarada**                                          | 4     |
-| `signals_withdrawal`             | Retirada de la agenda                | customer      | CONSUMER_APP | **sin pantalla declarada**                                          | 1     |
-| `signals_session_close`          | Cierre de sesión por la app          | customer      | CONSUMER_APP | **sin pantalla declarada**                                          | 1     |
-| `signals_session_expiry`         | Caducidad de sesiones abiertas       | system        | BLOCK        | —                                                                   | 1     |
-| `signals_expiry_manual`          | Caducar sesiones a mano              | internal_user | ADMIN_PORTAL | `/internal/operations/runtime-jobs`                                 | 1     |
-| `signals_session_investigation`  | Investigación de una sesión          | internal_user | ADMIN_PORTAL | `/internal/operations/sessions/[sessionId]/investigation-summary`   | 1     |
-| `signals_customer_investigation` | Investigación del cliente            | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 1     |
-| `signals_behavior_summary`       | Resumen de comportamiento            | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 1     |
+| Etapa | Nombre | Actor | Cliente | Pantalla | Pasos |
+|---|---|---|---|---|---|
+| `signals_consent` | Consentimiento de agenda y ubicación | customer | CONSUMER_APP | `/permisos` | 1 |
+| `signals_session_open` | Apertura de sesión | customer | CONSUMER_APP | **sin pantalla declarada** | 3 |
+| `signals_collection` | Envío de señales desde el teléfono | customer | CONSUMER_APP | **sin pantalla declarada** | 4 |
+| `signals_withdrawal` | Retirada de la agenda | customer | CONSUMER_APP | **sin pantalla declarada** | 1 |
+| `signals_session_close` | Cierre de sesión por la app | customer | CONSUMER_APP | **sin pantalla declarada** | 1 |
+| `signals_session_expiry` | Caducidad de sesiones abiertas | system | BLOCK | — | 1 |
+| `signals_expiry_manual` | Caducar sesiones a mano | internal_user | ADMIN_PORTAL | `/internal/operations/runtime-jobs` | 1 |
+| `signals_session_investigation` | Investigación de una sesión | internal_user | ADMIN_PORTAL | `/internal/operations/sessions/[sessionId]/investigation-summary` | 1 |
+| `signals_customer_investigation` | Investigación del cliente | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 1 |
+| `signals_behavior_summary` | Resumen de comportamiento | internal_user | ADMIN_PORTAL | `/internal/operations/customers/[customerId]/investigation-summary` | 1 |
 
 ### Consentimiento de agenda y ubicación (`signals_consent`)
 
 La pantalla de permisos recoge dos decisiones (dos permisos del sistema distintos) y la app las registra como consentimientos con el documento vigente de cada finalidad.
 
-| Paso                                           | Tipo | Bloque        | Operación                                               | Roles                                                                  | Eventos |
-| ---------------------------------------------- | ---- | ------------- | ------------------------------------------------------- | ---------------------------------------------------------------------- | ------- |
-| Registrar las decisiones de agenda y ubicación | http | ATLAS_BACKEND | `POST /customers/:customerId/privacy/consent-decisions` | customer, internal_operator, compliance_analyst, admin, platform_admin | —       |
+| Paso | Tipo | Bloque | Operación | Roles | Eventos |
+|---|---|---|---|---|---|
+| Registrar las decisiones de agenda y ubicación | http | ATLAS_BACKEND | `POST /customers/:customerId/privacy/consent-decisions` | customer, internal_operator, compliance_analyst, admin, platform_admin | — |
 
 ### Apertura de sesión (`signals_session_open`)
 
 Al entrar, la app abre la sesión y vincula el dispositivo; un cliente bloqueado no abre sesión.
 
-| Paso                            | Tipo | Bloque        | Operación                                                   | Roles                                                                                                       | Eventos |
-| ------------------------------- | ---- | ------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------- |
-| Abrir la sesión                 | http | ATLAS_BACKEND | `POST /customers/:customerId/sessions/start`                | customer, internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | —       |
-| Latido de sesión                | http | ATLAS_BACKEND | `POST /customers/:customerId/sessions/:sessionId/heartbeat` | customer, internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | —       |
-| Estado de la sesión del cliente | http | ATLAS_BACKEND | `GET /customers/:customerId/session-state`                  | customer, internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | —       |
+| Paso | Tipo | Bloque | Operación | Roles | Eventos |
+|---|---|---|---|---|---|
+| Abrir la sesión | http | ATLAS_BACKEND | `POST /customers/:customerId/sessions/start` | customer, internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | — |
+| Latido de sesión | http | ATLAS_BACKEND | `POST /customers/:customerId/sessions/:sessionId/heartbeat` | customer, internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | — |
+| Estado de la sesión del cliente | http | ATLAS_BACKEND | `GET /customers/:customerId/session-state` | customer, internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | — |
 
 ### Envío de señales desde el teléfono (`signals_collection`)
 
 Telemetría de uso por lotes; resumen agregado de contactos (siempre, sin nombres ni teléfonos); y, sólo con consentimiento, la agenda completa cifrada y el rastro de ubicación (5 min en primer plano, 15 min y 100 m en segundo).
 
-| Paso                           | Tipo | Bloque        | Operación                                                 | Roles                                                            | Eventos |
-| ------------------------------ | ---- | ------------- | --------------------------------------------------------- | ---------------------------------------------------------------- | ------- |
-| Enviar un lote de telemetría   | http | ATLAS_BACKEND | `POST /customers/:customerId/telemetry/batch`             | customer, internal_operator, risk_analyst, admin, platform_admin | —       |
-| Resumen agregado de contactos  | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/contacts-snapshot` | customer, internal_operator, risk_analyst, admin, platform_admin | —       |
-| Sincronizar la agenda completa | http | ATLAS_BACKEND | `POST /customers/:customerId/address-book`                | customer, internal_operator, risk_analyst, admin, platform_admin | —       |
-| Enviar puntos de ubicación     | http | ATLAS_BACKEND | `POST /customers/:customerId/location-pings`              | customer, internal_operator, risk_analyst, admin, platform_admin | —       |
+| Paso | Tipo | Bloque | Operación | Roles | Eventos |
+|---|---|---|---|---|---|
+| Enviar un lote de telemetría | http | ATLAS_BACKEND | `POST /customers/:customerId/telemetry/batch` | customer, internal_operator, risk_analyst, admin, platform_admin | — |
+| Resumen agregado de contactos | http | ATLAS_BACKEND | `POST /customer-onboarding/:customerId/contacts-snapshot` | customer, internal_operator, risk_analyst, admin, platform_admin | — |
+| Sincronizar la agenda completa | http | ATLAS_BACKEND | `POST /customers/:customerId/address-book` | customer, internal_operator, risk_analyst, admin, platform_admin | — |
+| Enviar puntos de ubicación | http | ATLAS_BACKEND | `POST /customers/:customerId/location-pings` | customer, internal_operator, risk_analyst, admin, platform_admin | — |
 
 ### Retirada de la agenda (`signals_withdrawal`)
 
 Al retirar el consentimiento de agenda, la app pide el borrado y el servidor borra físicamente los contactos, que es lo que promete el texto del consentimiento.
 
-| Paso                      | Tipo | Bloque        | Operación                                    | Roles                                                            | Eventos |
-| ------------------------- | ---- | ------------- | -------------------------------------------- | ---------------------------------------------------------------- | ------- |
-| Borrar la agenda guardada | http | ATLAS_BACKEND | `DELETE /customers/:customerId/address-book` | customer, internal_operator, risk_analyst, admin, platform_admin | —       |
+| Paso | Tipo | Bloque | Operación | Roles | Eventos |
+|---|---|---|---|---|---|
+| Borrar la agenda guardada | http | ATLAS_BACKEND | `DELETE /customers/:customerId/address-book` | customer, internal_operator, risk_analyst, admin, platform_admin | — |
 
 ### Cierre de sesión por la app (`signals_session_close`)
 
 La app cierra la sesión saliente al terminar o cambiar de cuenta; la sesión pasa a `ended`.
 
-| Paso             | Tipo | Bloque        | Operación                                             | Roles                                                                                                       | Eventos |
-| ---------------- | ---- | ------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------- |
-| Cerrar la sesión | http | ATLAS_BACKEND | `POST /customers/:customerId/sessions/:sessionId/end` | customer, internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | —       |
+| Paso | Tipo | Bloque | Operación | Roles | Eventos |
+|---|---|---|---|---|---|
+| Cerrar la sesión | http | ATLAS_BACKEND | `POST /customers/:customerId/sessions/:sessionId/end` | customer, internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | — |
 
 ### Caducidad de sesiones abiertas (`signals_session_expiry`)
 
 Cada intervalo (5 minutos por defecto) el job marca `expired` las sesiones `active` sin actividad (último latido o, sin latidos, el inicio) durante más del máximo de inactividad (120 minutos por defecto).
 
-| Paso             | Tipo | Bloque        | Operación                   | Roles | Eventos |
-| ---------------- | ---- | ------------- | --------------------------- | ----- | ------- |
-| Caducar sesiones | job  | ATLAS_BACKEND | job `expire_stale_sessions` | —     | —       |
+| Paso | Tipo | Bloque | Operación | Roles | Eventos |
+|---|---|---|---|---|---|
+| Caducar sesiones | job | ATLAS_BACKEND | job `expire_stale_sessions` | — | — |
 
 ### Caducar sesiones a mano (`signals_expiry_manual`)
 
 Desde «Jobs de ejecución» un administrador adelanta la pasada del job, con opción de ensayo sin escribir.
 
-| Paso                            | Tipo | Bloque        | Operación                                     | Roles                         | Eventos |
-| ------------------------------- | ---- | ------------- | --------------------------------------------- | ----------------------------- | ------- |
-| Lanzar la caducidad de sesiones | http | ATLAS_BACKEND | `POST /operations/jobs/expire-stale-sessions` | admin, platform_admin, system | —       |
+| Paso | Tipo | Bloque | Operación | Roles | Eventos |
+|---|---|---|---|---|---|
+| Lanzar la caducidad de sesiones | http | ATLAS_BACKEND | `POST /operations/jobs/expire-stale-sessions` | admin, platform_admin, system | — |
 
 ### Investigación de una sesión (`signals_session_investigation`)
 
 Fraude y operaciones revisan una sesión concreta. Las coordenadas GPS no se devuelven al portal, sólo si hubo observación.
 
-| Paso                                  | Tipo | Bloque        | Operación                                                   | Roles                                                                                             | Eventos |
-| ------------------------------------- | ---- | ------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------- |
-| Resumen de investigación de la sesión | http | ATLAS_BACKEND | `GET /operations/sessions/:sessionId/investigation-summary` | internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | —       |
+| Paso | Tipo | Bloque | Operación | Roles | Eventos |
+|---|---|---|---|---|---|
+| Resumen de investigación de la sesión | http | ATLAS_BACKEND | `GET /operations/sessions/:sessionId/investigation-summary` | internal_operator, risk_analyst, compliance_analyst, fraud_analyst, admin, platform_admin, system | — |
 
 ### Investigación del cliente (`signals_customer_investigation`)
 
 Resumen de investigación del cliente, abierto desde su ficha en operaciones.
 
-| Paso                                 | Tipo | Bloque        | Operación                                                     | Roles                                                                      | Eventos |
-| ------------------------------------ | ---- | ------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------- | ------- |
-| Resumen de investigación del cliente | http | ATLAS_BACKEND | `GET /operations/customers/:customerId/investigation-summary` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | —       |
+| Paso | Tipo | Bloque | Operación | Roles | Eventos |
+|---|---|---|---|---|---|
+| Resumen de investigación del cliente | http | ATLAS_BACKEND | `GET /operations/customers/:customerId/investigation-summary` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | — |
 
 ### Resumen de comportamiento (`signals_behavior_summary`)
 
 Resumen del uso de la app por el cliente. La ruta existe y ninguna pantalla la llama (triaje de cableado, categoría D).
 
-| Paso                              | Tipo | Bloque        | Operación                                                | Roles                                                                      | Eventos |
-| --------------------------------- | ---- | ------------- | -------------------------------------------------------- | -------------------------------------------------------------------------- | ------- |
-| Leer el resumen de comportamiento | http | ATLAS_BACKEND | `GET /operations/customers/:customerId/behavior-summary` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | —       |
+| Paso | Tipo | Bloque | Operación | Roles | Eventos |
+|---|---|---|---|---|---|
+| Leer el resumen de comportamiento | http | ATLAS_BACKEND | `GET /operations/customers/:customerId/behavior-summary` | internal_operator, risk_analyst, compliance_analyst, admin, platform_admin | — |
 
 ## Fuentes
 

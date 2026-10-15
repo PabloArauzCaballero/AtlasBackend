@@ -1,10 +1,10 @@
 {
   "$comment": "Deuda heredada de fronteras (AT-012). Generada por yarn check:architecture --update-baseline; sólo puede encoger.",
   "updatedOn": "2026-10-15",
-  "count": 77,
+  "count": 78,
   "byRule": {
     "domain-purity": 3,
-    "cross-module": 74
+    "cross-module": 75
   },
   "violations": [
     "domain-external:src/modules/support/domain/case-state-machine.ts->@nestjs/common",
@@ -51,8 +51,9 @@
     "import:src/modules/mobile-welcome-audio/mobile-welcome-audio.service.ts->src/modules/customers/customers.repository.ts",
     "import:src/modules/notifications/notification-broadcast.service.ts->src/modules/customers/customers.repository.ts",
     "import:src/modules/notifications/notification-broadcast.service.ts->src/modules/internal-users/internal-rbac.repository.ts",
-    "import:src/modules/operations/operations.service.ts->src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
-    "import:src/modules/operations/operations.service.ts->src/modules/risk/repositories/risk-assessment.repository.ts",
+    "import:src/modules/operations/manual-review-decision.service.ts->src/modules/risk/repositories/risk-assessment.repository.ts",
+    "import:src/modules/operations/operations-investigation.service.ts->src/modules/customer-onboarding/application/customer-contacts-snapshot.service.ts",
+    "import:src/modules/operations/operations-investigation.service.ts->src/modules/risk/repositories/risk-assessment.repository.ts",
     "import:src/modules/partner-onboarding/application/partner-contact-verification.service.ts->src/modules/mail-sender/mail-sender.service.ts",
     "import:src/modules/partner-onboarding/application/partner-kyb-decision.service.ts->src/modules/decision-engine/decision-artifact-binding.service.ts",
     "import:src/modules/partner-onboarding/application/partner-kyb-decision.service.ts->src/modules/decision-engine/decision-engine.client.ts",

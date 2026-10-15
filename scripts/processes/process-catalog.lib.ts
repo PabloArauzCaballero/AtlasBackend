@@ -117,8 +117,10 @@ export function clientScreens(): Map<string, Set<string>> {
 
 /** Códigos de job declarados en el catálogo de jobs programados del Backend. */
 export function backendJobCodes(): Set<string> {
-  const source = readFileSync(join(ROOT, 'src/modules/runtime-jobs/scheduled-jobs.catalog.ts'), 'utf8');
-  return new Set([...source.matchAll(/jobCode:\s*'([^']+)'/g)].map((m) => m[1]!));
+  // Los jobs de la plataforma (outbox, sesiones, retención, calidad de datos) viven en su propio archivo.
+  const files = ['scheduled-jobs.catalog.ts', 'scheduled-jobs.runtime.ts'];
+  const sources = files.map((file) => readFileSync(join(ROOT, 'src/modules/runtime-jobs', file), 'utf8'));
+  return new Set(sources.flatMap((source) => [...source.matchAll(/jobCode:\s*'([^']+)'/g)].map((m) => m[1]!)));
 }
 
 /** Códigos de evento del registro del Backend (sin importar el módulo: el gate corre sin Nest). */

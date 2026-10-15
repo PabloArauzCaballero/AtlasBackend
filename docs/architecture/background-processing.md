@@ -61,15 +61,10 @@ con trabajo de fondo:
 <!-- gen:jobs-always -->
 | `jobCode` | Intervalo (variable · default) | Catálogo |
 |---|---|---|
-| `process_outbox` | `RUNTIME_JOBS_OUTBOX_INTERVAL_MS` · 30 s | `scheduled-jobs.catalog.ts` |
-| `process_events` | `RUNTIME_JOBS_EVENTS_INTERVAL_MS` · 30 s | `scheduled-jobs.catalog.ts` |
-| `expire_stale_sessions` | `RUNTIME_JOBS_SESSIONS_INTERVAL_MS` · 5 min | `scheduled-jobs.catalog.ts` |
-| `apply_retention_policies` | `RUNTIME_JOBS_RETENTION_INTERVAL_MS` · 24 h | `scheduled-jobs.catalog.ts` |
 | `retry_stuck_notifications` | `RUNTIME_JOBS_NOTIFICATION_RETRY_INTERVAL_MS` · 5 min | `scheduled-jobs.catalog.ts` |
 | `purge_idempotency_keys` | `RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS` · 24 h | `scheduled-jobs.catalog.ts` |
 | `purge_processed_outbox` | `RUNTIME_JOBS_IDEMPOTENCY_PURGE_INTERVAL_MS` · 24 h | `scheduled-jobs.catalog.ts` |
 | `mark_abandoned_onboardings` | `RUNTIME_JOBS_ONBOARDING_ABANDONMENT_INTERVAL_MS` · 24 h | `scheduled-jobs.catalog.ts` |
-| `recalculate_data_quality` | `RUNTIME_JOBS_DATA_QUALITY_INTERVAL_MS` · 1 h | `scheduled-jobs.catalog.ts` |
 | `sweep_support_sla` | `RUNTIME_JOBS_SUPPORT_SLA_INTERVAL_MS` · 1 min | `scheduled-jobs.catalog.ts` |
 | `sweep_loan_delinquency` | `RUNTIME_JOBS_DELINQUENCY_SWEEP_INTERVAL_MS` · 1 h | `scheduled-jobs.catalog.ts` |
 | `dispatch_loan_outcomes` | `RUNTIME_JOBS_OUTCOME_DISPATCH_INTERVAL_MS` · 15 min | `scheduled-jobs.catalog.ts` |
@@ -81,6 +76,11 @@ con trabajo de fondo:
 | `process_bank_statement_reviews` | `RUNTIME_JOBS_BANK_STATEMENT_INTERVAL_MS` · 15 min | `scheduled-jobs.catalog.ts` |
 | `reclaim_stuck_events` | `RUNTIME_JOBS_STUCK_EVENTS_INTERVAL_MS` · 5 min | `scheduled-jobs.catalog.ts` |
 | `run_notification_campaigns` | `RUNTIME_JOBS_NOTIFICATION_CAMPAIGNS_INTERVAL_MS` · 30 s | `scheduled-jobs.catalog.ts` |
+| `process_outbox` | `RUNTIME_JOBS_OUTBOX_INTERVAL_MS` · 30 s | `scheduled-jobs.runtime.ts` |
+| `process_events` | `RUNTIME_JOBS_EVENTS_INTERVAL_MS` · 30 s | `scheduled-jobs.runtime.ts` |
+| `expire_stale_sessions` | `RUNTIME_JOBS_SESSIONS_INTERVAL_MS` · 5 min | `scheduled-jobs.runtime.ts` |
+| `apply_retention_policies` | `RUNTIME_JOBS_RETENTION_INTERVAL_MS` · 24 h | `scheduled-jobs.runtime.ts` |
+| `recalculate_data_quality` | `RUNTIME_JOBS_DATA_QUALITY_INTERVAL_MS` · 1 h | `scheduled-jobs.runtime.ts` |
 | `reconcile_submitted_credit_applications` | `RUNTIME_JOBS_CREDIT_RECONCILE_INTERVAL_MS` · 5 min | `scheduled-jobs.credit.ts` |
 | `disburse_confirmed_purchases` | `RUNTIME_JOBS_PURCHASE_DISBURSE_INTERVAL_MS` · 30 s | `scheduled-jobs.credit.ts` |
 <!-- /gen:jobs-always -->
