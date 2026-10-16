@@ -89,7 +89,7 @@ const BY_CODE: Readonly<Record<string, RejectionCopy>> = {
     category: 'PERIODO_INSUFICIENTE',
     title: 'Necesitamos 3 meses completos',
     message:
-      'Tu extracto es válido, pero cubre menos de 3 meses completos. Con menos tiempo, un ingreso extraordinario o un gasto puntual bastan para desviar el cálculo. En tu banca por internet elige el periodo de los últimos 3 meses y vuelve a subirlo.',
+      'Tu extracto es válido, pero cubre menos de 3 meses completos. Con menos tiempo, un ingreso extraordinario o un gasto puntual bastan para desviar el cálculo. En tu banca por internet descarga los últimos 3 meses completos (por ejemplo, de julio a septiembre) o hasta hoy, y vuelve a subirlo.',
   },
   /*
    * El vencido tiene copia propia y no comparte la del corto, aunque los dos
@@ -102,7 +102,7 @@ const BY_CODE: Readonly<Record<string, RejectionCopy>> = {
     category: 'EXTRACTO_VENCIDO',
     title: 'Ese extracto ya no está vigente',
     message:
-      'Tu extracto es válido, pero su último movimiento es de hace demasiado tiempo y ya no describe tu situación actual. En tu banca por internet descarga el extracto hasta la fecha de hoy y vuelve a subirlo.',
+      'Tu extracto es válido, pero termina antes del último mes completo y ya no describe tu situación actual. En tu banca por internet descarga los últimos 3 meses completos (por ejemplo, de julio a septiembre) o hasta hoy, y vuelve a subirlo.',
   },
   ENCRYPTED_PDF: {
     category: 'ARCHIVO_ILEGIBLE',
