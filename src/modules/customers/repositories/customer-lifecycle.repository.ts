@@ -63,6 +63,8 @@ export class CustomerLifecycleRepository {
           previousStatus: values.previousStatus,
           newStatus: values.newStatus,
           reasonCode: values.reasonCode,
+          // Sólo `active` tiene aviso («Tu cuenta ha sido verificada»): tocarlo abre el inicio de la app.
+          ...(values.newStatus === 'active' ? { deepLink: '/', pushData: { deepLink: '/' }, visible: true } : {}),
         },
         status: 'pending',
         attempts: 0,

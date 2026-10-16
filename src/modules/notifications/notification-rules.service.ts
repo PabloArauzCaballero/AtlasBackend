@@ -25,11 +25,31 @@ import { NotificationRule } from './notification-types.js';
  * declararla antes.
  */
 const CUSTOMER_EVENTS: Record<string, string[]> = {
-  'kyc.approved': ['in_app', 'push', 'email'],
-  'kyc.rejected': ['in_app', 'email'],
+  /*
+   * `kyc.approved` sólo en la bandeja (2026-10-16): verificar la identidad dispara también, segundos después,
+   * `customer.lifecycle.active` («Tu cuenta ha sido verificada», push + correo + SMS), y en TEST le llegaban al
+   * cliente dos avisos por push y correo del mismo hecho. El rechazo sí va por push: es la única forma de
+   * enterarse de que hay que hacer algo.
+   */
+  'kyc.approved': ['in_app'],
+  'kyc.rejected': ['in_app', 'push', 'email'],
   // «Tu cuenta ha sido verificada»: el paso a `active` tras la revisión. SMS porque el teléfono es el
   // contacto que el alta exige verificar; el correo es opcional. Plantillas en 20260928120000.
   'customer.lifecycle.active': ['in_app', 'push', 'email', 'sms'],
+  /*
+   * Lo que el cliente espera saber «cuando ya está hecho» (Pablo, 2026-10-16). Push + bandeja; el push no
+   * lleva cifras (se lee en la pantalla bloqueada). Mapa completo: `docs/notifications/mapa-de-avisos-al-cliente.md`.
+   * Plantillas en 20261016120000. `credit_line.*` sólo cuando la cifra CAMBIA fuera de un extracto.
+   */
+  'credit_line.created': ['in_app', 'push'],
+  'credit_line.increased': ['in_app', 'push'],
+  'credit_line.decreased': ['in_app', 'push'],
+  'bank_statement.applied': ['in_app', 'push'],
+  'bank_statement.line_held': ['in_app', 'push'],
+  'bank_statement.rejected': ['in_app', 'push'],
+  'bank_statement.in_review': ['in_app'],
+  'credit.application.approved': ['in_app', 'push'],
+  'credit.application.rejected': ['in_app', 'push'],
   'payment.reported': ['in_app'],
   'payment.confirmed': ['in_app', 'push', 'email'],
   'payment.rejected': ['in_app', 'push', 'email'],

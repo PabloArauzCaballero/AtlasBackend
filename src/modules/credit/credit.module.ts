@@ -40,6 +40,7 @@ import { MalwareScannerService } from '../../common/storage/malware-scanner.serv
 import { BankStatementReviewWorker } from './application/bank-statement-review.worker.js';
 import { BankStatementHumanReviewSync } from './application/bank-statement-human-review.sync.js';
 import { BankStatementReviewCallbackController } from './bank-statement-review-callback.controller.js';
+import { CustomerNoticePublisher } from './application/customer-notices.js';
 import { BankStatementService } from './application/bank-statement.service.js';
 import { CreditLineRefreshService } from './application/credit-line-refresh.service.js';
 import { CreditLineService } from './application/credit-line.service.js';
@@ -141,6 +142,8 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     // AT-015: unidad de trabajo local; la admisión migra a ella en AT-026.
     SequelizeCreditUnitOfWork,
     { provide: CREDIT_UNIT_OF_WORK, useExisting: SequelizeCreditUnitOfWork },
+    // Avisos al cliente de «ya está hecho» (2026-10-16): capacidad, extracto, compra decidida.
+    CustomerNoticePublisher,
     // AT-026: el comercio se resuelve por puerto; el adaptador local envuelve los servicios de Comercios.
     PartnerResolutionAdapter,
     { provide: PARTNER_RESOLUTION_PORT, useExisting: PartnerResolutionAdapter },

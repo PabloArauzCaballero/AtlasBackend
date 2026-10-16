@@ -3,7 +3,7 @@
  * @business Esta pieza cumple la promesa de recalcular la capacidad de pago en 24 horas.
  * @system manda el extracto subido al worker del motor y aplica su veredicto sobre la línea.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
 import { DocumentStorageService } from '../../../common/storage/document-storage.service.js';
@@ -14,6 +14,7 @@ import { ineligibleCopyFor, rejectionCopyForRun, type RejectionCopy } from '../d
 import { BankStatementHumanReviewSync, type HumanReviewSyncOutcome } from './bank-statement-human-review.sync.js';
 import { closeAsRejected, parkForHumanReview } from './bank-statement-review.outcomes.js';
 import { BankStatementService } from './bank-statement.service.js';
+import { bankStatementNotice, CustomerNoticePublisher } from './customer-notices.js';
 
 /**
  * Quien de verdad atiende la cola de extractos.
@@ -61,6 +62,8 @@ export class BankStatementReviewWorker {
     private readonly storage: DocumentStorageService,
     private readonly engine: BankStatementEngineClient,
     private readonly humanReviews: BankStatementHumanReviewSync,
+    // Opcional para las pruebas que construyen el trabajo a mano; en Nest siempre llega.
+    @Optional() private readonly notices?: CustomerNoticePublisher,
   ) {}
 
   async processPending(input: { tenantId: string; limit: number; now?: Date }): Promise<{
@@ -155,6 +158,9 @@ export class BankStatementReviewWorker {
     }
     if (outcome.kind === 'review') {
       await parkForHumanReview(review, outcome.run, now);
+      await this.notices?.publish(
+        bankStatementNotice({ kind: 'in_review', tenantId: review.tenantId, customerId: review.customerId, reviewId: String(review.id) }),
+      );
       this.logger.log(`Extracto ${review.id} derivado a revisión humana: ${outcome.run.reviewReason ?? outcome.run.status}.`);
       return 'review';
     }
@@ -191,6 +197,15 @@ export class BankStatementReviewWorker {
   private async reject(review: BankStatementReviewModel, run: StatementRun | null, copy: RejectionCopy, now: Date): Promise<void> {
     await closeAsRejected(review, run, copy, now);
     this.logger.log(`Extracto ${review.id} rechazado: ${copy.category} (${run?.errorCode ?? run?.rejectionReason ?? 'sin código'}).`);
+    await this.notices?.publish(
+      bankStatementNotice({
+        kind: 'rejected',
+        tenantId: review.tenantId,
+        customerId: review.customerId,
+        reviewId: String(review.id),
+        message: copy.message,
+      }),
+    );
   }
 
   /**

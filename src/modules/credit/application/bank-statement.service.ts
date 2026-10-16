@@ -8,6 +8,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -20,6 +21,7 @@ import { engineVerdictApplies } from '../../../config/decision-engine-auto-apply
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { toLineChange, type LineChange } from '../bank-statement-line-change.mapper.js';
 import { CreditLineService } from './credit-line.service.js';
+import { bankStatementNotice, CustomerNoticePublisher } from './customer-notices.js';
 
 /** Lo que se le promete a quien sube su extracto. Está aquí y no en la pantalla: es un compromiso. */
 export const REVIEW_SLA_HOURS = 24;
@@ -53,6 +55,8 @@ export class BankStatementService {
     private readonly creditLines: CreditLineService,
     private readonly expedienteHooks: ExpedienteHooksService,
     private readonly storage: DocumentStorageService,
+    // Opcional para las pruebas que construyen el servicio a mano; en Nest siempre llega.
+    @Optional() private readonly notices?: CustomerNoticePublisher,
   ) {}
 
   /** La última revisión del cliente, abierta o no. Es lo que la app enseña como estado. */
@@ -243,6 +247,9 @@ export class BankStatementService {
         review.updatedAtValue = new Date();
         await review.save();
         this.logger.log(`Extracto ${review.id} aplicado; la línea nueva queda para que la conceda una persona.`);
+        await this.notices?.publish(
+          bankStatementNotice({ kind: 'line_held', tenantId: input.tenantId, customerId: input.customerId, reviewId: String(review.id) }),
+        );
         return review;
       }
       this.logger.warn(`Extracto ${review.id} revisado pero el motor no recalculó; queda en processing.`);
@@ -253,6 +260,16 @@ export class BankStatementService {
     review.appliedCreditLineId = line.id;
     review.updatedAtValue = new Date();
     await review.save();
+    // «Tu capacidad fue actualizada»: la línea que salió del extracto. `credit_line.*` no avisa de ésta.
+    await this.notices?.publish(
+      bankStatementNotice({
+        kind: 'applied',
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        reviewId: String(review.id),
+        newLimit: Number(line.approvedLimit),
+      }),
+    );
     return review;
   }
 }

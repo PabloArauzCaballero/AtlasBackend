@@ -3,7 +3,7 @@
  * @business Esta pieza cierra el extracto que el motor mandó a revisión humana, para que el cliente no se quede bloqueado.
  * @system relee en el motor la ejecución de cada revisión `processing` y aplica, rechaza o espera según su estado.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { FindOptions, Op } from 'sequelize';
 import { BankStatementReviewModel } from '../../../database/models/index.js';
@@ -11,6 +11,7 @@ import { BankStatementEngineClient, type StatementRun } from '../../decision-eng
 import { ineligibleCopyFor, rejectionCopyForRun } from '../domain/statement-rejection.js';
 import { closeAsRejected } from './bank-statement-review.outcomes.js';
 import { BankStatementService } from './bank-statement.service.js';
+import { bankStatementNotice, CustomerNoticePublisher } from './customer-notices.js';
 
 /** Qué pasó con una revisión al releerla en el motor. */
 export type HumanReviewSyncOutcome = 'applied' | 'rejected' | 'waiting' | 'engineUnavailable';
@@ -52,6 +53,8 @@ export class BankStatementHumanReviewSync {
     @InjectModel(BankStatementReviewModel) private readonly reviews: typeof BankStatementReviewModel,
     private readonly statements: BankStatementService,
     private readonly engine: BankStatementEngineClient,
+    // Opcional para las pruebas que construyen el servicio a mano; en Nest siempre llega.
+    @Optional() private readonly notices?: CustomerNoticePublisher,
   ) {}
 
   /** El barrido: las revisiones abiertas en el motor, las que menos se han tocado primero. */
@@ -138,5 +141,14 @@ export class BankStatementHumanReviewSync {
   private async reject(review: BankStatementReviewModel, run: StatementRun, copy: ReturnType<typeof rejectionCopyForRun>, now: Date) {
     await closeAsRejected(review, run, copy, now);
     this.logger.log(`Extracto ${review.id} cerrado tras la revisión del motor: ${copy.category} (${run.status}).`);
+    await this.notices?.publish(
+      bankStatementNotice({
+        kind: 'rejected',
+        tenantId: review.tenantId,
+        customerId: review.customerId,
+        reviewId: String(review.id),
+        message: copy.message,
+      }),
+    );
   }
 }

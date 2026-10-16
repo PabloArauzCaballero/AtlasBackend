@@ -4,8 +4,8 @@
 > (`src/modules/events/event-registry.ts`) y desde los productores reales de `src/`; `yarn check:events-docs`
 > (CI) falla si difiere. Fuente: `scripts/docs/generate-event-contract.ts`.
 
-**117 códigos registrados en 12 familias. 29 tienen productor en el código;
-los 88 restantes están reservados**: registrarlos permite publicarlos sin cambiar el contrato, pero
+**123 códigos registrados en 13 familias. 38 tienen productor en el código;
+los 85 restantes están reservados**: registrarlos permite publicarlos sin cambiar el contrato, pero
 hoy ningún código los escribe y un consumidor no debe esperarlos. El contrato AsyncAPI
 (`asyncapi/asyncapi.yaml`) declara sólo los emitidos.
 
@@ -57,8 +57,8 @@ Agregados admitidos: `customer`, `kyc_case`, `consent`, `legal_document` · prio
 |---|---|---|---|
 | `kyc.started` | no (reservado) | — | — |
 | `kyc.submitted` | no (reservado) | — | — |
-| `kyc.approved` | sí | `src/modules/customer-onboarding/application/identity-verdict-event.publisher.ts` | customer: in_app, push, email |
-| `kyc.rejected` | sí | `src/modules/customer-onboarding/application/identity-verdict-event.publisher.ts` | customer: in_app, email |
+| `kyc.approved` | sí | `src/modules/customer-onboarding/application/identity-verdict-event.publisher.ts` | customer: in_app |
+| `kyc.rejected` | sí | `src/modules/customer-onboarding/application/identity-verdict-event.publisher.ts` | customer: in_app, push, email |
 | `kyc.requires_review` | no (reservado) | — | — |
 | `consent.accepted` | no (reservado) | — | — |
 | `consent.revoked` | no (reservado) | — | — |
@@ -101,24 +101,37 @@ Agregados admitidos: `customer` · prioridad por defecto: 10 · emitidos: 8 de 8
 
 ## `credit_admission`
 
-Agregados admitidos: `credit_application`, `customer` · prioridad por defecto: 0 · emitidos: 2 de 2.
+Agregados admitidos: `credit_application`, `customer` · prioridad por defecto: 0 · emitidos: 4 de 4.
 
 | Código | Emitido | Productor | Aviso |
 |---|---|---|---|
 | `credit.application.submitted` | sí | `src/modules/credit/application/use-cases/submit-credit-application.use-case.ts` | — |
 | `credit.decision.recorded` | sí | `src/modules/credit/application/credit-decision-event-publisher.ts` | — |
+| `credit.application.approved` | sí | `src/modules/credit/application/customer-notices.ts` | customer: in_app, push |
+| `credit.application.rejected` | sí | `src/modules/credit/application/customer-notices.ts` | customer: in_app, push |
 
-## `credit_line`
+## `bank_statement`
 
-Agregados admitidos: `customer`, `credit_line`, `credit_limit_movement` · prioridad por defecto: 20 · emitidos: 0 de 9.
+Agregados admitidos: `customer`, `bank_statement_review` · prioridad por defecto: 20 · emitidos: 4 de 4.
 
 | Código | Emitido | Productor | Aviso |
 |---|---|---|---|
-| `credit_line.created` | no (reservado) | — | — |
+| `bank_statement.applied` | sí | `src/modules/credit/application/customer-notices.ts` | customer: in_app, push |
+| `bank_statement.line_held` | sí | `src/modules/credit/application/customer-notices.ts` | customer: in_app, push |
+| `bank_statement.rejected` | sí | `src/modules/credit/application/customer-notices.ts` | customer: in_app, push |
+| `bank_statement.in_review` | sí | `src/modules/credit/application/customer-notices.ts` | customer: in_app |
+
+## `credit_line`
+
+Agregados admitidos: `customer`, `credit_line`, `credit_limit_movement` · prioridad por defecto: 20 · emitidos: 3 de 9.
+
+| Código | Emitido | Productor | Aviso |
+|---|---|---|---|
+| `credit_line.created` | sí | `src/modules/credit/application/customer-notices.ts` | customer: in_app, push |
 | `credit_line.approved` | no (reservado) | — | — |
 | `credit_line.rejected` | no (reservado) | — | — |
-| `credit_line.increased` | no (reservado) | — | — |
-| `credit_line.decreased` | no (reservado) | — | — |
+| `credit_line.increased` | sí | `src/modules/credit/application/customer-notices.ts` | customer: in_app, push |
+| `credit_line.decreased` | sí | `src/modules/credit/application/customer-notices.ts` | customer: in_app, push |
 | `credit_line.suspended` | no (reservado) | — | — |
 | `credit_line.reactivated` | no (reservado) | — | — |
 | `credit_line.expired` | no (reservado) | — | — |
