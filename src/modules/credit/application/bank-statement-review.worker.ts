@@ -15,6 +15,7 @@ import { BankStatementHumanReviewSync, type HumanReviewSyncOutcome } from './ban
 import { closeAsRejected, parkForHumanReview } from './bank-statement-review.outcomes.js';
 import { BankStatementService } from './bank-statement.service.js';
 import { bankStatementNotice, CustomerNoticePublisher } from './customer-notices.js';
+import { StatementExpectedHolderService } from './statement-expected-holder.js';
 
 /**
  * Quien de verdad atiende la cola de extractos.
@@ -62,6 +63,7 @@ export class BankStatementReviewWorker {
     private readonly storage: DocumentStorageService,
     private readonly engine: BankStatementEngineClient,
     private readonly humanReviews: BankStatementHumanReviewSync,
+    private readonly holders: StatementExpectedHolderService,
     // Opcional para las pruebas que construyen el trabajo a mano; en Nest siempre llega.
     @Optional() private readonly notices?: CustomerNoticePublisher,
   ) {}
@@ -146,6 +148,8 @@ export class BankStatementReviewWorker {
       fileName: `extracto-${review.id}.pdf`,
       bytes: file,
       correlationId: `bank-statement-${review.id}`,
+      // El extracto tiene que ser de una cuenta del cliente (2026-10-16): el motor rechaza el de otra persona.
+      expectedHolder: await this.holders.expectedFor(review.tenantId, review.customerId),
     });
 
     if (outcome.kind === 'engineUnavailable') {

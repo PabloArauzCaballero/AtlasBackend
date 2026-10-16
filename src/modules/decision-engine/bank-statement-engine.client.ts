@@ -4,6 +4,7 @@
  * @system sube el PDF al worker de extractos del motor y espera su veredicto de admisión y capacidad.
  */
 import { Injectable, Logger } from '@nestjs/common';
+import { HOLDER_CONFLICT, holderConflictRun, type ExpectedHolder } from './bank-statement-holder.js';
 import { env } from '../../config/env.js';
 
 /**
@@ -47,6 +48,8 @@ export type StatementOutcome =
   | { kind: 'review'; run: StatementRun }
   /** No se pudo preguntar. NO dice nada del documento y se reintenta. */
   | { kind: 'engineUnavailable'; reason: string };
+
+export type { ExpectedHolder } from './bank-statement-holder.js';
 
 export interface StatementRun {
   requestId: string;
@@ -112,7 +115,12 @@ export class BankStatementEngineClient {
    * distinción que sostiene todo el flujo: un motor caído no es un extracto inválido, y convertirlo
    * en uno le diría al cliente que su documento no sirve por una avería que es nuestra.
    */
-  async analyze(input: { fileName: string; bytes: Buffer; correlationId?: string }): Promise<StatementOutcome> {
+  async analyze(input: {
+    fileName: string;
+    bytes: Buffer;
+    correlationId?: string;
+    expectedHolder?: ExpectedHolder | null;
+  }): Promise<StatementOutcome> {
     if (!this.isConfigured) {
       return { kind: 'engineUnavailable', reason: 'El motor de extractos no está configurado.' };
     }
@@ -121,6 +129,13 @@ export class BankStatementEngineClient {
     try {
       queued = await this.upload(input);
     } catch (error) {
+      /*
+       * El mismo PDF ya está en curso en el motor para OTRA persona: es un desenlace de negocio (no es
+       * suyo), no una avería. Tratarlo como motor caído lo reintentaría para siempre.
+       */
+      if (message(error).includes(HOLDER_CONFLICT)) {
+        return { kind: 'rejected', run: holderConflictRun() };
+      }
       return { kind: 'engineUnavailable', reason: `No se pudo encolar el extracto: ${message(error)}` };
     }
 
@@ -181,9 +196,19 @@ export class BankStatementEngineClient {
    * multipart: son cuatro líneas y una dependencia menos en la ruta por la que viaja el documento
    * más sensible del expediente.
    */
-  private async upload(input: { fileName: string; bytes: Buffer; correlationId?: string }): Promise<StatementRun> {
+  private async upload(input: {
+    fileName: string;
+    bytes: Buffer;
+    correlationId?: string;
+    expectedHolder?: ExpectedHolder | null;
+  }): Promise<StatementRun> {
     const form = new FormData();
     form.append('file', new Blob([new Uint8Array(input.bytes)], { type: 'application/pdf' }), input.fileName);
+    if (input.expectedHolder?.name) {
+      form.append('expectedHolderName', input.expectedHolder.name);
+      if (input.expectedHolder.givenNames) form.append('expectedHolderGivenNames', input.expectedHolder.givenNames);
+      if (input.expectedHolder.surnames) form.append('expectedHolderSurnames', input.expectedHolder.surnames);
+    }
 
     const response = await this.send(`${this.baseUrl()}/v1/workers/bank-statement/runs`, {
       method: 'POST',

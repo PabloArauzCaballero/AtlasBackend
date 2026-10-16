@@ -61,6 +61,9 @@ function montar(
   const humanReviews = {
     syncParked: jest.fn(async (..._a: unknown[]) => ({ applied: 1, rejected: 0, waiting: 2, engineUnavailable: 0 })),
   };
+  const holders = {
+    expectedFor: jest.fn(async (..._a: unknown[]) => ({ name: 'Juan Pérez', givenNames: 'Juan', surnames: 'Pérez' })),
+  };
 
   const worker = new BankStatementReviewWorker(
     reviews as never,
@@ -68,8 +71,9 @@ function montar(
     storage as never,
     engine as never,
     humanReviews as never,
+    holders as never,
   );
-  return { worker, reviews, statements, storage, engine, humanReviews };
+  return { worker, reviews, statements, storage, engine, humanReviews, holders };
 }
 
 const correr = (w: BankStatementReviewWorker) => w.processPending({ tenantId: '1', limit: 10, now: AHORA });
@@ -262,6 +266,17 @@ describe('BankStatementReviewWorker', () => {
     expect(resultado.breachingSoon).toBe(4);
     const consulta = reviews.count.mock.calls[0][0] as unknown as { where: { status: string[] } };
     expect(consulta.where.status).toEqual(['received', 'processing']);
+  });
+
+  /* 2026-10-16: el extracto tiene que ser de una cuenta del cliente; el motor recibe a quién exigir. */
+  it('manda al motor el titular que exige, y sólo ese dato del cliente', async () => {
+    const { worker, engine, holders } = montar({ pendientes: [revision()] });
+
+    await correr(worker);
+
+    const llamada = (engine.analyze.mock.calls[0] as unknown as [{ expectedHolder: unknown }])[0];
+    expect(llamada.expectedHolder).toEqual({ name: 'Juan Pérez', givenNames: 'Juan', surnames: 'Pérez' });
+    expect(holders.expectedFor).toHaveBeenCalledWith('1', '24');
   });
 
   /* 2026-10-15: dos extractos esperaron ocho días a una persona del Motor y el log sólo decía «2 a punto de vencer». */

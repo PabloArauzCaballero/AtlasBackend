@@ -40,7 +40,9 @@ export type RejectionCategory =
   /** El archivo no se puede abrir o leer. */
   | 'ARCHIVO_ILEGIBLE'
   /** Se leyó y no se pudo confiar en lo leído. */
-  | 'LECTURA_INSUFICIENTE';
+  | 'LECTURA_INSUFICIENTE'
+  /** El extracto es de la cuenta de otra persona: hay que subir el de una cuenta a su nombre. */
+  | 'TITULAR_NO_COINCIDE';
 
 export interface RejectionCopy {
   readonly category: RejectionCategory;
@@ -134,6 +136,16 @@ const BY_CODE: Readonly<Record<string, RejectionCopy>> = {
     title: 'El archivo pesa demasiado',
     message: 'El extracto debe ser un PDF de menos de 10 MB. Descárgalo otra vez sin adjuntos.',
   },
+  /*
+   * El titular no es el cliente (2026-10-16). Sin decir qué nombre se leyó: confirmarle a quien subió el
+   * extracto de otra persona de quién era sería darle información de un tercero.
+   */
+  HOLDER_MISMATCH: {
+    category: 'TITULAR_NO_COINCIDE',
+    title: 'Ese extracto no es de una cuenta a tu nombre',
+    message:
+      'El titular que figura en el extracto no coincide con tu nombre. Necesitamos el extracto de una cuenta tuya (o de la que eres cotitular): descárgalo de tu banca por internet y vuelve a subirlo.',
+  },
   PDF_TOO_COMPLEX: {
     category: 'ARCHIVO_ILEGIBLE',
     title: 'El PDF tiene demasiadas páginas',
@@ -177,6 +189,7 @@ const BY_ENGINE_REJECTION_REASON: Readonly<Record<string, string>> = {
   ACTIVE_CONTENT: 'ACTIVE_CONTENT_IN_DOCUMENT',
   INSUFFICIENT_PERIOD: 'INSUFFICIENT_STATEMENT_PERIOD',
   STALE_PERIOD: 'STALE_STATEMENT',
+  HOLDER_MISMATCH: 'HOLDER_MISMATCH',
 };
 
 /**
@@ -226,6 +239,13 @@ export function reviewCopyFor(reason: string | null): { title: string; message: 
       title: 'Tu extracto está en revisión',
       message:
         'Leímos tu extracto pero no pudimos interpretar sus fechas con seguridad, así que una persona lo está comprobando. No necesitas hacer nada.',
+    };
+  }
+  if (reason === 'HOLDER_UNREADABLE') {
+    return {
+      title: 'Tu extracto está en revisión',
+      message:
+        'Leímos tu extracto pero no pudimos leer con seguridad el nombre del titular, así que una persona está comprobando que la cuenta es tuya. No necesitas hacer nada.',
     };
   }
   if (reason === 'UNKNOWN_BANK') {
