@@ -76,6 +76,10 @@ export class IdentityVerdictEventPublisher {
         source: verdict.source,
         reasonCode: verdict.reasonCode,
         decidedAt: verdict.decidedAt.toISOString(),
+        // Tocar el aviso abre la app en su inicio (que, sin cuenta activa, lleva al estado del alta).
+        deepLink: '/',
+        pushData: { deepLink: '/' },
+        visible: true,
       },
       producer: 'customer_onboarding',
       dedupKey,

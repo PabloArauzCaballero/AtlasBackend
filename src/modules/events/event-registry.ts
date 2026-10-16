@@ -90,7 +90,21 @@ const eventGroups: Array<{ family: string; events: string[]; aggregateTypes: str
     // (`credit_application`) en otro punto de su ciclo de vida, no un dominio nuevo.
     family: 'credit_admission',
     aggregateTypes: ['credit_application', 'customer'],
-    events: ['credit.application.submitted', 'credit.decision.recorded'],
+    // 2026-10-16: la decisión de una PERSONA (o de la revisión del Motor) sobre una solicitud en revisión,
+    // para avisar al cliente. Las automáticas no se avisan: el cliente las ve en la pantalla de la compra.
+    events: ['credit.application.submitted', 'credit.decision.recorded', 'credit.application.approved', 'credit.application.rejected'],
+  },
+  {
+    /*
+     * El desenlace del extracto bancario, para avisar al cliente (Pablo, 2026-10-16: «cuando algo ya esté
+     * hecho, que le llegue un aviso»). Los escribe `customer-notices.ts` desde `BankStatementService`, el
+     * barrido de extractos y la vuelta de la revisión humana del Motor. `line_held`: el extracto ya cuenta
+     * pero el límite nuevo lo concede una persona.
+     */
+    family: 'bank_statement',
+    aggregateTypes: ['customer', 'bank_statement_review'],
+    events: ['bank_statement.applied', 'bank_statement.line_held', 'bank_statement.rejected', 'bank_statement.in_review'],
+    priority: 20,
   },
   {
     family: 'credit_line',

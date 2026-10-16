@@ -14,6 +14,7 @@ import { SubjectReferenceService } from '../../decision-engine/subject-reference
 import { UnderwritingFeaturesService } from '../../decision-engine/underwriting-features.service.js';
 import type { PaymentCapacityAssessment } from '../domain/payment-capacity.js';
 import { PaymentCapacityService } from './payment-capacity.service.js';
+import { creditLineNotice, CustomerNoticePublisher } from './customer-notices.js';
 
 /** Qué movió la línea. Se escribe siempre: una bajada sin causa visible parece un error. */
 export type CalculationTrigger = 'onboarding' | 'bank_statement' | 'delinquency' | 'repayment' | 'manual' | 'application';
@@ -61,6 +62,7 @@ export class CreditLineWriterService {
     private readonly subjects: SubjectReferenceService,
     private readonly capacity: PaymentCapacityService,
     @InjectConnection() private readonly sequelize: Sequelize,
+    private readonly notices: CustomerNoticePublisher,
   ) {}
 
   /**
@@ -105,7 +107,7 @@ export class CreditLineWriterService {
       }
 
       const values = input.values;
-      return this.creditLines.create(
+      const created = await this.creditLines.create(
         {
           tenantId: input.tenantId,
           customerId: input.customerId,
@@ -143,7 +145,33 @@ export class CreditLineWriterService {
         },
         { transaction },
       );
+
+      await this.avisarCambio(input, previous, created, transaction);
+      return created;
     });
+  }
+
+  /**
+   * «Tu capacidad fue actualizada» (Pablo, 2026-10-16), en la misma transacción que la línea: si la escritura se
+   * revierte, el aviso nunca existió. Sólo cuando la cifra cambia (ver `creditLineNotice`).
+   */
+  private avisarCambio(
+    input: { tenantId: string; customerId: string; trigger: CalculationTrigger; values: { approvedLimit: number } },
+    previous: CreditLineModel | null,
+    created: CreditLineModel,
+    transaction: Transaction,
+  ): Promise<void> {
+    return this.notices.publish(
+      creditLineNotice({
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        creditLineId: String(created.id),
+        trigger: input.trigger,
+        previousLimit: previous ? Number(previous.approvedLimit) : null,
+        newLimit: input.values.approvedLimit,
+      }),
+      { transaction },
+    );
   }
 
   /**

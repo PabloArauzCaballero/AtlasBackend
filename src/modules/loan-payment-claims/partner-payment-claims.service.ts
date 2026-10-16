@@ -245,6 +245,10 @@ export class PartnerPaymentClaimsService {
           decidedAt: claim.decidedAt,
           aggregateVersion,
           ...extra,
+          // Tocar el aviso abre «Pagos» (bandeja y push; 2026-10-16).
+          deepLink: '/pagos',
+          pushData: { deepLink: '/pagos' },
+          visible: true,
         },
         idempotencyKey: `${claim.claimCode}-${eventCode}`,
         sourceModule: 'loan-payment-claims',

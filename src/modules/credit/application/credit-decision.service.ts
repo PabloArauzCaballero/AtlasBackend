@@ -3,7 +3,7 @@
  * @business Esta pieza materializa la oferta y solicitud de crédito solo para clientes habilitados y con decisiones explicables.
  * @system coordina productos, solicitudes, transiciones y eventos inmutables del ciclo de crédito.
  */
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { AuthenticatedUser } from '../../../common/types/auth.types.js';
@@ -11,6 +11,7 @@ import { CreditApplicationDecisionDto } from '../credit.schemas.js';
 import { CreditRepository } from '../credit.repository.js';
 import { CreditReviewCaseRepository } from '../credit-review-case.repository.js';
 import { REVIEW_CASE_SOURCE } from '../credit-review-case.constants.js';
+import { creditApplicationNotice, CustomerNoticePublisher } from './customer-notices.js';
 
 const DECISION_TO_STATUS: Readonly<Record<CreditApplicationDecisionDto['decision'], string>> = {
   approve: 'approved',
@@ -63,6 +64,8 @@ export class CreditDecisionService {
     private readonly creditRepository: CreditRepository,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly reviewCases: CreditReviewCaseRepository,
+    // Opcional para las pruebas que construyen el servicio a mano; en Nest siempre llega.
+    @Optional() private readonly notices?: CustomerNoticePublisher,
   ) {}
 
   async decide(input: { tenantId: string; applicationId: string; body: CreditApplicationDecisionDto; currentUser: AuthenticatedUser }) {
@@ -154,6 +157,16 @@ export class CreditDecisionService {
         },
         { transaction },
       );
+      // El cliente se entera de que una persona decidió su compra (2026-10-16). En la misma transacción.
+      await this.notices?.publish(
+        creditApplicationNotice({
+          tenantId: input.tenantId,
+          customerId: application.customerId,
+          applicationId: String(application.id),
+          status: newStatus,
+        }),
+        { transaction },
+      );
 
       return {
         applicationId: input.applicationId,
@@ -240,6 +253,21 @@ export class CreditDecisionService {
         },
         { transaction },
       );
+      /*
+       * Sólo el rechazo se avisa aquí: una aprobación de la revisión del Motor queda con la aceptación del
+       * negocio pendiente (`businessAcceptance = 'pending'`) y decirle al cliente «aprobada» sería adelantarse.
+       */
+      if (newStatus === 'rejected') {
+        await this.notices?.publish(
+          creditApplicationNotice({
+            tenantId: input.tenantId,
+            customerId: application.customerId,
+            applicationId: String(application.id),
+            status: newStatus,
+          }),
+          { transaction },
+        );
+      }
 
       return { applied: true, applicationId: String(application.id), previousStatus, status: newStatus };
     });

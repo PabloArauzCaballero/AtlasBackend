@@ -275,6 +275,7 @@ export class LoanPaymentClaimsService {
           currencyCode: loan.currencyCode,
           payerReference: input.body.payerReference ?? null,
           aggregateVersion,
+          deepLink: '/pagos',
         },
         idempotencyKey: claim.claimCode,
         sourceModule: 'loan-payment-claims',

@@ -28,8 +28,10 @@ describe('NotificationRulesService.getRulesForEvent', () => {
 
     it('resolves the exact channel list configured for that event, not a default', () => {
       expect(service.getRulesForEvent('payment.reported')[0].channels).toEqual(['in_app']);
-      expect(service.getRulesForEvent('kyc.approved')[0].channels).toEqual(['in_app', 'push', 'email']);
-      expect(service.getRulesForEvent('kyc.rejected')[0].channels).toEqual(['in_app', 'email']);
+      // 2026-10-16: kyc.approved sólo en la bandeja (el push y el correo los da `customer.lifecycle.active`).
+      expect(service.getRulesForEvent('kyc.approved')[0].channels).toEqual(['in_app']);
+      expect(service.getRulesForEvent('kyc.rejected')[0].channels).toEqual(['in_app', 'push', 'email']);
+      expect(service.getRulesForEvent('bank_statement.in_review')[0].channels).toEqual(['in_app']);
     });
 
     it('only the account verification is required; a payment notice can be switched off by the customer', () => {
@@ -99,6 +101,15 @@ describe('NotificationRulesService.getRulesForEvent', () => {
     expect(new Set(codes).size).toBe(codes.length);
     expect(codes.sort()).toEqual(
       [
+        'bank_statement.applied',
+        'bank_statement.in_review',
+        'bank_statement.line_held',
+        'bank_statement.rejected',
+        'credit.application.approved',
+        'credit.application.rejected',
+        'credit_line.created',
+        'credit_line.decreased',
+        'credit_line.increased',
         'customer.lifecycle.active',
         'kyc.approved',
         'kyc.rejected',
