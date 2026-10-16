@@ -25,7 +25,7 @@ export async function closeAsRejected(
   review.rejectionReason = copy.category;
   review.rejectionCategory = copy.category;
   review.rejectionMessage = copy.message;
-  review.engineRequestId = run?.requestId ?? review.engineRequestId ?? null;
+  review.engineRequestId = run?.requestId || review.engineRequestId || null;
   review.engineStatus = run?.status ?? null;
   review.engineErrorCode = run?.errorCode ?? run?.rejectionReason ?? null;
   review.reviewedAt = now;

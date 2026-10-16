@@ -18,6 +18,8 @@ import {
   CustomerActivitySummaryModel,
   FraudCaseModel,
   CustomerModel,
+  CustomerIdentityDocumentModel,
+  CustomerProfileVersionModel,
   EvidenceDocumentModel,
   IdentityVerificationAttemptModel,
   LoanInstallmentModel,
@@ -38,6 +40,7 @@ import { CreditDecisionService } from './application/credit-decision.service.js'
 import { DocumentStorageService } from '../../common/storage/document-storage.service.js';
 import { MalwareScannerService } from '../../common/storage/malware-scanner.service.js';
 import { BankStatementReviewWorker } from './application/bank-statement-review.worker.js';
+import { StatementExpectedHolderService } from './application/statement-expected-holder.js';
 import { BankStatementHumanReviewSync } from './application/bank-statement-human-review.sync.js';
 import { BankStatementReviewCallbackController } from './bank-statement-review-callback.controller.js';
 import { CustomerNoticePublisher } from './application/customer-notices.js';
@@ -117,6 +120,9 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
       OperationalAuditLogModel,
       // El comprobante del pago inicial de una compra se guarda donde vive el resto de la evidencia del cliente.
       EvidenceDocumentModel,
+      // El nombre legal del cliente, para exigirlo como titular del extracto (2026-10-16). Sólo se lee.
+      CustomerProfileVersionModel,
+      CustomerIdentityDocumentModel,
     ]),
     CustomersModule,
     DecisionEngineModule,
@@ -169,6 +175,7 @@ import { CreditLineWriterService } from './application/credit-line-writer.servic
     BankStatementService,
     BankStatementArchiveService,
     BankStatementReviewWorker,
+    StatementExpectedHolderService,
     // A6: cierra el extracto que el Motor mandó a revisión humana (aviso del Motor y barrido del job).
     BankStatementHumanReviewSync,
     // El trabajo que lee el extracto necesita bajarlo del almacén cifrado. `MalwareScannerService`
