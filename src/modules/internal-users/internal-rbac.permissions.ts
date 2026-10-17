@@ -39,6 +39,8 @@ export const ROLE_PERMISSION_CODES: Readonly<Record<InternalRoleCode, readonly s
     'auth.internal.me.read',
     'internal.users.read',
     'internal.users.manage',
+    // Ver quién tiene sesión abierta: quien gobierna las cuentas necesita saber cuáles están en uso.
+    'internal.sessions.read',
     'internal.roles.read',
     'internal.roles.manage',
     'internal.permissions.read',

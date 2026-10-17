@@ -24,13 +24,13 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (136 controladores) | 616 |
+| Total montadas (137 controladores) | 618 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
 | Con `@Roles` | 557 |
-| Con permiso fino `@InternalPermissions` (además del rol) | 85 |
-| Cualquier sesión autenticada (sin `@Roles`) | 25 |
+| Con permiso fino `@InternalPermissions` (además del rol) | 87 |
+| Cualquier sesión autenticada (sin `@Roles`) | 27 |
 
 ## `app-content`
 
@@ -418,10 +418,12 @@
 | `GET` | `/internal/permissions` | cualquier sesión autenticada | `internal.permissions.read` | `InternalAccessCatalogController.listPermissions` | guards: `InternalPermissionsGuard` |
 | `GET` | `/internal/roles` | cualquier sesión autenticada | `internal.roles.read` | `InternalAccessCatalogController.listRoles` | guards: `InternalPermissionsGuard` |
 | `GET` | `/internal/roles/:roleId` | cualquier sesión autenticada | `internal.roles.read` | `InternalAccessCatalogController.getRole` | guards: `InternalPermissionsGuard` |
+| `GET` | `/internal/sessions` | cualquier sesión autenticada | `internal.sessions.read` | `InternalSessionsController.list` | guards: `InternalPermissionsGuard` |
 | `GET` | `/internal/users` | cualquier sesión autenticada | `internal.users.read` | `InternalUsersController.list` | guards: `InternalPermissionsGuard` |
 | `GET` | `/internal/users/:internalUserId` | cualquier sesión autenticada | `internal.users.read` | `InternalUsersController.get` | guards: `InternalPermissionsGuard` |
 | `PATCH` | `/internal/users/:internalUserId` | cualquier sesión autenticada | `internal.users.manage` | `InternalUsersController.update` | guards: `InternalPermissionsGuard` |
 | `PATCH` | `/internal/users/:internalUserId/roles` | cualquier sesión autenticada | `internal.users.manage`, `internal.roles.manage` | `InternalUsersController.replaceRoles` | guards: `InternalPermissionsGuard` |
+| `POST` | `/internal/users/:internalUserId/sessions/revoke` | cualquier sesión autenticada | `internal.users.manage` | `InternalSessionsController.revoke` | guards: `InternalPermissionsGuard` |
 | `POST` | `/internal/users/:internalUserId/unlock` | cualquier sesión autenticada | `internal.users.manage` | `InternalUsersController.unlock` | guards: `InternalPermissionsGuard` |
 
 ## `loan-payment-claims`

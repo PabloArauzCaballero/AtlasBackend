@@ -18,6 +18,14 @@ export const PEOPLE_PERMISSION_SEEDS: readonly InternalPermissionSeed[] = [
     description: 'Consultar usuarios internos.',
   }),
   permission({
+    code: 'internal.sessions.read',
+    module: 'internal',
+    resource: 'internal_session',
+    action: 'read',
+    description:
+      'Ver qué personas del equipo tienen sesión abierta: última renovación, vencimiento, IP y dispositivo. Cerrarlas exige internal.users.manage.',
+  }),
+  permission({
     code: 'merchant.users.read',
     module: 'merchant',
     resource: 'merchant_user',
