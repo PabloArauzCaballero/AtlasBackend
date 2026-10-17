@@ -27,6 +27,9 @@ import { InternalPermissionHoldersRepository } from './internal-permission-holde
 import { InternalUsersController } from './internal-users.controller.js';
 import { InternalUsersService } from './internal-users.service.js';
 import { InternalUserLockService } from './internal-user-lock.service.js';
+import { InternalSessionsController } from './internal-sessions.controller.js';
+import { InternalSessionsRepository } from './internal-sessions.repository.js';
+import { InternalSessionsService } from './internal-sessions.service.js';
 
 /**
  * Global: el guard de permisos vive en `common` y pide `INTERNAL_PERMISSIONS_CHECKER`. Los módulos que lo usan
@@ -47,11 +50,13 @@ import { InternalUserLockService } from './internal-user-lock.service.js';
     ]),
     AuthModule,
   ],
-  controllers: [InternalAuthController, InternalUsersController, InternalAccessCatalogController],
+  controllers: [InternalAuthController, InternalUsersController, InternalSessionsController, InternalAccessCatalogController],
   providers: [
     InternalAuthService,
     InternalUsersService,
     InternalUserLockService,
+    InternalSessionsService,
+    InternalSessionsRepository,
     InternalAccessCatalogService,
     InternalRbacRepository,
     InternalPermissionHoldersRepository,
