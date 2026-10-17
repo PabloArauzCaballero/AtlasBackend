@@ -77,7 +77,10 @@ describe('motivo de rechazo de un extracto', () => {
 
   it('un análisis sin capacidad utilizable pide el periodo cuando faltan meses', () => {
     expect(ineligibleCopyFor({ coverage: { monthsComplete: 2, minimumMonthsRequired: 3 } }).category).toBe('PERIODO_INSUFICIENTE');
-    expect(ineligibleCopyFor(null).category).toBe('PERIODO_INSUFICIENTE');
+    // Sin análisis no hay meses que contar: no se inventa que faltan.
+    expect(ineligibleCopyFor(null).category).toBe('LECTURA_INSUFICIENTE');
+    expect(ineligibleCopyFor({ coverage: null }).category).toBe('LECTURA_INSUFICIENTE');
+    expect(ineligibleCopyFor({ coverage: { minimumMonthsRequired: 3 } }).category).toBe('LECTURA_INSUFICIENTE');
     expect(ineligibleCopyFor({ coverage: { monthsComplete: 4, minimumMonthsRequired: 3 } }).category).toBe('LECTURA_INSUFICIENTE');
   });
 });
