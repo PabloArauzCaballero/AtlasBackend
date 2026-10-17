@@ -215,9 +215,11 @@ export function ineligibleCopyFor(
   } | null,
 ): RejectionCopy {
   const coverage = affordability?.coverage;
-  const monthsComplete = coverage?.monthsComplete ?? 0;
-  const minimum = coverage?.minimumMonthsRequired ?? 3;
-  return monthsComplete < minimum ? BY_CODE.INSUFFICIENT_STATEMENT_PERIOD : rejectionCopyFor(null);
+  // Sin cobertura medida no se sabe si faltan meses: decir «faltan meses» a quien subió doce es
+  // inventar el motivo (pasó con un extracto aprobado a mano sin análisis). Frase débil.
+  if (typeof coverage?.monthsComplete !== 'number') return rejectionCopyFor(null);
+  const minimum = coverage.minimumMonthsRequired ?? 3;
+  return coverage.monthsComplete < minimum ? BY_CODE.INSUFFICIENT_STATEMENT_PERIOD : rejectionCopyFor(null);
 }
 
 /**
