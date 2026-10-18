@@ -12,6 +12,7 @@ HOST="${ATLAS_TEST_SSH:-root@161.97.85.216}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 PSQL_CORE="docker exec -i atlas-postgres psql -U postgres -d atlas -v ON_ERROR_STOP=1 -q"
 PSQL_TABLEROS="docker exec -i atlas-postgres psql -U postgres -d atlas_dashboards -v ON_ERROR_STOP=1 -q"
+PSQL_ERP="docker exec -i atlas-postgres psql -U postgres -d atlas_erp -v ON_ERROR_STOP=1 -q"
 
 QUITAR_HISTORIA="DELETE FROM dashboards.loan_daily_snapshot WHERE es_semilla AND product_code LIKE 'DEMO-%';
 DELETE FROM dashboards.portfolio_snapshot_daily WHERE es_semilla AND product_code LIKE 'DEMO-%';"
@@ -23,23 +24,26 @@ respaldo() {
     docker exec atlas-postgres pg_dump -U postgres -d atlas -Fc -n credit -t customer.customers -t partner.partner_profiles \
       > /opt/atlas/respaldos/cartera-ejemplo-$marca-atlas.dump && \
     docker exec atlas-postgres pg_dump -U postgres -d atlas_dashboards -Fc -t dashboards.loan_daily_snapshot -t dashboards.portfolio_snapshot_daily \
-      > /opt/atlas/respaldos/cartera-ejemplo-$marca-tableros.dump"
+      > /opt/atlas/respaldos/cartera-ejemplo-$marca-tableros.dump && \
+    docker exec atlas-postgres pg_dump -U postgres -d atlas_erp -Fc -n atlas_accounting -n atlas_sales \
+      > /opt/atlas/respaldos/cartera-ejemplo-$marca-erp.dump"
 }
 
 if [ "${1:-}" = "--quitar" ]; then
   respaldo
   echo "$QUITAR_HISTORIA" | ssh -o BatchMode=yes "$HOST" "$PSQL_TABLEROS"
+  ssh -o BatchMode=yes "$HOST" "$PSQL_ERP" < "$DIR/quitar-erp.sql"
   ssh -o BatchMode=yes "$HOST" "$PSQL_CORE" < "$DIR/quitar.sql"
-  echo "Cartera de ejemplo retirada de atlas y atlas_dashboards."
+  echo "Cartera de ejemplo retirada de atlas, atlas_erp y atlas_dashboards."
   exit 0
 fi
 
 respaldo
 
-echo "1/2 · Cartera en el núcleo (atlas)"
+echo "1/3 · Cartera en el núcleo (atlas)"
 ssh -o BatchMode=yes "$HOST" "$PSQL_CORE -v permitir=si" < "$DIR/sembrar.sql"
 
-echo "2/2 · Historia en la base de tableros (atlas_dashboards)"
+echo "2/3 · Historia en la base de tableros (atlas_dashboards)"
 # Un solo flujo: la cabecera abre la transacción y el COPY, siguen las filas que salen del núcleo,
 # y el pie rehace la foto agregada por producto y tramo desde la foto por préstamo.
 {
@@ -50,5 +54,18 @@ echo "2/2 · Historia en la base de tableros (atlas_dashboards)"
   cat "$DIR/historia-cartera.sql"
   printf '%s\n' "COMMIT;"
 } | ssh -o BatchMode=yes "$HOST" "$PSQL_TABLEROS"
+
+echo "3/3 · Comercios, comisión, proveedores y contabilidad en el ERP (atlas_erp)"
+# Mismo truco: lo anterior fuera, el resumen mensual del núcleo a una tabla temporal y la siembra.
+{
+  printf '%s\n' "BEGIN;"
+  sed '/^BEGIN;$/d; /^COMMIT;$/d' "$DIR/quitar-erp.sql"
+  printf '%s\n' "CREATE TEMP TABLE resumen (mes date, n int, partner_id bigint, mdr numeric, desembolsado numeric, capital_cobrado numeric, interes_cobrado numeric, castigado numeric) ON COMMIT DROP;" \
+    "COPY resumen FROM STDIN WITH (FORMAT csv);"
+  ssh -o BatchMode=yes "$HOST" "docker exec -i atlas-postgres psql -U postgres -d atlas -v ON_ERROR_STOP=1 -q" < "$DIR/resumen-mensual.sql"
+  printf '%s\n' '\.'
+  cat "$DIR/sembrar-erp.sql" "$DIR/sembrar-erp-libro.sql"
+  printf '%s\n' "COMMIT;"
+} | ssh -o BatchMode=yes "$HOST" "$PSQL_ERP"
 
 echo "Hecho. La foto de hoy de los KPI se rehace en la próxima corrida del job de tableros."

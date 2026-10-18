@@ -47,6 +47,9 @@ DELETE FROM credit.customer_risk_ratings
 DELETE FROM credit.credit_applications WHERE application_code LIKE 'DEMO-%';
 DELETE FROM credit.credit_products WHERE product_code LIKE 'DEMO-%';
 DELETE FROM partner.partner_profiles WHERE tax_id LIKE 'DEMO-%';
+DELETE FROM telemetry.auth_events
+ WHERE session_id IN (SELECT _id FROM telemetry.customer_sessions WHERE session_token_hash LIKE 'DEMO-%');
+DELETE FROM telemetry.customer_sessions WHERE session_token_hash LIKE 'DEMO-%';
 DELETE FROM customer.customers WHERE customer_code LIKE 'DEMO-C-%';
 
 /* Un sorteo de 0 a 9999 a partir de un texto: determinista y sin correlación entre semillas. */
@@ -114,9 +117,22 @@ ALTER TABLE sol
   ADD COLUMN monto numeric, ADD COLUMN plazo int, ADD COLUMN tasa numeric, ADD COLUMN comercio int,
   ADD COLUMN estado text, ADD COLUMN motivo text, ADD COLUMN decidida timestamptz;
 
+/*
+ * Quién pide. Algo más de la mitad de las solicitudes son de gente nueva y el resto de clientes que
+ * vuelven, todos los meses: si los clientes nacieran sólo al principio, «clientes nuevos» y la
+ * activación a crédito del último mes saldrían vacías, y una financiera que no capta no existe.
+ * El que vuelve es uno que ya había llegado antes.
+ */
+WITH marca AS (
+  SELECT i, (i <= 40 OR pg_temp.sorteo('nuevo:' || i) % 100 < 55) AS nuevo FROM sol
+), cuenta AS (
+  SELECT i, nuevo, sum(CASE WHEN nuevo THEN 1 ELSE 0 END) OVER (ORDER BY i) AS llegados FROM marca
+)
+UPDATE sol SET cliente = CASE WHEN c.nuevo THEN c.llegados
+                              ELSE 1 + pg_temp.sorteo('cli:' || sol.i) % c.llegados END
+  FROM cuenta c WHERE c.i = sol.i;
+
 UPDATE sol SET
-  -- Los primeros 300 son clientes nuevos; después vuelven, que es lo que hace un buen cliente.
-  cliente = CASE WHEN i <= 300 THEN i ELSE 1 + pg_temp.sorteo('cli:' || i) % 300 END,
   -- La media de dos sorteos: más gente en el medio que en las colas, como un score de verdad.
   score = 300 + ((pg_temp.sorteo('s1:' || i) % 651) + (pg_temp.sorteo('s2:' || i) % 651)) / 2,
   producto = CASE WHEN pg_temp.sorteo('prod:' || i) % 100 < 45 THEN 'DEMO-CONSUMO-CORTO'
@@ -374,11 +390,52 @@ SELECT 1, c._id, v._id,
   ) tot ON true
  WHERE c.customer_code LIKE 'DEMO-C-%';
 
+-- ── Uso de la app ───────────────────────────────────────────────────────────────────────────────
+
+/*
+ * Sesiones e inicios de sesión de los clientes de ejemplo, semana a semana desde que se dieron de
+ * alta. Quien tiene un crédito vivo entra más (consulta la cuota, paga con QR); quien ya pagó todo
+ * entra de vez en cuando. Sin esto, «usuarios activos» y «sesiones por usuario» se quedaban en los
+ * cuatro usuarios reales de TEST, por debajo de la muestra mínima. El hash de sesión lleva `DEMO-`
+ * para que `quitar.sql` las encuentre.
+ */
+CREATE TEMP TABLE uso ON COMMIT DROP AS
+SELECT c._id AS cliente, s.inicio
+  FROM customer.customers c
+  CROSS JOIN LATERAL (
+    SELECT EXISTS (SELECT 1 FROM credit.loans l WHERE l.customer_id = c._id AND l.status = 'active') AS vivo
+  ) v
+  CROSS JOIN LATERAL generate_series(c._created_at, now() - interval '1 hour', interval '7 days') AS w(semana)
+  CROSS JOIN LATERAL generate_series(1, 1 + pg_temp.sorteo('ses:' || c._id || ':' || w.semana) % 3) AS k(n)
+  CROSS JOIN LATERAL (
+    SELECT LEAST(now() - interval '1 hour',
+                 w.semana + make_interval(days => pg_temp.sorteo('dia:' || c._id || ':' || w.semana || ':' || k.n) % 7,
+                                          hours => 7 + pg_temp.sorteo('h:' || c._id || ':' || w.semana || ':' || k.n) % 15)) AS inicio
+  ) s
+ WHERE c.customer_code LIKE 'DEMO-C-%'
+   AND pg_temp.sorteo('activo:' || c._id || ':' || w.semana) % 100 < CASE WHEN v.vivo THEN 55 ELSE 20 END;
+
+INSERT INTO telemetry.customer_sessions
+  (_tenant_id, customer_id, session_token_hash, channel, auth_method, started_at, ended_at,
+   last_activity_at, user_agent, session_status, _created_at)
+SELECT 1, cliente, 'DEMO-' || md5(cliente || ':' || inicio), 'mobile_app',
+       CASE WHEN pg_temp.sorteo('met:' || cliente || ':' || inicio) % 4 = 0 THEN 'password' ELSE 'restored_session' END, inicio,
+       inicio + make_interval(mins => 2 + pg_temp.sorteo('dur:' || cliente || ':' || inicio) % 12),
+       inicio + make_interval(mins => 2 + pg_temp.sorteo('dur:' || cliente || ':' || inicio) % 12),
+       'cartera-ejemplo', 'ended', inicio
+  FROM uso;
+
+INSERT INTO telemetry.auth_events
+  (_tenant_id, customer_id, session_id, event_type, login_successful, occurred_at, _created_at)
+SELECT 1, customer_id, _id, 'login', true, started_at, started_at
+  FROM telemetry.customer_sessions WHERE session_token_hash LIKE 'DEMO-%';
+
 -- Lo que quedó, para leerlo en la salida y no suponerlo.
 SELECT 'solicitudes' AS que, count(*)::text AS cuantas FROM credit.credit_applications WHERE application_code LIKE 'DEMO-%'
 UNION ALL SELECT 'créditos ' || status, count(*)::text FROM credit.loans WHERE loan_code LIKE 'DEMO-%' GROUP BY status
 UNION ALL SELECT 'tramo ' || delinquency_bucket, count(*)::text FROM credit.loans WHERE loan_code LIKE 'DEMO-%' AND status <> 'paid_off' GROUP BY delinquency_bucket
 UNION ALL SELECT 'cartera viva Bs', round(sum(outstanding_principal))::text FROM credit.loans WHERE loan_code LIKE 'DEMO-%' AND status = 'active'
-UNION ALL SELECT 'pagos', count(*)::text FROM credit.loan_payments WHERE payment_code LIKE 'DEMO-%';
+UNION ALL SELECT 'pagos', count(*)::text FROM credit.loan_payments WHERE payment_code LIKE 'DEMO-%'
+UNION ALL SELECT 'sesiones en la app', count(*)::text FROM telemetry.customer_sessions WHERE session_token_hash LIKE 'DEMO-%';
 
 COMMIT;
