@@ -10,6 +10,9 @@ import { CustomerAddressPackageService } from './application/customer-address-pa
 import { CustomerContactVerificationService } from './application/customer-contact-verification.service.js';
 import { CustomerIdentityPackageService } from './application/customer-identity-package.service.js';
 import { CustomerOnboardingStartService } from './application/customer-onboarding-start.service.js';
+import { OnboardingIpBlockService } from './application/onboarding-ip-block.service.js';
+import { ForbiddenException } from '@nestjs/common';
+import { ONBOARDING_IP_BLOCKED } from './onboarding-ip-block.guard.js';
 import { IdentityDocumentDuplicateService } from './application/identity-document-duplicate.service.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../common/utils/auth/ownership.util.js';
 import { ExpedienteHooksService } from '../expedientes/application/expediente-hooks.service.js';
@@ -30,6 +33,7 @@ export class CustomerOnboardingService {
     private readonly addressPackageService: CustomerAddressPackageService,
     private readonly expedienteHooks: ExpedienteHooksService,
     private readonly documentDuplicates: IdentityDocumentDuplicateService,
+    private readonly ipBlock: OnboardingIpBlockService,
   ) {}
 
   /** Delegación: la app pregunta por aquí porque es la fachada que ya usa para todo el alta. */
@@ -55,6 +59,8 @@ export class CustomerOnboardingService {
     ipAddress: string | null,
     idempotencyKey: string,
   ): Promise<StartOnboardingResponseDto> {
+    // El teléfono bloqueado no abre otra cuenta aunque haya cambiado de red (la IP la corta la guardia).
+    if (await this.ipBlock.isDeviceBlocked(input.device.deviceFingerprintHash)) throw new ForbiddenException(ONBOARDING_IP_BLOCKED);
     const respuesta = await this.startService.startOnboarding(tenantId, input, ipAddress, idempotencyKey);
     const { customerId, sessionId, customerCode } = respuesta;
     await this.expedienteHooks.alIniciarOnboarding({ tenantId, customerId, sessionId, customerCode: customerCode ?? null });
@@ -102,6 +108,7 @@ export class CustomerOnboardingService {
       documentNumber: input.body.identity.documentNumber,
       documentNumberHash: input.body.identity.documentNumberHash,
       ipAddress: input.ipAddress,
+      blockCaller: input.currentUser.role === 'customer',
     });
     return this.identityPackageService.submitIdentityPackage(input);
   }
