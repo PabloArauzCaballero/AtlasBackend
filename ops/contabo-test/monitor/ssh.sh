@@ -35,7 +35,7 @@ vigilar_ssh() {
     usuario=$(printf '%s' "$linea" | sed -E 's/.*Accepted [a-z]+ for ([^ ]+) from.*/\1/')
     ip=$(printf '%s' "$linea" | sed -E 's/.*from ([0-9a-fA-F.:]+) port.*/\1/')
     huella=$(printf '%s' "$linea" | grep -oE "SHA256:[A-Za-z0-9+/]+" | head -1 | cut -c1-20)
-    if ! grep -qxF "$ip" "$SSH_CONOCIDAS" && ! grep -qxF "$ip" "$E/ssh-vistas"; then
+    if ! grep -qxF "$ip" "$SSH_CONOCIDAS" && ! grep -qxF "$ip" "$E/ssh-vistas" && ! ssh_de_coolify "$ip" "$huella"; then
       echo "$ip" >> "$E/ssh-vistas"
       avisar "🔐 SSH: entrada NUEVA como $usuario desde $ip ($metodo${huella:+, llave $huella}). Si no eres tú ni nadie de tu equipo, revisa authorized_keys y cambia las claves. Para darla por conocida: añádela a $SSH_CONOCIDAS."
     fi
