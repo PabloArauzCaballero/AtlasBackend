@@ -12,7 +12,7 @@ export const ONBOARDING_IP_BLOCK_TTL_SECONDS = 24 * 60 * 60;
 /** Un teléfono no se comparte: el bloqueo del dispositivo dura más que el de la IP. */
 export const ONBOARDING_DEVICE_BLOCK_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-export type OnboardingBlockReason = 'IDENTITY_DOCUMENT_ALREADY_REGISTERED';
+export type OnboardingBlockReason = 'IDENTITY_DOCUMENT_ALREADY_REGISTERED' | 'REPEATED_EXISTING_DATA';
 
 @Injectable()
 export class OnboardingIpBlockService {

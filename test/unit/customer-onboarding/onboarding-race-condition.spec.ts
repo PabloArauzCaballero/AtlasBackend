@@ -56,6 +56,7 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
       { alIniciarOnboarding: asyncMock() } as never,
       {} as never,
       { isDeviceBlocked: asyncMock() } as never,
+      { registerExistingContact: asyncMock() } as never,
     );
 
     return { service, customersRepository, sequelize };

@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { hashSensitiveText } from '../../../src/common/utils/crypto/hash.util.js';
 import { CustomerOnboardingService } from '../../../src/modules/customer-onboarding/customer-onboarding.service.js';
 
 /**
@@ -20,6 +21,7 @@ describe('CustomerOnboardingService (facade)', () => {
     // El expediente se abre después del alta y no cambia lo que ésta devuelve; aquí basta con que
     // no haga nada, que es justo lo que estas pruebas de delegación necesitan comprobar.
     const expedienteHooks = { alIniciarOnboarding: jest.fn() };
+    const strikes = { registerExistingContact: jest.fn(async (..._a: unknown[]) => false) };
     const ipBlock = { isDeviceBlocked: jest.fn(async (..._a: unknown[]) => false) };
     const documentDuplicates = { assertNotRegisteredToAnotherCustomer: jest.fn(async (..._a: unknown[]) => undefined) };
     const service = new CustomerOnboardingService(
@@ -30,9 +32,11 @@ describe('CustomerOnboardingService (facade)', () => {
       expedienteHooks as never,
       documentDuplicates as never,
       ipBlock as never,
+      strikes as never,
     );
     return {
       service,
+      strikes,
       ipBlock,
       documentDuplicates,
       startService,
@@ -86,6 +90,39 @@ describe('CustomerOnboardingService (facade)', () => {
     await expect(service.startOnboarding('t1', startInput, '200.9.9.9', 'idem-1')).rejects.toThrow('ONBOARDING_IP_BLOCKED');
     expect(ipBlock.isDeviceBlocked).toHaveBeenCalledWith('f'.repeat(64));
     expect(startService.startOnboarding).not.toHaveBeenCalled();
+  });
+
+  describe('correo o teléfono que ya tienen cuenta', () => {
+    const input = {
+      device: { deviceFingerprintHash: 'f'.repeat(64) },
+      customer: { email: 'ana@correo.com', phone: '+59170000000' },
+    } as never;
+    const yaExiste = () => new ConflictException('CUSTOMER_ALREADY_EXISTS');
+
+    it('la primera vez se devuelve el 409 tal cual y no se bloquea', async () => {
+      const { service, startService, strikes } = buildService();
+      startService.startOnboarding.mockRejectedValueOnce(yaExiste() as never);
+      await expect(service.startOnboarding('t1', input, '200.1.2.3', 'idem-1')).rejects.toThrow('CUSTOMER_ALREADY_EXISTS');
+      expect(strikes.registerExistingContact).toHaveBeenCalledWith({
+        ipAddress: '200.1.2.3',
+        fingerprint: 'f'.repeat(64),
+        valueHash: hashSensitiveText('ana@correo.com'),
+      });
+    });
+
+    it('al reincidir con correos distintos responde 403 ONBOARDING_IP_BLOCKED', async () => {
+      const { service, startService, strikes } = buildService();
+      startService.startOnboarding.mockRejectedValueOnce(yaExiste() as never);
+      strikes.registerExistingContact.mockResolvedValueOnce(true);
+      await expect(service.startOnboarding('t1', input, '200.1.2.3', 'idem-1')).rejects.toThrow('ONBOARDING_IP_BLOCKED');
+    });
+
+    it('otros errores del arranque no se anotan como reincidencia', async () => {
+      const { service, startService, strikes } = buildService();
+      startService.startOnboarding.mockRejectedValueOnce(new ConflictException('OTRA_COSA') as never);
+      await expect(service.startOnboarding('t1', input, '200.1.2.3', 'idem-1')).rejects.toThrow('OTRA_COSA');
+      expect(strikes.registerExistingContact).not.toHaveBeenCalled();
+    });
   });
 
   const identityInput = {

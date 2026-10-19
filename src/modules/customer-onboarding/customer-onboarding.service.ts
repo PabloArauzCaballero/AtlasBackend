@@ -11,7 +11,9 @@ import { CustomerContactVerificationService } from './application/customer-conta
 import { CustomerIdentityPackageService } from './application/customer-identity-package.service.js';
 import { CustomerOnboardingStartService } from './application/customer-onboarding-start.service.js';
 import { OnboardingIpBlockService } from './application/onboarding-ip-block.service.js';
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { hashSensitiveText } from '../../common/utils/crypto/hash.util.js';
+import { OnboardingStrikeService } from './application/onboarding-strike.service.js';
 import { ONBOARDING_IP_BLOCKED } from './onboarding-ip-block.guard.js';
 import { IdentityDocumentDuplicateService } from './application/identity-document-duplicate.service.js';
 import { assertOwnCustomerResourceOrInternalOperational } from '../../common/utils/auth/ownership.util.js';
@@ -34,6 +36,7 @@ export class CustomerOnboardingService {
     private readonly expedienteHooks: ExpedienteHooksService,
     private readonly documentDuplicates: IdentityDocumentDuplicateService,
     private readonly ipBlock: OnboardingIpBlockService,
+    private readonly strikes: OnboardingStrikeService,
   ) {}
 
   /** Delegación: la app pregunta por aquí porque es la fachada que ya usa para todo el alta. */
@@ -61,7 +64,18 @@ export class CustomerOnboardingService {
   ): Promise<StartOnboardingResponseDto> {
     // El teléfono bloqueado no abre otra cuenta aunque haya cambiado de red (la IP la corta la guardia).
     if (await this.ipBlock.isDeviceBlocked(input.device.deviceFingerprintHash)) throw new ForbiddenException(ONBOARDING_IP_BLOCKED);
-    const respuesta = await this.startService.startOnboarding(tenantId, input, ipAddress, idempotencyKey);
+    const respuesta = await this.startService.startOnboarding(tenantId, input, ipAddress, idempotencyKey).catch(async (error: unknown) => {
+      // Un correo o teléfono con cuenta no bloquea a la primera ni a la segunda; el tercer dato distinto sí.
+      if (error instanceof ConflictException && error.message === 'CUSTOMER_ALREADY_EXISTS') {
+        const bloqueado = await this.strikes.registerExistingContact({
+          ipAddress,
+          fingerprint: input.device.deviceFingerprintHash,
+          valueHash: hashSensitiveText(input.customer.email ?? input.customer.phone ?? ''),
+        });
+        if (bloqueado) throw new ForbiddenException(ONBOARDING_IP_BLOCKED);
+      }
+      throw error;
+    });
     const { customerId, sessionId, customerCode } = respuesta;
     await this.expedienteHooks.alIniciarOnboarding({ tenantId, customerId, sessionId, customerCode: customerCode ?? null });
     return respuesta;
