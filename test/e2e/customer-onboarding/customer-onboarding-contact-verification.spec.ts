@@ -6,6 +6,7 @@ import { CustomerOnboardingService } from '../../../src/modules/customer-onboard
 import { IdentityManualReviewOutcomeService } from '../../../src/modules/customer-onboarding/application/identity-manual-review-outcome.service.js';
 import { CustomerContactsSnapshotService } from '../../../src/modules/customer-onboarding/application/customer-contacts-snapshot.service.js';
 import { authHeader, buildGenericTestApp, IDEMPOTENCY_HEADER, TENANT_HEADER } from '../support/generic-test-app.js';
+import { OnboardingIpBlockService } from '../../../src/modules/customer-onboarding/application/onboarding-ip-block.service.js';
 
 /**
  * Contrato HTTP de las dos rutas del OTP de contacto (hallazgo UNTESTED_WRITE):
@@ -30,11 +31,14 @@ describe('CustomerOnboardingController — verificación de contacto (e2e/supert
   };
   const manualReview = { apply: jest.fn(async () => ({})) };
   const contactsSnapshot = { submit: jest.fn(async () => ({})) };
+  const ipBlock = { isBlocked: jest.fn(async (..._args: unknown[]) => false) };
 
   beforeAll(async () => {
     app = await buildGenericTestApp(
       [CustomerOnboardingController],
       [
+        // Ninguna IP está bloqueada: aquí se prueba el contrato HTTP, no el bloqueo (ver `onboarding-ip-block.spec.ts`).
+        { provide: OnboardingIpBlockService, useValue: ipBlock },
         { provide: CustomerOnboardingService, useValue: onboarding },
         { provide: IdentityManualReviewOutcomeService, useValue: manualReview },
         { provide: CustomerContactsSnapshotService, useValue: contactsSnapshot },
@@ -44,6 +48,27 @@ describe('CustomerOnboardingController — verificación de contacto (e2e/supert
 
   afterAll(async () => {
     await app.close();
+  });
+
+  describe('IP bloqueada del alta', () => {
+    it('corta con 403 ONBOARDING_IP_BLOCKED incluso antes de pedir el token, y la ruta pública de arranque también', async () => {
+      ipBlock.isBlocked.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+      const sinToken = await request(app.getHttpServer())
+        .post('/customer-onboarding/42/contact-verification/request')
+        .set(...TENANT_HEADER)
+        .set(...IDEMPOTENCY_HEADER)
+        .send({ contactType: 'phone', verificationChannel: 'sms' })
+        .expect(403);
+      expect(JSON.stringify(sinToken.body)).toContain('ONBOARDING_IP_BLOCKED');
+      await request(app.getHttpServer())
+        .post('/customer-onboarding/start')
+        .set(...TENANT_HEADER)
+        .set(...IDEMPOTENCY_HEADER)
+        .send({})
+        .expect(403);
+      expect(onboarding.startOnboarding).not.toHaveBeenCalled();
+      expect(onboarding.requestContactVerification).not.toHaveBeenCalled();
+    });
   });
 
   describe('POST customer-onboarding/:customerId/contact-verification/request', () => {

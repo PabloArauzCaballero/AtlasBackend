@@ -6,6 +6,7 @@ import { CustomerOnboardingService } from '../../../src/modules/customer-onboard
 import { IdentityManualReviewOutcomeService } from '../../../src/modules/customer-onboarding/application/identity-manual-review-outcome.service.js';
 import { CustomerContactsSnapshotService } from '../../../src/modules/customer-onboarding/application/customer-contacts-snapshot.service.js';
 import { authHeader, buildGenericTestApp, IDEMPOTENCY_HEADER, TENANT_HEADER } from '../support/generic-test-app.js';
+import { OnboardingIpBlockService } from '../../../src/modules/customer-onboarding/application/onboarding-ip-block.service.js';
 
 /**
  * Contrato HTTP de `POST customer-onboarding/:customerId/identity-package` (hallazgo
@@ -48,6 +49,8 @@ describe('CustomerPackagesController — POST customer-onboarding/:customerId/id
     app = await buildGenericTestApp(
       [CustomerPackagesController],
       [
+        // Ninguna IP está bloqueada: aquí se prueba el contrato HTTP, no el bloqueo (ver `onboarding-ip-block.spec.ts`).
+        { provide: OnboardingIpBlockService, useValue: { isBlocked: jest.fn(async () => false) } },
         { provide: CustomerOnboardingService, useValue: onboarding },
         { provide: IdentityManualReviewOutcomeService, useValue: manualReview },
         { provide: CustomerContactsSnapshotService, useValue: contactsSnapshot },
