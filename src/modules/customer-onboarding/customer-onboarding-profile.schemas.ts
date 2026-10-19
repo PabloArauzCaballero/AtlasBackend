@@ -252,3 +252,12 @@ export const verifyIdentitySchema = z
   .strict();
 
 export type VerifyIdentityDto = z.infer<typeof verifyIdentitySchema>;
+
+/**
+ * Consulta previa del carnet: la app la lanza al teclear el número, antes de pedir las fotos.
+ * El número viaja en claro por TLS solo para calcular el hash en el servidor; no se guarda.
+ */
+export const identityDocumentCheckSchema = z.object({
+  documentNumber: z.string().trim().min(3).max(30),
+});
+export type IdentityDocumentCheckDto = z.infer<typeof identityDocumentCheckSchema>;

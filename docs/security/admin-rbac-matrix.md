@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (137 controladores) | 618 |
+| Total montadas (138 controladores) | 619 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
-| Con `@Roles` | 557 |
+| Con `@Roles` | 558 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 87 |
 | Cualquier sesión autenticada (sin `@Roles`) | 27 |
 
@@ -170,34 +170,35 @@
 
 | Método | Ruta | Acceso | Permiso fino | Handler | Notas |
 |---|---|---|---|---|---|
-| `POST` | `/customer-onboarding/:customerId/address-package` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerPackagesController.submitAddressPackage` | guards: `TenantGuard` |
+| `POST` | `/customer-onboarding/:customerId/address-package` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerPackagesController.submitAddressPackage` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
 | `GET` | `/customer-onboarding/:customerId/answers` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingAnswersController.getAnswers` | guards: `TenantGuard` |
 | `GET` | `/customer-onboarding/:customerId/consumer-survey` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `ConsumerSurveyController.status` | guards: `TenantGuard` |
 | `PUT` | `/customer-onboarding/:customerId/consumer-survey` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `ConsumerSurveyController.save` | guards: `TenantGuard` |
-| `POST` | `/customer-onboarding/:customerId/contact-methods` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.addContactMethod` | guards: `TenantGuard` |
-| `POST` | `/customer-onboarding/:customerId/contact-verification/request` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingController.requestContactVerification` | guards: `TenantGuard` |
-| `POST` | `/customer-onboarding/:customerId/contact-verification/submit` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingController.submitContactVerification` | guards: `TenantGuard` |
-| `POST` | `/customer-onboarding/:customerId/contacts-snapshot` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerPackagesController.submitContactsSnapshot` | guards: `TenantGuard` |
-| `POST` | `/customer-onboarding/:customerId/documents/upload-url` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.createUploadUrl` | guards: `TenantGuard` |
+| `POST` | `/customer-onboarding/:customerId/contact-methods` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.addContactMethod` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `POST` | `/customer-onboarding/:customerId/contact-verification/request` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingController.requestContactVerification` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `POST` | `/customer-onboarding/:customerId/contact-verification/submit` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingController.submitContactVerification` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `POST` | `/customer-onboarding/:customerId/contacts-snapshot` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerPackagesController.submitContactsSnapshot` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `POST` | `/customer-onboarding/:customerId/documents/upload-url` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.createUploadUrl` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
 | `GET` | `/customer-onboarding/:customerId/evidence-documents` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerEvidenceViewController.list` | guards: `TenantGuard` |
 | `GET` | `/customer-onboarding/:customerId/evidence-documents/:documentId/content` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerEvidenceViewController.content` | guards: `TenantGuard` |
-| `PUT` | `/customer-onboarding/:customerId/financial-profile` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.upsertFinancialProfile` | guards: `TenantGuard` |
-| `POST` | `/customer-onboarding/:customerId/identity-manual-review` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingController.applyIdentityManualReview` | guards: `TenantGuard` |
-| `POST` | `/customer-onboarding/:customerId/identity-package` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerPackagesController.submitIdentityPackage` | guards: `TenantGuard` |
-| `POST` | `/customer-onboarding/:customerId/identity-verification` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.verifyIdentity` | guards: `TenantGuard` |
+| `PUT` | `/customer-onboarding/:customerId/financial-profile` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.upsertFinancialProfile` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `POST` | `/customer-onboarding/:customerId/identity-document/check` | `customer` | — | `CustomerIdentityDocumentCheckController.check` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `POST` | `/customer-onboarding/:customerId/identity-manual-review` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingController.applyIdentityManualReview` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `POST` | `/customer-onboarding/:customerId/identity-package` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerPackagesController.submitIdentityPackage` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `POST` | `/customer-onboarding/:customerId/identity-verification` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.verifyIdentity` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
 | `GET` | `/customer-onboarding/:customerId/observations` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingStatusController.listObservations` | guards: `TenantGuard` |
-| `PATCH` | `/customer-onboarding/:customerId/profile` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.updateProfile` | guards: `TenantGuard` |
-| `GET` | `/customer-onboarding/:customerId/reference-contacts` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.listReferences` | guards: `TenantGuard` |
-| `POST` | `/customer-onboarding/:customerId/reference-contacts` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.addReferences` | guards: `TenantGuard` |
-| `DELETE` | `/customer-onboarding/:customerId/reference-contacts/:referenceId` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.removeReference` | guards: `TenantGuard` |
+| `PATCH` | `/customer-onboarding/:customerId/profile` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.updateProfile` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `GET` | `/customer-onboarding/:customerId/reference-contacts` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.listReferences` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `POST` | `/customer-onboarding/:customerId/reference-contacts` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.addReferences` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `DELETE` | `/customer-onboarding/:customerId/reference-contacts/:referenceId` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingProfileController.removeReference` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
 | `GET` | `/customer-onboarding/:customerId/status` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingStatusController.getStatus` | guards: `TenantGuard` |
 | `POST` | `/customer-onboarding/:customerId/submit` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerOnboardingStatusController.submitForReview` | guards: `TenantGuard` |
 | `POST` | `/customer-onboarding/:customerId/supporting-evidence` | `customer` | — | `CustomerSupportingEvidenceController.registerSupportingEvidence` | guards: `TenantGuard` |
 | `GET` | `/customer-onboarding/consumer-survey/catalog` | `customer`, `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `ConsumerSurveyController.catalog` | guards: `TenantGuard` |
 | `GET` | `/customer-onboarding/identity-verifications/:attemptId/evidence-documents` | `internal_operator`, `risk_analyst`, `admin`, `platform_admin` | — | `CustomerEvidenceViewController.byAttempt` | guards: `TenantGuard` |
 | `POST` | `/customer-onboarding/jobs/mark-abandoned` | `admin`, `platform_admin`, `system` | — | `CustomerOnboardingStatusController.markAbandoned` | guards: `TenantGuard` |
-| `POST` | `/customer-onboarding/start` | **sin sesión** (`@Public`) | — | `CustomerOnboardingController.startOnboarding` | guards: `TenantGuard` |
-| `GET` | `/customer-onboarding/verification-channels` | **sin sesión** (`@Public`) | — | `CustomerOnboardingController.verificationChannels` | guards: `TenantGuard` |
+| `POST` | `/customer-onboarding/start` | **sin sesión** (`@Public`) | — | `CustomerOnboardingController.startOnboarding` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
+| `GET` | `/customer-onboarding/verification-channels` | **sin sesión** (`@Public`) | — | `CustomerOnboardingController.verificationChannels` | guards: `OnboardingIpBlockGuard`, `TenantGuard` |
 | `POST` | `/internal/identity/manual-review-callback` | **sin sesión** (`@Public`) | — | `IdentityReviewCallbackController.aplicar` | fuera del contrato OpenAPI |
 | `POST` | `/operations/customers/:customerId/compliance/clear-matches` | `compliance_analyst`, `admin`, `platform_admin` | — | `CustomerVerificationController.clearMatches` | guards: `TenantGuard` |
 | `POST` | `/operations/customers/:customerId/compliance/screening` | `compliance_analyst`, `risk_analyst`, `admin`, `platform_admin`, `system` | — | `CustomerVerificationController.screen` | guards: `TenantGuard` |

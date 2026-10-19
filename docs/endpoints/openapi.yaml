@@ -4011,6 +4011,69 @@ paths:
       summary: Registrar información laboral y económica (guardado parcial)
       tags:
         - customer-onboarding
+  /customer-onboarding/{customerId}/identity-document/check:
+    post:
+      description: >-
+        Compara el número con los documentos de OTROS clientes del tenant. Si ya
+        figura en otro, la IP queda bloqueada en el alta
+        (`ONBOARDING_IP_BLOCKED`, 403) porque casi siempre es un intento de
+        suplantación. No confirma que el carnet exista: la respuesta es la misma
+        para quien sondea números. El número no se guarda.
+      operationId: CustomerIdentityDocumentCheckController_check
+      parameters:
+        - name: customerId
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          description: >-
+            Identificador del cliente. Un actor con rol `customer` sólo puede
+            operar sobre el suyo.
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                documentNumber:
+                  type: string
+                  minLength: 3
+                  maxLength: 30
+              required:
+                - documentNumber
+              additionalProperties: false
+      responses:
+        '200':
+          description: El carnet no figura en otra cuenta — puede continuar.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: >-
+            ONBOARDING_IP_BLOCKED — el carnet ya figura en otra cuenta o la IP
+            ya estaba bloqueada.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Comprobar que el carnet no pertenece a otra cuenta
+      tags:
+        - customer-onboarding
   /customer-onboarding/{customerId}/identity-manual-review:
     post:
       description: >-

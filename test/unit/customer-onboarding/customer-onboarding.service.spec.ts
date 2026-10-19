@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { ForbiddenException } from '@nestjs/common';
 import { CustomerOnboardingService } from '../../../src/modules/customer-onboarding/customer-onboarding.service.js';
 
 /**
@@ -19,14 +20,25 @@ describe('CustomerOnboardingService (facade)', () => {
     // El expediente se abre después del alta y no cambia lo que ésta devuelve; aquí basta con que
     // no haga nada, que es justo lo que estas pruebas de delegación necesitan comprobar.
     const expedienteHooks = { alIniciarOnboarding: jest.fn() };
+    const documentDuplicates = { assertNotRegisteredToAnotherCustomer: jest.fn(async (..._a: unknown[]) => undefined) };
     const service = new CustomerOnboardingService(
       startService as never,
       contactVerificationService as never,
       identityPackageService as never,
       addressPackageService as never,
       expedienteHooks as never,
+      documentDuplicates as never,
     );
-    return { service, startService, contactVerificationService, identityPackageService, addressPackageService, expedienteHooks, respuesta };
+    return {
+      service,
+      documentDuplicates,
+      startService,
+      contactVerificationService,
+      identityPackageService,
+      addressPackageService,
+      expedienteHooks,
+      respuesta,
+    };
   }
 
   it('delegates startOnboarding to CustomerOnboardingStartService with the exact arguments', async () => {
@@ -63,19 +75,49 @@ describe('CustomerOnboardingService (facade)', () => {
     expect(contactVerificationService.submitContactVerification).not.toHaveBeenCalled();
   });
 
+  const identityInput = {
+    tenantId: 't1',
+    customerId: 'c1',
+    body: { identity: { documentNumber: '8452136', documentNumberHash: 'h1' } } as never,
+    currentUser: { role: 'customer', customerId: 'c1' } as never,
+    ipAddress: '10.0.0.1',
+    idempotencyKey: 'idem-1',
+  };
+
   it('delegates submitIdentityPackage to CustomerIdentityPackageService, not to the address package service', async () => {
     const { service, identityPackageService, addressPackageService } = buildService();
-    const input = {
+    await service.submitIdentityPackage(identityInput);
+    expect(identityPackageService.submitIdentityPackage).toHaveBeenCalledWith(identityInput);
+    expect(addressPackageService.submitAddressPackage).not.toHaveBeenCalled();
+  });
+
+  it('contrasta el carnet con las demás cuentas ANTES de guardar el paquete', async () => {
+    const { service, identityPackageService, documentDuplicates } = buildService();
+    await service.submitIdentityPackage(identityInput);
+    expect(documentDuplicates.assertNotRegisteredToAnotherCustomer).toHaveBeenCalledWith({
       tenantId: 't1',
       customerId: 'c1',
-      body: {} as never,
-      currentUser: {} as never,
-      ipAddress: null,
-      idempotencyKey: 'idem-1',
-    };
-    await service.submitIdentityPackage(input);
-    expect(identityPackageService.submitIdentityPackage).toHaveBeenCalledWith(input);
-    expect(addressPackageService.submitAddressPackage).not.toHaveBeenCalled();
+      documentNumber: '8452136',
+      documentNumberHash: 'h1',
+      ipAddress: '10.0.0.1',
+    });
+    const duplicateOrder = documentDuplicates.assertNotRegisteredToAnotherCustomer.mock.invocationCallOrder[0] as number;
+    const saveOrder = identityPackageService.submitIdentityPackage.mock.invocationCallOrder[0] as number;
+    expect(duplicateOrder).toBeLessThan(saveOrder);
+  });
+
+  it('si el carnet es de otra cuenta, el paquete no se guarda', async () => {
+    const { service, identityPackageService, documentDuplicates } = buildService();
+    documentDuplicates.assertNotRegisteredToAnotherCustomer.mockRejectedValueOnce(new ForbiddenException('ONBOARDING_IP_BLOCKED') as never);
+    await expect(service.submitIdentityPackage(identityInput)).rejects.toThrow('ONBOARDING_IP_BLOCKED');
+    expect(identityPackageService.submitIdentityPackage).not.toHaveBeenCalled();
+  });
+
+  it('un token de otro cliente no llega ni a comparar el carnet', async () => {
+    const { service, documentDuplicates } = buildService();
+    const ajeno = { ...identityInput, currentUser: { role: 'customer', customerId: 'otro' } as never };
+    await expect(service.submitIdentityPackage(ajeno)).rejects.toThrow(ForbiddenException);
+    expect(documentDuplicates.assertNotRegisteredToAnotherCustomer).not.toHaveBeenCalled();
   });
 
   it('delegates submitAddressPackage to CustomerAddressPackageService', async () => {

@@ -10,6 +10,7 @@ import { zodToApiSchema } from '../../common/openapi/zod-to-schema.util.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
 import { Roles } from '../../common/decorators/roles.decorator.js';
+import { OnboardingIpBlockGuard } from './onboarding-ip-block.guard.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
@@ -41,7 +42,7 @@ type RequestWithIp = {
  */
 @ApiTags('customer-onboarding')
 @Controller('customer-onboarding')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@UseGuards(OnboardingIpBlockGuard, JwtAuthGuard, TenantGuard, RolesGuard)
 export class CustomerPackagesController {
   constructor(
     private readonly customerOnboardingService: CustomerOnboardingService,

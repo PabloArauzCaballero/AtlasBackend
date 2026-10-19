@@ -10,6 +10,8 @@ import { CustomerAddressPackageService } from './application/customer-address-pa
 import { CustomerContactVerificationService } from './application/customer-contact-verification.service.js';
 import { CustomerIdentityPackageService } from './application/customer-identity-package.service.js';
 import { CustomerOnboardingStartService } from './application/customer-onboarding-start.service.js';
+import { IdentityDocumentDuplicateService } from './application/identity-document-duplicate.service.js';
+import { assertOwnCustomerResourceOrInternalOperational } from '../../common/utils/auth/ownership.util.js';
 import { ExpedienteHooksService } from '../expedientes/application/expediente-hooks.service.js';
 import {
   AddressPackageDto,
@@ -27,6 +29,7 @@ export class CustomerOnboardingService {
     private readonly identityPackageService: CustomerIdentityPackageService,
     private readonly addressPackageService: CustomerAddressPackageService,
     private readonly expedienteHooks: ExpedienteHooksService,
+    private readonly documentDuplicates: IdentityDocumentDuplicateService,
   ) {}
 
   /** Delegación: la app pregunta por aquí porque es la fachada que ya usa para todo el alta. */
@@ -80,7 +83,11 @@ export class CustomerOnboardingService {
     return this.contactVerificationService.submitContactVerification(input);
   }
 
-  submitIdentityPackage(input: {
+  /**
+   * Antes de guardar nada, el carnet se contrasta con el de las demás cuentas. La comprobación previa de la app se puede
+   * saltar; ésta no: si el número ya es de otro cliente, la IP queda bloqueada y el envío se corta.
+   */
+  async submitIdentityPackage(input: {
     tenantId: string;
     customerId: string;
     body: IdentityPackageDto;
@@ -88,6 +95,14 @@ export class CustomerOnboardingService {
     ipAddress: string | null;
     idempotencyKey: string;
   }) {
+    assertOwnCustomerResourceOrInternalOperational(input.currentUser, input.customerId);
+    await this.documentDuplicates.assertNotRegisteredToAnotherCustomer({
+      tenantId: input.tenantId,
+      customerId: input.customerId,
+      documentNumber: input.body.identity.documentNumber,
+      documentNumberHash: input.body.identity.documentNumberHash,
+      ipAddress: input.ipAddress,
+    });
     return this.identityPackageService.submitIdentityPackage(input);
   }
 

@@ -5,7 +5,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Transaction } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 import type { CaptureSource } from '../../../common/storage/capture-source.js';
 import {
   CustomerIdentityDocumentModel,
@@ -134,6 +134,19 @@ export class CustomerIdentityEvidenceRepository {
       },
       { transaction: options.transaction },
     );
+  }
+
+  /** Un documento con alguno de esos hashes (declarado o verificado, ambos con índice) de un cliente DISTINTO. */
+  findIdentityDocumentOfAnotherCustomer(tenantId: string, customerId: string, numberHashes: string[]) {
+    const coincide = { [Op.in]: numberHashes };
+    return this.customerIdentityDocumentModel.findOne({
+      attributes: ['id', 'customerId'],
+      where: {
+        tenantId,
+        customerId: { [Op.ne]: customerId },
+        [Op.or]: [{ declaredNumberHash: coincide }, { verifiedNumberHash: coincide }],
+      },
+    });
   }
 
   createIdentityDocument(
