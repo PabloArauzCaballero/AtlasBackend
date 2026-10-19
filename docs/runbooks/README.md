@@ -7,6 +7,7 @@ concretos, comandos reales del repo y criterios de verificación.
 | Runbook | Cuándo se usa |
 |---------|---------------|
 | [rotacion-de-claves.md](rotacion-de-claves.md) | Rotación programada o de emergencia de secretos de cifrado (envelope/KMS) y JWT |
+| [redis-aof-danado.md](redis-aof-danado.md) | Redis de TEST en bucle de reinicios (`Bad file format` en el AOF), Throttler caído, decenas de avisos `REINICIO` en el bot |
 | [incident-response.md](incident-response.md) | Sospecha de compromiso, fuga de credenciales, abuso o caída |
 | [expiracion-y-revocacion-de-sesiones.md](expiracion-y-revocacion-de-sesiones.md) | Revocar sesiones/tokens de un actor o de toda la flota |
 | [despliegue-produccion.md](despliegue-produccion.md) | Checklist de despliegue a producción (env vars, migraciones, KMS, 2FA, observabilidad) |

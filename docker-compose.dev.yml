@@ -65,8 +65,29 @@ services:
     image: redis:7-alpine
     # Sin `ports:`. Lo usan este backend y el motor DESDE DENTRO de la red; publicarlo en una máquina
     # con IP pública no habilita ningún caso de uso y sí una superficie más.
+    # Arranque AUTOCURABLE. Antes: `redis-server --appendonly yes` a secas. Un corte a mitad de escritura
+    # deja el AOF incompleto (`Bad file format reading the append only file`), Redis sale con 1 y
+    # `restart: unless-stopped` lo relanza cada minuto, para siempre: el 2026-10-19 eso tumbó el
+    # Throttler, dejó la API `unhealthy` y mandó ~200 avisos de REINICIO al bot. Ahora, antes de arrancar,
+    # se comprueba el AOF; si está dañado se COPIA (`/data/aof-danado-<fecha>`), se repara con
+    # `redis-check-aof --fix` y, si ni así, se aparta entero y arranca limpio. Nunca hay bucle de
+    # reinicios. Perder la cola del AOF cuesta contadores de límite de tasa; el aviso queda en el log.
+    # `$$` es el escape de Compose: el shell ve `$`.
     command:
-      ['redis-server', '--appendonly', 'yes', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru']
+      - sh
+      - -c
+      - |
+        d=/data/appendonlydir
+        if [ -f "$$d/appendonly.aof.manifest" ] && ! (cd "$$d" && redis-check-aof appendonly.aof.manifest >/dev/null 2>&1); then
+          s=$$(date +%Y%m%d-%H%M%S)
+          echo "AOF DANADO: copia en /data/aof-danado-$$s y reparacion"
+          cp -a "$$d" "/data/aof-danado-$$s"
+          if ! (cd "$$d" && yes | redis-check-aof --fix appendonly.aof.manifest); then
+            echo "AOF irreparable: se aparta y Redis arranca limpio"
+            rm -rf "$$d"
+          fi
+        fi
+        exec redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
     networks:

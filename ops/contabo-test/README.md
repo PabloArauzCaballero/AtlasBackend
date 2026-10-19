@@ -128,6 +128,15 @@ y copian las del portal admin para que Telegram y el portal digan lo mismo.
 - `Host(161.97.85.216)` con prioridad 200 se comería `/ai/` (`atlas-ai-por-ip.yaml`): la regla de la app web
   lo excluye.
 
+- **El nombre de un contenedor de Coolify cambia en cada despliegue** (`atlas-redis-…-20261018T075739` →
+  `…-20261019T120924`): un comando con el nombre copiado de un aviso del bot falla con `No such container`. Búscalo por
+  prefijo (`docker ps -a --filter name=atlas-redis-<uuid>`).
+- **Redis con AOF dañado = bucle de reinicios + ~200 avisos** (2026-10-19): `Bad file format reading the append only
+  file`, Throttler caído, API `unhealthy`. Los compose ya lo curan solos al arrancar; si pasa igual, runbook
+  `docs/runbooks/redis-aof-danado.md`.
+- **Cada aviso `REINICIO` trae el contador acumulado**, no el de ahora: un Redis caído una hora llena el chat. Vale el
+  primero; mira `docker ps` antes de tomar los demás por problemas distintos.
+
 ## Verificación que se hizo (2026-10-03)
 
 App web principal parada 21 s: 45/45 sondas 200. API de AtlasBackend parada 21 s: 41/45 (4 s de hueco). Un
