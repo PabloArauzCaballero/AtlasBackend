@@ -54,6 +54,7 @@ describe('CustomerOnboardingService — condición de carrera en alta de cliente
       {} as never,
       {} as never,
       { alIniciarOnboarding: asyncMock() } as never,
+      {} as never,
     );
 
     return { service, customersRepository, sequelize };

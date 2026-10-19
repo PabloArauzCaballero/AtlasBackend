@@ -8,6 +8,7 @@ import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse,
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
+import { OnboardingIpBlockGuard } from './onboarding-ip-block.guard.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { TenantGuard } from '../../common/guards/tenant.guard.js';
@@ -55,7 +56,7 @@ const CUSTOMER_AND_INTERNAL = ['customer', 'internal_operator', 'risk_analyst', 
 @ApiTags('customer-onboarding')
 @ApiBearerAuth('access-token')
 @Controller('customer-onboarding')
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@UseGuards(OnboardingIpBlockGuard, JwtAuthGuard, TenantGuard, RolesGuard)
 export class CustomerOnboardingProfileController {
   constructor(
     private readonly profileUpdateService: CustomerProfileUpdateService,

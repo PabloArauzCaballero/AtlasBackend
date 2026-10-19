@@ -58,6 +58,10 @@ import { MailSenderModule } from '../mail-sender/mail-sender.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { CustomerOnboardingController } from './customer-onboarding.controller.js';
 import { CustomerPackagesController } from './customer-packages.controller.js';
+import { CustomerIdentityDocumentCheckController } from './customer-identity-document-check.controller.js';
+import { IdentityDocumentDuplicateService } from './application/identity-document-duplicate.service.js';
+import { OnboardingIpBlockService } from './application/onboarding-ip-block.service.js';
+import { OnboardingIpBlockGuard } from './onboarding-ip-block.guard.js';
 import { CustomerOnboardingProfileController } from './customer-onboarding-profile.controller.js';
 import { CustomerOnboardingAnswersController } from './customer-onboarding-answers.controller.js';
 import { CustomerOnboardingAnswersService } from './application/customer-onboarding-answers.service.js';
@@ -193,6 +197,7 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
     IdentityReviewCallbackController,
     CustomerOnboardingController,
     CustomerPackagesController,
+    CustomerIdentityDocumentCheckController,
     CustomerOnboardingProfileController,
     CustomerOnboardingAnswersController,
     CustomerOnboardingStatusController,
@@ -201,6 +206,10 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
     CustomerSupportingEvidenceController,
   ],
   providers: [
+    // Alta: carnet que ya es de otra cuenta ⇒ IP bloqueada (Redis con caducidad).
+    OnboardingIpBlockService,
+    OnboardingIpBlockGuard,
+    IdentityDocumentDuplicateService,
     IdentityReviewCaseRepository,
     IdentityVerdictEventPublisher,
     // AT-015: el grupo atómico del alta tiene nombre, dueño y alcance declarados.

@@ -9,6 +9,7 @@ import { CustomerFinancialProfileService } from '../../../src/modules/customer-o
 import { CustomerProfileUpdateService } from '../../../src/modules/customer-onboarding/application/customer-profile-update.service.js';
 import { CustomerReferenceContactsService } from '../../../src/modules/customer-onboarding/application/customer-reference-contacts.service.js';
 import { authHeader, buildGenericTestApp, TENANT_HEADER, IDEMPOTENCY_HEADER } from '../support/generic-test-app.js';
+import { OnboardingIpBlockService } from '../../../src/modules/customer-onboarding/application/onboarding-ip-block.service.js';
 
 /**
  * Contrato HTTP de `CustomerOnboardingProfileController`: quién puede escribir en el expediente
@@ -39,6 +40,8 @@ describe('CustomerOnboardingProfileController (e2e/supertest)', () => {
     app = await buildGenericTestApp(
       [CustomerOnboardingProfileController],
       [
+        // Ninguna IP está bloqueada: aquí se prueba el contrato HTTP, no el bloqueo (ver `onboarding-ip-block.spec.ts`).
+        { provide: OnboardingIpBlockService, useValue: { isBlocked: jest.fn(async () => false) } },
         { provide: CustomerProfileUpdateService, useValue: profile },
         { provide: CustomerFinancialProfileService, useValue: financial },
         { provide: CustomerReferenceContactsService, useValue: references },

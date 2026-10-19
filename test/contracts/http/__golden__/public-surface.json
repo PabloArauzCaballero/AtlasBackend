@@ -1405,6 +1405,28 @@
     ],
     "body": true
   },
+  "POST /customer-onboarding/{customerId}/identity-document/check": {
+    "operationId": "CustomerIdentityDocumentCheckController_check",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "404",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [
+      "customerId"
+    ],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
   "POST /customer-onboarding/{customerId}/identity-manual-review": {
     "operationId": "CustomerOnboardingController_applyIdentityManualReview",
     "responses": [
