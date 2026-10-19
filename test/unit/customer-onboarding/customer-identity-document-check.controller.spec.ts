@@ -19,6 +19,7 @@ describe('CustomerIdentityDocumentCheckController', () => {
       customerId: '10',
       documentNumber: '8452136',
       ipAddress: '200.1.2.3',
+      blockCaller: true,
     });
   });
 

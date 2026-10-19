@@ -34,8 +34,8 @@ export class CustomerIdentityDocumentCheckController {
   @ApiOperation({
     summary: 'Comprobar que el carnet no pertenece a otra cuenta',
     description:
-      'Compara el número con los documentos de OTROS clientes del tenant. Si ya figura en otro, la IP queda bloqueada en el alta ' +
-      '(`ONBOARDING_IP_BLOCKED`, 403) porque casi siempre es un intento de suplantación. No confirma que el carnet exista: ' +
+      'Compara el número con los documentos de OTROS clientes del tenant. Si ya figura en otro, quedan bloqueados su IP (24 h), su dispositivo (7 días) y su cuenta ' +
+      '(`blocked`) y responde `ONBOARDING_IP_BLOCKED` (403), porque casi siempre es un intento de suplantación. No confirma que el carnet exista: ' +
       'la respuesta es la misma para quien sondea números. El número no se guarda.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
@@ -58,6 +58,7 @@ export class CustomerIdentityDocumentCheckController {
       customerId: params.customerId,
       documentNumber: body.documentNumber,
       ipAddress: request.ip ?? null,
+      blockCaller: currentUser.role === 'customer',
     });
     return { available: true };
   }

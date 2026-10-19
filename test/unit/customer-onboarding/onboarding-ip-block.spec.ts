@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { ForbiddenException } from '@nestjs/common';
 import {
   OnboardingIpBlockService,
+  ONBOARDING_DEVICE_BLOCK_TTL_SECONDS,
   ONBOARDING_IP_BLOCK_TTL_SECONDS,
 } from '../../../src/modules/customer-onboarding/application/onboarding-ip-block.service.js';
 import { OnboardingIpBlockGuard } from '../../../src/modules/customer-onboarding/onboarding-ip-block.guard.js';
@@ -52,6 +53,33 @@ describe('OnboardingIpBlockService', () => {
     await service.block('200.1.2.3', 'IDENTITY_DOCUMENT_ALREADY_REGISTERED');
     expect(await service.isBlocked('200.1.2.3')).toBe(true);
     expect(await service.isBlocked('200.7.7.7')).toBe(false);
+  });
+});
+
+describe('OnboardingIpBlockService · dispositivo', () => {
+  it('guarda la huella del teléfono con caducidad más larga que la de la IP, y es independiente de ella', async () => {
+    const redis = { set: jest.fn(async (..._a: unknown[]) => 'OK'), exists: jest.fn(async (..._a: unknown[]) => 0) };
+    const service = new OnboardingIpBlockService(redis as never);
+    await service.blockDevice('fp-1', 'IDENTITY_DOCUMENT_ALREADY_REGISTERED');
+    expect(redis.set).toHaveBeenCalledWith(
+      'atlas:onboarding:device-block:fp-1',
+      'IDENTITY_DOCUMENT_ALREADY_REGISTERED',
+      'EX',
+      ONBOARDING_DEVICE_BLOCK_TTL_SECONDS,
+    );
+    expect(ONBOARDING_DEVICE_BLOCK_TTL_SECONDS).toBeGreaterThan(ONBOARDING_IP_BLOCK_TTL_SECONDS);
+    expect(await service.isDeviceBlocked('fp-1')).toBe(true);
+    expect(await service.isDeviceBlocked('fp-2')).toBe(false);
+    expect(await service.isBlocked('fp-1')).toBe(false);
+  });
+
+  it('otro proceso ve el bloqueo del dispositivo por Redis, y sin huella no bloquea ni consulta', async () => {
+    const redis = { set: jest.fn(), exists: jest.fn(async (..._a: unknown[]) => 1) };
+    const service = new OnboardingIpBlockService(redis as never);
+    expect(await service.isDeviceBlocked('fp-1')).toBe(true);
+    await service.blockDevice(undefined, 'IDENTITY_DOCUMENT_ALREADY_REGISTERED');
+    expect(redis.set).not.toHaveBeenCalled();
+    expect(await service.isDeviceBlocked(null)).toBe(false);
   });
 });
 
