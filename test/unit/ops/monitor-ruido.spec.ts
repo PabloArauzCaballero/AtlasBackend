@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from '@jest/globals';
@@ -13,8 +13,9 @@ import { describe, expect, it } from '@jest/globals';
  */
 const RUIDO = join(process.cwd(), 'ops/contabo-test/monitor/ruido.sh');
 
+// Las rutas viajan por entorno (`$RUIDO_SH`, `$E`), nunca pegadas dentro del comando de shell.
 const sh = (script: string, env: Record<string, string> = {}) =>
-  spawnSync('sh', ['-c', script], { encoding: 'utf8', env: { ...process.env, ...env } });
+  spawnSync('sh', ['-c', script], { encoding: 'utf8', env: { ...process.env, RUIDO_SH: RUIDO, ...env } });
 
 const key = (dir: string, name: string, comment: string): string => {
   const file = join(dir, name);
@@ -28,7 +29,7 @@ describe('aviso_reinicio', () => {
   const run = (reinicios: Array<[number, number]>, extra = ''): string[] => {
     const e = mkdtempSync(join(tmpdir(), 'monitor-e-'));
     const calls = reinicios.map(([nuevos, total]) => `aviso_reinicio redis ${nuevos} ${total}`).join('\n');
-    const out = sh(`E=${e}; alertar() { echo "$1"; }; . ${RUIDO}; ${extra}\n${calls}`);
+    const out = sh(`alertar() { echo "$1"; }; . "$RUIDO_SH"; ${extra}\n${calls}`, { E: e });
     expect(out.status).toBe(0);
     return out.stdout.split('\n').filter(Boolean);
   };
@@ -42,10 +43,11 @@ describe('aviso_reinicio', () => {
   it('al cerrarse la ventana resume lo acumulado en un solo aviso', () => {
     const e = mkdtempSync(join(tmpdir(), 'monitor-e-'));
     const out = sh(
-      `E=${e}; alertar() { echo "$1"; }; . ${RUIDO}
+      `alertar() { echo "$1"; }; . "$RUIDO_SH"
        aviso_reinicio redis 1 1; aviso_reinicio redis 5 6; aviso_reinicio redis 4 10
-       echo $(( $(date +%s) - 4000 )) > $E/rst-aviso-redis
+       echo $(( $(date +%s) - 4000 )) > "$E/rst-aviso-redis"
        aviso_reinicio redis 1 11`,
+      { E: e },
     );
     const avisos = out.stdout.split('\n').filter(Boolean);
     expect(avisos).toHaveLength(2);
@@ -54,7 +56,7 @@ describe('aviso_reinicio', () => {
 
   it('cada contenedor tiene su propia ventana', () => {
     const e = mkdtempSync(join(tmpdir(), 'monitor-e-'));
-    const out = sh(`E=${e}; alertar() { echo "$1"; }; . ${RUIDO}; aviso_reinicio a 1 1; aviso_reinicio b 1 1; aviso_reinicio a 1 2`);
+    const out = sh(`alertar() { echo "$1"; }; . "$RUIDO_SH"; aviso_reinicio a 1 1; aviso_reinicio b 1 1; aviso_reinicio a 1 2`, { E: e });
     expect(out.stdout.split('\n').filter(Boolean)).toHaveLength(2);
   });
 });
@@ -64,12 +66,9 @@ describe('ssh_de_coolify', () => {
   const coolify = key(dir, 'coolify', 'coolify');
   const ajena = key(dir, 'ajena', 'alguien@laptop');
   const authorized = join(dir, 'authorized_keys');
-  writeFileSync(
-    authorized,
-    ['coolify.pub', 'ajena.pub'].map((f) => spawnSync('cat', [join(dir, f)], { encoding: 'utf8' }).stdout).join(''),
-  );
+  writeFileSync(authorized, ['coolify.pub', 'ajena.pub'].map((f) => readFileSync(join(dir, f), 'utf8')).join(''));
   const conocida = (ip: string, huella: string): boolean =>
-    sh(`. ${RUIDO}; ssh_de_coolify '${ip}' '${huella}'`, { SSH_AUTHORIZED_KEYS: authorized }).status === 0;
+    sh('. "$RUIDO_SH"; ssh_de_coolify "$T_IP" "$T_HUELLA"', { SSH_AUTHORIZED_KEYS: authorized, T_IP: ip, T_HUELLA: huella }).status === 0;
 
   it('perdona a Coolify desde cualquier IP privada de Docker', () => {
     expect(conocida('10.0.1.24', coolify)).toBe(true);
