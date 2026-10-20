@@ -71,6 +71,7 @@ alertar() { # texto
   if [ "$(date +%s)" -lt "$hasta" ]; then log "silenciado: $1"; else avisar "$1"; fi
 }
 [ -f "$DIR/comandos.sh" ] && . "$DIR/comandos.sh"
+[ -f "$DIR/ruido.sh" ] && . "$DIR/ruido.sh"
 [ -f "$DIR/ssh.sh" ] && . "$DIR/ssh.sh"
 
 # chequeo clave malo(0|1) lecturas_seguidas texto_mal texto_bien
@@ -223,7 +224,7 @@ if [ ! -f "$E/mem.txt" ] || [ -n "$(find "$E/mem.txt" -mmin +4 2>/dev/null)" ]; 
   [ -n "$nombres" ] && docker inspect -f '{{.Name}} {{.RestartCount}}' $nombres 2>/dev/null | sed 's#^/##' | while read -r n r; do
     antes=$r; [ -f "$E/r-$n" ] && antes=$(cat "$E/r-$n")
     echo "$r" > "$E/r-$n"
-    [ "$r" -gt "$antes" ] && alertar "REINICIO: $n se reinició $((r - antes)) vez/veces (total $r). Mirar docker logs $n."
+    [ "$r" -gt "$antes" ] && aviso_reinicio "$n" "$((r - antes))" "$r"
   done
 fi
 if [ -f "$E/mem.txt" ]; then

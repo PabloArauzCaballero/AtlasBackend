@@ -77,6 +77,10 @@ contiene, así que no se avisa por él. Se avisa de lo que no es ruido, y esos a
 - Pico de ≥150 intentos fallidos en 5 min (lo normal son ~20) y fail2ban parado.
 - Cambio de `authorized_keys` o de la configuración efectiva de sshd (la primera pasada fija la referencia).
 
+Coolify entra por SSH desde su contenedor (red Docker `10.0.x.y`, IP distinta en cada redespliegue) con la llave de comentario `coolify`:
+`ruido.sh` lo reconoce por origen privado + esa llave, no por IP, y no avisa. Desde una IP pública nunca se perdona.
+Los avisos `REINICIO` salen una vez por contenedor y hora (`REINICIO_AVISO_S`); el resto se acumula y sale como «sigue reiniciándose: N veces».
+
 `ssh-conocidas.txt` se sembró con las IPs que entraron ≥10 veces en 14 días: revisarla con `/ssh`.
 
 ### Endurecer SSH (acción de una persona)
