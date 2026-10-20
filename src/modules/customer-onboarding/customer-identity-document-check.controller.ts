@@ -34,15 +34,17 @@ export class CustomerIdentityDocumentCheckController {
   @ApiOperation({
     summary: 'Comprobar que el carnet no pertenece a otra cuenta',
     description:
-      'Compara el número con los documentos de OTROS clientes del tenant. Si ya figura en otro, quedan bloqueados su IP (24 h), su dispositivo (7 días) y su cuenta ' +
-      '(`blocked`) y responde `ONBOARDING_IP_BLOCKED` (403), porque casi siempre es un intento de suplantación. No confirma que el carnet exista: ' +
-      'la respuesta es la misma para quien sondea números. El número no se guarda.',
+      'Compara el número con los documentos de OTROS clientes del tenant. Si ya figura en otro responde 409 ' +
+      '`IDENTITY_DOCUMENT_ALREADY_REGISTERED` y no bloquea. Al tercer dato distinto ya registrado en 24 h (carnets o correos) ' +
+      'bloquea la IP (24 h), el dispositivo (7 días) y la cuenta (`blocked`) y responde 403 `ONBOARDING_IP_BLOCKED`. ' +
+      'El número no se guarda.',
   })
   @ApiHeader({ name: 'x-tenant-id', required: true })
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(onboardingCustomerIdParamsSchema.shape.customerId) })
   @ApiBody({ schema: zodToApiSchema(identityDocumentCheckSchema) })
   @ApiResponse({ status: 200, description: 'El carnet no figura en otra cuenta — puede continuar.' })
-  @ApiResponse({ status: 403, description: 'ONBOARDING_IP_BLOCKED — el carnet ya figura en otra cuenta o la IP ya estaba bloqueada.' })
+  @ApiResponse({ status: 403, description: 'ONBOARDING_IP_BLOCKED — reincidencia con datos ya registrados, o la IP ya estaba bloqueada.' })
+  @ApiResponse({ status: 409, description: 'IDENTITY_DOCUMENT_ALREADY_REGISTERED — ese carnet ya tiene cuenta.' })
   @Post(':customerId/identity-document/check')
   @HttpCode(HttpStatus.OK)
   async check(

@@ -61,6 +61,7 @@ import { CustomerPackagesController } from './customer-packages.controller.js';
 import { CustomerIdentityDocumentCheckController } from './customer-identity-document-check.controller.js';
 import { IdentityDocumentDuplicateService } from './application/identity-document-duplicate.service.js';
 import { OnboardingIpBlockService } from './application/onboarding-ip-block.service.js';
+import { OnboardingStrikeService } from './application/onboarding-strike.service.js';
 import { OnboardingOffenderDeviceRepository } from './repositories/onboarding-offender-device.repository.js';
 import { OnboardingIpBlockGuard } from './onboarding-ip-block.guard.js';
 import { CustomerOnboardingProfileController } from './customer-onboarding-profile.controller.js';
@@ -209,6 +210,7 @@ import { IdentityReviewCaseRepository } from './repositories/identity-review-cas
   providers: [
     // Alta: carnet que ya es de otra cuenta ⇒ IP bloqueada (Redis con caducidad).
     OnboardingIpBlockService,
+    OnboardingStrikeService,
     OnboardingOffenderDeviceRepository,
     OnboardingIpBlockGuard,
     IdentityDocumentDuplicateService,
