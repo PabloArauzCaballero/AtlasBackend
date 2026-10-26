@@ -7,8 +7,8 @@
 ## Hallazgos
 - HECHO: `AuthReauthenticationService` (`src/modules/auth/auth-reauthentication.service.ts`) ya implementa la prueba de reautenticación (un solo uso, 300 s, ligada al actor, cuenta en el bloqueo del login). Hoy sólo la usa el comercio (`POST /merchant/auth/reauthenticate` + `x-reauth-token` al cambiar el QR).
 - HECHO: `customer-onboarding` ya importa de `auth` y `AuthModule` exporta `AuthReauthenticationService`.
-- HECHO: el cliente de la app (`src/api/client.ts`) no permite cabeceras propias por petición.
-- HECHO: el cliente NO tiene contraseña de texto: su credencial es el PIN de 4 dígitos (`ingresar.tsx` usa `PinField`; `AuthPinVerifyService` compara el PIN contra `credential.passwordHash`). «Pedir la contraseña» = pedir el PIN. La app ya tiene `src/ui/confirmar-pin-sheet.tsx` para eso.
+- HECHO: el cliente HTTP de la app (client.ts en AtlasFrontend) no permite cabeceras propias por petición.
+- HECHO: el cliente NO tiene contraseña de texto: su credencial es el PIN de 4 dígitos (`ingresar.tsx` usa `PinField`; `AuthPinVerifyService` compara el PIN contra `credential.passwordHash`). «Pedir la contraseña» = pedir el PIN. La app ya tiene la hoja ConfirmarPinSheet (AtlasFrontend) para eso.
 - HECHO: `auth.controller.ts` está en 303 líneas (deuda congelada): el endpoint va en un controlador propio.
 
 ## Alcance
