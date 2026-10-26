@@ -977,6 +977,25 @@
     ],
     "body": true
   },
+  "POST /auth/reauthenticate": {
+    "operationId": "AuthReauthenticationController_reauthenticate",
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "409",
+      "429",
+      "500"
+    ],
+    "headers": [],
+    "query": [],
+    "path": [],
+    "security": [
+      "access-token"
+    ],
+    "body": true
+  },
   "POST /auth/refresh": {
     "operationId": "AuthController_refresh",
     "responses": [
