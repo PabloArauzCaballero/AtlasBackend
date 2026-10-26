@@ -1,0 +1,2 @@
+SIN el cambio: Tests:       9 failed, 2 passed, 11 total
+CON el cambio: Tests:       11 passed, 11 total

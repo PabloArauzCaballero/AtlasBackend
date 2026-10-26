@@ -209,6 +209,8 @@ export class CustomerOnboardingProfileController {
   @ApiParam({ name: 'customerId', schema: zodToApiSchema(onboardingCustomerIdParamsSchema.shape.customerId) })
   @ApiBody({ schema: zodToApiSchema(addContactMethodSchema) })
   @ApiResponse({ status: 201, description: 'Pendiente de verificación. El mismo valor sin verificar devuelve el mismo contactMethodId.' })
+  @ApiHeader({ name: 'x-reauth-token', required: false, description: 'Prueba de PIN de POST /auth/reauthenticate.' })
+  @ApiResponse({ status: 403, description: 'REAUTH_REQUIRED — un cliente declara un correo sin prueba de PIN vigente.' })
   @ApiResponse({ status: 409, description: 'CONTACT_ALREADY_VERIFIED — el cliente ya tiene ese valor verificado.' })
   @Post(':customerId/contact-methods')
   @HttpCode(HttpStatus.CREATED)
@@ -218,14 +220,10 @@ export class CustomerOnboardingProfileController {
     @Body(new ZodValidationPipe(addContactMethodSchema)) body: AddContactMethodDto,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: RequestWithNetwork,
+    @Headers('x-reauth-token') reauthToken: string | undefined,
   ) {
-    return this.contactMethodsService.addContactMethod({
-      tenantId: tenantId,
-      customerId: params.customerId,
-      body,
-      currentUser,
-      ipAddress: request.ip ?? null,
-    });
+    const input = { tenantId, customerId: params.customerId, body, currentUser, ipAddress: request.ip ?? null, reauthToken };
+    return this.contactMethodsService.addContactMethod(input);
   }
 
   @Roles(...CUSTOMER_AND_INTERNAL)

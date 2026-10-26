@@ -11,6 +11,7 @@ import { assertOwnCustomerResourceOrInternalOperational } from '../../../common/
 import { encryptSecretEnvelope } from '../../../common/utils/crypto/envelope-encryption.util.js';
 import { hashSensitiveText, lastCharacters, normalizeSensitiveText } from '../../../common/utils/crypto/hash.util.js';
 import { phoneLookupHashFromPlain } from '../../../common/utils/crypto/phone-hash.util.js';
+import { AuthReauthenticationService } from '../../auth/auth-reauthentication.service.js';
 import { CustomerEligibilityService } from '../../customers/application/customer-eligibility.service.js';
 import { EDITABLE_ONBOARDING_STATUSES, normalizeLifecycleStatus } from '../../customers/customer-lifecycle.constants.js';
 import { CustomersRepository } from '../../customers/customers.repository.js';
@@ -40,6 +41,7 @@ export class CustomerContactMethodsService {
     private readonly profileDataRepository: CustomerProfileDataRepository,
     private readonly flowRepository: CustomerOnboardingFlowRepository,
     private readonly eligibilityService: CustomerEligibilityService,
+    private readonly reauthentication: AuthReauthenticationService,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -49,6 +51,8 @@ export class CustomerContactMethodsService {
     body: AddContactMethodDto;
     currentUser: AuthenticatedUser;
     ipAddress: string | null;
+    /** Prueba de `POST /auth/reauthenticate` (cabecera `x-reauth-token`). La exige un cliente que declara un correo. */
+    reauthToken?: string | null;
   }) {
     assertOwnCustomerResourceOrInternalOperational(input.currentUser, input.customerId);
 
@@ -76,6 +80,22 @@ export class CustomerContactMethodsService {
       throw new UnprocessableEntityException(`PROFILE_NOT_EDITABLE_IN_STATUS: ${status}`);
     }
 
+    /*
+     * Declarar un CORREO es el primer paso para cambiar el correo con el que el cliente entra y recupera
+     * la cuenta: confirmado el código, el nuevo pasa a principal. Con la sesión sola, quien la tuviera
+     * robada ponía un correo suyo, lo confirmaba —el código llega a ESE correo— y pedía desde ahí un PIN
+     * nuevo. Por eso un cliente tiene que repetir su PIN antes (la prueba de `POST /auth/reauthenticate`).
+     *
+     * Se comprueba aquí, antes de leer nada, y se GASTA justo antes de escribir: un 409 por un correo que
+     * ya tiene no le hace volver a teclearlo. No se pide al confirmar el código porque la prueba vive 300 s
+     * y confirmar exige ir al correo. El personal interno no la necesita: entra con segundo factor.
+     */
+    const reauthProof =
+      input.currentUser.role === 'customer' && input.body.contactType === 'email'
+        ? { actorType: 'customer' as const, actorId: String(input.currentUser.customerId ?? ''), reauthToken: input.reauthToken }
+        : null;
+    if (reauthProof) await this.reauthentication.assertValid(reauthProof);
+
     const contactValueHash =
       input.body.contactType === 'phone' ? phoneLookupHashFromPlain(input.body.value) : hashSensitiveText(input.body.value);
     const now = new Date();
@@ -93,6 +113,7 @@ export class CustomerContactMethodsService {
          * Se devuelve el existente para que retome; no se crea fila ni se audita otra alta.
          */
         if (existing.status !== 'verified') {
+          if (reauthProof) await this.reauthentication.consume(reauthProof);
           const assessment = await this.eligibilityService.evaluate(input.tenantId, input.customerId, transaction);
           return {
             customerId: input.customerId,
@@ -109,6 +130,7 @@ export class CustomerContactMethodsService {
         throw new ConflictException('CONTACT_ALREADY_VERIFIED');
       }
 
+      if (reauthProof) await this.reauthentication.consume(reauthProof);
       const isEmail = input.body.contactType === 'email';
       const contact = await this.profileDataRepository.createContactMethod(
         {
