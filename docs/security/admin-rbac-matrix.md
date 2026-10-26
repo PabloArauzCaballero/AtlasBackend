@@ -24,11 +24,11 @@
 
 | Superficie | Rutas |
 |---|---:|
-| Total montadas (138 controladores) | 619 |
+| Total montadas (139 controladores) | 620 |
 | Fuera del contrato OpenAPI (`@ApiExcludeController`/`@ApiExcludeEndpoint`) | 10 |
 | Sin sesión de usuario (`@Public`) | 29 |
 | Credencial de servicio (`@ServiceScope` / `@SignedEventSource`) | 5 |
-| Con `@Roles` | 558 |
+| Con `@Roles` | 559 |
 | Con permiso fino `@InternalPermissions` (además del rol) | 87 |
 | Cualquier sesión autenticada (sin `@Roles`) | 27 |
 
@@ -78,6 +78,7 @@
 | `POST` | `/auth/password/change/request` | cualquier sesión autenticada | — | `AuthPasswordChangeController.requestPasswordChange` | guards: `TenantGuard` |
 | `POST` | `/auth/pin/verify` | `customer` | — | `AuthPinVerifyController.verify` | guards: `TenantGuard` |
 | `POST` | `/auth/provision-credentials` | `admin`, `platform_admin` | — | `AuthController.provisionCredentials` | guards: `TenantGuard` |
+| `POST` | `/auth/reauthenticate` | `customer` | — | `AuthReauthenticationController.reauthenticate` | guards: `TenantGuard` |
 | `POST` | `/auth/refresh` | **sin sesión** (`@Public`) | — | `AuthController.refresh` | guards: `TenantGuard` |
 
 ## `catalog-management`

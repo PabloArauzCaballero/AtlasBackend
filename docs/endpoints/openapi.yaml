@@ -2522,6 +2522,56 @@ paths:
       summary: Provisionar credenciales
       tags:
         - auth
+  /auth/reauthenticate:
+    post:
+      description: >-
+        Valida la credencial (el PIN) del cliente AUTENTICADO y devuelve una
+        prueba de un solo uso, válida 300 s y ligada a ese cliente, que se envía
+        en la cabecera `x-reauth-token` de la operación sensible (declarar un
+        correo nuevo). Cada intento errado cuenta en el bloqueo del login.
+      operationId: AuthReauthenticationController_reauthenticate
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+              required:
+                - password
+              additionalProperties: false
+      responses:
+        '200':
+          description: '`{ reauthToken, expiresInSeconds, expiresAt }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '400':
+          description: 'REAUTH_INVALID_PASSWORD: el PIN no es correcto.'
+        '401':
+          description: >-
+            El token no identifica a un cliente, o la cuenta ya no está
+            disponible.
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          description: ACCOUNT_LOCKED (con `lockedUntil`) o demasiadas peticiones.
+        '500':
+          $ref: '#/components/responses/InternalError'
+      security:
+        - access-token: []
+      summary: Reautenticación del cliente
+      tags:
+        - auth
   /auth/refresh:
     post:
       description: >-
@@ -3375,6 +3425,12 @@ paths:
         cuenta sin forma de recibir el código de verificación.
       operationId: CustomerOnboardingProfileController_addContactMethod
       parameters:
+        - name: x-reauth-token
+          in: header
+          description: Prueba de PIN de POST /auth/reauthenticate.
+          required: false
+          schema:
+            type: string
         - name: customerId
           required: true
           in: path
@@ -3424,7 +3480,9 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: >-
+            REAUTH_REQUIRED — un cliente declara un correo sin prueba de PIN
+            vigente.
         '404':
           $ref: '#/components/responses/NotFound'
         '409':

@@ -40,6 +40,15 @@ export const mfaPreferenceSchema = z.object({
 });
 export type MfaPreferenceDto = z.infer<typeof mfaPreferenceSchema>;
 
+/**
+ * Repetir la credencial con la sesión abierta, antes de una operación sensible del cliente. En la app
+ * esa credencial es el PIN; el campo se llama `password` porque es la misma credencial del login.
+ */
+export const customerReauthenticateSchema = z.object({
+  password: z.string().min(1).max(128),
+});
+export type CustomerReauthenticateDto = z.infer<typeof customerReauthenticateSchema>;
+
 export const loginPinVerifySchema = z.object({
   challengeToken: z.string().trim().min(20),
   pin: z

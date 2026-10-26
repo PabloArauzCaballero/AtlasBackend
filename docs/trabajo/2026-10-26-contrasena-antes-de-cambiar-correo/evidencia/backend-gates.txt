@@ -1,0 +1,10 @@
+type-check exit=0
+test/unit/customer-onboarding/customer-onboarding-profile.controller.spec.ts(84,24): error TS2554: Expected 6 arguments, but got 5.
+test/unit/customer-onboarding/customer-onboarding-profile.controller.spec.ts(140,24): error TS2554: Expected 6 arguments, but got 5.
+type-check:tests exit=2
+lint exit=0
+format:check exit=0
+✅ Gate de tamaño OK: sin archivos runtime nuevos sobre 300 líneas ni crecimiento de la deuda congelada.
+✅ Contrato OpenAPI válido: 568 rutas / 610 operaciones, todas con operationId, seguridad y esquema de respuesta.
+Fronteras: 78 infracción(es) {"domain-purity":3,"cross-module":75}; línea base 78; resueltas 0; nuevas 0.
+audit mask=12

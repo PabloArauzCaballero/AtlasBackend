@@ -81,7 +81,14 @@ describe('CustomerOnboardingProfileController', () => {
       await controller.addReferences('t1', { customerId: '42' } as never, { references: [] } as never, CLIENTE, peticion());
       expect(contacts.addContactMethod).not.toHaveBeenCalled();
 
-      await controller.addContactMethod('t1', { customerId: '42' } as never, { contactType: 'phone' } as never, CLIENTE, peticion());
+      await controller.addContactMethod(
+        't1',
+        { customerId: '42' } as never,
+        { contactType: 'phone' } as never,
+        CLIENTE,
+        peticion(),
+        undefined,
+      );
       expect(references.addReferences).toHaveBeenCalledTimes(1);
     });
 
@@ -131,13 +138,24 @@ describe('CustomerOnboardingProfileController', () => {
     });
   });
 
+  describe('la prueba de PIN para declarar un correo', () => {
+    it('la cabecera x-reauth-token llega tal cual al servicio, que es quien la exige y la gasta', async () => {
+      const body = { contactType: 'email', value: 'nuevo@ejemplo.bo' } as never;
+      await controller.addContactMethod('t1', { customerId: '42' } as never, body, CLIENTE, peticion(), 'prueba-de-pin');
+
+      expect(contacts.addContactMethod).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: 't1', customerId: '42', currentUser: CLIENTE, reauthToken: 'prueba-de-pin' }),
+      );
+    });
+  });
+
   describe('la ip de la bitácora', () => {
     it('viaja a TODAS las escrituras', async () => {
       await controller.updateProfile('t1', { customerId: '42' } as never, {} as never, CLIENTE, peticion());
       await controller.upsertFinancialProfile('t1', { customerId: '42' } as never, {} as never, CLIENTE, peticion());
       await controller.addReferences('t1', { customerId: '42' } as never, {} as never, CLIENTE, peticion());
       await controller.removeReference('t1', { customerId: '42', referenceId: 'r-1' } as never, CLIENTE, peticion());
-      await controller.addContactMethod('t1', { customerId: '42' } as never, {} as never, CLIENTE, peticion());
+      await controller.addContactMethod('t1', { customerId: '42' } as never, {} as never, CLIENTE, peticion(), undefined);
       await controller.createUploadUrl('t1', { customerId: '42' } as never, {} as never, CLIENTE, peticion());
 
       for (const espia of [

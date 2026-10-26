@@ -26,6 +26,7 @@ import { AuthActorResolverService } from './auth-actor-resolver.service.js';
 import { AuthPasswordChangeRepository } from './auth-password-change.repository.js';
 import { AuthPasswordChangeService } from './auth-password-change.service.js';
 import { AuthPasswordResetService } from './auth-password-reset.service.js';
+import { AuthReauthenticationController } from './auth-reauthentication.controller.js';
 import { AuthReauthenticationService } from './auth-reauthentication.service.js';
 import { AuthSecondFactorService } from './auth-second-factor.service.js';
 import { AuthTokenIssuerService } from './auth-token-issuer.service.js';
@@ -54,7 +55,7 @@ import { AuthCredentialsService } from './auth-credentials.service.js';
     CustomersModule,
     MailSenderModule,
   ],
-  controllers: [AuthController, AuthPasswordChangeController, AuthPinVerifyController],
+  controllers: [AuthController, AuthPasswordChangeController, AuthPinVerifyController, AuthReauthenticationController],
   providers: [
     AuthService,
     AuthCredentialsService,
