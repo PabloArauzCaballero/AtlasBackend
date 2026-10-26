@@ -23,11 +23,11 @@
 
 | ID | Microtarea | CA (binario) | DoD | Estado |
 |---|---|---|---|---|
-| H1.S1.M1 | `POST /auth/reauthenticate` para cliente | cliente → prueba; no cliente → 403 | test unitario del controlador | TODO |
-| H1.S1.M2 | `addContactMethod` exige y gasta la prueba (cliente + correo) | sin prueba → 403 sin escribir; con prueba → la gasta | `customer-contact-methods.service.spec.ts` | TODO |
-| H1.S1.M3 | Cabecera `x-reauth-token` del controlador al servicio + OpenAPI | header llega al servicio | spec del controlador + `check:openapi` | TODO |
-| H1.S1.M4 | Gates backend | exit 0 | type-check, type-check:tests, lint, format, file-size, openapi | TODO |
-| H1.S2.M1 | Cliente HTTP: cabeceras por petición + `reauthenticate()` + header en `addContactMethod` | tipos cierran | `npm run typecheck` | TODO |
-| H1.S2.M2 | Pantalla: campo contraseña, errores al campo (`REAUTH_INVALID_PASSWORD`), bloqueo (`ACCOUNT_LOCKED`) | lógica probada | `__tests__/change-email.test.ts` | TODO |
-| H1.S2.M3 | Gates front | exit 0 | `npm run verify` + export web | TODO |
-| H1.S3.M1 | PRs con base `test`, CI verde, integrados | merge hecho | estado del PR | TODO |
+| H1.S1.M1 | `POST /auth/reauthenticate` para cliente | cliente → prueba; no cliente → 403 | test unitario del controlador | HECHO |
+| H1.S1.M2 | `addContactMethod` exige y gasta la prueba (cliente + correo) | sin prueba → 403 sin escribir; con prueba → la gasta | `customer-contact-methods.service.spec.ts` | HECHO |
+| H1.S1.M3 | Cabecera `x-reauth-token` del controlador al servicio + OpenAPI | header llega al servicio | spec del controlador + `check:openapi` | HECHO |
+| H1.S1.M4 | Gates backend | exit 0 | type-check, type-check:tests, lint, format, file-size, openapi | A MEDIAS |
+| H1.S2.M1 | Cliente HTTP: cabeceras por petición + `reauthenticate()` + header en `addContactMethod` | tipos cierran | `npm run typecheck` | HECHO |
+| H1.S2.M2 | Pantalla: campo contraseña, errores al campo (`REAUTH_INVALID_PASSWORD`), bloqueo (`ACCOUNT_LOCKED`) | lógica probada | `__tests__/change-email.test.ts` | HECHO |
+| H1.S2.M3 | Gates front | exit 0 | `npm run verify` + export web | HECHO |
+| H1.S3.M1 | PRs con base `test`, CI verde, integrados | merge hecho | estado del PR | BLOQUEADO (DECISION_REQUIRED) |
