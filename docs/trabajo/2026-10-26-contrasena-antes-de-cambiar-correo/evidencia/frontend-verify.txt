@@ -1,0 +1,19 @@
+  11:10  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+✖ 26 problems (0 errors, 26 warnings)
+  0 errors and 12 warnings potentially fixable with the `--fix` option.
+check-field-help: 55 campos y 72 opciones revisados; todos dicen qué poner y qué significan.
+    console.error
+    console.error
+    console.error
+    console.error
+PASS __tests__/api-error-sin-conexion.test.ts
+    console.error
+    console.error
+    console.error
+    console.error
+    console.error
+    console.error
+verify exit=0
+Test Suites: 160 passed, 160 total
+Tests:       1594 passed, 1594 total
+export exit=0
