@@ -468,6 +468,8 @@ x-atlas-env: &atlas-env # --- Aplicación --------------------------------------
   # --- Relay de eventos e identidad entre contextos (piloto de Mensajería) ---------------------
   EVENTS_RELAY_V2_ENABLED: '${EVENTS_RELAY_V2_ENABLED:-false}'
   CONTEXT_SERVICE_TOKEN_SECRET: '${CONTEXT_SERVICE_TOKEN_SECRET:-}'
+  # Token de scrape de GET /metrics (vacío = sin control de aplicación; ver ops/observability/README.md).
+  METRICS_SCRAPE_TOKEN: '${METRICS_SCRAPE_TOKEN:-}'
   CUSTOMERS_DIRECTORY_URL: '${CUSTOMERS_DIRECTORY_URL:-}'
 
   # --- Trabajo de fondo ------------------------------------------------------------------------

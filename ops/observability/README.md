@@ -21,6 +21,15 @@ scrape_configs:
       - targets: ['atlas-backend:3005']
 ```
 
+Si el despliegue define `METRICS_SCRAPE_TOKEN` (recomendado cuando hay proxy público delante), el
+scrape debe presentarlo; sin él `/metrics` responde 401:
+
+```yaml
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/atlas-metrics-token
+```
+
 > El `job_name: atlas-backend` debe coincidir con el usado en la alerta `AtlasBackendTargetDown`
 > (`up{job="atlas-backend"}`).
 

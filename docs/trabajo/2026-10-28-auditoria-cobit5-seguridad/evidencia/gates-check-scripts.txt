@@ -1,0 +1,6 @@
+✅ Cobertura de autorización estable: 39 ruta(s) pública(s) declarada(s) y 11 controlador(es) sin regla de rol, todos en el baseline.
+exit=0
+✅ Sin usos nuevos de @Headers('x-tenant-id'): 2 controllers / 2 usos, todos en el baseline.
+exit=0
+✅ Git no rastrea archivos .env reales; las plantillas .example están permitidas.
+exit=0

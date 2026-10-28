@@ -1,0 +1,8 @@
+eslint exit=0
+Checking formatting...
+All matched files use Prettier code style!
+prettier exit=0
+✅ .env.example cubre 328 variables tipadas y 14 credenciales de proveedor externo; ambas plantillas están libres de duplicados, .env.production.example sólo falla por los secretos que hay que rellenar, y los composes de Coolify y de producción nombran todo el esquema (salvo lo exento con motivo) con valores por omisión que el esquema acepta.
+check:env-example exit=0
+✅ Gate de tamaño OK: sin archivos runtime nuevos sobre 300 líneas ni crecimiento de la deuda congelada.
+check:file-size exit=0

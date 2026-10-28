@@ -3,10 +3,11 @@
  * @business Esta pieza aplica controles coherentes a todos los dominios y reduce fallas repetidas entre equipos.
  * @system provee infraestructura transversal de observability sin introducir reglas de un dominio específico.
  */
-import { Controller, Get, Res } from '@nestjs/common';
+import { Controller, Get, Headers, Res } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '../decorators/public.decorator.js';
+import { isMetricsScrapeAuthorized, readMetricsScrapeToken } from './metrics-scrape-auth.util.js';
 import { MetricsService } from './metrics.service.js';
 
 type ExpressLikeResponse = {
@@ -35,6 +36,12 @@ type ExpressLikeResponse = {
  * contrato OpenAPI como `security: []`, y el gate `check:auth-coverage` la ve en su lista.
  *
  * Sigue siendo cierto que NO debe exponerse a internet: publica latencias y el mapa de rutas.
+ *
+ * Hallazgo SEC-02 (auditoría COBIT 5, 2026-10-28): en un despliegue detrás de proxy inverso la ruta
+ * quedaba alcanzable por el dominio público, y la restricción de red dependía de que alguien la
+ * configurara. Ahora, si el despliegue define `METRICS_SCRAPE_TOKEN`, el scrape debe presentarlo
+ * (`Authorization: Bearer`; en Prometheus, `authorization.credentials`). Sin token configurado el
+ * comportamiento no cambia, así que sigue valiendo la regla de aislar por red.
  */
 @SkipThrottle()
 @Public()
@@ -44,7 +51,11 @@ export class MetricsController {
   constructor(private readonly metrics: MetricsService) {}
 
   @Get()
-  async scrape(@Res() res: ExpressLikeResponse): Promise<void> {
+  async scrape(@Res() res: ExpressLikeResponse, @Headers('authorization') authorization?: string): Promise<void> {
+    if (!isMetricsScrapeAuthorized(readMetricsScrapeToken(), authorization)) {
+      res.status(401).send('');
+      return;
+    }
     const body = await this.metrics.render();
     res.setHeader('Content-Type', this.metrics.contentType);
     res.status(200).send(body);

@@ -137,6 +137,27 @@ export const SQL_FORBIDDEN_FUNCTIONS = [
   'query_to_xml',
   'database_to_xml',
   'pg_advisory_lock',
+  // Hallazgo SEC-01: reciben el nombre de una tabla, o una consulta entera, como LITERAL de texto, y el
+  // tokenizador no mira dentro de los literales; por eso evadían la lista de relaciones y de esquemas.
+  'ts_stat',
+  'table_to_xml',
+  'table_to_xmlschema',
+  'table_to_xml_and_xmlschema',
+  'schema_to_xml',
+  'schema_to_xmlschema',
+  'schema_to_xml_and_xmlschema',
+  'database_to_xmlschema',
+  'database_to_xml_and_xmlschema',
+  'query_to_xmlschema',
+  'query_to_xml_and_xmlschema',
+  'cursor_to_xml',
+  'cursor_to_xmlschema',
+  'pg_ls_logdir',
+  'pg_ls_waldir',
+  'pg_ls_tmpdir',
+  'pg_ls_archive_statusdir',
+  'pg_current_logfile',
+  'pg_notify',
 ] as const;
 
 /**

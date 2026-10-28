@@ -1,0 +1,6 @@
+
+Test Suites: 3 passed, 3 total
+Tests:       72 passed, 72 total
+Snapshots:   0 total
+Time:        2.645 s
+Ran all test suites matching test/unit/sql-console.

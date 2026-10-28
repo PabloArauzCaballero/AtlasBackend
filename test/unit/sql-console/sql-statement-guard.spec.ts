@@ -93,6 +93,27 @@ describe('guardSqlStatement', () => {
       expect(codesOf("SELECT pg_read_file('/etc/passwd')")).toContain('SQL_FORBIDDEN_FUNCTION');
     });
 
+    /**
+     * Hallazgo SEC-01 (auditoría COBIT 5, 2026-10-28): estas funciones reciben el NOMBRE de una tabla
+     * —o directamente una consulta— como literal de texto. El tokenizador no mira dentro de los
+     * literales, así que la lista de relaciones y de esquemas prohibidos no las alcanzaba, y con la
+     * conexión primaria (DB_READ_ENABLED=false) un rol que sólo debía ver `read_api` leía una tabla de
+     * credenciales o de PII sin desidentificar.
+     */
+    it.each([
+      "SELECT ts_stat('SELECT to_tsvector(password_hash) FROM iam.auth_credentials')",
+      "SELECT table_to_xml('iam.auth_credentials'::regclass, true, false, '')",
+      "SELECT schema_to_xml('iam', true, false, '')",
+      "SELECT query_to_xmlschema('SELECT 1', true, false, '')",
+      "SELECT pg_catalog.table_to_xml_and_xmlschema('customer.customers'::regclass, true, false, '')",
+      `SELECT "TABLE_TO_XML"('customer.customers'::regclass, true, false, '')`,
+      "SELECT cursor_to_xml('c'::refcursor, 10, true, false, '')",
+      'SELECT pg_ls_logdir()',
+      "SELECT pg_notify('canal', 'x')",
+    ])('rechaza las funciones que ejecutan o leen una consulta pasada como texto: %s', (sql) => {
+      expect(codesOf(sql)).toContain('SQL_FORBIDDEN_FUNCTION');
+    });
+
     it('rechaza las relaciones con credenciales o valores muestreados de otras tablas', () => {
       expect(codesOf('SELECT * FROM pg_authid')).toContain('SQL_FORBIDDEN_RELATION');
     });

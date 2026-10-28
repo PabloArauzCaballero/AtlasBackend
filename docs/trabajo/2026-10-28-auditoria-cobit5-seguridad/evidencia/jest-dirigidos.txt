@@ -1,0 +1,6 @@
+
+Test Suites: 20 passed, 20 total
+Tests:       231 passed, 231 total
+Snapshots:   0 total
+Time:        7.296 s
+Ran all test suites matching test/unit/observability|test/unit/sql-console.

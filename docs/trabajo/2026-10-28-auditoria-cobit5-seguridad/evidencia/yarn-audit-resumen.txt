@@ -1,0 +1,6 @@
+moderate multer >=2.2.0 <2.4.0 patched >=2.4.0 | multer vulnerable to Denial of Service via orphaned disk writes on aborted uploa | @nestjs/platform-express>multer
+high multer >=2.0.0 <2.5.0 patched >=2.5.0 | multer vulnerable to Denial of Service via a pending asynchronous fileFilter aft | @nestjs/platform-express>multer
+moderate moment >=2.29.2 <2.31.0 patched >=2.31.0 | moment vulnerable to Path Traversal via crafted non-string locale name | sequelize>moment
+high zod <4.6.6 patched >=4.6.6 | Zod can exhaust memory while validating oversized constrained collections | zod
+high body-parser >=2.0.0 <2.4.0 patched >=2.4.0 | body-parser vulnerable to Denial of Service via trailing bytes after a compresse | express>body-parser
+moderate qs >=6.7.0 <=6.16.0 patched >=6.16.1 | qs : qs.stringify with arrayFormat 'comma' throws an uncaught TypeError on array | express>qs

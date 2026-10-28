@@ -1,0 +1,40 @@
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+      64 |
+      65 |     const avisos = errores.filter((linea) => linea.includes('[AppFileLogger] No se pudo escribir'));
+    > 66 |     expect(avisos).toHaveLength(1);
+         |                    ^
+      67 |     expect(avisos[0]).toContain('LOG_SYNC_FILE_PATH');
+      68 |     expect(avisos[0]).toContain('Se sigue intentando y la consola recibe todas las líneas');
+      69 |   });
+
+      at Object.<anonymous> (test/unit/common/logging/app-file-logger-degrades.spec.ts:66:20)
+
+FAIL test/unit/ops/monitor-ruido.spec.ts
+  ● Test suite failed to run
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0
+    Received: null
+
+      21 |   const file = join(dir, name);
+      22 |   const gen = spawnSync('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-C', comment, '-f', file]);
+    > 23 |   expect(gen.status).toBe(0);
+         |                      ^
+      24 |   const fp = spawnSync('ssh-keygen', ['-lf', `${file}.pub`], { encoding: 'utf8' }).stdout.split(' ')[1]!;
+      25 |   return fp.slice(0, 20);
+      26 | };
+
+      at key (test/unit/ops/monitor-ruido.spec.ts:23:22)
+      at test/unit/ops/monitor-ruido.spec.ts:66:19
+      at Object.<anonymous> (test/unit/ops/monitor-ruido.spec.ts:64:9)
+
+
+Test Suites: 2 failed, 804 passed, 806 total
+Tests:       1 failed, 8201 passed, 8202 total
+Snapshots:   0 total
+Time:        482.774 s
+Ran all test suites matching test/unit.

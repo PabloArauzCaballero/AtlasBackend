@@ -1,0 +1,7 @@
+yarn audit v1.22.22
+0 vulnerabilities found - Packages audited: 382
+Done in 1.03s.
+yarn audit v1.22.22
+2 vulnerabilities found - Packages audited: 831
+Severity: 2 Low
+Done in 1.15s.
