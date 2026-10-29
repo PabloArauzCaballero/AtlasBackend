@@ -557,6 +557,7 @@ describe('PartnerRepresentativeService · poder del representante', () => {
     const repository = {
       findProfileById: jest.fn(async () => profileDouble()),
       createRepresentative: jest.fn(async (input: AnyRecord) => ({ id: '7', ...input })),
+      listRepresentatives: jest.fn(async (..._a: unknown[]) => [] as AnyRecord[]),
     };
     const hooks = hooksDouble();
     const profiles = new PartnerProfileService(
@@ -647,6 +648,70 @@ describe('PartnerRepresentativeService · poder del representante', () => {
     await service.addLegalRepresentative('1', '10', representante());
 
     expect(hooks.alRegistrarArchivoDelComercio).not.toHaveBeenCalled();
+  });
+
+  /* OBS-4 (QA 2026-10-29): el mismo documento declarado dos veces dejaba dos apoderados. */
+  describe('declarar dos veces a la misma persona', () => {
+    const existente = (extra: AnyRecord = {}) => ({
+      id: '3',
+      documentType: 'ci',
+      documentNumber: '1234567',
+      powerOfAttorneyKey: null as string | null,
+      update: jest.fn(async (..._a: unknown[]) => undefined),
+      ...extra,
+    });
+
+    it('caso correcto: el mismo documento no crea otra fila y devuelve la existente', async () => {
+      const { service, repository } = build();
+      const ya = existente();
+      repository.listRepresentatives.mockResolvedValueOnce([ya]);
+
+      const resultado = await service.addLegalRepresentative('1', '10', representante());
+
+      expect(resultado).toBe(ya);
+      expect(repository.createRepresentative).not.toHaveBeenCalled();
+      expect(ya.update).not.toHaveBeenCalled();
+    });
+
+    it('caso límite: el reintento trae el poder que faltaba y se le añade al existente', async () => {
+      const { service, repository, hooks } = build();
+      const ya = existente();
+      repository.listRepresentatives.mockResolvedValueOnce([ya]);
+      const clave = '1/partner-10/power-of-attorney/x.pdf';
+
+      await service.addLegalRepresentative('1', '10', representante(clave));
+
+      expect(repository.createRepresentative).not.toHaveBeenCalled();
+      expect(ya.update).toHaveBeenCalledWith({ powerOfAttorneyKey: clave });
+      expect(hooks.alRegistrarArchivoDelComercio).toHaveBeenCalledTimes(1);
+    });
+
+    it('caso límite: otra persona (otro número) sí se añade', async () => {
+      const { service, repository } = build();
+      repository.listRepresentatives.mockResolvedValueOnce([existente({ documentNumber: '999' })]);
+
+      await service.addLegalRepresentative('1', '10', representante());
+
+      expect(repository.createRepresentative).toHaveBeenCalledTimes(1);
+    });
+
+    it('caso límite: el mismo número con otro tipo de documento es otra persona', async () => {
+      const { service, repository } = build();
+      repository.listRepresentatives.mockResolvedValueOnce([existente({ documentType: 'passport' })]);
+
+      await service.addLegalRepresentative('1', '10', representante());
+
+      expect(repository.createRepresentative).toHaveBeenCalledTimes(1);
+    });
+
+    it('caso inválido: un poder fuera del expediente se rechaza aunque la persona ya exista', async () => {
+      const { service, repository } = build();
+      repository.listRepresentatives.mockResolvedValueOnce([existente()]);
+
+      await expect(
+        service.addLegalRepresentative('1', '10', representante('1/partner-99/power-of-attorney/x.pdf')),
+      ).rejects.toThrow(/POWER_OF_ATTORNEY_OUTSIDE_PARTNER_SCOPE/);
+    });
   });
 });
 

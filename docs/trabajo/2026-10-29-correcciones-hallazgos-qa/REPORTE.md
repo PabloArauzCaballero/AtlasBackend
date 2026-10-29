@@ -1,4 +1,4 @@
-> **AVANCE: 5 / 6 — 83,3 %.**
+> **AVANCE: 6 / 7 — 85,7 %.**
 
 - Fecha: 2026-10-29 · Plan: [PLAN.md](./PLAN.md) · Rama: `claude/compassionate-franklin-p7u3rw`
 - Peldaño de evidencia alcanzado: `TESTED` (pruebas dirigidas verdes). No hay `VERIFIED`: no se reprodujo end-to-end.
@@ -11,6 +11,7 @@
 | H2.S1.M1 | OBS-19: el catálogo de eventos trae `reservedForSystem` (aditivo) | `yarn jest test/unit/events test/unit/openapi` | PASS (126) · type-check y type-check:tests exit 0 · check:file-size OK |
 | H3.S1.M1 | BUG-3: la semilla de referencia trae `monthly_income_band` e `income_frequency` (idéntica clasificación que `employment_status`) | `yarn jest test/unit/database/referencia` | PASS (4); sin la corrección fallan 2 (kill-test) |
 | H3.S1.M2 | BUG-3: la semilla fundamental aplicada dos veces en la base local de QA | `yarn db:seed:demo --fundamental` ×2 | 1.ª: «12 faltaban y se insertaron» (incluye las 2 filas; las otras 10 eran deriva previa de esa base) · 2.ª: «0 faltaban»; `select` devuelve las dos filas |
+| H4.S1.M1 | OBS-4: declarar al mismo representante (tipo + número de documento) no crea otra fila; si el reintento trae el poder que faltaba, se le añade | `yarn jest test/unit/partner-onboarding` | PASS (263, 5 nuevas) · type-check y type-check:tests exit 0 · check:file-size OK |
 
 ## A medias
 ### H1.S1.M3 — Reproducción end-to-end del BUG-1

@@ -86,6 +86,25 @@ export class PartnerRepresentativeService {
       }
     }
 
+    /*
+     * Declarar dos veces al MISMO representante (mismo tipo y número de documento) no crea otra fila:
+     * el reintento de un cliente o de la cola dejaba dos apoderados para una sola persona (QA
+     * 2026-10-29, OBS-4). «Se añade» sigue valiendo para personas distintas. Si el reintento trae el
+     * poder que antes faltaba —el papel «puede llegar después»—, se le añade al existente.
+     */
+    const existentes = await this.network.listRepresentatives(tenantId, partnerId);
+    const mismo = existentes.find(
+      (item) => item.documentType === dto.documentType && item.documentNumber === dto.documentNumber,
+    );
+    if (mismo) {
+      if (dto.powerOfAttorneyKey && mismo.powerOfAttorneyKey !== dto.powerOfAttorneyKey) {
+        await mismo.update({ powerOfAttorneyKey: dto.powerOfAttorneyKey });
+        await this.anotarPoder(tenantId, partnerId, dto.powerOfAttorneyKey, poder);
+      }
+      this.logger.log(`Representante legal ya declarado: partnerId=${partnerId} representante=${mismo.id}`);
+      return mismo;
+    }
+
     const representative = await this.network.createRepresentative({
       tenantId,
       partnerProfileId: partnerId,
@@ -101,15 +120,23 @@ export class PartnerRepresentativeService {
 
     // El poder es un archivo que el comercio subió: va a su carpeta (Operaciones › Archivos) con lo
     // que el almacén ya dijo de él. El gancho se traga sus fallos: el representante ya está declarado.
-    if (dto.powerOfAttorneyKey && poder) {
-      await this.expedienteHooks.alRegistrarArchivoDelComercio({
-        tenantId,
-        partnerId,
-        documentType: 'partner_power_of_attorney',
-        storageKey: dto.powerOfAttorneyKey,
-        objeto: poder,
-      });
-    }
+    await this.anotarPoder(tenantId, partnerId, dto.powerOfAttorneyKey, poder);
     return representative;
+  }
+
+  private async anotarPoder(
+    tenantId: string,
+    partnerId: string,
+    key: string | undefined,
+    objeto: { contentType: string | null; sizeBytes: number; sha256Hex: string | null } | null,
+  ) {
+    if (!key || !objeto) return;
+    await this.expedienteHooks.alRegistrarArchivoDelComercio({
+      tenantId,
+      partnerId,
+      documentType: 'partner_power_of_attorney',
+      storageKey: key,
+      objeto,
+    });
   }
 }

@@ -44,3 +44,12 @@
 |---|---|---|---|---|
 | H3.S1.M1 | Dos filas nuevas en `referencia.seed-data.ts` (copia de `employment_status` con otro código y nombre, como las migraciones) | están en `catalog.attribute_definitions` con `conflicto: ['attribute_code']` | `yarn jest test/unit/seeders` (prueba nueva) | HECHO |
 | H3.S1.M2 | Aplicar la semilla dos veces contra Postgres y consultar | 422 desaparece; 2.ª corrida no inserta | salida de `select attribute_code from attribute_definitions` | HECHO |
+
+## H4 — OBS-4: declarar dos veces al mismo representante legal crea dos filas
+**CA:** Dado un expediente con un representante (tipo y número de documento), cuando se vuelve a declarar el mismo documento, entonces no se crea otra fila: se devuelve el existente y, si ahora trae el poder que antes faltaba, se le añade.
+**DoD:** `yarn jest test/unit/partner-onboarding` + `yarn type-check` + `yarn type-check:tests` + `yarn lint` + `yarn check:file-size`.
+**Estado:** HECHO
+
+| ID | Microtarea | CA (binario) | DoD | Estado |
+|---|---|---|---|---|
+| H4.S1.M1 | Idempotencia por (tipo, número) en `addLegalRepresentative`, con el poder tardío | repetir no llama a `createRepresentative`; con poder nuevo actualiza | 4 pruebas nuevas | HECHO |
