@@ -25,3 +25,12 @@
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | Se pierde texto del comentario del analista | Bajo (el texto íntegro vive en el caso del Motor) | el recorte lleva «…» y el log registra el recorte |
+
+## H2 — OBS-19: el catálogo de eventos marca los reservados
+**CA:** Dado el catálogo `GET /operations/events/catalog`, cuando un evento tiene regla de aviso, entonces trae `reservedForSystem: true` (aditivo); los demás `false`.
+**DoD:** `yarn jest test/unit/events` + `yarn type-check` + `yarn check:file-size`.
+**Estado:** HECHO
+
+| ID | Microtarea | CA (binario) | DoD | Estado |
+|---|---|---|---|---|
+| H2.S1.M1 | Campo `reservedForSystem` en `EventsController.listCatalog` + pruebas | `bank_statement.in_review` → true; uno sin regla → false | `yarn jest test/unit/events test/unit/openapi` → 126 pruebas | HECHO |

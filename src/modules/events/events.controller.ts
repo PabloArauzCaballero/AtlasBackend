@@ -22,6 +22,7 @@ import {
   ListEventsQueryDto,
   PublishEventDto,
 } from './events.schemas.js';
+import { hasNotificationRule } from '../notifications/notification-rules.service.js';
 
 @ApiTags('events')
 @ApiBearerAuth('access-token')
@@ -35,7 +36,9 @@ export class EventsController {
   @ApiResponse({ status: 200, description: 'Lista de definiciones de eventos registradas.' })
   @Get('catalog')
   listCatalog() {
-    return { data: this.eventsService.listDefinitions() };
+    // `reservedForSystem`: los que `publishFromDto` rechaza; el portal los quita del desplegable.
+    const data = this.eventsService.listDefinitions().map((d) => ({ ...d, reservedForSystem: hasNotificationRule(d.code) }));
+    return { data };
   }
 
   @ApiOperation({

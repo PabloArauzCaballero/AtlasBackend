@@ -1,4 +1,4 @@
-> **AVANCE: 2 / 3 — 66,7 %.**
+> **AVANCE: 3 / 4 — 75,0 %.**
 
 - Fecha: 2026-10-29 · Plan: [PLAN.md](./PLAN.md) · Rama: `claude/compassionate-franklin-p7u3rw`
 - Peldaño de evidencia alcanzado: `TESTED` (pruebas dirigidas verdes). No hay `VERIFIED`: no se reprodujo end-to-end.
@@ -8,6 +8,7 @@
 |---|---|---|---|
 | H1.S1.M1 | `fitToColumn` recorta a ≤ max con «…» solo si recortó | `yarn test:unit` (column-fit.spec, 6 pruebas) | PASS |
 | H1.S1.M2 | `decisionReason`/`rejectionReason` se ajustan a 120/200 en `partner-kyb-sync`, `partner-profile` y en `escribirDecision` (único punto de escritura de la verificación) | `yarn type-check` exit 0 · `yarn type-check:tests` exit 0 · `yarn check:file-size` OK | PASS |
+| H2.S1.M1 | OBS-19: el catálogo de eventos trae `reservedForSystem` (aditivo) | `yarn jest test/unit/events test/unit/openapi` | PASS (126) · type-check y type-check:tests exit 0 · check:file-size OK |
 
 ## A medias
 ### H1.S1.M3 — Reproducción end-to-end del BUG-1

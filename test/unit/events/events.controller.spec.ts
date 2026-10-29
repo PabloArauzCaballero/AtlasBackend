@@ -24,7 +24,17 @@ describe('EventsController', () => {
 
   it('listCatalog envuelve las definiciones en { data }', () => {
     const { controller } = build();
-    expect(controller.listCatalog()).toEqual({ data: [{ code: 'X' }] });
+    expect(controller.listCatalog()).toEqual({ data: [{ code: 'X', reservedForSystem: false }] });
+  });
+
+  it('listCatalog marca como reservado el evento con regla de aviso y no los demás', () => {
+    const { controller, service } = build();
+    (service.listDefinitions as jest.Mock).mockReturnValue([{ code: 'bank_statement.in_review' }, { code: 'evento.sin.regla' }] as never);
+    const { data } = controller.listCatalog();
+    expect(data.map((d) => [d.code, d.reservedForSystem])).toEqual([
+      ['bank_statement.in_review', true],
+      ['evento.sin.regla', false],
+    ]);
   });
 
   it('listEvents y getEvent delegan con el tenant parseado', async () => {
