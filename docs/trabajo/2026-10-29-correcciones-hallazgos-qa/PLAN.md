@@ -34,3 +34,13 @@
 | ID | Microtarea | CA (binario) | DoD | Estado |
 |---|---|---|---|---|
 | H2.S1.M1 | Campo `reservedForSystem` en `EventsController.listCatalog` + pruebas | `bank_statement.in_review` → true; uno sin regla → false | `yarn jest test/unit/events test/unit/openapi` → 126 pruebas | HECHO |
+
+## H3 — BUG-3: la semilla demo incluye `monthly_income_band` e `income_frequency`
+**CA:** Dada una base migrada y sembrada con el perfil demo, cuando el cliente guarda su perfil financiero con banda y frecuencia de ingreso, entonces no recibe `ATTRIBUTE_CATALOG_NOT_SEEDED`.
+**DoD:** `yarn type-check` + prueba de que las dos filas están en la semilla con los mismos atributos que `employment_status` + segunda corrida idempotente (conflicto por `attribute_code`).
+**Estado:** HECHO
+
+| ID | Microtarea | CA (binario) | DoD | Estado |
+|---|---|---|---|---|
+| H3.S1.M1 | Dos filas nuevas en `referencia.seed-data.ts` (copia de `employment_status` con otro código y nombre, como las migraciones) | están en `catalog.attribute_definitions` con `conflicto: ['attribute_code']` | `yarn jest test/unit/seeders` (prueba nueva) | HECHO |
+| H3.S1.M2 | Aplicar la semilla dos veces contra Postgres y consultar | 422 desaparece; 2.ª corrida no inserta | salida de `select attribute_code from attribute_definitions` | HECHO |
