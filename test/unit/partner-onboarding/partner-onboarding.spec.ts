@@ -708,9 +708,9 @@ describe('PartnerRepresentativeService · poder del representante', () => {
       const { service, repository } = build();
       repository.listRepresentatives.mockResolvedValueOnce([existente()]);
 
-      await expect(
-        service.addLegalRepresentative('1', '10', representante('1/partner-99/power-of-attorney/x.pdf')),
-      ).rejects.toThrow(/POWER_OF_ATTORNEY_OUTSIDE_PARTNER_SCOPE/);
+      await expect(service.addLegalRepresentative('1', '10', representante('1/partner-99/power-of-attorney/x.pdf'))).rejects.toThrow(
+        /POWER_OF_ATTORNEY_OUTSIDE_PARTNER_SCOPE/,
+      );
     });
   });
 });

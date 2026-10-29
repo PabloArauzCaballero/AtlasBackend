@@ -93,9 +93,7 @@ export class PartnerRepresentativeService {
      * poder que antes faltaba —el papel «puede llegar después»—, se le añade al existente.
      */
     const existentes = await this.network.listRepresentatives(tenantId, partnerId);
-    const mismo = existentes.find(
-      (item) => item.documentType === dto.documentType && item.documentNumber === dto.documentNumber,
-    );
+    const mismo = existentes.find((item) => item.documentType === dto.documentType && item.documentNumber === dto.documentNumber);
     if (mismo) {
       if (dto.powerOfAttorneyKey && mismo.powerOfAttorneyKey !== dto.powerOfAttorneyKey) {
         await mismo.update({ powerOfAttorneyKey: dto.powerOfAttorneyKey });
