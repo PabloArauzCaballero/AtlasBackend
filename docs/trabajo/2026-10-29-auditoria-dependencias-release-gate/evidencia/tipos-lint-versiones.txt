@@ -1,0 +1,17 @@
+$ yarn type-check
+$ tsc --noEmit -p tsconfig.json
+Done in 28.16s.
+
+$ yarn type-check:tests
+$ tsc --noEmit -p tsconfig.spec.json
+Done in 39.59s.
+
+$ yarn lint
+✖ 107 problems (0 errors, 107 warnings)
+
+Done in 31.43s.
+
+$ yarn why multer / body-parser / zod
+multer instalado: 2.5.0
+body-parser instalado: 2.4.0
+zod instalado: 4.6.7

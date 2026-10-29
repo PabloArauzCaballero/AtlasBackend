@@ -1,0 +1,3 @@
+[audit] intento 1: yarn exit 6 → completo
+Auditoría de dependencias: PASS — auditoría completa sin hallazgos high/critical bloqueantes
+exit=0

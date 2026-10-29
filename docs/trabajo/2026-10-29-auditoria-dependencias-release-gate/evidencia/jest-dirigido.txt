@@ -1,0 +1,5 @@
+$ jest --testPathPatterns=test/unit/(files|bootstrap|auth|customer-onboarding) --runInBand
+Test Suites: 83 passed, 83 total
+Tests:       799 passed, 799 total
+Snapshots:   0 total
+Time:        24.115 s, estimated 32 s
