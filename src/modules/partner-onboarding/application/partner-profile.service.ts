@@ -12,6 +12,7 @@ import { PartnerProfileModel } from '../../../database/models/index.js';
 import { ExpedienteHooksService } from '../../expedientes/application/expediente-hooks.service.js';
 import { PartnerVerificationService, type SubmissionGap } from './partner-verification.service.js';
 import { assertCommercialNetworkEditable, assertEditable } from './partner-profile.guards.js';
+import { fitToColumn, PARTNER_PROFILE_DECISION_REASON_MAX, PARTNER_PROFILE_REJECTION_REASON_MAX } from './column-fit.js';
 
 /**
  * El perfil del comercio: abrirlo, corregir su ficha, enviarlo y decidirlo. Lo que sube (poder,
@@ -243,9 +244,11 @@ export class PartnerProfileService {
         onboardingStatus: input.approved ? 'approved' : 'rejected',
         decidedAt,
         decidedByInternalUserId: input.internalUserId,
-        rejectionReason: input.approved ? null : (input.rejectionReason ?? null),
+        rejectionReason: input.approved ? null : fitToColumn(input.rejectionReason, PARTNER_PROFILE_REJECTION_REASON_MAX),
         decisionOutcome: input.approved ? 'APROBADO' : 'RECHAZADO',
-        decisionReason: input.approved ? 'DECISION_MANUAL_PORTAL' : (input.rejectionReason ?? 'DECISION_MANUAL_PORTAL'),
+        decisionReason: input.approved
+          ? 'DECISION_MANUAL_PORTAL'
+          : (fitToColumn(input.rejectionReason, PARTNER_PROFILE_DECISION_REASON_MAX) ?? 'DECISION_MANUAL_PORTAL'),
         decisionEvaluatedAt: decidedAt,
       },
     );

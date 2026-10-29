@@ -14,6 +14,7 @@ import { env } from '../../../config/env.js';
 import { PartnerProfileModel } from '../../../database/models/index.js';
 import type { SubmissionGap } from './partner-verification.service.js';
 import type { PartnerOnboardingRepository, PartnerProfilePatch } from '../partner-onboarding.repository.js';
+import { fitToColumn, PARTNER_PROFILE_DECISION_REASON_MAX } from './column-fit.js';
 
 /** Los desenlaces que publica el artefacto. Cualquier otro se trata como «no concluyente». */
 export const KYB_OUTCOMES = ['APROBADO', 'RECHAZADO', 'REVISION_MANUAL'] as const;
@@ -245,7 +246,9 @@ export async function escribirDecision(
   profile: PartnerProfileModel,
   values: PartnerProfilePatch,
 ): Promise<PartnerProfileModel> {
-  const updated = await repository.updateProfileIfStill(profile, { onboardingStatus: 'under_review' }, values);
+  // El motivo del Motor puede exceder la columna VARCHAR(120): se recorta aquí, punto único de escritura.
+  const ajustados = { ...values, decisionReason: fitToColumn(values.decisionReason, PARTNER_PROFILE_DECISION_REASON_MAX) };
+  const updated = await repository.updateProfileIfStill(profile, { onboardingStatus: 'under_review' }, ajustados);
   if (!updated) {
     throw new ConflictException(`PARTNER_DECISION_CONFLICT: el expediente ${profile.id} cambió mientras se verificaba.`);
   }

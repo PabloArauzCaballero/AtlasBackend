@@ -10,6 +10,7 @@ import { PartnerProfileModel } from '../../../database/models/index.js';
 import { DecisionEngineClient } from '../../decision-engine/decision-engine.client.js';
 import { openKybReviewCase } from './partner-kyb-review-case.js';
 import { PartnerVerificationService } from './partner-verification.service.js';
+import { fitToColumn, PARTNER_PROFILE_DECISION_REASON_MAX, PARTNER_PROFILE_REJECTION_REASON_MAX } from './column-fit.js';
 
 /** Los estados del caso que YA son un veredicto. El resto sigue esperando a una persona. */
 const RESUELTOS: Record<string, 'approved' | 'rejected' | 'cancelled'> = {
@@ -136,9 +137,9 @@ export class PartnerKybSyncService {
         // atribuiría la decisión a alguien de este lado que no la tomó. Quién la firmó consta en el
         // caso, que es donde ocurrió.
         decidedByInternalUserId: null,
-        rejectionReason: destino === 'rejected' ? motivo : null,
+        rejectionReason: destino === 'rejected' ? fitToColumn(motivo, PARTNER_PROFILE_REJECTION_REASON_MAX) : null,
         decisionOutcome: destino === 'approved' ? 'APROBADO' : 'RECHAZADO',
-        decisionReason: motivo ?? profile.decisionReason,
+        decisionReason: fitToColumn(motivo, PARTNER_PROFILE_DECISION_REASON_MAX) ?? profile.decisionReason,
       });
       if (!escrito) continue;
       resultado[destino] += 1;
